@@ -10,6 +10,8 @@ servers:
 tags:
   - name: system
     description: Service health and runtime info.
+  - name: finance
+    description: Association finances.
 paths:
   /system/health:
     get:
@@ -27,6 +29,61 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Health" }
+  /finance/contracts:
+    post:
+      operationId: createContract
+      tags: [finance]
+      summary: Register a contract with a counterparty
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/NewContract" }
+      responses:
+        "201":
+          description: The contract was created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Contract" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+    get:
+      operationId: listContracts
+      tags: [finance]
+      summary: List contracts, newest first, one page at a time
+      parameters:
+        - name: limit
+          in: query
+          description: Page size.
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: cursor
+          in: query
+          description: Opaque cursor from a previous page's next_cursor; omit for the first page.
+          schema: { type: string, minLength: 1 }
+      responses:
+        "200":
+          description: One page of contracts.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ContractPage" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+  /finance/contracts/{id}:
+    get:
+      operationId: getContract
+      tags: [finance]
+      summary: Get one contract
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: The contract.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Contract" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
 components:
   schemas:
     Health:
@@ -48,6 +105,48 @@ components:
         version:
           type: string
           description: Server version reported by the dependency, when it is up.
+    Currency:
+      type: string
+      enum: [UAH, EUR, USD]
+    NewContract:
+      type: object
+      additionalProperties: false
+      required: [counterparty, amount_cents, currency, signed_at]
+      properties:
+        counterparty: { type: string, minLength: 1, maxLength: 200 }
+        amount_cents:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Contract value in minor units of currency.
+        currency: { $ref: "#/components/schemas/Currency" }
+        signed_at: { type: string, format: date }
+        ends_at:
+          type: [string, "null"]
+          format: date
+          description: Last day of the contract; on or after signed_at. Null for open-ended.
+    Contract:
+      type: object
+      required: [id, counterparty, amount_cents, currency, signed_at, ends_at, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        counterparty: { type: string }
+        amount_cents: { type: integer, format: int64 }
+        currency: { $ref: "#/components/schemas/Currency" }
+        signed_at: { type: string, format: date }
+        ends_at: { type: [string, "null"], format: date }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    ContractPage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Contract" }
+        next_cursor:
+          type: [string, "null"]
+          description: Pass as cursor to get the next page; null on the last page.
     Problem:
       description: RFC 9457 problem details.
       type: object

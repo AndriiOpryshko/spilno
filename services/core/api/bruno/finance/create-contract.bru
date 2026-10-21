@@ -1,0 +1,33 @@
+meta {
+  name: Create contract
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/finance/contracts
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "counterparty": "Kyivteploenergo",
+    "amount_cents": 125000,
+    "currency": "UAH",
+    "signed_at": "2026-01-15",
+    "ends_at": "2026-12-31"
+  }
+}
+
+assert {
+  res.status: eq 201
+  res.body.id: isString
+  res.body.counterparty: eq Kyivteploenergo
+  res.body.ends_at: eq 2026-12-31
+}
+
+script:post-response {
+  // Get contract reads it.
+  bru.setVar("contractId", res.body.id);
+}

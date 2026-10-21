@@ -1,0 +1,30 @@
+meta {
+  name: List contracts
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/finance/contracts?limit=2
+  body: none
+  auth: none
+}
+
+params:query {
+  limit: 2
+  ~cursor: {{nextCursor}}
+}
+
+assert {
+  res.status: eq 200
+  res.body.items: isArray
+}
+
+script:post-response {
+  // Enable the cursor param and send again for the next page; null on the last page.
+  bru.setVar("nextCursor", res.body.next_cursor);
+}
+
+docs {
+  Newest first. limit is 1..100 (default 20). next_cursor is opaque; pass it back as cursor.
+}

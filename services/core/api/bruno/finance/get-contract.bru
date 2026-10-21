@@ -1,0 +1,20 @@
+meta {
+  name: Get contract
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/finance/contracts/{{contractId}}
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.id: eq {{contractId}}
+}
+
+docs {
+  Run Create contract first: it sets contractId. An unknown id returns 404 application/problem+json.
+}

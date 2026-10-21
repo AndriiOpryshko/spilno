@@ -14,6 +14,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
+	"github.com/AndriiOpryshko/spilno/services/core/internal/finance"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/config"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/httpapi"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/observability"
@@ -63,6 +64,7 @@ func run() error {
 	r := httpapi.NewRouter()
 	modules := []module{
 		system.New(pool),
+		finance.New(pool),
 	}
 	for _, m := range modules {
 		if err := m.Routes(r); err != nil {

@@ -7,11 +7,16 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './contract';
+export * from './contractPage';
+export * from './currency';
 export * from './dependencyHealth';
 export * from './dependencyHealthStatus';
 export * from './fieldError';
 export * from './health';
 export * from './healthStatus';
+export * from './listContractsParams';
+export * from './newContract';
 export * from './notFoundResponse';
 export * from './problem';
 export * from './unprocessableEntityResponse';

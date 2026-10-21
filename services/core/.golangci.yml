@@ -40,12 +40,19 @@ linters:
           deny:
             - pkg: github.com/AndriiOpryshko/spilno/services/core/internal/finance/
               desc: import the finance context only through its module package (internal/finance)
+        governance-private:
+          files:
+            - $all
+            - "!**/internal/governance/**"
+          deny:
+            - pkg: github.com/AndriiOpryshko/spilno/services/core/internal/governance/
+              desc: import the governance context only through its module package (internal/governance)
   exclusions:
     generated: strict
     rules:
       - path: _test\.go
         linters: [depguard]
-        text: (system|finance)-private
+        text: (system|finance|governance)-private
 
 formatters:
   enable:

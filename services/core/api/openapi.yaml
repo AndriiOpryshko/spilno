@@ -12,6 +12,8 @@ tags:
     description: Service health and runtime info.
   - name: finance
     description: Association finances.
+  - name: governance
+    description: Board meetings and their decisions.
 paths:
   /system/health:
     get:
@@ -84,8 +86,120 @@ paths:
               schema: { $ref: "#/components/schemas/Contract" }
         "404": { $ref: "#/components/responses/NotFound" }
         "422": { $ref: "#/components/responses/UnprocessableEntity" }
+  /governance/meetings:
+    post:
+      operationId: createMeeting
+      tags: [governance]
+      summary: Schedule a board meeting
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/NewMeeting" }
+      responses:
+        "201":
+          description: The meeting was created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Meeting" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+    get:
+      operationId: listMeetings
+      tags: [governance]
+      summary: List meetings, newest first, one page at a time
+      parameters:
+        - name: limit
+          in: query
+          description: Page size.
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: cursor
+          in: query
+          description: Opaque cursor from a previous page's next_cursor; omit for the first page.
+          schema: { type: string, minLength: 1 }
+      responses:
+        "200":
+          description: One page of meetings.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MeetingPage" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+  /governance/meetings/{id}:
+    get:
+      operationId: getMeeting
+      tags: [governance]
+      summary: Get one meeting
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: The meeting.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Meeting" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
 components:
   schemas:
+    MeetingKind:
+      type: string
+      enum: [REGULAR, EXTRAORDINARY]
+    NewMeeting:
+      type: object
+      additionalProperties: false
+      required: [title, held_at]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        kind:
+          $ref: "#/components/schemas/MeetingKind"
+        held_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: [string, "null"]
+          format: date-time
+        location:
+          type: [string, "null"]
+          maxLength: 200
+        quorum_required:
+          type: boolean
+          default: true
+    Meeting:
+      type: object
+      required: [id, title, kind, held_at, ends_at, location, quorum_required, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        title:
+          type: string
+        kind:
+          $ref: "#/components/schemas/MeetingKind"
+        held_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: [string, "null"]
+          format: date-time
+        location:
+          type: [string, "null"]
+        quorum_required:
+          type: boolean
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    MeetingPage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Meeting" }
+        next_cursor:
+          type: [string, "null"]
+          description: Pass as cursor to get the next page; null on the last page.
     Health:
       type: object
       required: [status, database]

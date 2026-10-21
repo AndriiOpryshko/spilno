@@ -14,7 +14,7 @@ Summary of F1 (manual) against F2 (petforge), built from `LOG.md`. Both features
 | Agent turns | 64 | 17 |
 | Cost | $14.41 | $1.93 |
 | Hook hits | - | 0 |
-| Hand-written lines in the diff (excluding generated code) | about 1,500 | about 30 (the `ends_at` rule and its tests) |
+| Lines added outside generated code | 1,239, all written by the agent | 1,061, of which 1,044 from the petforge generator and 17 written by the agent (the `ends_at` rule, its tests and the migration CHECK) |
 
 The slices have the same weight: bounded text, enum, required and optional dates or timestamps,
 an optional field, one cross-field rule, create/get/list with cursor pagination, problem+json

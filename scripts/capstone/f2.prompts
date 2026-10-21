@@ -1,6 +1,7 @@
 # F2: Meeting, built with petforge. One prompt per line; each plugin command counts as one prompt.
-# Draft: finalized once the plugin exists (commands are extracted from the F1 log).
-/petforge:slice-plan Meeting in a new context governance: title text 1..200, held_at timestamptz, location text optional up to 200, quorum_required boolean default true; endpoints create, get by id, list with cursor pagination
+# Same shape and weight as F1 (Contract): a bounded text, an enum, a required and an optional
+# timestamp, an optional text, a defaulted bool and one cross-field rule.
+/petforge:slice-plan Meeting in a new context governance (board meetings and their decisions): title text 1..200 chars; kind enum REGULAR or EXTRAORDINARY, default REGULAR; held_at timestamptz required; ends_at timestamptz optional; location text up to 200 chars, optional; quorum_required bool, default true. Rule: ends_at, when set, is after held_at.
 /petforge:slice-scaffold
 /petforge:slice-tests
 /petforge:slice-ship

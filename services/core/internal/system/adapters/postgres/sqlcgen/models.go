@@ -3,3 +3,18 @@
 //   sqlc v1.31.1
 
 package sqlcgen
+
+import (
+	"github.com/jackc/pgx/v5/pgtype"
+)
+
+type Contract struct {
+	ID           pgtype.UUID
+	Counterparty string
+	AmountCents  int64
+	Currency     string
+	SignedAt     pgtype.Date
+	EndsAt       pgtype.Date
+	CreatedAt    pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
+}

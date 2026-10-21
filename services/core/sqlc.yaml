@@ -11,3 +11,12 @@ sql:
         package: sqlcgen
         out: internal/system/adapters/postgres/sqlcgen
         sql_package: pgx/v5
+  - name: finance
+    engine: postgresql
+    schema: migrations
+    queries: internal/finance/adapters/postgres/queries
+    gen:
+      go:
+        package: sqlcgen
+        out: internal/finance/adapters/postgres/sqlcgen
+        sql_package: pgx/v5

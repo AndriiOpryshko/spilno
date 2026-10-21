@@ -44,7 +44,15 @@ run = [
 
 [tasks.test]
 description = "Go unit + integration (testcontainers) and Vitest"
-run = ["cd services/core && go test ./...", "pnpm --filter @spilno/web test"]
+run = [
+  "cd services/core && go test ./...",
+  "pnpm --filter @spilno/web test",
+  "pnpm --filter @spilno/web test:stories",
+]
+
+[tasks.storybook]
+description = "Component workshop on :6006 (stories mirror the Figma component variants)"
+run = "pnpm --filter @spilno/web storybook"
 
 [tasks.e2e]
 description = "Playwright against the running stack (core API must be up)"

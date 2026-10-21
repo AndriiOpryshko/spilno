@@ -41,6 +41,9 @@ jobs:
       - run: pnpm --filter @spilno/web lint
       - run: pnpm --filter @spilno/web typecheck
       - run: pnpm --filter @spilno/web test
+      - run: pnpm --filter @spilno/web exec playwright install --with-deps chromium
+      - name: Story tests (render, interactions, a11y in Chromium)
+        run: pnpm --filter @spilno/web test:stories
       - run: pnpm --filter @spilno/web build
 
   e2e:

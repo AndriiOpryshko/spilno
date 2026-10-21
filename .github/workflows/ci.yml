@@ -1,0 +1,87 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/core
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: services/core/go.mod
+          cache-dependency-path: |
+            services/core/go.sum
+            services/core/tools/go.sum
+      - name: Generated code is up to date
+        run: ./scripts/gen.sh && git diff --exit-code -- .
+      - name: Lint (includes bounded-context rules)
+        run: go tool -modfile=tools/go.mod golangci-lint run ./...
+      - name: Test (unit + integration on testcontainers)
+        run: go test ./...
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Generated client is up to date
+        run: pnpm --filter @spilno/web gen:api && git diff --exit-code -- apps/web/src/api/gen
+      - run: pnpm --filter @spilno/web lint
+      - run: pnpm --filter @spilno/web typecheck
+      - run: pnpm --filter @spilno/web test
+      - run: pnpm --filter @spilno/web build
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: [core, web]
+    services:
+      postgres:
+        image: postgres:18.6-alpine
+        env:
+          POSTGRES_USER: spilno
+          POSTGRES_PASSWORD: spilno
+          POSTGRES_DB: spilno
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U spilno -d spilno"
+          --health-interval 2s --health-timeout 3s --health-retries 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: services/core/go.mod
+          cache-dependency-path: services/core/go.sum
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @spilno/web exec playwright install --with-deps chromium
+      - name: Start core API
+        working-directory: services/core
+        env:
+          DATABASE_URL: postgres://spilno:spilno@localhost:5432/spilno?sslmode=disable
+        run: |
+          go build -o /tmp/api ./cmd/api
+          /tmp/api > /tmp/api.log 2>&1 &
+          for _ in $(seq 1 30); do curl -sf localhost:8080/system/health && exit 0; sleep 1; done
+          cat /tmp/api.log; exit 1
+      - run: pnpm --filter @spilno/web e2e
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report

@@ -1,0 +1,50 @@
+version: "2"
+
+linters:
+  enable:
+    - depguard
+    - sloglint
+  settings:
+    errcheck:
+      # Deferred cleanup closes; their errors carry no action.
+      exclude-functions:
+        - (io.ReadCloser).Close
+        - (*database/sql.DB).Close
+        - (*github.com/jackc/pgx/v5.Conn).Close
+    sloglint:
+      kv-only: true
+      context: scope
+    depguard:
+      rules:
+        # Domain packages are pure: standard library and value types only.
+        domain-pure:
+          list-mode: strict
+          files:
+            - "**/internal/*/domain/**"
+          allow:
+            - $gostd
+            - github.com/google/uuid
+        # One rule per bounded context: outside the context, only its root
+        # package (module.go) may be imported. Add a block when a context is added.
+        system-private:
+          files:
+            - $all
+            - "!**/internal/system/**"
+          deny:
+            - pkg: github.com/AndriiOpryshko/spilno/services/core/internal/system/
+              desc: import the system context only through its module package (internal/system)
+  exclusions:
+    generated: strict
+    rules:
+      - path: _test\.go
+        linters: [depguard]
+        text: system-private
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/AndriiOpryshko/spilno

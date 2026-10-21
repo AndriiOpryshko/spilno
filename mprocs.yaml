@@ -11,5 +11,4 @@ procs:
     cwd: apps/web
     shell: pnpm dev
   grafana:
-    shell: echo "Grafana: http://localhost:3000  (traces: Explore > Tempo, logs: Explore > Loki)"
-    autostart: true
+    shell: 'echo "Grafana: http://localhost:3000 (traces: Explore > Tempo, logs: Explore > Loki)"'

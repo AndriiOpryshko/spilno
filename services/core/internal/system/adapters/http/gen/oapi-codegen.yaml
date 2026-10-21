@@ -1,0 +1,14 @@
+# Paths are relative to services/core; run through scripts/gen.sh.
+package: gen
+output: internal/system/adapters/http/gen/system.gen.go
+generate:
+  models: true
+  chi-server: true
+  strict-server: true
+  embedded-spec: true
+output-options:
+  include-tags: [system]
+compatibility:
+  # Enum constants become <Type><Value> (HealthStatusOk) so two enums in one
+  # context never collide on a shared value.
+  always-prefix-enum-values: true

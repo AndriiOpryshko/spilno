@@ -1,0 +1,13 @@
+# One entry per bounded context. All contexts share the goose migrations as schema;
+# sqlc reads only the "-- +goose Up" sections.
+version: "2"
+sql:
+  - name: system
+    engine: postgresql
+    schema: migrations
+    queries: internal/system/adapters/postgres/queries
+    gen:
+      go:
+        package: sqlcgen
+        out: internal/system/adapters/postgres/sqlcgen
+        sql_package: pgx/v5

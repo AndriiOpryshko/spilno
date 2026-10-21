@@ -1,0 +1,80 @@
+openapi: 3.1.0
+info:
+  title: spilno core API
+  version: 0.1.0
+  description: >
+    Single contract for the core service. Every operation carries exactly one tag naming its
+    bounded context; oapi-codegen generates each context's server from its own tag.
+servers:
+  - url: http://localhost:8080
+tags:
+  - name: system
+    description: Service health and runtime info.
+paths:
+  /system/health:
+    get:
+      operationId: getHealth
+      tags: [system]
+      summary: Report service and dependency health
+      responses:
+        "200":
+          description: All dependencies are up.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Health" }
+        "503":
+          description: At least one dependency is down.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Health" }
+components:
+  schemas:
+    Health:
+      type: object
+      required: [status, database]
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        database:
+          $ref: "#/components/schemas/DependencyHealth"
+    DependencyHealth:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [up, down]
+        version:
+          type: string
+          description: Server version reported by the dependency, when it is up.
+    Problem:
+      description: RFC 9457 problem details.
+      type: object
+      required: [type, title, status]
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+        errors:
+          type: array
+          items: { $ref: "#/components/schemas/FieldError" }
+    FieldError:
+      type: object
+      required: [pointer, detail]
+      properties:
+        pointer: { type: string }
+        detail: { type: string }
+  responses:
+    NotFound:
+      description: Resource not found.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+    UnprocessableEntity:
+      description: Request failed validation.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }

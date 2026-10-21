@@ -1,0 +1,15 @@
+# Local dev in one terminal: `mise run dev`. Each process gets its own pane.
+procs:
+  infra:
+    shell: docker compose -f infra/compose.yaml up
+    stop:
+      send-keys: ["<C-c>"]
+  core:
+    cwd: services/core
+    shell: go tool -modfile=tools/go.mod air
+  web:
+    cwd: apps/web
+    shell: pnpm dev
+  grafana:
+    shell: echo "Grafana: http://localhost:3000  (traces: Explore > Tempo, logs: Explore > Loki)"
+    autostart: true

@@ -1,0 +1,63 @@
+# Toolchain and task runner. `mise install` once, then `mise run <task>`.
+# Go-based tools (oapi-codegen, sqlc, goose, air, golangci-lint) are pinned in
+# services/core/tools/go.mod and run through `go tool`, so they need no entry here.
+[tools]
+go = "1.27.3"
+node = "24"
+pnpm = "12.14.0"
+mprocs = "latest"
+
+[env]
+DATABASE_URL = "postgres://spilno:spilno@localhost:5432/spilno?sslmode=disable"
+OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:4318"
+OTEL_SERVICE_NAME = "spilno-core"
+
+[tasks.setup]
+description = "Install JS dependencies and the Playwright browser"
+run = ["pnpm install", "pnpm --filter @spilno/web exec playwright install chromium"]
+
+[tasks.dev]
+description = "Run infra, core API (hot reload) and web in mprocs panes"
+run = "mprocs"
+
+[tasks."infra:up"]
+run = "docker compose -f infra/compose.yaml up -d --wait"
+
+[tasks."infra:down"]
+run = "docker compose -f infra/compose.yaml down"
+
+[tasks.gen]
+description = "Regenerate Go server, sqlc queries and the TS client from the contract"
+run = ["services/core/scripts/gen.sh", "pnpm --filter @spilno/web gen:api"]
+
+[tasks."gen:check"]
+description = "Fail if generated code is out of date"
+depends = ["gen"]
+run = "git diff --exit-code -- services/core apps/web/src/api/gen apps/web/src/routeTree.gen.ts"
+
+[tasks.lint]
+run = [
+  "cd services/core && go tool -modfile=tools/go.mod golangci-lint run ./...",
+  "pnpm --filter @spilno/web lint",
+  "pnpm --filter @spilno/web typecheck",
+]
+
+[tasks.test]
+description = "Go unit + integration (testcontainers) and Vitest"
+run = ["cd services/core && go test ./...", "pnpm --filter @spilno/web test"]
+
+[tasks.e2e]
+description = "Playwright against the running stack (core API must be up)"
+run = "pnpm --filter @spilno/web e2e"
+
+[tasks."migrate:new"]
+description = "Create a goose migration: mise run migrate:new <name>"
+run = "cd services/core && go tool -modfile=tools/go.mod goose -dir migrations create {{arg(name='name')}} sql"
+
+[tasks."log:start"]
+description = "Start the feature timer: mise run log:start F1"
+run = "scripts/log.sh start {{arg(name='feature')}}"
+
+[tasks."log:stop"]
+description = "Stop the feature timer and print elapsed time: mise run log:stop F1"
+run = "scripts/log.sh stop {{arg(name='feature')}}"

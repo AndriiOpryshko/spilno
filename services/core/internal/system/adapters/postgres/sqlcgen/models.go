@@ -18,3 +18,15 @@ type Contract struct {
 	CreatedAt    pgtype.Timestamptz
 	UpdatedAt    pgtype.Timestamptz
 }
+
+type Meeting struct {
+	ID             pgtype.UUID
+	Title          string
+	Kind           string
+	HeldAt         pgtype.Timestamptz
+	EndsAt         pgtype.Timestamptz
+	Location       pgtype.Text
+	QuorumRequired bool
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+}

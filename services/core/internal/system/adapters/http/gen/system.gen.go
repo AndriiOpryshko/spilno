@@ -345,16 +345,17 @@ func (sh *strictHandler) GetHealth(w http.ResponseWriter, r *http.Request) {
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"vJTBjtMwEIZfZTQgcQlJYIW0CqeVQLA3BEfowbWniZdkbOxJd6Mq747spO3CFsGJU91JZub3P9/kgNoN",
-	"3jGxRGwOGHVHg8rHd+SJDbGePpLqpUsxH5ynIJaWl0XJmE/E44DNVxw9FmjcPeOmQJk8YYNRguUW5wL3",
-	"FKJ1nBIMRR2sl/wXv1DYU4D1OQTyLggZ2E4gHYE5KSngviMGK2AjjL7EJ13mAgP9GG0gkwStEs9q3PaO",
-	"tCQ1f7qVUaK2KlI6Pw+0wwafVWeXqtWi6ok/c3HBEfc9OUJtUIYMbv5Rb3FW8VR6yrG8cxd8tNz2BNqx",
-	"BKUFdi5kA7ULBJHC3moq4f2ewgTpyirlgVYhWIpAD0pLP4FjAlEtsBost2AlwtaNbMjkyvQgb8Epb19q",
-	"Z6glhpY41UollO6OL72IuSUF2AU35DLunlPl8hunwVnpsxPe9uwWjTefbvERJ1iXr8o6Ges8sfIWG7zK",
-	"oQK9ki47Xe0sK9ZUHa+donNxIV4drJnXh3GKQkPVnSBoSdLPyZZbgw1+IFmHm8YUveO4QPK6rtNPvirn",
-	"ROV9b3VOre7iQvmCyt9AOuKT5vrrPG/6/gx/GpEKlLGfC3xTX/0PBQI9qSgZivMepvVLa15mgOM4DCpM",
-	"2ODnvLlH1ECxeZzUHa0U1cZMex4CbnLjBZYUP+AYemywE/FNVfVOq75zUZrr+rrGeXMqcOk7kvoujXL7",
-	"MLLYgSAtTPpcsBoydEvnufi9xE2MTttlMVaA4qO8NYTzZv45AA==",
+	"vFRNj9w2DP0rBFugF3c87aLAwj1t0SDZW5AcN3PQSBxbG5tSKHp2BwP/90DyfCU7i+SUk2VKJJ8e39Me",
+	"bRhiYGJN2Owx2Y4GU5b/UyR2xHb3jkyvXY5FCZFEPc2H1ehYVsTjgM0DjhErdOGJcVWh7iJhg0nFc4tT",
+	"hVuS5APnBEfJio9afvEjyZYEDvsgFIMoOVjvQDsCd0JSwVNHDF7BJxjjAl90mSoU+jJ6IZcBHSCe0YT1",
+	"I1nNaF67lTNq1iZRXv8utMEGf6vPLNUHiuoX/EzVFUbC58wItWIcOVz9JN7qjOIl9JzjeROu8Oi57Qls",
+	"YBVjFTZBCoE2CEEi2XpLC3izJdlBvrLJeWCNiKcE9Gys9jsITKCmBTaD5xa8JliHkR25Upme9V8IJvo/",
+	"bXDUEkNLnGvlEsZ2x0N/pNKSBDYShlImPHGuvPjEeXBe+8JE9D2HGePd+3u80AkuF38tlpnYEIlN9Njg",
+	"TQlVGI12hel649mwpfp47Rydqivxeu/ddNhsw5Zk3h+I1HObXt+5TEy7pDTU3Uk9LWn+nPi8d9jgW9KD",
+	"KvJ8UwycZnX9vVzmT+GIS6KJsfe2pNaPabbHrLEfKfCouyyIb4Vw1/dn1+TZGqHil6nCf5Y3vwKBQk8m",
+	"aVHT2cDZt/l9WBTlp3EYjOywwQ/F8keNgmF3mdQdqVSTx/SA8xBwVRrPKsvxPY7SY4Odamzqug/W9F1I",
+	"2twub5c4rU4Frj1Aue/cqLSXkdUPBNlp+Z1hMxS1zp2n6vsSdykF62dHHZSXLvIOoSuJ/wUjDo5SK721",
+	"Iy/gyPrsg8syZ3HitJq+DgA=",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

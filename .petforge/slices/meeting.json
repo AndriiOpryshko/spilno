@@ -1,0 +1,18 @@
+{
+  "context": "governance",
+  "contextDescription": "Board meetings and their decisions.",
+  "entity": "Meeting",
+  "plural": "meetings",
+  "summary": "Schedule a board meeting",
+  "fields": [
+    { "name": "title", "type": "text", "min": 1, "max": 200 },
+    { "name": "kind", "type": "enum", "values": ["REGULAR", "EXTRAORDINARY"], "default": "REGULAR" },
+    { "name": "held_at", "type": "timestamptz" },
+    { "name": "ends_at", "type": "timestamptz", "nullable": true },
+    { "name": "location", "type": "text", "max": 200, "nullable": true },
+    { "name": "quorum_required", "type": "bool", "default": true }
+  ],
+  "rules": [
+    "ends_at, when set, is after held_at"
+  ]
+}

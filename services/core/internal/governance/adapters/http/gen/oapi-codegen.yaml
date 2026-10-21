@@ -1,0 +1,14 @@
+# Paths are relative to services/core; run through scripts/gen.sh.
+package: gen
+output: internal/governance/adapters/http/gen/governance.gen.go
+generate:
+  models: true
+  chi-server: true
+  strict-server: true
+  embedded-spec: true
+output-options:
+  include-tags: [governance]
+compatibility:
+  # Enum constants become <Type><Value> so two enums in one context never
+  # collide on a shared value.
+  always-prefix-enum-values: true

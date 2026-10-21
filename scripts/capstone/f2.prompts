@@ -1,0 +1,6 @@
+# F2: Meeting, built with petforge. One prompt per line; each plugin command counts as one prompt.
+# Draft: finalized once the plugin exists (commands are extracted from the F1 log).
+/petforge:slice-plan Meeting in a new context governance: title text 1..200, held_at timestamptz, location text optional up to 200, quorum_required boolean default true; endpoints create, get by id, list with cursor pagination
+/petforge:slice-scaffold
+/petforge:slice-tests
+/petforge:slice-ship

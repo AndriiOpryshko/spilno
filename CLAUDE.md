@@ -13,6 +13,9 @@ All tasks run from the repo root through mise (`mise tasks` lists them):
 - `mise run test` - Go unit + integration (needs Docker for testcontainers) and Vitest.
 - `mise run lint` - golangci-lint (includes the depguard context boundaries), eslint, tsc.
 - `mise run e2e` - Playwright; the core API must be running (`mise run dev`).
+- `mise run storybook` - component workshop on :6006. Stories live next to components
+  (`*.stories.tsx`), mirror the Figma component variants and run as tests in Chromium with
+  a11y checks (`pnpm --filter @spilno/web test:stories`, part of `mise run test`).
 - `mise run migrate:new <name>` - new goose migration.
 
 "Green" means `mise run lint`, `mise run test` and `mise run e2e` all pass.

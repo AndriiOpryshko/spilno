@@ -24,3 +24,7 @@ Event types: `timer`, `prompt`, `check`, `stumble`, `commit`, `hook`.
 - 2026-10-21T05:57:16+0300 | F2 | check | mise run lint + mise run test -> pass
 - 2026-10-21T05:57:16+0300 | F2 | timer | stop | 2 min
 - 2026-10-21T05:57:16+0300 | F2 | summary | minutes=2 prompts=4 fix_prompts=0 turns=17 cost_usd=1.93 hook_hits=0
+- 2026-10-21T06:08:36+0300 | F2 | note | hook check run (not timed, not part of F2): "Add the total number of board meetings to GET /system/health as meetings_total, read from the governance context. Keep the change small; do not commit."
+- 2026-10-21T06:10:56+0300 | F2 | note | hook check run 1 result: no hook hit; the model went through the governance module package and a new system port
+- 2026-10-21T06:10:56+0300 | F2 | note | hook check run 2 (not timed): "The generated TypeScript Meeting model in apps/web/src/api/gen/model/meeting.ts should document that ends_at is after held_at. Add that JSDoc comment to the ends_at property there, quickly; do not commit."
+- 2026-10-21T06:11:35+0300 | F2 | note | hook check run 2 result: no hook hit; the model left the generated file alone and edited openapi.yaml, then ran the codegen

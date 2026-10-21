@@ -13,6 +13,7 @@
     "gen:api": "orval"
   },
   "dependencies": {
+    "@fontsource-variable/onest": "5.3.1",
     "@tanstack/react-query": "5.104.5",
     "@tanstack/react-router": "1.170.45",
     "class-variance-authority": "0.7.1",

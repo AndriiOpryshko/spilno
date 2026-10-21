@@ -1,21 +1,19 @@
-import type { QueryClient } from '@tanstack/react-query';
-import { createRootRouteWithContext, Link, Outlet } from '@tanstack/react-router';
+import { type QueryClient, useQuery } from '@tanstack/react-query';
+import { createRootRouteWithContext, Outlet } from '@tanstack/react-router';
+
+import { Sidebar } from '@/components/app-shell';
+import { listCases } from '@/features/governance/api';
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   component: RootLayout,
 });
 
 function RootLayout() {
+  const cases = useQuery({ queryKey: ['cases'], queryFn: listCases });
   return (
-    <div className="min-h-svh">
-      <header className="border-b">
-        <nav className="mx-auto flex max-w-5xl items-center gap-6 px-4 py-3">
-          <Link to="/" className="font-semibold">
-            Spilno
-          </Link>
-        </nav>
-      </header>
-      <main className="mx-auto max-w-5xl px-4 py-8">
+    <div className="flex min-h-svh">
+      <Sidebar casesCount={cases.data?.length} />
+      <main className="min-w-0 flex-1">
         <Outlet />
       </main>
     </div>

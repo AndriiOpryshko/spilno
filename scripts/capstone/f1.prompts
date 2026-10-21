@@ -1,0 +1,8 @@
+# F1: Contract, built by hand (no plugin). One prompt per line, sent in order to one session.
+Add a new bounded context `finance` following the layout rules in CLAUDE.md, using the `system` context as the example: its OpenAPI tag, the oapi-codegen config, an sqlc.yaml entry, the depguard `finance-private` rule and registration in cmd/api/main.go. No endpoints yet.
+Add a goose migration (mise run migrate:new) for table `contracts`: id uuid primary key default gen_random_uuid(), counterparty text not null (1..200 chars), amount_cents bigint not null > 0, currency text not null in (UAH, EUR, USD), signed_at date not null, ends_at date null and >= signed_at, created_at and updated_at timestamptz with the set_updated_at trigger.
+Describe the Contract API in services/core/api/openapi.yaml under tag finance: POST /finance/contracts (201, 422 problem+json), GET /finance/contracts/{id} (200, 404 problem+json), GET /finance/contracts with limit (1..100, default 20) and an opaque cursor, returning items and next_cursor. Then run mise run gen.
+Implement the Contract slice in the finance context: domain type with its invariants, app use cases (create, get, list), the repository port, sqlc queries and the postgres adapter, and the HTTP handler implementing the generated strict interface. Wire it in finance/module.go.
+Write tests: domain unit tests for the invariants, and integration tests through the router with testdb covering create 201, create 422 (amount 0, unknown currency, missing counterparty, ends_at before signed_at), get 404, and list pagination with next_cursor.
+Add Bruno requests for the three contract endpoints under services/core/api/bruno/finance.
+Run mise run lint and mise run test and fix anything that fails.

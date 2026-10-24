@@ -1,8 +1,8 @@
 ---
-status: Draft
+status: Approved
 skill: ao-prd
 owner: "Andrii Opryshko"
-reviewers: ["Board chair (document owner)", "Tech Lead"]
+reviewers: ["Andrii Opryshko"]
 updated_at: "2026-10-24"
 feature_size: "L"
 stage: "03"
@@ -34,6 +34,7 @@ Traceability:
 - Deviation from the brief: the помічник протоколу (conversation drafting) is in Stage 1, not later (user decision 2026-10-24).
 - Decision override: repository paths and module names in §1 ¶4 (critic F6) — rationale: the ao-prd template requires §1 ¶4 to list the reference paths and ADRs read, for traceability.
 - Deviation from the brief: uploading the signed scan means the protocol is adopted as frozen; there is no separate per-item result entry, and the scan's number and date are checked only with a warning — user decision 2026-10-24: «якщо вже дока зі сканом завантажена — ну значить прийняли … чекнути, щоб дати та номера протоколів сходилися».
+- Clarification (clarify-prd, 2026-10-24): the first release only records who voted and what the meeting decided; missing charter rules or missing meeting votes warn instead of block, every blocking check except unconfirmed numbers and text-slot mismatch can be overridden with a reason (§10), and the general-meeting reservation check moves to Stage 2 — user: «мені треба просто на цьому етапі зафіксувати хто проголосував».
 - Brief §17 said only `system` existed on the server; `governance` (meetings) and `finance` (contracts) now exist and are reused.
 
 ## 2. Goals
@@ -64,7 +65,7 @@ Traceability:
 
 ### US-02: Draft a protocol through the assistant  _(Stage 1)_
 **As a** член правління
-**I want** to open a справа, attach the кошторис робіт and ask the помічник протоколу for a draft, adding what the decision is for
+**I want** to open a справа, add documents to it by hand or in the conversation (a newer document is simply added, not marked as replacing an older one), and ask the помічник протоколу for a draft, adding what the decision is for
 **So that** I start from a filled draft instead of an old text
 
 ### US-03: Confirm every number against its source  _(Stage 1)_
@@ -160,14 +161,14 @@ Traceability:
 **Then** the per-building amounts 107 010 грн and 77 490 грн are computed from the confirmed amount and the shares, show the inter-building decision as their source, and cannot be typed over
 
 ### AC-08 (US-03) — traceability
-**Given** a draft whose members, головуючий, protocol number and date are filled
+**Given** a draft whose members, головуючий and meeting date are filled
 **When** the член правління opens the draft
-**Then** members show the election protocol, the number shows the association's protocol register, and a головуючий who is not the board chair shows the service note in the справа as the source
+**Then** members show the election protocol as of the meeting date, the draft has no protocol number yet, and a головуючий who is not the board chair shows the service note in the справа as the source
 
 ### AC-09 (US-03) — domain invariant
-**Given** a draft with a slot whose value has no source document in the справа and no person's confirmation
+**Given** a draft with a decision slot (amount, counterparty or джерело коштів) that lacks either a document of the справа or a person's confirmation
 **When** the член правління tries to mark it готовий до підпису
-**Then** the system blocks, names the slot and says the value has no confirmed source; an обхід блокування does not lift this check, only a source or a person's confirmation does
+**Then** the system blocks, names the slot and says the value has no confirmed source; an обхід блокування does not lift this check, only a document plus a person's confirmation does (slot sources by type: §10)
 
 ### AC-10 (US-03) — cross-context
 **Given** the association's financial records hold a maintenance contract in force and a repair-fund contract that ended on 2026-06-30
@@ -202,12 +203,17 @@ Traceability:
 ### AC-15 (US-05) — happy path
 **Given** a draft in state готовий до голосування, version 2
 **When** each of three members casts "за" for agenda item 1 and the fourth records неучасть у голосуванні with the reason "особиста заінтересованість"
-**Then** the system shows 3 "за" of 3 voting, кворум reached per the rule in force, preliminary majority reached, each vote with its member and time, all tied to version 2
+**Then** the system shows 3 "за" of 3 voting and the preliminary majority as reached, each vote with its member and time, all tied to version 2; this result is advisory and only pre-fills the meeting vote count (AC-15b)
 
 ### AC-15b (US-05) — traceability
 **Given** a draft for a meeting where 4 members were present
 **When** the член правління records the meeting's vote count for agenda item 1 as 3 "за", 1 "утримався"
 **Then** the slot shows the count with the member who entered it and when, is pre-filled from the попереднє голосування when there was one, and marks every place where the entered count differs from the preliminary votes
+
+### AC-15c (US-05) — happy path
+**Given** a draft in state готовий до голосування or чернетка with no attendance or no meeting vote count recorded for agenda item 1
+**When** a член правління marks it готовий до підпису
+**Then** the draft becomes готовий до підпису with a попередження that кворум and majority for item 1 could not be checked, and the printed copy leaves the attendance and vote count blank to fill in by hand at the meeting
 
 ### AC-16 (US-05) — authorization
 **Given** a член правління voting on a draft in state готовий до голосування
@@ -216,7 +222,7 @@ Traceability:
 
 ### AC-17 (US-05) — happy path
 **Given** a draft in state готовий до голосування, version 2, with two preliminary votes
-**When** a член правління edits the wording
+**When** a член правління edits the wording, the agenda or a decision slot
 **Then** the draft returns to state чернетка, the two votes stay recorded against version 2, and the next vote starts on version 3 with no votes
 
 ### AC-18 (US-05) — domain invariant
@@ -237,7 +243,7 @@ Traceability:
 ### AC-19c (US-06) — domain invariant
 **Given** a правило статуту requiring 3 votes "за" to adopt a decision, and agenda item 1 with a recorded meeting vote count of 2 "за", 2 "проти"
 **When** the член правління tries to mark the draft готовий до підпису with item 1 worded as adopted
-**Then** the system blocks, names the majority rule, and allows item 1 only to be worded as not adopted or removed from the agenda
+**Then** the system blocks, names the majority rule, and lifts the block only when item 1 is worded as not adopted, removed from the agenda, or an обхід блокування is recorded with a reason
 
 ### AC-20 (US-06) — legal competence
 **Given** a правило статуту setting the board's competence limit at 100 000 грн in force on the meeting date
@@ -250,14 +256,14 @@ Traceability:
 **Then** the system blocks and names the rule on allowed meeting forms
 
 ### AC-21b (US-06) — legal competence
-**Given** no правило статуту on allowed meeting forms, кворум or the competence limit is recorded for the meeting date
+**Given** no правило статуту on allowed meeting forms, кворум, majority, the competence limit or whether a non-voting member counts toward an item's кворум is recorded for the meeting date
 **When** the член правління marks a draft готовий до підпису
 **Then** the draft becomes готовий до підпису with a попередження naming each missing rule and saying that check could not be made, which does not stop printing
 
-### AC-22 (US-06) — legal competence
-**Given** a draft whose agenda item allots part of the common premises to the association, a decision the charter reserves for the general meeting
+### AC-22 (US-10) — legal competence  _(Stage 2: needs typed agenda items)_
+**Given** a draft whose agenda item, of a type the charter reserves for the general meeting, allots part of the common premises to the association, a decision the charter reserves for the general meeting
 **When** the член правління tries to mark it готовий до підпису
-**Then** the system blocks and names the charter rule that reserves the decision for the general meeting
+**Then** the system blocks and names the charter rule that reserves the decision for the general meeting; an обхід блокування with a reason lifts it
 
 ### AC-23 (US-06) — happy path
 **Given** a draft in state готовий до голосування with a blocking competence-limit check
@@ -272,7 +278,7 @@ Traceability:
 ### AC-25 (US-06) — happy path
 **Given** a draft in state чернетка with every blocking check resolved and no preliminary votes
 **When** a член правління marks it готовий до підпису
-**Then** the draft is in state готовий до підпису and shows the попередження "попереднього голосування в системі не було", which does not stop printing
+**Then** the draft is in state готовий до підпису, takes the next free number of the association's protocol register (one sequence, no duplicates) printed on the copy, and shows the попередження "попереднього голосування в системі не було", which does not stop printing
 
 ### AC-25b (US-06) — happy path
 **Given** a draft in state готовий до голосування where the preliminary vote has 2 "за" of 4
@@ -281,8 +287,8 @@ Traceability:
 
 ### AC-26 (US-06) — happy path
 **Given** a draft in state готовий до підпису
-**When** a член правління edits any slot or the wording
-**Then** the draft returns to state чернетка and every check runs again
+**When** a член правління edits the wording, the agenda or a decision slot (amount, counterparty, джерело коштів)
+**Then** the draft returns to state чернетка, its protocol number is released, and every check runs again; recording meeting facts (attendance, неучасть у голосуванні, meeting vote count, meeting form, головуючий), confirming a value without changing it, or recording an обхід блокування does not return it to чернетка — the checks just rerun
 
 ### AC-27 (US-06) — traceability
 **Given** a draft whose головуючий is a member other than the board chair and the справа holds no service note for that meeting
@@ -292,12 +298,12 @@ Traceability:
 ### AC-28 (US-07) — happy path
 **Given** a protocol in state готовий до підпису, printed and signed on paper
 **When** a член правління uploads the signed scan
-**Then** the protocol is in state підписаний, its decisions count as adopted exactly as worded in the frozen text, it appears in the реєстр протоколів with the scan, its справа, votes and overrides, and its number is taken in the protocol register
+**Then** the protocol is in state підписаний, its decisions count as adopted exactly as worded in the frozen text, it appears in the реєстр протоколів with the scan, its справа, votes and overrides, and keeps the number it took when marked готовий до підпису
 
 ### AC-28b (US-07) — traceability
 **Given** a protocol No 14 dated 2026-10-20 in state готовий до підпису
 **When** a член правління uploads a signed scan on which the number reads 15 or the date reads 2026-10-21
-**Then** the protocol becomes підписаний and shows a попередження naming the number or date read from the scan next to the protocol's own, which does not stop the upload
+**Then** the protocol becomes підписаний and shows a попередження naming the number or date the помічник read from the scan next to the protocol's own, which does not stop the upload; when the помічник cannot read them, the попередження says the scan was not checked
 
 ### AC-29 (US-07) — error
 **Given** a protocol in state готовий до підпису
@@ -455,11 +461,13 @@ Traceability:
 - [ ] Where is the wording edited by hand (the author proposes a shared online document editor such as Google Docs), and how are numbers in that text checked against slots? Default now: numbers live only in slots and are re-checked before each state change (AC-12). — owner: Tech Lead, due: before /sdlc:architecture-design
 - [ ] Do the financial records hold each contract's джерело коштів? Default now: a fund line is added to contracts and filled for contracts in force (§9). — owner: Tech Lead, due: before /sdlc:architecture-design
 - [ ] Time the next 2-3 protocols to replace the estimated KPI baselines (1-3 h per protocol, weeks of lag). Default now: author's estimate from the brief. — owner: Andrii Opryshko, due: before Stage 1 release
+- [ ] Is a джерело коштів stored as a contract with the management company (its fund taken from the contract) or as a fund line checked against contracts separately? Default now: a contract in force, as in AC-10 and §9. — owner: Tech Lead, due: before /sdlc:architecture-design
+- [ ] How does the помічник read the protocol number and date from a signed scan (AC-28b), and how reliable must it be? Default now: best effort; unreadable means a попередження "не перевірено". — owner: Tech Lead, due: before /sdlc:architecture-design
 - [ ] Confirm Reach: 13 associations at about 20 protocols each. — owner: Andrii Opryshko, due: before roadmap scoring
 
 ## 9. Migration plan
 
-- **New records:** правила статуту with effective dates; board terms with their election protocols; частки будинку with the inter-building decision; справи with source documents; protocols with wording versions, слоти рішення and their sources, preliminary votes, overrides and signed copies. Each protocol links to exactly one meeting already stored by `governance`; a decision's джерело коштів links to a contract stored by `finance`.
+- **New records:** правила статуту with effective dates; board terms with their election protocols; частки будинку with the inter-building decision; справи with source documents; protocols with wording versions, слоти рішення and their sources, preliminary votes, overrides and signed copies. Each protocol links to exactly one meeting already stored by `governance`, and a meeting has at most one protocol; each agenda item of the protocol has its own справа; a decision's джерело коштів links to a contract stored by `finance`.
 - **Existing meetings (`governance`):** untouched. A meeting may have no protocol; a protocol is created for an existing meeting or together with a new one. The meeting's quorum-required flag stays; the quorum value comes from the правило статуту in force on the meeting date. No backfill. The meeting form (in person, absentee, mixed) is a slot of the protocol, not a field of the meeting, so existing meetings get nothing filled in.
 - **Existing contracts (`finance`):** read as the list of джерела коштів. If they lack a fund line (§8), it is added and filled by a член правління for contracts in force before the first protocol; ended contracts stay empty.
 - **Association scope:** existing meetings and contracts are assigned to the first association, confirmed by a член правління (§8).
@@ -480,11 +488,30 @@ Traceability:
 | співвласник | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
 | управляюча компанія | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
 
-Scope is one association; rights come from a board term in force on the date of the action.
+Scope is one association. Rights to act come from a board term in force on the date of the action; who may cast a preliminary vote, who counts as present and the кворум are taken from the board on the meeting date.
+
+### Slot sources
+
+| Slot | Counts as sourced when |
+|---|---|
+| amount, counterparty, джерело коштів | a document of the справа **and** a person's confirmation (an override never replaces this) |
+| members, protocol number, частки будинку | the reference record (election protocol, protocol register, inter-building decision); no confirmation needed |
+| attendance, неучасть у голосуванні, meeting vote count, meeting form, головуючий | a член правління's entry, recorded with who and when |
+
+### Which blocking checks an обхід блокування lifts
+
+| Check | Override with a reason |
+|---|---|
+| кворум, кворум пункту, majority (AC-19, AC-19b, AC-19c) | yes |
+| competence limit (AC-20) | yes |
+| meeting form not allowed (AC-21) | yes |
+| reserved for the general meeting (AC-22, Stage 2) | yes |
+| decision number unconfirmed or without a document (AC-06, AC-09, AC-14) | no |
+| text differs from a slot (AC-12) | no |
 
 ### States
 
-- **чернетка** — the draft is edited in the conversation or by hand; checks run on every change.
+- **чернетка** — the draft is edited in the conversation or by hand; checks run on every change; no protocol number yet.
 - **готовий до голосування** — wording frozen as a numbered version; members cast попереднє голосування.
 - **готовий до підпису** — text frozen for printing; every number confirmed with a source, every other блокуюча перевірка resolved or overridden.
 - **підписаний** — the signed copy is uploaded; the protocol is locked in the реєстр протоколів.
@@ -496,10 +523,10 @@ Scope is one association; rights come from a board term in force on the date of 
 |---|---|---|---|
 | (none) → чернетка | член правління | справа has at least one source document; meeting exists | AC-03 |
 | чернетка → готовий до голосування | член правління | no unconfirmed amount, text matches slots | AC-13 |
-| готовий до голосування → чернетка | член правління | any edit; votes stay with the old version | AC-17 |
+| готовий до голосування → чернетка | член правління | edit of wording, agenda or a decision slot; votes stay with the old version | AC-17 |
 | чернетка → готовий до підпису | член правління | every number confirmed with a source; other blocking checks resolved or overridden; warns without preliminary votes | AC-25 |
 | готовий до голосування → готовий до підпису | член правління | every number confirmed with a source; other blocking checks resolved or overridden; warns without preliminary majority | AC-23, AC-25b |
-| готовий до підпису → чернетка | член правління | any edit; checks rerun | AC-26 |
+| готовий до підпису → чернетка | член правління | edit of wording, agenda or a decision slot; number released; checks rerun | AC-26 |
 | готовий до підпису → підписаний | член правління | signed copy uploaded; decisions adopted as frozen; number and date on the scan checked with a warning | AC-28, AC-28b |
 | чернетка / готовий до голосування / готовий до підпису → знятий з розгляду | член правління | reason given | AC-34, AC-34b, AC-34c |
 

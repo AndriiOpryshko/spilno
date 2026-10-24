@@ -1,8 +1,8 @@
 ---
-status: Draft
+status: Approved
 owner: "Andrii Opryshko"
 reviewers: ["Andrii Opryshko"]
-updated_at: "2026-10-24"
+updated_at: "2026-10-25"
 feature_size: L
 stage: "04-05"
 ticket: ""
@@ -42,7 +42,9 @@ Responsiveness, durability and availability targets from PRD §6 are kept as add
 | PM (Andrii Opryshko) | Consulted on §10 quality goals and §11 risk severities | No |
 | Architect / Tech Lead (Andrii Opryshko) | SAD and ADR approval | Yes |
 
-<!-- Decision overrides (¶4) — populated by the Step-7 critic resolution loop, empty otherwise. -->
+**Decision overrides.**
+
+- Decision override: no database backup in the first release — PRD §6 "Durability of the registry" (data loss ≤ 24 h (RPO); restore verified quarterly) is not met — rationale: production is still far off; the first release is a pilot in which the signed paper protocols and the files in the association's Google Drive remain the primary record; a database backup is added before the registry becomes the sole source (§7, §10 QG-7, §11).
 
 ## 2. Constraints
 
@@ -77,7 +79,7 @@ Responsiveness, durability and availability targets from PRD §6 are kept as add
 
 ## 3. Context and scope
 
-spilno is the association's own management app; board-protocol adds the board's protocol workflow to it. The current члени правління prepare, check and lock board protocols and search the реєстр протоколів; the головуючий of a meeting drafts its protocol, in Stage 2 through a conversation that proposes slot values read from the case documents. The trust boundary is the spilno system: everything outside it — the identity provider, the text-generation service, the backup storage, and every uploaded document — is untrusted input that the system checks before use; nothing a document or the text-generation service says becomes a fact in a protocol until a person confirms it (PRD §6.1, AC-21, AC-28).
+spilno is the association's own management app; board-protocol adds the board's protocol workflow to it. The current члени правління prepare, check and lock board protocols and search the реєстр протоколів; the головуючий of a meeting drafts its protocol, in Stage 2 through a conversation that proposes slot values read from the case documents. The trust boundary is the spilno system: everything outside it — the identity provider, the text-generation service, the association's Google Drive, and every uploaded document — is untrusted input that the system checks before use; nothing a document or the text-generation service says becomes a fact in a protocol until a person confirms it (PRD §6.1, AC-21, AC-28).
 
 **External systems (in / out):**
 
@@ -87,9 +89,9 @@ spilno is the association's own management app; board-protocol adds the board's 
 | член правління | Person | Casts their own попереднє голосування, records обхід блокування, uploads the signed scan, maintains the roster and правила статуту, searches the реєстр протоколів, exports a locked protocol |
 | ревізійна комісія | Person (outside the system) | Receives the export package of a locked protocol from a член правління; never signs in (PRD §3) |
 | управляюча компанія | Organisation (outside the system) | Issues the кошторис робіт, invoices and акт виконаних робіт that a член правління uploads into a справа; no integration |
-| Identity provider | System (external) | Authenticates a person at sign-in; spilno decides on its own whether that person is a current член правління (choice of provider in §4) |
-| Text-generation service | System (external) | Receives case documents, signed scans and conversation requests; returns proposed slot values with quoted fragments, the protocol number and date read from a scan, and connecting text — proposals only (choice of service and data terms in §4) |
-| Off-site backup storage | System (external) | Receives the daily backup of the registry and its files (PRD §6 RPO ≤ 24 h) |
+| Identity provider (Google OIDC) | System (external) | Authenticates a person at sign-in; spilno decides on its own whether that person is a current член правління (ADR-0003) |
+| Text-generation service (Gemini API) | System (external) | Receives case documents, signed scans and conversation requests; returns proposed slot values with quoted fragments, the protocol number and date read from a scan, and connecting text — proposals only (ADR-0004) |
+| Google Drive and Docs (association account) | System (external) | Holds every file — case documents, signed scans, copies for signing, export packages — in a folder shared with nobody; renders copies for signing from layout templates; spilno keeps only metadata (ADR-0005, ADR-0013) |
 | finance context (spilno) | System (internal) | Already holds contracts; gains each contract's джерело коштів and the decision that approved it, read for related-contract попередження (AC-25, PRD §8) |
 
 <!-- brownfield: existing monolith — governance (meetings) and finance (contracts) contexts exist; no sign-in, file storage, jobs or AI integration yet (Step-3 explorer scan, 2026-10-24). -->
@@ -107,9 +109,9 @@ C4Context
 
     System(spilno, "spilno", "Association management app: cases, protocol drafts, checks, реєстр протоколів")
 
-    System_Ext(idp, "Identity provider", "Authenticates people at sign-in")
-    System_Ext(llm, "Text-generation service", "Reads documents and scans, proposes slot values and text")
-    System_Ext(backup, "Off-site backup storage", "Keeps daily backups")
+    System_Ext(idp, "Identity provider", "Google OIDC; authenticates people at sign-in")
+    System_Ext(llm, "Text-generation service", "Gemini API; reads documents and scans, proposes slot values and text")
+    System_Ext(drive, "Google Drive and Docs", "Association account; holds every file, renders copies for signing")
 
     Rel(chair, spilno, "Drafts protocols, converses, confirms slots", "HTTPS")
     Rel(member, spilno, "Votes, locks, overrides, searches, exports", "HTTPS")
@@ -117,7 +119,7 @@ C4Context
     Rel(mc, member, "Sends estimates, invoices, acts", "email or paper")
     Rel(spilno, idp, "Delegates sign-in", "HTTPS")
     Rel(spilno, llm, "Sends documents and requests, receives proposals", "HTTPS")
-    Rel(spilno, backup, "Ships daily backups", "HTTPS")
+    Rel(spilno, drive, "Stores, reads and renders files", "Drive and Docs API/HTTPS")
 ```
 
 ## 4. Solution strategy
@@ -126,7 +128,7 @@ C4Context
 
 - **backend-service** — the existing core API (`services/core/cmd/api`) owns the OpenAPI contract, all writes and every authorization decision.
 - **web-frontend** — the existing SPA (`apps/web`) consumes the contract through orval-generated hooks; it authors no contract.
-- **worker** — a separate process (`services/core/cmd/worker`, same Go module and contexts) that runs the slow and scheduled work: reading case documents and signed scans with the text-generation service, building conversation proposals, copying files in Google Drive, the nightly integrity check of locked protocols and the nightly backup. It has no request/response surface; it consumes jobs (ADR-0006).
+- **worker** — a separate process (`services/core/cmd/worker`, same Go module and contexts) that runs the slow and scheduled work: reading case documents and signed scans with the text-generation service, building conversation proposals, copying files in Google Drive and the nightly integrity check of locked protocols. It has no request/response surface; it consumes jobs (ADR-0006).
 
 **UI-architecture (web-frontend) — inline, no ADR (gate 1 of 3).** Client-side SPA as fixed by repo ADR 0001: TanStack Router pages under `src/routes/`, feature components under `src/features/governance/` and new `src/features/cases/`, grown from the existing protocol-draft prototype (slot origin and status, advisory vs blocking notices, readiness gate before printing) and replacing its in-memory `api.ts` with the generated hooks. The UI reuses the shadcn primitives in `src/components/ui` (badge, button, card, input, kbd, skeleton, textarea; new ones added through shadcn, not hand-rolled) and the Tailwind v4 tokens; no second styling system. Results that take seconds — a proposal from the помічник протоколу, the number and date read from a signed scan — and other members' попереднє голосування reach the browser by **polling**: a long action answers at once with the job or resource it started, and TanStack Query re-fetches its status about every 2 s while it is pending and stops when it settles. No server push in the first release.
 
@@ -209,14 +211,13 @@ C4Container
     Container_Boundary(spilno, "spilno") {
         Container(spa, "Web SPA", "React 19, TanStack Router and Query, shadcn", "Board UI; consumes the core API contract")
         Container(api, "Core API", "Go 1.27, chi, oapi-codegen", "Owns the OpenAPI contract and every authorization decision; contexts governance, cases, assistant, identity, finance")
-        Container(worker, "Worker", "Go 1.27, River", "Reads documents and scans, builds proposals, copies files, nightly integrity check and backup")
+        Container(worker, "Worker", "Go 1.27, River", "Reads documents and scans, builds proposals, copies and renders files, nightly integrity check")
         ContainerDb(db, "Postgres 18", "pgx/v5, sqlc", "Records, file metadata, sessions, job queue, locked snapshots")
     }
 
     System_Ext(idp, "Identity provider", "Google OIDC")
     System_Ext(drive, "Google Drive", "Association-owned folder holding every file")
     System_Ext(gemini, "Gemini API", "Paid tier; reads documents, proposes slots and text")
-    System_Ext(backup, "Off-site backup storage", "Daily database backups")
 
     Rel(chair, spa, "Uses", "HTTPS")
     Rel(member, spa, "Uses", "HTTPS")
@@ -227,7 +228,6 @@ C4Container
     Rel(worker, db, "Takes jobs, writes results", "SQL")
     Rel(worker, drive, "Reads and copies files, checks sha256", "Drive API/HTTPS")
     Rel(worker, gemini, "Sends documents and requests", "HTTPS")
-    Rel(worker, backup, "Ships nightly dumps", "HTTPS")
 ```
 
 ## 6. Runtime view
@@ -415,7 +415,7 @@ ADR files live under `docs/features/board-protocol/adr/NNNN-<title>.md`.
 
 ## 10. Quality requirements
 
-The three goals of §1 first, then the remaining PRD §6 targets. Numbers are quoted from PRD §6 verbatim.
+The three goals of §1 first, then the remaining PRD §6 targets. Targets are quoted from PRD §6 verbatim; any other number under "How verify" is a test parameter, not a target, and plan-tests may change it.
 
 **QG-1. Integrity of locked protocols**
 - **When:** anyone tries to change a locked protocol — through the API, by a direct SQL UPDATE or DELETE on `governance.locked_protocols`, or by editing or deleting a pinned file in the association's Google Drive.
@@ -435,12 +435,12 @@ The three goals of §1 first, then the remaining PRD §6 targets. Numbers are qu
 **QG-4. Responsiveness of reads**
 - **When:** a член правління opens a draft or a registry decision, or searches the registry.
 - **Then:** "≤ 1 s with ≤ 500 locked protocols" at p95, for both open and search (PRD §6).
-- **How verify:** integration benchmark on testcontainers Postgres seeded with 500 locked protocols, asserting p95 over 200 requests per operation stays under 1 s; in production the "request-duration metric in the service telemetry" (`http.server.request.duration` per route).
+- **How verify:** integration benchmark on testcontainers Postgres seeded with 500 locked protocols, asserting p95 over 200 requests per operation (test parameter, not a target) stays under 1 s; in production the "request-duration metric in the service telemetry" (`http.server.request.duration` per route).
 
 **QG-5. Signed-copy upload**
 - **When:** a член правління uploads a signed scan.
 - **Then:** "scans up to 50 MB accepted; p95 ≤ 20 s including reading the protocol number and date" (PRD §6); larger files are refused.
-- **How verify:** integration test uploading a 50 MB scan (accepted) and a 51 MB one (refused, counted); in production the "upload-duration metric; rejected-size count" (`governance.scan_upload.duration`, `governance.scan_upload.rejected_size`).
+- **How verify:** integration test uploading a 50 MB scan (accepted) and a 51 MB one (test parameter, not a target; refused, counted); in production the "upload-duration metric; rejected-size count" (`governance.scan_upload.duration`, `governance.scan_upload.rejected_size`).
 
 **QG-6. Proposed protocol from a conversation**
 - **When:** the головуючий asks the помічник протоколу for a draft with attached documents.
@@ -455,13 +455,13 @@ The three goals of §1 first, then the remaining PRD §6 targets. Numbers are qu
 **QG-8. Availability**
 - **When:** any calendar month of operation.
 - **Then:** "99% monthly" (PRD §6).
-- **How verify:** "uptime check, monthly window" — the external uptime check of the public origin every 5 min (§7), with the monthly ratio reported.
+- **How verify:** "uptime check, monthly window" — the external uptime check of the public origin every 5 min (test parameter, not a target; §7), with the monthly ratio reported.
 
 ## 11. Risks and technical debt
 
 | Risk / debt | Severity | Mitigation | Owner |
 |---|---|---|---|
-| No database backup in the first release (deviation from PRD §6 "Durability of the registry", §7) — losing the VM's disk loses every record, snapshot and file reference | High | Return trigger: before the first locked protocol that exists only in the system (no signed paper copy kept elsewhere); the VPS provider's daily snapshots are a one-step stopgap; the nightly backup job slot already exists in the worker (ADR-0006) | Andrii Opryshko |
+| No database backup in the first release (deviation from PRD §6 "Durability of the registry", §7) — losing the VM's disk loses every record, snapshot and file reference | High | Return trigger: before the first locked protocol that exists only in the system (no signed paper copy kept elsewhere); the backup is then designed in its own ADR (`/sdlc:decide-adr`) | Andrii Opryshko |
 | Personal data of co-owners and contractors leaves the association's hosting for the Gemini API (ADR-0004; PRD §8 "May case documents … be processed …") | High | Paid tier only (no use of data to improve the provider's products); only the documents of the справа being drafted are sent; the board approves the processing by its own decision before the Stage 2 release; no content in logs | Andrii Opryshko |
 | The association's Google account is the single home of every file (ADR-0005, ADR-0013): its compromise or loss takes all case documents and signed scans; anyone holding it can edit or delete files outside spilno | High | Account owned by the association, not a person; two-factor authentication and two administrators; the `spilno/` folder shared with nobody; the nightly sha256 check detects any change (§6 flow 3) | Andrii Opryshko |
 | Gemini extraction quality on the association's own estimates, invoices and scans is unmeasured (no bake-off was run) | Medium | Evaluation set from the 30+ historical protocols' documents before the Stage 2 release, measuring slot accuracy, scan number and date reading, and duration; the `TextModel` port admits another adapter; every number still needs a person's confirmation (AC-21) | Andrii Opryshko |

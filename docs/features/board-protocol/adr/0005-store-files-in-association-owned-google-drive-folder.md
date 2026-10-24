@@ -22,7 +22,7 @@ The feature stores case documents and their versions, signed scans up to 50 MB, 
 
 - QG-1, AC-17b: cited and signed files never change after lock; the periodic integrity check must cover files.
 - QG-3, AC-19: access ends on the term end date, with no hint that records exist.
-- PRD §6: durability RPO ≤ 24 h, restore verified quarterly; signed-copy upload p95 ≤ 20 s.
+- PRD §6: signed-copy upload p95 ≤ 20 s. (Durability RPO ≤ 24 h with quarterly restore is deliberately not met in the first release — no database backup; SAD §1 decision override, §7, §11.)
 - PRD §6.1 abuse case "Malicious upload": files served for download, never rendered as active content.
 
 ## Considered options
@@ -37,7 +37,7 @@ The feature stores case documents and their versions, signed scans up to 50 MB, 
 **Chosen:** Option 3. Files stay where the association keeps its records, and access control stays in one place — spilno's per-request term check — instead of a daily permission sync that would let a former member keep Drive access for up to a day and edit cited files.
 
 Shape:
-- spilno is authorized once against the association-owned Google account (OAuth consent with an offline refresh token, kept encrypted as a secret). A shared infrastructure package `internal/platform/gdrive` wraps the Drive API; `cases` and `governance` each implement their own file port on it.
+- spilno is authorized once against the association-owned Google account (OAuth consent with an offline refresh token, kept encrypted as a secret). A shared infrastructure package `internal/platform/google` wraps the Drive and Docs APIs; `cases` and `governance` each implement their own file port on it.
 - Layout: `spilno/cases/<case-id>/`, `spilno/protocols/<protocol-id>/` (copies for signing, signed scan), `spilno/exports/`. The folder is not shared with anyone.
 - Per file version Postgres keeps: Drive file id, head revision id, sha256 (from Drive's `sha256Checksum`, verified on upload), size, media type, original name, author, time. A new version of a document is a new Drive file, never an overwrite.
 - An existing file in the association's Drive is attached by **copying** it into the case folder through spilno's own file browser, so editing the original later never touches the cited copy.
@@ -53,7 +53,7 @@ Shape:
 
 **Negative**
 - A file read or write depends on the Drive API being reachable; uploads and downloads go through the API process, adding a hop to the 20 s upload budget.
-- Postgres backups no longer cover files: restoring needs both the database dump and the Drive folder, and a restore drill must check they agree (tracked in §11).
+- A database backup, once added, will not cover files: restoring will need both the database dump and the Drive folder, and the restore drill must check they agree. The first release has no database backup at all (SAD §1 decision override, §11).
 - Whoever holds the association Google account can edit or delete files outside spilno; the integrity check detects it but cannot prevent it (tracked in §11).
 - If the refresh token is revoked, file access stops until someone re-authorizes; the account's storage quota is shared with its mail.
 

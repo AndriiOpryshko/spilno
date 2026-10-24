@@ -22,7 +22,7 @@ PRD §1-§4 describe члени правління working in a browser against 
 
 - PRD §6 NFR: open a draft or a registry decision p95 ≤ 1 s — request handling must not be held up by 60-second model calls.
 - PRD §6 NFR: "Integrity of locked protocols — periodic fingerprint comparison of every locked protocol, alert on mismatch" — needs a scheduled job.
-- PRD §6 NFR: availability 99% monthly; durability RPO ≤ 24 h (daily backup).
+- PRD §6 NFR: availability 99% monthly. (Durability RPO ≤ 24 h is deliberately not met in the first release — no database backup; SAD §1 decision override, §7, §11.)
 - §2: modular monolith, one Go module (repo ADR 0002); SPA web app (repo ADR 0001).
 
 ## Considered options
@@ -39,7 +39,7 @@ PRD §1-§4 describe члени правління working in a browser against 
 
 **Positive**
 - API latency is isolated from model latency and from retries.
-- Scheduled jobs (integrity check, backup) have a natural home with their own logs and metrics.
+- Scheduled jobs (the nightly integrity check; a database backup once one is added) have a natural home with their own logs and metrics.
 - break-tasks gets `ui` tasks for the SPA and async tasks for the worker; plan-tests adds component / visual-regression / e2e-through-UI tiers and worker integration tests.
 
 **Negative**

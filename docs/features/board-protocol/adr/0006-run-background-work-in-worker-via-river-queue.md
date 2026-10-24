@@ -16,12 +16,12 @@ ticket: ""
 
 ## Context
 
-ADR-0001 puts slow and scheduled work in a separate worker process. The API must hand it work: read an uploaded signed scan, read a newly attached document, answer a conversation turn with a proposal, copy a file in Drive, and run nightly jobs (integrity check, backup). If the domain write ("scan uploaded", "document attached") commits but the job is lost, a draft waits forever for a proposal; if the job runs but the write rolled back, it works on data that does not exist.
+ADR-0001 puts slow and scheduled work in a separate worker process. The API must hand it work: read an uploaded signed scan, read a newly attached document, answer a conversation turn with a proposal, copy a file in Drive, and run the nightly integrity check. If the domain write ("scan uploaded", "document attached") commits but the job is lost, a draft waits forever for a proposal; if the job runs but the write rolled back, it works on data that does not exist.
 
 ## Decision drivers
 
 - PRD §6: proposal p95 ≤ 60 s; signed-copy upload p95 ≤ 20 s including the read — retries must be bounded and visible.
-- PRD §6: periodic fingerprint comparison of every locked protocol; daily backup.
+- PRD §6: periodic fingerprint comparison of every locked protocol.
 - §2: Postgres is the only datastore; goose is the only migrator (repo ADR 0004); pgx/v5.
 
 ## Considered options
@@ -33,7 +33,7 @@ ADR-0001 puts slow and scheduled work in a separate worker process. The API must
 
 **Chosen:** Option 1. Enqueuing in the same transaction as the domain write removes the lost-job and phantom-job cases with no new infrastructure, and the retry, stuck-job and periodic-job handling already exists and is tested. River's own schema SQL is copied into a goose migration (and refreshed by a new migration when River is upgraded), so goose remains the single migrator and sqlc keeps reading one migrations directory.
 
-Job kinds (contracts detailed by api-forge in `contracts/events.md`): `cases.read_document`, `governance.read_signed_scan`, `assistant.propose`, `gdrive.copy_file`, periodic `governance.verify_locked_protocols` (nightly) and `platform.backup_database` (nightly). Each job carries ids only, never document content. The API enqueues through each context's `module.go`; job handlers live in the owning context and are registered by `cmd/worker`. Results are written back through the owning context, and the SPA polls them (§4 UI-architecture).
+Job kinds (contracts detailed by api-forge in `contracts/events.md`): `cases.read_document`, `governance.read_signed_scan`, `assistant.propose`, `gdrive.copy_file`, and periodic `governance.verify_locked_protocols` (nightly). No backup job in the first release (SAD §1 decision override). Each job carries ids only, never document content. The API enqueues through each context's `module.go`; job handlers live in the owning context and are registered by `cmd/worker`. Results are written back through the owning context, and the SPA polls them (§4 UI-architecture).
 
 ## Consequences
 

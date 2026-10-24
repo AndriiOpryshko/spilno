@@ -393,17 +393,25 @@ One small virtual machine in the EU runs the whole system with docker compose, t
 
 ## 9. Architecture decisions
 
-<!-- 🎯 Навіщо: ЗВОРОТНИЙ ІНДЕКС на папку adr/. `ls adr/` дає файли, §9 дає семантику —    -->
-<!--           чому вони існують, до якого зрізу SAD привʼязані, у якому статусі.           -->
-<!-- 📋 Що писати: таблиця з 4 колонками. Один рядок на ADR. Mixed status — це OK.         -->
-<!-- 📌 Приклад: «0001 | Зберігати урок як таблицю блоків | Accepted | §4».                -->
-
 | # | Title | Status | Section |
 |---|---|---|---|
-| <NNNN> | <imperative — e.g. "Use sliding window for rate limiting"> | Accepted | §<N> |
-| <NNNN> | <imperative — e.g. "Co-locate outbox worker in API process"> | Accepted | §<N> |
+| [0001](./adr/0001-build-backend-web-and-worker-surfaces.md) | Build board-protocol as backend service, web frontend and a separate worker | Accepted | §4 |
+| [0002](./adr/0002-extend-governance-and-add-cases-assistant-identity-contexts.md) | Extend governance with board decisions and add cases, assistant and identity contexts | Accepted | §4 |
+| [0003](./adr/0003-sign-in-with-oidc-and-postgres-sessions.md) | Sign in through OIDC (Google first) with server-side sessions in Postgres | Accepted | §4 |
+| [0004](./adr/0004-use-gemini-api-for-document-reading-and-drafting.md) | Use the Gemini API, behind a port, to read case documents and scans and to draft | Accepted | §4 |
+| [0005](./adr/0005-store-files-in-association-owned-google-drive-folder.md) | Store files in an association-owned Google Drive folder, with metadata in Postgres | Accepted | §4 |
+| [0006](./adr/0006-run-background-work-in-worker-via-river-queue.md) | Run background work in the worker through a River job queue in Postgres | Accepted | §4 |
+| [0007](./adr/0007-lock-protocols-as-fingerprinted-immutable-snapshots.md) | Lock a protocol as an immutable, fingerprinted snapshot | Accepted | §4 |
+| [0008](./adr/0008-keep-charter-rules-as-typed-effective-dated-parameters.md) | Keep правила статуту as a typed catalog of effective-dated parameters | Accepted | §4 |
+| [0009](./adr/0009-track-draft-lifecycle-with-states-and-revision-numbers.md) | Track the draft lifecycle with explicit states and a revision number | Accepted | §5 |
+| [0010](./adr/0010-evaluate-checks-on-read-and-bind-overrides-to-input-fingerprints.md) | Evaluate checks on read and bind each override to the check's input fingerprint | Accepted | §5 |
+| [0011](./adr/0011-store-decision-text-as-fragments-with-slot-placeholders.md) | Store decision text as fragments with slot placeholders | Accepted | §5 |
+| [0012](./adr/0012-integrate-contexts-through-synchronous-module-facades.md) | Integrate contexts through synchronous module.go facades wired in the composition root | Accepted | §5 |
+| [0013](./adr/0013-render-signing-copies-from-google-docs-templates.md) | Render signing copies and export summaries from Google Docs templates | Accepted | §5 |
 
-ADR files live under `docs/features/<slug>/adr/NNNN-<title>.md`.
+Inline decisions below the ADR gate: web UI-architecture (SPA per repo ADR 0001, polling for slow results — §4), single-VM compose topology (§7), crosscutting conventions (§8).
+
+ADR files live under `docs/features/board-protocol/adr/NNNN-<title>.md`.
 
 ## 10. Quality requirements
 

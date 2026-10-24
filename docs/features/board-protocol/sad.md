@@ -484,14 +484,46 @@ The three goals of §1 first, then the remaining PRD §6 targets. Numbers are qu
 
 ## 12. Glossary
 
-<!-- 🎯 Навіщо: ⭐ СЛОВНИК ДОМЕНУ, який припиняє суперечки через рік («checkpoint —      -->
-<!--           weekly чи biweekly? Quarter — календарний чи фіскальний?»).                -->
-<!-- 📋 Що писати: таблиця термін / значення. Бізнес-терміни + технічні вперемішку.       -->
-<!--           Один термін може мати дві мови у заголовку: «Goal (Обʼєктив)».              -->
-<!-- 📌 Приклад: «Lesson | урок усередині курсу, що складається з блоків (text, video)». -->
+Domain terms are canonical in [CONTEXT.md](./CONTEXT.md) `## Glossary`; the short forms below are reminders, and CONTEXT wins on any conflict.
 
 | Term | Meaning |
 |---|---|
-| <e.g. Goal> | <quarterly intent in statement form> |
-| <e.g. KR> | <Key Result — measurable target linked to a Goal> |
-| <e.g. Checkpoint> | <bi-weekly progress update on a KR> |
+| акт виконаних робіт | Document signed with the contractor confirming which works were done and for what amount |
+| блокуюча перевірка | Deterministic check that stops a draft from being marked готовий до підпису; lifted by an обхід блокування except "number without a confirmed source" |
+| головуючий | The член правління who chairs one board meeting and signs its protocol; only they edit its draft |
+| готовий до голосування | Draft state with wording frozen so members vote on exactly that version; any edit returns it to draft |
+| готовий до підпису | Draft state frozen for printing and signing after every блокуюча перевірка is resolved or overridden; any edit returns it to draft |
+| джерело коштів | Fund or income line of the approved budget that pays for a decision |
+| знятий з розгляду | Final state of a never-signed draft; not in the first release |
+| кворум | Minimum number of board members present for valid decisions, per the charter |
+| кворум пункту | The кворум rule applied to the members present who may vote on one agenda item |
+| кошторис робіт | The management company's priced estimate for one job |
+| неучасть у голосуванні | A member does not vote on one item, with a recorded reason |
+| обхід блокування | A член правління's recorded choice, with a mandatory reason, to proceed despite a блокуюча перевірка |
+| помічник протоколу | The conversation that proposes wording, warnings and amounts read from documents; nothing it proposes counts until a person confirms it |
+| попереднє голосування | Each member's own advisory vote per item on one frozen wording version; the signed paper protocol is binding |
+| попередження | Advisory notice linked to its source; never stops signing |
+| правило статуту | One charter parameter kept as data with the date it takes effect |
+| протокол правління | The signed record of one board meeting |
+| реєстр протоколів | The association's searchable record of locked protocols with signed copies, decisions, cited documents and overrides |
+| ревізійна комісія | The association's audit body; receives export packages, has no access |
+| слот рішення | One typed field of a decision holding a value, its origin and the case document it is confirmed against |
+| справа | The bundle of source documents a decision is based on and cites |
+| співвласник | Owner of premises in the building; no access to the system in the first release |
+| управляюча компанія | Company that maintains the buildings, issues estimates and acts, holds the money |
+| чинне рішення | A validly adopted decision not revoked or replaced by a later locked protocol |
+| член правління | Person elected to the board for a term; may use the system while the term covers today |
+| шаблон формулювання | Fixed wording for an agenda-item type; only its слоти рішення are editable |
+| **Architecture terms (this SAD)** | |
+| association Google account | The Google account owned by the association whose Drive folder `spilno/` holds every file and whose authorization spilno uses for Drive and Docs (ADR-0005) |
+| wording version | Immutable copy of a draft's agenda items, text fragments and slot values taken when it is frozen as готовий до голосування; votes reference it (ADR-0009) |
+| issued copy | The PDF rendered when a draft is marked готовий до підпису, recorded with the draft revision and its sha256; voided by any edit (ADR-0009, ADR-0013) |
+| revision | Integer on a draft incremented by every change; every mutation carries the revision it was built on (ADR-0009) |
+| lock snapshot | Canonical JSON record of everything a locked protocol shows and applied, append-only (ADR-0007) |
+| fingerprint | SHA-256 of a lock snapshot's canonical serialization, recomputed nightly (ADR-0007) |
+| input fingerprint | SHA-256 of the inputs a check used; an обхід блокування applies only while it matches (ADR-0010) |
+| text fragment / slot placeholder | Decision text is plain fragments plus references to слоти рішення and meeting facts (ADR-0011) |
+| layout template | Google Doc defining the page layout of the copy for signing or the export summary; distinct from a шаблон формулювання (ADR-0013) |
+| job | A River job carrying ids only, enqueued in the writing transaction and run by the worker (ADR-0006) |
+
+<!-- fix-term follow-up: "wording version" (версія формулювання) and "issued copy" (видана копія) are domain-visible — members see them in the UI; run /sdlc:fix-term to add them to CONTEXT.md. -->

@@ -459,25 +459,28 @@ The three goals of §1 first, then the remaining PRD §6 targets. Numbers are qu
 
 ## 11. Risks and technical debt
 
-<!-- 🎯 Навіщо: ⭐ збирає ВСЕ, що може зламатись — і не лише технічне. Без §11 ризики   -->
-<!--           обговорюються на стендапах і губляться; борг лишається у голові того,    -->
-<!--           хто його прийняв.                                                          -->
-<!-- 📋 Що писати: таблиця ризик/борг — серйозність — мітигація — власник. Технічний    -->
-<!--           борг окремою секцією.                                                      -->
-<!-- 📌 Приклад: «EM не пушить — member не оновлює дані | High | …». Перший ризик —      -->
-<!--           часто продуктовий, не технічний. Це нормально.                            -->
-
-<!-- Severity column literals: Low / Medium / High for regular risks; "Open question" for rows
-     created by Step-7 `Save as Open Question` resolutions (see references/socratic-loop.md). -->
-
 | Risk / debt | Severity | Mitigation | Owner |
 |---|---|---|---|
-| <e.g. Outbox lag may reach hours during downstream outage> | Medium | <Alert >10 min, on-call playbook, retry backoff> | <DevOps> |
-| <e.g. No event schema versioning in v1> | Medium | <ADR-NNNN planned for v2, graceful handling of unknown fields> | <Backend> |
-| Open architectural decision: <decision-headline> | Open question | Resolve before <stage trigger or YYYY-MM-DD>; <inline rationale from Step-7 Save-as-OQ> | <owner> |
+| No database backup in the first release (deviation from PRD §6 "Durability of the registry", §7) — losing the VM's disk loses every record, snapshot and file reference | High | Return trigger: before the first locked protocol that exists only in the system (no signed paper copy kept elsewhere); the VPS provider's daily snapshots are a one-step stopgap; the nightly backup job slot already exists in the worker (ADR-0006) | Andrii Opryshko |
+| Personal data of co-owners and contractors leaves the association's hosting for the Gemini API (ADR-0004; PRD §8 "May case documents … be processed …") | High | Paid tier only (no use of data to improve the provider's products); only the documents of the справа being drafted are sent; the board approves the processing by its own decision before the Stage 2 release; no content in logs | Andrii Opryshko |
+| The association's Google account is the single home of every file (ADR-0005, ADR-0013): its compromise or loss takes all case documents and signed scans; anyone holding it can edit or delete files outside spilno | High | Account owned by the association, not a person; two-factor authentication and two administrators; the `spilno/` folder shared with nobody; the nightly sha256 check detects any change (§6 flow 3) | Andrii Opryshko |
+| Gemini extraction quality on the association's own estimates, invoices and scans is unmeasured (no bake-off was run) | Medium | Evaluation set from the 30+ historical protocols' documents before the Stage 2 release, measuring slot accuracy, scan number and date reading, and duration; the `TextModel` port admits another adapter; every number still needs a person's confirmation (AC-21) | Andrii Opryshko |
+| The refresh token of the association Google account is revoked or expires — file reads, uploads and rendering stop | Medium | Alert on Drive authorization errors (§7); a short re-authorization runbook; uploads fail visibly, nothing is half-written (job retries) | Andrii Opryshko |
+| Rendering through the Docs API: variable-length tables are verbose to build, and tests need a Google test account or recorded responses (ADR-0013) | Medium | A fake `Renderer` port for unit and integration tests; one smoke test against a test Google account; a Typst adapter remains a fallback behind the same port | Andrii Opryshko |
+| Every член правління needs a Google account (or another configured OIDC provider), and local development needs a sign-in shim that must never reach production (ADR-0003) | Medium | Shim enabled only by a dev configuration; a test asserts it is off in the production configuration; roster entries record each member's sign-in email | Andrii Opryshko |
+| Adoption and habit: members keep deciding in chat and on paper (PRD §7 adoption ≥ 80%), or override blocks routinely (PRD §7 override rate ≤ 10%) | Medium | Overrides visible with reason in the реєстр протоколів; override rate and adoption reviewed quarterly against PRD §7 | Andrii Opryshko |
+| Brownfield: existing `finance` and `governance` endpoints become sign-in protected; the web prototype's in-memory `api.ts` is replaced; each new context needs the five wiring steps of CLAUDE.md; `r.Mount` returns 404 for generated handlers; the lock trigger needs `-- +goose StatementBegin/End` | Low | break-tasks carries the CLAUDE.md wiring checklist per new context; `system/health` stays public so the existing e2e smoke test keeps working | Andrii Opryshko |
+| PRD §8 product questions resolved by architecture defaults: a non-voting member does not count toward кворум пункту; no шаблони формулювання until reviewed; only board decisions feed related-decision warnings; "same subject" = same agenda-item type | Low | Each default is data (a rule kind, template rows) or one replaceable function (ADR-0008, ADR-0010); owners and dates stay in PRD §8 | Andrii Opryshko |
+| No deadline or effort budget is quoted (§2) | Low | Staged delivery — Stage 1 stories are useful on their own, Stage 2 follows (PRD §1) | Andrii Opryshko |
 
 **Accepted debt (acceptable in v1, plan to fix later):**
-- <e.g. Goal entity is not versioned (immutable) — OK for v1, may need audit versioning in v2>
+- No database backup or restore drill (row above; §7; QG-7).
+- Polling instead of server push for slow results and votes (§4).
+- Export is a ZIP, not one merged PDF (ADR-0013).
+- No `знятий з розгляду` state; an abandoned draft stays a draft (PRD §3).
+- Only a Gemini adapter behind `TextModel`; no measured alternative (ADR-0004).
+- The locked-snapshot format is a long-lived contract carried by `schema_version` (ADR-0007).
+- River's schema migrations are mirrored into goose by hand on every River upgrade (ADR-0006).
 
 ## 12. Glossary
 

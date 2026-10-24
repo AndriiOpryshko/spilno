@@ -372,22 +372,24 @@ One small virtual machine in the EU runs the whole system with docker compose, t
 
 ## 8. Crosscutting concepts
 
-<!-- 🎯 Навіщо: НАСКРІЗНІ ПАТЕРНИ, які перетинають кілька модулів: логування, помилки,    -->
-<!--           авторизація, ID strategy, outbox, кеш. ⭐ Друга найгустіша секція.          -->
-<!--           Якщо патерн всередині одного модуля — він НЕ сюди. Якщо це конвенція        -->
-<!--           проєкту в цілому — у CLAUDE.md.                                              -->
-<!-- 📋 Що писати: таблиця концепт / конвенція / де визначено. Один рядок на концепт.      -->
-<!-- 📌 Приклад: «UUID v7 (час+випадковий, сортується) у app-layer» — як default з CLAUDE.md. -->
-
 | Concept | Convention | Where defined |
 |---|---|---|
-| Logging | <e.g. structured slog, fields `module=<name>`> | <CLAUDE.md §X or here> |
-| Authentication | <e.g. JWT via session middleware> | <CLAUDE.md §X> |
-| Error handling | <e.g. domain sentinel → ports/errors.go → apperr JSON> | <CLAUDE.md §X> |
-| ID strategy | <e.g. UUID v7 in app layer> | <CLAUDE.md §X> |
-| Internationalisation | <e.g. N/A, English only> | — |
-| Observability | <e.g. OpenTelemetry on HTTP boundaries> | — |
-| Outbox / events | <module-specific patterns, if any> | <here> |
+| Logging | `log/slog` JSON to stdout + `otelslog`; fields `module=<bc>`, `job_id`, `draft_id`, `protocol_id` where known; never log document content, extracted text, conversation text, personal data, tokens or keys | repo ADR 0001; here |
+| Authentication | OIDC authorization-code flow with PKCE, server-side session row behind an HttpOnly, Secure, SameSite=Lax cookie; `system/health` stays public | ADR-0003 |
+| Authorization | Every protected request: no session → 401; a session whose person is not a current член правління today (term covers today, Europe/Kyiv) → 403 `identity.not_current_member` **before** the request reaches any resource, so existence is never revealed (AC-19). Action rules inside `governance`: only the meeting's головуючий edits its draft, refusal names the головуючий (AC-03b); a member casts and changes only their own vote (AC-05e); lock, override, scan upload, rule and roster changes by any current член правління, author recorded (AC-16, PRD §6.1) | ADR-0003; PRD §6.1 |
+| Error handling | RFC 9457 `application/problem+json` through `internal/platform/httpapi`; machine code `<context>.<error_name>` (e.g. `governance.draft_revision_conflict`, `governance.override_reason_required`); 422 names every broken field at once; 409 on a stale revision | CLAUDE.md; repo ADR 0003; ADR-0009 |
+| ID strategy | UUIDs (`github.com/google/uuid`) for every entity; cross-context references by id only, no foreign keys between contexts; the protocol number is a separate human sequence, proposed as next and editable, unique per association (AC-14c) | repo ADR 0002; ADR-0012 |
+| Money | Integer kopiyky (`bigint`) plus currency, matching `finance.contracts.amount_cents`; formatting (digits and words) in one renderer | ADR-0011; here |
+| Dates and time | Meeting dates, term dates and `effective_from` are calendar `date`s; "today" and "in force on" are evaluated in Europe/Kyiv; event times are `timestamptz` | ADR-0008; here |
+| Audit trail | Rule and roster changes (with reference), change of головуючий, overrides, uploads with confirmations, votes, slot confirmations and lock are append-only rows with author and time; history is never updated in place | PRD AC-02b, AC-03b, AC-12, AC-14, AC-16 |
+| Concurrency | Optimistic: each mutation carries the draft revision it was built on | ADR-0009 |
+| Files | Allow-list PDF, JPEG, PNG, DOCX, XLSX, checked by content sniffing and extension; ≤ 50 MB; stored in the association's Drive; served only through the API as `Content-Disposition: attachment` with `X-Content-Type-Options: nosniff`, never inline | ADR-0005; PRD §6.1 |
+| Text-generation boundary | Only `assistant` imports a model client (depguard); prompts carry only the documents of the справа being drafted; output is schema-validated and treated as untrusted proposals; facts in text only as slot placeholders | ADR-0002, ADR-0004, ADR-0011 |
+| Background jobs | River; payloads carry ids only; handlers are idempotent so retries are safe; job enqueued in the same transaction as the write that needs it | ADR-0006 |
+| Pagination | Opaque cursor over `(created_at, id)`, newest first, page 20 / max 100; registry search pages the same way | existing `governance` meetings list |
+| Observability | OpenTelemetry traces, metrics and logs over OTLP; otelhttp and otelpgx spans; feature metrics and alerts in §7 | repo ADR 0001; §7 |
+| Internationalisation | UI in Ukrainian only; domain terms exactly as in CONTEXT.md; code identifiers, error codes and API fields in English | CONTEXT.md |
+| Rate limiting | <!-- N/A: ≤ 7 signed-in users, all members of one board; Gemini spend bounded by conversation turns, watched through assistant.proposal metrics --> N/A | — |
 
 ## 9. Architecture decisions
 

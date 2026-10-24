@@ -71,23 +71,30 @@ Latency, durability (RPO ≤ 24 h, RTO ≤ 4 h) and availability (99.5 %) from P
 
 ## 3. Context and scope
 
-<2-3 sentences: what the system does for the association and where its trust boundary is>
+spilno is the association's own record of board governance: a член правління prepares, checks and locks протоколи правління against the board roster, the правила статуту and the documents of each справа, and finds past decisions in the реєстр протоколів. The trust boundary is the association: everything inside spilno is visible only to the association's members of the board with a term in force; the only data that leaves it is case-document content sent to the text-generation service for wording and reading, and printed paper protocols that people carry out by hand. How a член правління signs in is decided in §4; if it adds an external system, §5 shows it.
 
 | Actor or system | Type | Interaction |
 |---|---|---|
-| <glossary role> | Person | <...> |
-| <text generation service> | System (external) | <wording only> |
+| член правління | Person | Uses spilno for every protocol action; also acts as головуючий of a meeting (a slot, not a role in the system) |
+| управляюча компанія | Person (external) | Hands over кошторис робіт, invoices and акти виконаних робіт; a член правління attaches them to a справа. No access |
+| ревізійна комісія | Person (external) | Checks signed paper protocols at the annual meeting. No access in this feature (PRD §3) |
+| співвласник | Person (external) | Receives printed protocols as today. No access |
+| Text generation service | System (external) | Receives case documents and the draft; returns wording, попередження, proposed amounts and the number/date read from a signed scan. Never the source of a confirmed number |
 
 ```mermaid
 C4Context
-    title <slug> — System Context
+    title board-protocol — System Context
 
-    Person(role1, "<glossary role>", "<intent>")
-    System(sys, "<product>", "<one sentence>")
-    System_Ext(ext, "<external>", "<one sentence>")
+    Person(member, "член правління", "Drafts, confirms, votes, marks ready, uploads the signed copy, searches the реєстр протоколів")
+    Person_Ext(uk, "управляюча компанія", "Issues кошторис робіт and акти виконаних робіт")
+    Person_Ext(audit, "ревізійна комісія", "Checks signed paper protocols; no access")
+    System(spilno, "spilno", "HOA management app: meetings, contracts, board protocols")
+    System_Ext(ai, "Text generation service", "Wording, попередження, proposed amounts, reads number and date from a scan")
 
-    Rel(role1, sys, "<interaction>", "HTTPS")
-    Rel(sys, ext, "<interaction>", "<protocol>")
+    Rel(uk, member, "Hands over estimates and acts", "paper, email")
+    Rel(member, spilno, "Prepares, checks and locks protocols", "HTTPS")
+    Rel(spilno, ai, "Sends case documents, receives wording and proposals", "HTTPS")
+    Rel(member, audit, "Presents signed protocols", "paper")
 ```
 
 ## 4. Solution strategy

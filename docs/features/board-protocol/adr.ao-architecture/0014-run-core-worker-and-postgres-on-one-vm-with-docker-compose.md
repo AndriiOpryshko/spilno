@@ -49,6 +49,6 @@ The repo has only a local `infra/compose.yaml`; board-protocol is the first feat
 
 ## Links
 
-- PRD: [PRD.ao-prd.md](../PRD.ao-prd.md) — §6 Availability, Durability
+- PRD: [PRD.ao-prd.md](../PRD.ao-prd.md) — US-09, AC-36 (the реєстр протоколів must be reachable and restorable); §6 Availability, Durability
 - SAD: [sad.ao-architecture.md](../sad.ao-architecture.md) §7
 - Related ADR: [0001 Surfaces](./0001-deliver-board-protocol-as-core-endpoints-spa-routes-and-a-worker-process.md) · repo [0001 Stack](../../../adr/0001-stack.md)

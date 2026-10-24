@@ -44,7 +44,7 @@ The feature adds protocols with versions, slots, votes and overrides; справ
 
 ### Migration and rollback
 
-- Migration: new goose migrations add `governance`-owned tables next to `meetings`; `meetings` itself gains only `association_id` (ADR 0010).
+- Migration: new goose migrations add `governance`-owned tables next to `meetings`: `protocols` (meeting id unique — one protocol per meeting, state, version, number, Doc id, `corrects_protocol_id`), `protocol_slots` (kind, value, origin system / ai / human, source document and fragment), `slot_confirmations` (value, confirmed or corrected by, at; proposed value kept), `protocol_meeting_facts` (attendance, неучасть у голосуванні with reason, meeting vote count per item, meeting form, головуючий), `protocol_votes` (member, item, choice, version, at), `cases` (one per agenda item) and its documents in `governance_files`; plus the tables of ADR 0006, 0007, 0008, 0009, 0011. `meetings` itself gains only `association_id` (ADR 0010).
 - Rollback: down migrations drop only empty new tables; once a protocol is signed, tables are never dropped (PRD §9 Reversibility).
 
 ## Links

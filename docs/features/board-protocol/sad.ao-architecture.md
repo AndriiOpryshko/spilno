@@ -46,6 +46,11 @@ Latency, durability (RPO ≤ 24 h, RTO ≤ 4 h) and availability (99.5 %) from P
 | співвласник | Receives printed protocols as today; no access | No |
 | Tech lead | SAD and ADR approval; security review (PRD §6.1) | Yes |
 
+**Decision overrides** (resolved in the Step 7 critic):
+
+- Decision override: PRD AC-11b for wording — co-editing in Google Docs without lost changes replaces "refuse the second save of an old version"; AC-11b holds for slots, agenda and meeting facts (§4 pillar 5, ADR 0006).
+- Decision override: PRD §6 Retention and Durability for files — files of locked protocols rely on the association's Google Drive (read-only restriction, daily hash check, `untrash`); RPO for files is Google's and the signed paper original is the legal copy outside Google (ADR 0004, 0014, §11).
+
 ## 2. Constraints
 
 **Technical** (versions from `mise.toml`, `services/core/go.mod`, `apps/web/package.json`, `infra/compose.yaml`):
@@ -67,11 +72,12 @@ Latency, durability (RPO ≤ 24 h, RTO ≤ 4 h) and availability (99.5 %) from P
 - Signed and withdrawn protocols kept ≥ 5 years and never hard-deleted.
 - The binding signature is on paper; no electronic signing, no binding electronic vote.
 - Case documents go to a text-generation service only under an agreement that excludes training on the data.
+- Case documents, signed scans (with signatures), printable PDFs and wording Docs are stored on the Google Drive of an association-owned account (ADR 0004, 0006); Google is a processor of these personal data, and access is limited to the app (`drive.file`) and, for wording Docs in чернетка, to current members of the board.
 - Security review required before Stage 1 release (first feature with authorization, personal data and an external AI service).
 
 ## 3. Context and scope
 
-spilno is the association's own record of board governance: a член правління prepares, checks and locks протоколи правління against the board roster, the правила статуту and the documents of each справа, and finds past decisions in the реєстр протоколів. The trust boundary is the association: everything inside spilno is visible only to the association's members of the board with a term in force; the only data that leaves it is case-document content sent to the text-generation service for wording and reading, and printed paper protocols that people carry out by hand. How a член правління signs in is decided in §4; if it adds an external system, §5 shows it.
+spilno is the association's own record of board governance: a член правління prepares, checks and locks протоколи правління against the board roster, the правила статуту and the documents of each справа, and finds past decisions in the реєстр протоколів. The trust boundary is the association: everything inside spilno is visible only to the association's members of the board with a term in force; data leaves it to three Google services — sign-in identity checks (Google Sign-In), every file and wording Doc stored on the association's own Google Drive account, and case-document content sent to the Gemini text-generation service — plus printed paper protocols that people carry out by hand. (Updated in the Step 7 critic: sign-in and file storage were decided in §4.)
 
 | Actor or system | Type | Interaction |
 |---|---|---|
@@ -79,6 +85,8 @@ spilno is the association's own record of board governance: a член прав�
 | управляюча компанія | Person (external) | Hands over кошторис робіт, invoices and акти виконаних робіт; a член правління attaches them to a справа. No access |
 | ревізійна комісія | Person (external) | Checks signed paper protocols at the annual meeting. No access in this feature (PRD §3) |
 | співвласник | Person (external) | Receives printed protocols as today. No access |
+| Google Sign-In | System (external) | Verifies who a член правління is (OIDC); spilno keeps the session |
+| Google Drive and Docs | System (external) | Holds case files, signed scans, PDFs and wording Docs in the association-owned account; members co-edit wording Docs while in чернетка |
 | Text generation service | System (external) | Receives case documents and the draft; returns wording, попередження, proposed amounts and the number/date read from a signed scan. Never the source of a confirmed number |
 
 ```mermaid
@@ -89,11 +97,16 @@ C4Context
     Person_Ext(uk, "управляюча компанія", "Issues кошторис робіт and акти виконаних робіт")
     Person_Ext(audit, "ревізійна комісія", "Checks signed paper protocols; no access")
     System(spilno, "spilno", "HOA management app: meetings, contracts, board protocols")
+    System_Ext(gsi, "Google Sign-In", "OIDC identity provider")
+    System_Ext(drive, "Google Drive and Docs", "Association-owned account: files and wording Docs")
     System_Ext(ai, "Text generation service", "Wording, попередження, proposed amounts, reads number and date from a scan")
 
     Rel(uk, member, "Hands over estimates and acts", "paper, email")
     Rel(member, spilno, "Prepares, checks and locks protocols", "HTTPS")
     Rel(spilno, ai, "Sends case documents, receives wording and proposals", "HTTPS")
+    Rel(spilno, gsi, "Verifies identity", "OIDC")
+    Rel(spilno, drive, "Stores files, freezes wording Docs", "HTTPS")
+    Rel(member, drive, "Co-edits the wording Doc", "HTTPS")
     Rel(member, audit, "Presents signed protocols", "paper")
 ```
 
@@ -111,7 +124,7 @@ C4Context
 2. **Google sign-in in a new `identity` context (Stage 0).** OIDC with Google, server-side sessions in an HTTP-only cookie, association records and invitations; `identity/module.go` gives every context the current actor (account, association). Authorization stays in `governance/app` against the board term in force on the action date (PRD §10). Constraint: PRD §8 "sign-in is a prerequisite decided in architecture"; the app has no sign-in today (§2) → [ADR 0003](./adr.ao-architecture/0003-sign-in-with-google-in-a-new-identity-context.md).
 3. **Files on the association's Google Drive, hashes in Postgres.** Case documents, signed scans and printable PDFs live in a folder of one Google account owned by the association (scope `drive.file`); Postgres keeps only metadata and sha256. The folder is not shared; members open files through spilno. On lock, files get a Drive read-only content restriction; the worker checks hashes daily and restores trashed files. Constraint: PRD §6 file limits and ≥ 5-year retention; QG-1 → [ADR 0004](./adr.ao-architecture/0004-store-case-files-and-signed-scans-on-the-associations-google-drive-with-hashes-in-postgres.md).
 4. **Gemini writes wording and proposes, never decides.** The paid Gemini API is called only from the worker, through a `TextGenerator` port in `governance/ports`; the worker downloads case files from Drive and sends them with the draft. Every output is stored with origin `ai`, amounts as proposed and unconfirmed. Constraint: PRD §6.1 (no training on the data → paid tier only), CONTEXT "помічник протоколу — NOT the source of any number" → [ADR 0005](./adr.ao-architecture/0005-call-gemini-through-a-governance-textgenerator-port-for-wording-and-proposals-only.md).
-5. **Wording is edited in Google Docs and frozen into Postgres on every transition.** Each draft has one Google Doc in the association folder, shared as editor with the current members of the board while in чернетка; slot values sit in Docs named ranges. Marking готовий до голосування or готовий до підпису exports the Doc text at its revision into Postgres as a numbered frozen version (the legal text) and sets the Doc read-only; "edit" in spilno returns to чернетка and unlocks it. **Decision override (PRD AC-11b):** for wording, "refuse the second save of an old version" is replaced by real-time co-editing without lost changes; AC-11b stays as written for slots and agenda edits made in spilno (optimistic version). Constraint: PRD §8 OQ on hand editing (author proposed Google Docs), AC-12, AC-13, AC-17, AC-26 → [ADR 0006](./adr.ao-architecture/0006-edit-protocol-wording-in-google-docs-and-freeze-it-into-postgres-on-transition.md).
+5. **Wording is edited in Google Docs and frozen into Postgres on every transition.** Each draft has one Google Doc in the association folder, shared as editor with the current members of the board while in чернетка; slot values sit in Docs named ranges. Marking готовий до голосування or готовий до підпису first sets the Doc read-only, then exports its text at that revision into Postgres as a numbered frozen version (the legal text), so no edit can slip in between; "edit" in spilno returns to чернетка and unlocks it. **Decision override (PRD AC-11b):** for wording, "refuse the second save of an old version" is replaced by real-time co-editing without lost changes; AC-11b stays as written for slots and agenda edits made in spilno (optimistic version). Constraint: PRD §8 OQ on hand editing (author proposed Google Docs), AC-12, AC-13, AC-17, AC-26 → [ADR 0006](./adr.ao-architecture/0006-edit-protocol-wording-in-google-docs-and-freeze-it-into-postgres-on-transition.md).
 6. **Blocking checks are a pure domain function.** `governance/domain` evaluates a snapshot (frozen or current text, slots, meeting facts, board and правила статуту on the meeting date) into блокуючі перевірки and попередження with PRD §5.1 codes; nothing calls the AI. It runs on every read of a draft and its result, with the applied rule ids, is stored on the transition to готовий до підпису. Constraint: PRD §10 override table, QG-2 → [ADR 0007](./adr.ao-architecture/0007-evaluate-blocking-checks-as-a-pure-domain-function-and-snapshot-them-on-transition.md).
 7. **Slow and external work goes through a Postgres job table.** `core` enqueues jobs in the same transaction as the state change (assistant draft, scan reading, PDF rendering, Doc access sync); `cmd/worker` claims them with `FOR UPDATE SKIP LOCKED`, retries with backoff and runs the daily integrity check. Synchronous Google calls stay in `core` only where the transition needs them (Doc export on freeze, Drive upload of a file). Constraint: PRD §6 (draft ≤ 30 s p95, upload ≤ 3 s for 20 MB), no broker in the stack (§2) → [ADR 0008](./adr.ao-architecture/0008-queue-ai-drive-and-pdf-work-in-a-postgres-job-table-processed-by-cmd-worker.md).
 8. **Signed and withdrawn protocols are append-only, guarded twice.** `governance/app` refuses changes with `governance.protocol_locked` / `governance.transition_not_allowed`, and a Postgres trigger rejects UPDATE or DELETE on a підписаний or знятий з розгляду protocol and its children; on lock a sha256 of the canonical snapshot is stored and re-verified daily. Corrections are new protocols with a reference. Constraint: QG-1, PRD §6 Integrity and Retention, AC-30, AC-30b, AC-35 → [ADR 0009](./adr.ao-architecture/0009-guard-signed-protocols-with-a-database-trigger-and-a-snapshot-hash.md).
@@ -195,7 +208,7 @@ C4Container
 
 ## 6. Runtime view
 
-Seed flows, one per critical transition of PRD §10, each naming the ACs it covers. Participants are the §5 container aliases; messages are semantic (no paths or status codes — those come with `/sdlc:api-forge`). Every request runs inside `InAssociation` (ADR 0010) after `identity.RequireSession`; this is drawn once in Flow 7 and implied elsewhere. Withdrawal (AC-34, AC-34b, AC-34c), the meeting-facts entry (AC-15b, AC-15c) and the Stage 2 flows (US-10-US-12) are left to `/sdlc:complete-sequence-diagrams`.
+Seed flows, one per critical transition of PRD §10, each naming the ACs it covers. Participants are the §5 container aliases; messages are semantic (no paths or status codes — those come with `/sdlc:api-forge`). Every request runs inside `InAssociation` (ADR 0010) after `identity.RequireSession`; this is drawn once in Flow 7 and implied elsewhere. The meeting-facts entry (AC-15b, AC-15c) and the Stage 2 flows (US-10-US-12) are left to `/sdlc:complete-sequence-diagrams`.
 
 **Flow 1: Draft through the помічник (none → чернетка) — covers AC-03, AC-04, AC-05, AC-06**
 
@@ -240,15 +253,17 @@ sequenceDiagram
     participant db as Database
     M->>web: Mark готовий до голосування
     web->>gov: Transition to voting (expected version)
-    gov->>drive: Export Doc text at current revision
+    gov->>drive: Set Doc read-only, then export text at that revision
     gov->>db: Load slots, meeting facts, board and rules on the meeting date
     gov->>gov: Evaluate snapshot
     alt amount proposed and unconfirmed
+        gov->>db: Enqueue apply_drive_restrictions to unlock the Doc
         gov-->>web: governance.amount_unconfirmed naming the slot
     else number in text differs from a slot
+        gov->>db: Enqueue apply_drive_restrictions to unlock the Doc
         gov-->>web: governance.text_slot_mismatch naming the slot
     else
-        gov->>db: Store frozen version N with revision id and sha256, set готовий до голосування, enqueue apply_drive_restrictions
+        gov->>db: Store frozen version N with revision id and sha256, set готовий до голосування
         gov-->>web: Version N open for voting
     end
     M->>web: Cast own vote za on item 1
@@ -284,14 +299,15 @@ sequenceDiagram
     end
     M->>web: Mark готовий до підпису
     web->>gov: Transition to ready to sign
-    gov->>drive: Export Doc text at current revision
+    gov->>drive: Set Doc read-only, then export text at that revision
     gov->>fin: Contracts in force on the meeting date
     gov->>db: Load slots, meeting facts, board, rules, overrides
     gov->>gov: Evaluate snapshot
     alt blocking check open, for example кворум not reached
+        gov->>db: Enqueue apply_drive_restrictions to unlock the Doc
         gov-->>web: governance.quorum_missing naming the rule and its effective date
     else all blocking checks resolved or overridden
-        gov->>db: Advisory lock, lowest free number, frozen version, check snapshot, enqueue render_pdf and apply_drive_restrictions
+        gov->>db: Advisory lock, lowest free number, frozen version, check snapshot, enqueue render_pdf
         gov-->>web: готовий до підпису No 14 with попередження (no preliminary vote, missing rule, no service note)
     end
 ```
@@ -390,7 +406,7 @@ sequenceDiagram
 
 **Flow 8: Google services fail — covers PRD §6 availability and the draft target; Flow 1, 2, 3, 5 branches**
 
-Rule: a step that needs Drive or Docs **before** the state can change (Doc export on freeze, upload of a file) runs before the database transaction; if it fails, nothing is committed and the member gets `governance.storage_unavailable` (an addition to PRD §5.1, see §8 and §11). Drive-side effects **after** a committed change (read-only restrictions, Doc sharing, PDF, scan reading) are jobs with retries, so a Google outage delays them but never undoes a state.
+Rule: a step that needs Drive or Docs **before** the state can change (set the Doc read-only and export it on freeze, upload of a file) runs before the database transaction; a Doc locked for a transition that is then refused is unlocked by a retried job; if it fails, nothing is committed and the member gets `governance.storage_unavailable` (an addition to PRD §5.1, see §8 and §11). Drive-side effects **after** a committed change (read-only restrictions, Doc sharing, PDF, scan reading) are jobs with retries, so a Google outage delays them but never undoes a state.
 
 ```mermaid
 sequenceDiagram
@@ -403,7 +419,7 @@ sequenceDiagram
     participant gemini as Gemini API
     M->>web: Mark готовий до підпису, or upload a signed scan
     web->>gov: Transition request
-    gov->>drive: Export Doc text, or stream the file
+    gov->>drive: Lock and export the Doc, or stream the file
     alt Drive or Docs unavailable or times out
         drive-->>gov: Error
         gov-->>web: governance.storage_unavailable, state unchanged, try again later
@@ -427,6 +443,34 @@ sequenceDiagram
     alt Drive unavailable
         worker->>db: Reschedule with backoff, alert after the attempt limit
     end
+```
+
+**Flow 9: Withdraw a draft (чернетка, готовий до голосування or готовий до підпису → знятий з розгляду) — covers AC-34, AC-34b, AC-34c, AC-30b**
+
+```mermaid
+sequenceDiagram
+    actor M as член правління
+    participant web as Web client
+    participant gov as governance
+    participant db as Database
+    participant worker as Worker
+    participant drive as Google Drive and Docs
+    M->>web: Close as знятий з розгляду with a reason
+    web->>gov: Withdraw (reason, expected version)
+    gov->>db: Load protocol state
+    alt reason empty
+        gov-->>web: governance.reason_required
+    else state підписаний
+        gov-->>web: governance.protocol_locked, offer a revoking or correcting protocol
+    else state знятий з розгляду
+        gov-->>web: governance.transition_not_allowed
+    else
+        gov->>db: Set знятий з розгляду with reason, release number, keep справа, versions and votes, enqueue apply_drive_restrictions, one transaction
+        gov-->>web: Withdrawn, never printed, no protocol number
+        worker->>db: Claim apply_drive_restrictions
+        worker->>drive: Set the Doc read-only and revoke member access
+    end
+    Note over gov,db: From now on the lock trigger refuses any change, ADR 0009
 ```
 
 ## 7. Deployment view
@@ -460,14 +504,15 @@ sequenceDiagram
 | Dates and time | Meeting date, term dates and `effective_from` are calendar dates in Europe/Kyiv; "in force on D" compares dates, never timestamps; audit times are `timestamptz` | ADR 0011 |
 | Audit trail | Every slot confirmation or correction, wording freeze, vote, meeting-fact entry and override is its own append-only row with actor and time; the proposed value stays in history (AC-06b) | ADR 0006, 0007, 0009 |
 | Concurrency | Protocol rows carry `version int`; changes made in spilno send the expected version and get `governance.draft_changed` on a mismatch (AC-11b for slots, agenda and meeting facts); wording concurrency is Google Docs co-editing | ADR 0006 |
+| Lifecycle | PRD §10 states and transitions in `governance/domain/protocol.go`; withdrawal from чернетка, готовий до голосування or готовий до підпису needs a reason, releases the number and is final (§6 Flow 9, AC-34-AC-35) | PRD §10, ADR 0013 |
 | Immutability | `app/` check + trigger on signed and withdrawn protocols, append-only rule tables, `locked_hash` verified daily | ADR 0009, 0011 |
-| Migrations | goose, one directory `services/core/migrations/`; triggers, RLS policies and role grants inside `-- +goose StatementBegin/End`; migrations run as `spilno_owner`, the app as `spilno_app` | repo ADR 0004, ADR 0010 |
+| Migrations | goose, one directory `services/core/migrations/`; triggers, RLS policies and role grants inside `-- +goose StatementBegin/End`; `cmd/api` applies pending migrations on start (repo ADR 0004) over a separate short-lived connection as `spilno_owner`, then serves through a pool as `spilno_app` | repo ADR 0004, ADR 0010 |
 | Files | Drive of the association account, `drive.file` scope; ≤ 20 MB, PDF / JPEG / PNG checked by content sniffing, not by extension; sha256 at upload; downloads streamed through `core` | ADR 0004, PRD §6 |
 | Secrets | Env file on the VM; the association's Google refresh token encrypted with AES-GCM under a key from the environment | ADR 0003, 0014 |
 | Personal data in logs | `slog` attributes carry ids only — never document text, names, reasons for неучасть у голосуванні or Gemini prompts and responses | PRD §6.1 |
 | Observability | OTel spans per request and per job; the job payload carries the trace context so a request and its job share one trace; request-duration histogram per route; job metrics from the worker (§7) | repo ADR 0001, ADR 0008 |
 | i18n | UI and printable protocol in Ukrainian; error messages from PRD §5.1 verbatim | PRD §5.1 |
-| Stored data below the ADR gate | Votes, meeting facts, confirmations and overrides are child rows of the protocol aggregate decided in ADR 0002, 0006, 0007 and 0009; sessions and invitations in ADR 0003; jobs in ADR 0008 — no further data shape is decided outside an ADR | blast-radius rule |
+| Stored data below the ADR gate | The protocol aggregate and справа tables are listed in ADR 0002 (Migration); frozen versions in ADR 0006; check snapshots and overrides in ADR 0007; lock hash and integrity checks in ADR 0009; identity tables in ADR 0003; jobs in ADR 0008 — no further data shape is decided outside an ADR | blast-radius rule |
 
 ## 9. Architecture decisions
 
@@ -529,6 +574,7 @@ Numbers are copied verbatim from PRD §6; where PRD §6 has no number (QG-2, QG-
 | One VM is a single point of failure for 99.5 % monthly (ADR 0014) | Medium | Compose + nightly dump restore drilled quarterly within 4 h; uptime alert; move to managed hosting if the budget is missed twice | Andrii Opryshko |
 | Two SADs for this feature on one branch: `sad.md` + `adr/` from `sdlc:architecture-design` and this file + `adr.ao-architecture/`, with different decisions; parallel sessions also mixed each other's files into commits (brownfield drift) | Medium | Pick the canonical SAD before `/sdlc:break-tasks` and point downstream skills at it; run parallel skill sessions in separate worktrees | Andrii Opryshko |
 | PRD AC-11b overridden for wording (ADR 0006, §4 pillar 5) | Medium | Update AC-11b in the PRD: co-editing without lost changes for wording; refusal of stale versions for slots, agenda and meeting facts; before `/sdlc:break-tasks` | Andrii Opryshko |
+| PRD §6 Retention and Durability overridden for files: they live only on Google Drive (§1 Decision overrides) | Medium | Update PRD §6: RPO for files is Google's, the signed paper original is the legal copy; before `/sdlc:break-tasks` | Andrii Opryshko |
 | Three error codes added beyond PRD §5.1: `governance.storage_unavailable`, `identity.session_required`, `identity.invitation_required` (§8) | Low | Add them to PRD §5.1 before `/sdlc:api-forge` | Andrii Opryshko |
 | Doc access is revoked by a worker job, so a member whose term ended can still edit a draft Doc until the next cycle (ADR 0006) | Low | `sync_doc_access` enqueued on every board-term change and daily; the frozen text in Postgres is what counts | Andrii Opryshko |
 | A член правління without a Google account cannot sign in (ADR 0003) | Low | The association creates a Google account for that member; revisit the emailed link option if it recurs | голова правління |

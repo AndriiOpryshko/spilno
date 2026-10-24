@@ -77,34 +77,47 @@ Responsiveness, durability and availability targets from PRD §6 are kept as add
 
 ## 3. Context and scope
 
-<!-- 🎯 Навіщо: малює КОРДОН СИСТЕМИ — хто з нею говорить ззовні, де закінчується зона довіри. -->
-<!--           Без §3 §5 і §8 (авторизація) розпливаються — неясно, що «всередині», а що «зовні». -->
-<!-- 📋 Що писати: 2-3 речення бізнес-контексту + таблиця зовнішніх систем + Mermaid C4Context. -->
-<!-- 📌 Приклад: «зовнішні — нема (свідома відмова від third-party у v1)» — це теж рішення.   -->
-<!-- Кордон довіри (trust boundary) — лінія, за якою ти не довіряєш даним без перевірки.       -->
-
-<Business context in 2-3 sentences. What the system does for whom.>
+spilno is the association's own management app; board-protocol adds the board's protocol workflow to it. The current члени правління prepare, check and lock board protocols and search the реєстр протоколів; the головуючий of a meeting drafts its protocol, in Stage 2 through a conversation that proposes slot values read from the case documents. The trust boundary is the spilno system: everything outside it — the identity provider, the text-generation service, the backup storage, and every uploaded document — is untrusted input that the system checks before use; nothing a document or the text-generation service says becomes a fact in a protocol until a person confirms it (PRD §6.1, AC-21, AC-28).
 
 **External systems (in / out):**
 
 | Actor or system | Type | Interaction |
 |---|---|---|
-| <e.g. IC> | Person | Creates goals, adds checkpoints |
-| <e.g. notification-service> | System (internal) | Receives cron registration |
-| <e.g. Identity Provider> | System (external) | Provides JWT tokens |
+| головуючий | Person | Opens a protocol draft from a справа, records attendance and неучасть у голосуванні, confirms слоти рішення, converses with the помічник протоколу, marks the draft готовий до голосування / готовий до підпису, prints the copy for signing |
+| член правління | Person | Casts their own попереднє голосування, records обхід блокування, uploads the signed scan, maintains the roster and правила статуту, searches the реєстр протоколів, exports a locked protocol |
+| ревізійна комісія | Person (outside the system) | Receives the export package of a locked protocol from a член правління; never signs in (PRD §3) |
+| управляюча компанія | Organisation (outside the system) | Issues the кошторис робіт, invoices and акт виконаних робіт that a член правління uploads into a справа; no integration |
+| Identity provider | System (external) | Authenticates a person at sign-in; spilno decides on its own whether that person is a current член правління (choice of provider in §4) |
+| Text-generation service | System (external) | Receives case documents, signed scans and conversation requests; returns proposed slot values with quoted fragments, the protocol number and date read from a scan, and connecting text — proposals only (choice of service and data terms in §4) |
+| Off-site backup storage | System (external) | Receives the daily backup of the registry and its files (PRD §6 RPO ≤ 24 h) |
+| finance context (spilno) | System (internal) | Already holds contracts; gains each contract's джерело коштів and the decision that approved it, read for related-contract попередження (AC-25, PRD §8) |
+
+<!-- brownfield: existing monolith — governance (meetings) and finance (contracts) contexts exist; no sign-in, file storage, jobs or AI integration yet (Step-3 explorer scan, 2026-10-24). -->
 
 **C4 Context (L1):**
 
 ```mermaid
 C4Context
-    title <system> — System Context
+    title board-protocol — System Context
 
-    Person(user, "<User>", "<role + intent>")
-    System(system, "<Our System>", "<one-sentence description>")
-    System_Ext(ext, "<External system>", "<one-sentence description>")
+    Person(chair, "головуючий", "Chairs one board meeting, drafts and prints its protocol")
+    Person(member, "член правління", "Votes in advance, overrides blocks, locks protocols, searches the registry")
+    Person(audit, "ревізійна комісія", "Audits board decisions from export packages")
+    Person(mc, "управляюча компанія", "Issues estimates, invoices and acts")
 
-    Rel(user, system, "<interaction>", "<protocol>")
-    Rel(system, ext, "<interaction>", "<protocol>")
+    System(spilno, "spilno", "Association management app: cases, protocol drafts, checks, реєстр протоколів")
+
+    System_Ext(idp, "Identity provider", "Authenticates people at sign-in")
+    System_Ext(llm, "Text-generation service", "Reads documents and scans, proposes slot values and text")
+    System_Ext(backup, "Off-site backup storage", "Keeps daily backups")
+
+    Rel(chair, spilno, "Drafts protocols, converses, confirms slots", "HTTPS")
+    Rel(member, spilno, "Votes, locks, overrides, searches, exports", "HTTPS")
+    Rel(member, audit, "Hands over export packages", "file, offline")
+    Rel(mc, member, "Sends estimates, invoices, acts", "email or paper")
+    Rel(spilno, idp, "Delegates sign-in", "HTTPS")
+    Rel(spilno, llm, "Sends documents and requests, receives proposals", "HTTPS")
+    Rel(spilno, backup, "Ships daily backups", "HTTPS")
 ```
 
 ## 4. Solution strategy

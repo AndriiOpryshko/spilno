@@ -24,23 +24,27 @@ contexts: []         # bounded contexts this feature touches, new ones marked (n
 
 ## 1. Introduction and goals
 
-**Intent.** <one paragraph from PRD §1-§2: which document or decision the board gets, and for whom>
+**Intent.** board-protocol lets a член правління turn a кошторис робіт into a printable протокол правління in one sitting. The protocol is assembled from typed слоти рішення: an amount, counterparty or джерело коштів reaches print only with a document of the справа and a person's confirmation, and кворум, кворум пункту, majority, the competence limit and the allowed meeting form are computed from the board in force and the правила статуту in force on the meeting date. The помічник протоколу writes wording and попередження and proposes amounts, but is never the source of a number. Попереднє голосування is advisory; printing is gated on блокуючі перевірки, some of which a member may lift with an обхід блокування and a reason. Uploading the signed scan locks the protocol in the реєстр протоколів with its справа, votes and overrides; a draft that is not signed is closed as знятий з розгляду and kept (PRD §1-§2, §10).
 
 **Top-3 quality goals** (full scenarios in §10):
 
-1. <e.g. Integrity of signed records — a locked protocol never changes>
-2. <e.g. Traceability — every number shows its source document>
-3. <e.g. Latency of drafting — p95 from PRD §6>
+1. **Integrity of signed protocols** — a підписаний protocol changes only through a new protocol that references it; 0 mismatches between printed numbers and confirmed slots (PRD §6 Integrity, AC-30, AC-30b).
+2. **Traceability and rule accuracy** — every number shows its справа document and the person who confirmed it; кворум, majority and the competence limit are computed from the rule in force on the meeting date (PRD §2, AC-02, AC-09, AC-19).
+3. **Confidentiality within one association** — only a член правління with a term in force acts on or reads the association's records; to anyone from another association a protocol is "not found" (PRD §6.1, AC-32, AC-33).
+
+Latency, durability (RPO ≤ 24 h, RTO ≤ 4 h) and availability (99.5 %) from PRD §6 are additional scenarios in §10; they yield to the three goals above when they conflict.
 
 **Stakeholders.**
 
 | Role (glossary) | Interest | Sign-off? |
 |---|---|---|
-| <головуючий> | <prepares and signs> | No |
-| <ревізійна комісія> | <reads exports> | No |
-| Tech lead | SAD approval | Yes |
-
-<!-- Decision overrides from the critic: «- Decision override: <headline> — rationale: <reason>» -->
+| член правління | Keeps the board and правила статуту, drafts with the помічник протоколу, confirms slots, casts own попереднє голосування, overrides, marks ready, uploads the signed copy, withdraws, searches the реєстр протоколів | No |
+| головуючий | Chairs the meeting and signs the paper protocol; a slot of the protocol, not a separate permission (PRD §1 ¶4) | No |
+| голова правління | Answers the charter open questions (meeting forms, competence limit, кворум vs majority) | No |
+| ревізійна комісія | Checks spending against protocols at the annual meeting; no access in this feature (PRD §3) | No |
+| управляюча компанія | Issues the кошторис робіт and акт виконаних робіт held in a справа; no access | No |
+| співвласник | Receives printed protocols as today; no access | No |
+| Tech lead | SAD and ADR approval; security review (PRD §6.1) | Yes |
 
 ## 2. Constraints
 

@@ -451,15 +451,23 @@ sequenceDiagram
 
 | Concept | Convention for this feature | Where defined |
 |---|---|---|
-| Errors | problem+json; codes from PRD §5.1 (`<context>.<error_name>`) | `internal/platform/httpapi`, PRD §5.1 |
-| Authorization | <roles × actions from PRD §10, checked in `app/`> | PRD §10 |
-| Validation | OpenAPI validator (422) + domain `Validate()` | CLAUDE.md |
-| IDs | UUID | repo convention |
-| Migrations | goose; <what this feature migrates, link ADR> | ADR 0004 |
-| Audit / immutability | <how locked records are protected> | ADR <NNNN> |
-| Files | <where scans live, size limit from PRD §6> | ADR <NNNN> |
-| Observability | OTel spans + request-duration histogram | repo convention |
-| i18n | UI in Ukrainian | — |
+| Errors | RFC 9457 problem+json; `type` carries the PRD §5.1 code `<context>.<error_name>`. Kind → status: validation 422, not_found 404, invariant 409, conflict 409, authorization 403. Added beyond PRD §5.1: `governance.storage_unavailable` (503, Drive or Docs down before a transition, §6 Flow 8), `identity.session_required` (401), `identity.invitation_required` (403, Google account not invited to the association) | `internal/platform/httpapi`, PRD §5.1, §11 |
+| Authorization | PRD §10 roles × actions in `governance/app`: the actor's board term must be in force on the date of the action; who may vote, who counts as present and the кворум use the board on the meeting date; "own vote only" compares the vote's member with the actor. `finance` and `identity` routes require a session in the association | PRD §10, ADR 0003 |
+| Association scope | `association_id` on every governance and finance row; RLS with `app.association_id` set by `platform/postgres.InAssociation`; another association's id answers not found | ADR 0010 |
+| Validation | OpenAPI request validator → 422 with field pointers; domain `Validate()` reports every broken field at once (as `meetings` and `contracts` do) | CLAUDE.md, repo ADR 0003 |
+| IDs | UUID (`gen_random_uuid()` / `github.com/google/uuid`) | repo convention |
+| Money and shares | Amounts as `bigint` kopiyky (`amount_cents`, as in `contracts`); частки будинку in basis points; per-building amounts split with the largest-remainder method so they sum to the confirmed amount (AC-07: 107 010 + 77 490 = 184 500 грн); amounts in words rendered from the integer | PRD AC-07 |
+| Dates and time | Meeting date, term dates and `effective_from` are calendar dates in Europe/Kyiv; "in force on D" compares dates, never timestamps; audit times are `timestamptz` | ADR 0011 |
+| Audit trail | Every slot confirmation or correction, wording freeze, vote, meeting-fact entry and override is its own append-only row with actor and time; the proposed value stays in history (AC-06b) | ADR 0006, 0007, 0009 |
+| Concurrency | Protocol rows carry `version int`; changes made in spilno send the expected version and get `governance.draft_changed` on a mismatch (AC-11b for slots, agenda and meeting facts); wording concurrency is Google Docs co-editing | ADR 0006 |
+| Immutability | `app/` check + trigger on signed and withdrawn protocols, append-only rule tables, `locked_hash` verified daily | ADR 0009, 0011 |
+| Migrations | goose, one directory `services/core/migrations/`; triggers, RLS policies and role grants inside `-- +goose StatementBegin/End`; migrations run as `spilno_owner`, the app as `spilno_app` | repo ADR 0004, ADR 0010 |
+| Files | Drive of the association account, `drive.file` scope; ≤ 20 MB, PDF / JPEG / PNG checked by content sniffing, not by extension; sha256 at upload; downloads streamed through `core` | ADR 0004, PRD §6 |
+| Secrets | Env file on the VM; the association's Google refresh token encrypted with AES-GCM under a key from the environment | ADR 0003, 0014 |
+| Personal data in logs | `slog` attributes carry ids only — never document text, names, reasons for неучасть у голосуванні or Gemini prompts and responses | PRD §6.1 |
+| Observability | OTel spans per request and per job; the job payload carries the trace context so a request and its job share one trace; request-duration histogram per route; job metrics from the worker (§7) | repo ADR 0001, ADR 0008 |
+| i18n | UI and printable protocol in Ukrainian; error messages from PRD §5.1 verbatim | PRD §5.1 |
+| Stored data below the ADR gate | Votes, meeting facts, confirmations and overrides are child rows of the protocol aggregate decided in ADR 0002, 0006, 0007 and 0009; sessions and invitations in ADR 0003; jobs in ADR 0008 — no further data shape is decided outside an ADR | blast-radius rule |
 
 ## 9. Architecture decisions
 

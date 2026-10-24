@@ -248,8 +248,7 @@ sequenceDiagram
     else number in text differs from a slot
         gov-->>web: governance.text_slot_mismatch naming the slot
     else
-        gov->>db: Store frozen version N with revision id and sha256, set state готовий до голосування
-        gov->>drive: Set Doc read-only
+        gov->>db: Store frozen version N with revision id and sha256, set готовий до голосування, enqueue apply_drive_restrictions
         gov-->>web: Version N open for voting
     end
     M->>web: Cast own vote za on item 1
@@ -292,8 +291,7 @@ sequenceDiagram
     alt blocking check open, for example кворум not reached
         gov-->>web: governance.quorum_missing naming the rule and its effective date
     else all blocking checks resolved or overridden
-        gov->>db: Advisory lock, take lowest free number, store frozen version, check snapshot, enqueue render_pdf
-        gov->>drive: Set Doc read-only
+        gov->>db: Advisory lock, lowest free number, frozen version, check snapshot, enqueue render_pdf and apply_drive_restrictions
         gov-->>web: готовий до підпису No 14 with попередження (no preliminary vote, missing rule, no service note)
     end
 ```
@@ -315,8 +313,7 @@ sequenceDiagram
         gov->>db: Store the fact, state unchanged, checks rerun on next read
         gov-->>web: Same state, updated checks
     else wording, agenda or decision slot
-        gov->>db: Set state чернетка, release number, keep votes on version N
-        gov->>drive: Lift Doc read-only restriction
+        gov->>db: Set чернетка, release number, keep votes on version N, enqueue apply_drive_restrictions to unlock the Doc
         gov-->>web: Back to чернетка, next vote starts on version N+1
     end
 ```
@@ -340,8 +337,7 @@ sequenceDiagram
         gov-->>web: governance.signed_copy_invalid, state unchanged
     else
         gov->>drive: Stream file to the protocol folder while hashing
-        gov->>db: Store file metadata, set підписаний, store locked hash, enqueue read_signed_scan, one transaction
-        gov->>drive: Set read-only on scan, PDF and case documents
+        gov->>db: Store file metadata, set підписаний, locked hash, enqueue read_signed_scan and apply_drive_restrictions, one transaction
         gov-->>web: Protocol No 14 locked in the реєстр протоколів
         worker->>db: Claim read_signed_scan
         worker->>drive: Download scan
@@ -389,6 +385,47 @@ sequenceDiagram
     else protocol belongs to another association
         db-->>gov: No row visible under RLS
         gov-->>web: governance.protocol_not_found
+    end
+```
+
+**Flow 8: Google services fail — covers PRD §6 availability and the draft target; Flow 1, 2, 3, 5 branches**
+
+Rule: a step that needs Drive or Docs **before** the state can change (Doc export on freeze, upload of a file) runs before the database transaction; if it fails, nothing is committed and the member gets `governance.storage_unavailable` (an addition to PRD §5.1, see §8 and §11). Drive-side effects **after** a committed change (read-only restrictions, Doc sharing, PDF, scan reading) are jobs with retries, so a Google outage delays them but never undoes a state.
+
+```mermaid
+sequenceDiagram
+    actor M as член правління
+    participant web as Web client
+    participant gov as governance
+    participant drive as Google Drive and Docs
+    participant db as Database
+    participant worker as Worker
+    participant gemini as Gemini API
+    M->>web: Mark готовий до підпису, or upload a signed scan
+    web->>gov: Transition request
+    gov->>drive: Export Doc text, or stream the file
+    alt Drive or Docs unavailable or times out
+        drive-->>gov: Error
+        gov-->>web: governance.storage_unavailable, state unchanged, try again later
+    else
+        gov->>db: Commit the transition with its follow-up jobs
+        gov-->>web: New state
+    end
+    worker->>db: Claim assistant_draft
+    worker->>gemini: Request draft
+    alt Gemini fails or exceeds the job timeout
+        gemini-->>worker: Error or timeout
+        worker->>db: Reschedule with backoff, after the attempt limit mark failed
+        web->>gov: Poll job status
+        gov-->>web: Assistant failed, retry offered, slots can be filled by hand
+    else
+        gemini-->>worker: Draft
+        worker->>db: Store slots and mark done
+    end
+    worker->>db: Claim apply_drive_restrictions
+    worker->>drive: Set or lift read-only, share or revoke Doc access
+    alt Drive unavailable
+        worker->>db: Reschedule with backoff, alert after the attempt limit
     end
 ```
 

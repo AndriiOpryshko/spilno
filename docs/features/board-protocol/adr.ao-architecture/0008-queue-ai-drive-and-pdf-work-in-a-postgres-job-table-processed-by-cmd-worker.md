@@ -32,7 +32,7 @@ ADR 0001 moves slow and external work into `cmd/worker`: the assistant draft (�
 
 ## Decision outcome
 
-**Chosen:** option 1. `governance_jobs` (id, association id, kind, payload jsonb, status queued / running / done / failed, attempts, run after, last error, result reference, timestamps). `core` inserts a job in the same transaction as the change that needs it, so a committed change always has its job. `cmd/worker` claims due jobs with `SELECT … FOR UPDATE SKIP LOCKED` (two workers never take the same job), runs the handler registered by `governance/module.go`, and retries with exponential backoff up to a per-kind limit; a failed job is visible on the draft. Kinds: `assistant_draft`, `read_signed_scan`, `render_pdf`, `sync_doc_access`, `verify_integrity` (scheduled daily). The web shows "помічник пише…" and polls the job every 2 s with TanStack Query.
+**Chosen:** option 1. `governance_jobs` (id, association id, kind, payload jsonb, status queued / running / done / failed, attempts, run after, last error, result reference, timestamps). `core` inserts a job in the same transaction as the change that needs it, so a committed change always has its job. `cmd/worker` claims due jobs with `SELECT … FOR UPDATE SKIP LOCKED` (two workers never take the same job), runs the handler registered by `governance/module.go`, and retries with exponential backoff up to a per-kind limit; a failed job is visible on the draft. Kinds: `assistant_draft`, `read_signed_scan`, `render_pdf`, `sync_doc_access`, `apply_drive_restrictions`, `verify_integrity` (scheduled daily). The web shows "помічник пише…" and polls the job every 2 s with TanStack Query.
 
 ### Consequences
 

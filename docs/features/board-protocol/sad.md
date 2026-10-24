@@ -161,14 +161,14 @@ services/core/
 │   │                          quorum.go (pure: meeting quorum, кворум пункту, majority) · locked snapshot (canonical form, fingerprint)
 │   ├── app/                   roster/ · rules/ · templates/ · drafts/ · voting/ · checks/ · locking/ · registry/ · export/
 │   ├── ports/                 repositories · CaseDocuments · FundingContracts · ProtocolFiles · Renderer · Jobs
-│   ├── adapters/              http/ (+gen/) · postgres/ (+queries/, sqlcgen/) · gdrive/ · render/
+│   ├── adapters/              http/ (+gen/) · postgres/ (+queries/, sqlcgen/) · gdrive/ · gdocs/ (Renderer)
 │   └── module.go              routes · CurrentMember(person, date) · ApplyProposal(draft, proposal) · job handlers
 ├── internal/cases/            NEW — справи, case documents and versions, file metadata, text read from documents
 ├── internal/assistant/        NEW — conversations, proposals; ports.TextModel + adapters/gemini (the only model client)
 ├── internal/identity/         NEW — accounts ↔ roster persons, sessions, OIDC flow, the session middleware
 ├── internal/finance/          EXTENDED — джерела коштів; contract → джерело коштів + approving decision id
 ├── internal/platform/
-│   ├── gdrive/                NEW — Drive API client for the association account (upload, copy, download, sha256)
+│   ├── google/                NEW — Drive and Docs API clients for the association account (upload, copy, download, sha256, export)
 │   ├── jobs/                  NEW — River client construction shared by api (enqueue) and worker (run)
 │   └── httpapi/               + current principal in context; unauthenticated/forbidden as problem+json
 └── migrations/                00004… — identity, cases, governance board-decision tables, finance columns, River schema
@@ -177,17 +177,25 @@ apps/web/src/
 └── features/                  governance/ (grows from the prototype) · cases/ · assistant/ (conversation panel)
 ```
 
-**Context interactions (all in-process calls through `module.go`, no shared tables):**
+**Context interactions (all in-process calls through `module.go`, no shared tables) → [ADR-0012](./adr/0012-integrate-contexts-through-synchronous-module-facades.md).** Each consumer declares the port in its own types; `cmd/api` and `cmd/worker` adapt the provider's `module.go` functions to it, so contexts never import each other and depguard rules stay as they are.
 
 | From → To | Why | Shape |
 |---|---|---|
 | identity → governance | Is this person a current член правління today? (AC-16, AC-19) | `CurrentMember(person, date)` query |
-| governance → cases | Document versions a slot is confirmed against; "document changed or replaced" (AC-09) | read query + a callback registered by governance |
+| governance → cases | Document versions a slot is confirmed against and the latest version of each — "changed or replaced" is detected on read (AC-09) | read query |
 | governance → finance | Contracts on the same джерело коштів approved by чинні рішення (AC-25) | read query |
 | finance → governance | Is the approving decision still чинне? | read query |
 | assistant → cases | Documents of the справа to send to the model | read query |
 | assistant → governance | Hand over a proposal; governance stores it as unconfirmed slots and text | `ApplyProposal` command |
 | any → worker | Slow or scheduled work | River job enqueued in the caller's transaction (ADR-0006) |
+
+**Key building-block decisions (inside `governance` unless noted):**
+
+- **Draft lifecycle with explicit states and a revision number** → [ADR-0009](./adr/0009-track-draft-lifecycle-with-states-and-revision-numbers.md). `draft` ⇄ `ready_for_vote` (frozen wording version that votes reference) → `ready_for_signing` (issued copy recorded) → `locked`; any edit bumps `revision`, returns the draft to `draft`, leaves older votes uncounted and voids the issued copy; stale writes get 409 `governance.draft_revision_conflict`; assistant proposals never overwrite confirmed slots (AC-05d, AC-14b, AC-28b).
+- **Checks evaluated on read; overrides bound to the check's input fingerprint** → [ADR-0010](./adr/0010-evaluate-checks-on-read-and-bind-overrides-to-input-fingerprints.md). One pure `Evaluate` returns every блокуюча перевірка and попередження with a stable key and an input fingerprint; an обхід блокування applies only while key and fingerprint match (AC-12b); `number_without_confirmed_source` and `incomplete_agenda` are not overridable.
+- **Decision text as fragments with slot placeholders** → [ADR-0011](./adr/0011-store-decision-text-as-fragments-with-slot-placeholders.md). Text is plain fragments plus references to slots and meeting facts; a deterministic validator turns any fact in plain text into a proposed slot (AC-28); шаблони формулювання use the same shape with fixed fragments (AC-23).
+- **Signing copies and export summaries rendered from Google Docs templates** → [ADR-0013](./adr/0013-render-signing-copies-from-google-docs-templates.md). The worker fills a pinned template Doc, exports PDF to Drive and records its sha256 as the issued copy; export is one ZIP with summary, signed scan, cited document versions and a manifest (AC-14c, AC-20).
+- **слот рішення** (inline): typed value (amount in kopiyky, counterparty, джерело коштів, document reference, date or term, person, votes, неучасть у голосуванні), origin (`system` · `document` · `human` · `note`), status (`confirmed` · `needs_review` · `not_found` · `unconfirmed`), source document version id and quoted fragment; confirmation records person and time (AC-21, AC-22, AC-27). Meeting facts (date, головуючий, members present) are system-filled slots.
 
 **C4 Container (L2):**
 

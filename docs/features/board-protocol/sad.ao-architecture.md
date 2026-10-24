@@ -10,7 +10,7 @@ depth: "medium"
 stage: "04-05"
 ticket: ""
 target_surfaces: [backend-service, web-frontend, worker]
-contexts: []         # bounded contexts this feature touches, new ones marked (new) — filled in §5
+contexts: [governance, identity (new), finance]
 ---
 
 # Software Architecture Document — board-protocol
@@ -118,54 +118,79 @@ C4Context
 
 ## 5. Building block view
 
-<one paragraph: hexagonal per context, why the feature extends or adds a context>
+Every context keeps the repo's hexagonal layout (repo ADR 0002): `domain/` (stdlib + uuid), `app/` (use cases and authorization), `ports/`, `adapters/http` (generated strict server), `adapters/postgres` (sqlc), `module.go`. The feature **extends `governance`** with protocols and everything their checks read (ADR 0002), **adds `identity`** for sign-in and the association (ADR 0003), and **touches `finance`** only to add a funding source to contracts (ADR 0012). Every governance and finance row carries `association_id` under Postgres Row-Level Security (ADR 0010). Recommended containers from repo practice, adapted: `files` is replaced by the association's Google Drive (ADR 0004), `ai` is the Gemini API (ADR 0005), `qes` is dropped (no electronic signing, PRD §3), and a `worker` process is added (ADR 0001).
 
 **Context ownership** (fills frontmatter `contexts`):
 
 | Context | New? | Owns (aggregates, tables) | Provides to others via module.go | Uses from others |
 |---|---|---|---|---|
-| <protocols> | new | <protocol, agenda item, vote> | <...> | <governance: meetings, roster> |
-| <governance> | existing | <meeting, board term> | <meeting by id, roster on date> | — |
+| `governance` | existing, extended | meeting (`meetings` + `association_id`); protocol (`protocols`, `protocol_versions`, slots and confirmations, meeting facts, `protocol_votes`, `protocol_overrides`, `protocol_check_snapshots`, `protocol_integrity_checks`); справа (`cases`, `governance_files`); board term (`board_terms`); правило статуту (`charter_rules`); частка будинку (`building_shares`); jobs (`governance_jobs`) | `Routes(r)`; `Worker()` — job handlers for `cmd/worker` | `identity`: `RequireSession`, `ActorFrom(ctx)`, `GoogleTokenSource(ctx, association)`; `finance`: `ContractsInForce(ctx, association, date)` |
+| `identity` | **new** | association (`associations`: name, annual-meeting date setting, encrypted Google connection); account (`accounts`, Google subject + e-mail); `invitations`; `sessions` | `Routes(r)`; `RequireSession` middleware; `ActorFrom(ctx)` → account, association, e-mail; `GoogleTokenSource(ctx, association)` | — |
+| `finance` | existing | contract (`contracts` + `association_id`, `funding_source`) | `Routes(r)`; `ContractsInForce(ctx, association, date)` with funding source and dates | `identity`: `RequireSession`, `ActorFrom(ctx)` |
+| `system` | existing, unchanged | — | health | — |
 
-**Layout of the new context:**
+Shared platform additions (not a context): `internal/platform/postgres.InAssociation(ctx, pool, association, fn)` opens a transaction and sets `app.association_id` for RLS (ADR 0010); `internal/platform/google` builds Drive and Docs clients from a token source.
+
+**Layout of the governance additions:**
 
 ```
-services/core/internal/<bc>/
-├── domain/              <entities, sentinel errors; stdlib only>
-├── app/                 <use cases; authorization against the board term on the action date>
-├── ports/               <repositories, other contexts' ports>
-├── adapters/http/       <StrictServerInterface; problem+json>
-├── adapters/postgres/   <queries/ → sqlcgen/>
-└── module.go            <wiring>
+services/core/internal/governance/
+├── domain/              meeting.go (exists), protocol.go (states, transitions), slot.go, vote.go,
+│                        checks.go (Evaluate — ADR 0007), charter.go (rule in force on a date — ADR 0011),
+│                        board.go, case.go, numbering.go (lowest free number — ADR 0013), errors.go (PRD §5.1)
+├── app/                 one file per use case group: cases, drafts, transitions, voting, signing, registry;
+│                        authorization against the board term in force on the action date (PRD §10)
+├── ports/               repositories, TextGenerator (ADR 0005), Files and Docs (ADR 0004, 0006),
+│                        Contracts (finance), Actor (identity)
+├── adapters/http/       StrictServerInterface; problem+json with governance.* codes
+├── adapters/postgres/   queries/{meetings,protocols,cases,board,charter,jobs}.sql → sqlcgen/
+├── adapters/gemini/     TextGenerator on the Google Gen AI SDK
+├── adapters/gdrive/     Files and Docs ports on Drive v3 and Docs v1
+├── jobs/                job handlers run by cmd/worker (assistant_draft, read_signed_scan, render_pdf,
+│                        sync_doc_access, verify_integrity)
+└── module.go            wiring: Routes, Worker
 ```
 
-New-context wiring (CLAUDE.md): spec tag · `adapters/http/gen/oapi-codegen.yaml` · `sqlc.yaml` entry ·
-`<bc>-private` depguard rule · `cmd/api/main.go`.
+**New-context wiring for `identity`** (CLAUDE.md): `identity` tag and `/identity/` paths in `services/core/api/openapi.yaml` · `internal/identity/adapters/http/gen/oapi-codegen.yaml` · `sqlc.yaml` entry · `identity-private` depguard rule in `.golangci.yml` (and the `(system|finance|governance|identity)-private` exclusion pattern) · `identity.New(pool)` in `cmd/api/main.go`, with `RequireSession` wrapped around the `governance` and `finance` groups. **New binary:** `services/core/cmd/worker/main.go` wires `governance.New(...).Worker()`; `.air.toml`/`mprocs.yaml` get a worker pane.
 
 ```mermaid
 C4Container
-    title <slug> — Containers
+    title board-protocol — Containers
 
-    Person(member, "<glossary role>")
+    Person(member, "член правління", "Prepares, checks, votes, locks, searches")
 
-    System_Boundary(sys, "<product>") {
-        Container(web, "Web client", "React", "<screens>")
-        Container_Boundary(core, "Core API — Go modular monolith") {
-            Container(ctx_new, "<new context>", "Go bounded context", "<owns>")
-            Container(ctx_ref, "<existing context>", "Go bounded context", "<provides>")
+    System_Boundary(sys, "spilno") {
+        Container(web, "Web client", "React 19, TanStack Router, orval hooks", "Cases, protocol draft, readiness, voting, registry")
+        Container_Boundary(core, "Core API — Go modular monolith, cmd/api") {
+            Container(gov, "governance", "Go bounded context", "Meetings, protocols, cases, board terms, charter rules, shares, checks, jobs")
+            Container(idn, "identity", "Go bounded context, new", "Google sign-in, sessions, associations, Google connection")
+            Container(fin, "finance", "Go bounded context", "Contracts with funding source")
         }
-        ContainerDb(db, "Database", "Postgres", "<tables per context>")
-        ContainerDb(files, "File storage", "<per ADR>", "<signed scans>")
+        Container(worker, "Worker", "Go, cmd/worker", "Assistant drafts, scan reading, PDF, Doc access, integrity check")
+        ContainerDb(db, "Database", "Postgres 18.6, goose + sqlc, RLS", "Tables per context, job table")
     }
 
-    System_Ext(otel, "Observability", "OpenTelemetry → Grafana LGTM")
+    System_Ext(gsi, "Google Sign-In", "OIDC identity provider")
+    System_Ext(drive, "Google Drive and Docs", "Association-owned account: case files, scans, PDFs, wording Docs")
+    System_Ext(gemini, "Gemini API", "Paid tier: wording, proposals, scan reading")
+    System_Ext(otel, "Observability", "OpenTelemetry to Grafana LGTM")
 
-    Rel(member, web, "uses", "HTTPS")
-    Rel(web, ctx_new, "calls", "OpenAPI, JSON")
-    Rel(ctx_new, ctx_ref, "reads", "through module.go")
-    Rel(ctx_new, db, "reads/writes own tables", "SQL")
-    Rel(ctx_new, files, "stores files")
-    Rel(ctx_new, otel, "traces, metrics", "OTLP")
+    Rel(member, web, "Uses", "HTTPS")
+    Rel(member, drive, "Edits wording in the shared Doc", "HTTPS")
+    Rel(web, idn, "Signs in", "OpenAPI, JSON")
+    Rel(web, gov, "Calls", "OpenAPI, JSON")
+    Rel(idn, gsi, "Verifies identity", "OIDC")
+    Rel(gov, idn, "Current actor, Google token", "through module.go")
+    Rel(gov, fin, "Contracts in force on a date", "through module.go")
+    Rel(gov, db, "Reads and writes own tables, enqueues jobs", "SQL")
+    Rel(idn, db, "Reads and writes own tables", "SQL")
+    Rel(fin, db, "Reads and writes own tables", "SQL")
+    Rel(gov, drive, "Uploads files, exports Doc on freeze", "HTTPS")
+    Rel(worker, db, "Claims jobs, writes results", "SQL")
+    Rel(worker, gemini, "Sends case files and draft", "HTTPS")
+    Rel(worker, drive, "Reads files, writes Doc and PDF, shares access", "HTTPS")
+    Rel(gov, otel, "Traces, metrics, logs", "OTLP")
+    Rel(worker, otel, "Traces, metrics, logs", "OTLP")
 ```
 
 ## 6. Runtime view

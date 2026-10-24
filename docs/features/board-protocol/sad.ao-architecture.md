@@ -492,14 +492,32 @@ I = irreversible, C = multi-context, A = legitimate alternative, D = touches the
 
 ## 10. Quality requirements
 
-**QG-1. <quality>**
-- **When:** <trigger>
-- **Then:** <PRD §6 number verbatim>
-- **How verify:** <testdb integration test / Playwright e2e / k6 / OTel metric name>
+Numbers are copied verbatim from PRD §6; where PRD §6 has no number (QG-2, QG-3) the scenario is verified against the PRD acceptance criteria instead of an invented threshold.
 
-**QG-2. <quality>** — <...>
+**QG-1. Integrity of signed protocols** (§1 goal 1)
+- **When:** any change to a підписаний or знятий з розгляду protocol or its children is attempted — through `app/` or as raw SQL under `spilno_app` — and when the daily `verify_integrity` job runs.
+- **Then:** "a signed protocol changes only through a new referencing protocol; 0 mismatches between printed numbers and confirmed slots" (PRD §6 Integrity); signed and withdrawn protocols "kept ≥ 5 years, never hard-deleted" (PRD §6 Retention).
+- **How verify:** `testdb.New(t)` integration tests `TestLockTrigger_<table>` issuing UPDATE and DELETE per child table under `spilno_app`; `app` tests for AC-30, AC-30b, AC-35 expecting `governance.protocol_locked` / `governance.transition_not_allowed`; a render test that extracts every number from the PDF of a frozen version and compares it with the confirmed slots; metric `governance_integrity_mismatches_total` stays 0 (alert on any increment, §7).
 
-**QG-3. <quality>** — <...>
+**QG-2. Traceability and rule accuracy** (§1 goal 2)
+- **When:** a draft for a meeting held on date D is evaluated, with правила статуту and board terms recorded before and after D.
+- **Then:** кворум, кворум пункту, majority, competence limit and meeting form are taken from the rule in force on D and give the results stated in AC-02, AC-19, AC-19b, AC-19c, AC-20, AC-21, AC-21b; every amount, counterparty and джерело коштів in a готовий до підпису draft has a справа document and a person's confirmation (AC-06, AC-09).
+- **How verify:** table-driven unit tests of `domain.Evaluate` with one case per AC above; a regression fixture of the association's past paper protocols, recounted by hand by the голова правління (§11 action), run in `mise run test`; PRD §7 KPI "AI-proposed amounts corrected by a person" logged per protocol from slot history.
+
+**QG-3. Confidentiality within one association** (§1 goal 3)
+- **When:** a member of association B, or a person whose board term ended, opens, edits or uploads to a protocol or справа of association A.
+- **Then:** the answer is "not found" for B without revealing existence (AC-33), refusal for the ended term (AC-32), and nothing changes.
+- **How verify:** an integration test generated from `openapi.yaml` that calls every `governance` and `finance` operation as a member of a second association and expects 404 or 403; an RLS test that runs a query without the `association_id` filter and expects zero foreign rows; the security review required by PRD §6.1 before Stage 1 release.
+
+**QG-4. Responsiveness** (additional)
+- **When:** a member works with one association's records at normal load.
+- **Then:** read or list p95 ≤ 200 ms; write without file p95 ≤ 500 ms; upload of a signed scan ≤ 3 s for 20 MB; printable protocol generation ≤ 5 s p95; draft from the помічник протоколу ≤ 30 s p95 from request to filled draft; ≥ 50 req/s per instance on the read path (PRD §6).
+- **How verify:** `http.server.request.duration` histogram per route in Grafana with the §7 alerts; `assistant_draft` job duration from enqueue to done; a k6 load smoke test in CI on the read routes.
+
+**QG-5. Availability and durability** (additional)
+- **When:** the VM, Postgres or a Google service fails, or data must be restored.
+- **Then:** availability 99.5 % monthly; RPO ≤ 24 h, RTO ≤ 4 h; files ≤ 20 MB per file, PDF / JPEG / PNG (PRD §6). For files on Google Drive the recovery point is Google's (accepted debt, §11).
+- **How verify:** external uptime check on the `system` health endpoint; nightly dump job status; quarterly restore drill onto a fresh VM timed against 4 h; upload validation tests for size and type (AC-29).
 
 ## 11. Risks and technical debt
 

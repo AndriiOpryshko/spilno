@@ -523,10 +523,29 @@ Numbers are copied verbatim from PRD §6; where PRD §6 has no number (QG-2, QG-
 
 | Risk / debt | Severity | Mitigation | Owner |
 |---|---|---|---|
-| <migration of existing records (PRD §9)> | <Low/Medium/High> | <...> | <...> |
-| Open architectural decision: <headline> | Open question | Resolve before <stage or date>; <reason> | <owner> |
+| A file of a locked protocol is permanently deleted on the association's Google Drive, or the account is locked; no copy outside Google (§7, ADR 0004, 0014) | High | Read-only restriction on lock, daily sha256 check, `untrash` within 30 days, alert on a missing file; the association account's password and 2-step verification held by two members; the signed paper original is kept as today | голова правління |
+| Case documents with personal data leave the hosting for Gemini; a free-tier key would allow training on them (PRD §6.1, ADR 0005) | Medium | Billing-enabled Google Cloud project checked at deploy; key only in the VM env file; send only the справа documents the draft needs; no prompts or responses in logs | Tech lead |
+| Upload of a 20 MB scan now includes the Drive upload and may exceed 3 s p95 (PRD §6, ADR 0004) | Medium | Measure the upload route from the first release; if over target, switch to a Drive resumable upload started by `core` and finished by the browser | Andrii Opryshko |
+| One VM is a single point of failure for 99.5 % monthly (ADR 0014) | Medium | Compose + nightly dump restore drilled quarterly within 4 h; uptime alert; move to managed hosting if the budget is missed twice | Andrii Opryshko |
+| Two SADs for this feature on one branch: `sad.md` + `adr/` from `sdlc:architecture-design` and this file + `adr.ao-architecture/`, with different decisions; parallel sessions also mixed each other's files into commits (brownfield drift) | Medium | Pick the canonical SAD before `/sdlc:break-tasks` and point downstream skills at it; run parallel skill sessions in separate worktrees | Andrii Opryshko |
+| PRD AC-11b overridden for wording (ADR 0006, §4 pillar 5) | Medium | Update AC-11b in the PRD: co-editing without lost changes for wording; refusal of stale versions for slots, agenda and meeting facts; before `/sdlc:break-tasks` | Andrii Opryshko |
+| Three error codes added beyond PRD §5.1: `governance.storage_unavailable`, `identity.session_required`, `identity.invitation_required` (§8) | Low | Add them to PRD §5.1 before `/sdlc:api-forge` | Andrii Opryshko |
+| Doc access is revoked by a worker job, so a member whose term ended can still edit a draft Doc until the next cycle (ADR 0006) | Low | `sync_doc_access` enqueued on every board-term change and daily; the frozen text in Postgres is what counts | Andrii Opryshko |
+| A член правління without a Google account cannot sign in (ADR 0003) | Low | The association creates a Google account for that member; revisit the emailed link option if it recurs | голова правління |
+| RLS: a query outside `InAssociation` sees no rows — safe, but shows up as "not found" bugs (ADR 0010) | Low | Lint rule or review checklist: repositories take a transaction from `InAssociation`; integration tests run as `spilno_app` | Andrii Opryshko |
+| Existing `meetings` and `contracts` have no association; backfill to the first association (repo scan, ADR 0010) | Low | Backfill in the migration, confirmed by a член правління at setup; test on a copy of the dev database | Andrii Opryshko |
+| Regression fixture for QG-2 needs past protocols recounted by hand (§10) | Low | Recount 3-5 past paper protocols (кворум, majority, limit) as fixtures; before `/sdlc:plan-tests` | голова правління |
+| Open question (PRD §8): which meeting forms the charter allows and which clause | Open question | Resolve before Stage 1 release; until recorded as a правило статуту the check warns (AC-21b) | голова правління |
+| Open question (PRD §8): is the 100 000 грн limit per protocol, per job or per estimate | Open question | Resolve before `/sdlc:break-tasks` (PRD due "before architecture" passed); default per decision line, splitting is a Stage 2 warning (AC-40) | голова правління |
+| Open question (PRD §8): on a 4-member board, is "3 votes for" the кворум, the majority or both | Open question | Resolve before Stage 1 release; default two separate правила статуту, кворум 3 and majority 3 | голова правління |
+| Open question (PRD §8): at what overrun of the act over the approved amount is a new decision needed | Open question | Resolve before Stage 2; default any overrun keeps the line open with a warning (AC-42) | голова правління + accountant |
+| Open question (PRD §8): will the management company hand over acts and statements per expense line | Open question | Resolve before Stage 2; default attached by a член правління | Andrii Opryshko |
+| Open question (PRD §8): time the next 2-3 protocols to replace the estimated KPI baselines | Open question | Resolve before Stage 1 release | Andrii Opryshko |
+| Open question (PRD §8): confirm Reach, 13 associations at about 20 protocols each | Open question | Resolve before roadmap scoring; §7 sizing assumes it | Andrii Opryshko |
 
-**Accepted debt:** <...>
+PRD §8 questions closed by this SAD: sign-in (ADR 0003), association scope (ADR 0010), personal data to the text-generation service (ADR 0005, paid tier), where the wording is edited (ADR 0006), джерело коштів as a contract field and contract in force (ADR 0012, both questions), reading number and date from the scan (ADR 0005, best effort, "не перевірено" when unreadable).
+
+**Accepted debt:** files of locked protocols live only on Google Drive (no copy outside Google); Files API copies of case documents stay on Google's side up to 48 h; backups and restores of the VM are scripts owned by one developer; Doc access revocation lags by one worker cycle.
 
 ## 12. Glossary
 

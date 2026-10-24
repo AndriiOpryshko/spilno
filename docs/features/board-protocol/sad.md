@@ -415,29 +415,47 @@ ADR files live under `docs/features/board-protocol/adr/NNNN-<title>.md`.
 
 ## 10. Quality requirements
 
-<!-- 🎯 Навіщо: ДЕРЕВО ЯКОСТЕЙ (Quality Tree) — беремо мету з §1 і розкладаємо на          -->
-<!--           конкретні листя: тести, метрики, конфіги, drill-и. ⭐ Без §10 §1 — це       -->
-<!--           маніфест. З §10 кожна декларація мапиться на щось, ЩО МОЖНА ДОВЕСТИ.        -->
-<!-- 📋 Що писати: на кожну якість з §1 — When / Then / How verify. Числа з PRD §6 NFR     -->
-<!--           ДОСЛІВНО (не округлюй p95 ≤250мс до ≤300мс — це F6-помилка критика).        -->
-<!-- 📌 Приклад: «p95 ≤500 мс на UPDATE блоку, перевіримо k6 load test 100 req/s».        -->
+The three goals of §1 first, then the remaining PRD §6 targets. Numbers are quoted from PRD §6 verbatim.
 
-Each top-3 goal from §1 expanded into a full scenario:
+**QG-1. Integrity of locked protocols**
+- **When:** anyone tries to change a locked protocol — through the API, by a direct SQL UPDATE or DELETE on `governance.locked_protocols`, or by editing or deleting a pinned file in the association's Google Drive.
+- **Then:** "0 changes to text, votes or signed copy after lock": the API refuses and explains that a locked protocol changes only through a new referencing decision (AC-17); the database trigger rejects the UPDATE or DELETE (ADR-0007); a change made in Drive is caught by the "periodic fingerprint comparison of every locked protocol, alert on mismatch".
+- **How verify:** integration test on `testdb.New(t)` that locks a protocol and asserts UPDATE and DELETE on its row fail; API test for AC-17 on text, votes and signed copy; worker test with a fake Drive port returning a different sha256 for one pinned file, asserting a recorded mismatch and `governance.integrity.mismatches` incremented; in production the nightly run's `governance.integrity.mismatches` stays 0 and its alert (§7) is wired.
 
-**QG-1. <quality attribute>**
-- **When:** <trigger condition>
-- **Then:** <expected behavior with numbers from PRD NFR>
-- **How verify:** <test / chaos drill / load test / observability>
+**QG-2. Rule accuracy**
+- **When:** any change to `governance` code, or a new правило статуту version.
+- **Then:** "100% agreement with hand calculation on the association's past protocols" for meeting quorum, кворум пункту and majority, using the rules and roster in force on each meeting date (AC-01, AC-02c, AC-05, AC-05b, AC-06).
+- **How verify:** "regression suite over the 30+ historical protocols, run on every change" — a table-driven test in `governance/domain` whose fixtures encode each historical protocol's roster, rule versions, attendance, неучасть у голосуванні and votes with the hand-calculated results, run by `mise run test`; unit tests for each AC above, including the share-of-roster rounding of AC-02c.
 
-**QG-2. <quality attribute>**
-- **When:** <trigger>
-- **Then:** <expected>
-- **How verify:** <how>
+**QG-3. Confidentiality of the association's records**
+- **When:** a person whose board term has ended, or who was never a член правління, signs in and calls any protected operation (cases, drafts, the реєстр протоколів, files, exports).
+- **Then:** "only current члени правління (term covers today) can see cases, drafts and the реєстр протоколів; access ends on the term end date" (PRD §6.1); the system "denies access and does not reveal whether any protocol or case exists" (AC-19).
+- **How verify:** integration test that iterates every operation in `services/core/api/openapi.yaml` except `system/health` with a former member's session and asserts 403 `identity.not_current_member` with an identical body whether the target id exists or not; boundary test with a term ending today and yesterday; Playwright e2e that a former member reaches no registry page.
 
-**QG-3. <quality attribute>**
-- **When:** <trigger>
-- **Then:** <expected>
-- **How verify:** <how>
+**QG-4. Responsiveness of reads**
+- **When:** a член правління opens a draft or a registry decision, or searches the registry.
+- **Then:** "≤ 1 s with ≤ 500 locked protocols" at p95, for both open and search (PRD §6).
+- **How verify:** integration benchmark on testcontainers Postgres seeded with 500 locked protocols, asserting p95 over 200 requests per operation stays under 1 s; in production the "request-duration metric in the service telemetry" (`http.server.request.duration` per route).
+
+**QG-5. Signed-copy upload**
+- **When:** a член правління uploads a signed scan.
+- **Then:** "scans up to 50 MB accepted; p95 ≤ 20 s including reading the protocol number and date" (PRD §6); larger files are refused.
+- **How verify:** integration test uploading a 50 MB scan (accepted) and a 51 MB one (refused, counted); in production the "upload-duration metric; rejected-size count" (`governance.scan_upload.duration`, `governance.scan_upload.rejected_size`).
+
+**QG-6. Proposed protocol from a conversation**
+- **When:** the головуючий asks the помічник протоколу for a draft with attached documents.
+- **Then:** "p95 ≤ 60 s for up to 10 attached documents" (PRD §6).
+- **How verify:** before the Stage 2 release, a run of the evaluation set (documents of the historical protocols) against the configured Gemini model, recording duration per proposal; in production the "proposal-duration metric in the service telemetry" (`assistant.proposal.duration`).
+
+**QG-7. Durability of the registry — not met in the first release**
+- **When:** the VM's disk is lost.
+- **Then:** PRD §6 asks "data loss ≤ 24 h (RPO); restore verified quarterly". The first release deliberately has no database backup (§7, §11, §1 decision override); files remain in the association's Drive, database records would be lost.
+- **How verify:** none until the backup is added; the return trigger is the first locked protocol that exists only in the system (§11).
+
+**QG-8. Availability**
+- **When:** any calendar month of operation.
+- **Then:** "99% monthly" (PRD §6).
+- **How verify:** "uptime check, monthly window" — the external uptime check of the public origin every 5 min (§7), with the monthly ratio reported.
 
 ## 11. Risks and technical debt
 

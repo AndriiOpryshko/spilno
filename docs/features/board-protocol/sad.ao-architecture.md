@@ -549,9 +549,31 @@ PRD §8 questions closed by this SAD: sign-in (ADR 0003), association scope (ADR
 
 ## 12. Glossary
 
-<!-- Terms from CONTEXT.md used in this SAD + technical terms of this feature. New domain terms go
-     to CONTEXT.md first. -->
+Domain terms are defined in [CONTEXT.md](./CONTEXT.md) `## Glossary`; this table lists the ones this SAD relies on, in one line each, plus the technical terms of this design. Terms marked *(new)* are not in CONTEXT.md yet and go there through `/sdlc:fix-term` after this pass.
 
 | Term | Meaning |
 |---|---|
-| <term> | <meaning> |
+| блокуюча перевірка | Deterministic check that stops готовий до підпису; some are lifted by an обхід блокування, unconfirmed or unsourced numbers and text-slot mismatch never (CONTEXT, PRD §10) |
+| попередження | Advisory notice with a source; never stops printing (CONTEXT) |
+| обхід блокування | A член правління's recorded override of a блокуюча перевірка with a mandatory reason (CONTEXT) |
+| слот рішення | Typed field of a decision with its value, origin and confirming document (CONTEXT) |
+| справа | Bundle of source documents a decision is based on; one per agenda item (CONTEXT, PRD §9) |
+| правило статуту | Charter parameter kept as data with the date it takes effect (CONTEXT, ADR 0011) |
+| попереднє голосування | Advisory per-member vote on one frozen version of the wording (CONTEXT) |
+| готовий до голосування / готовий до підпису / підписаний / знятий з розгляду | States of a protocol (CONTEXT, PRD §10) |
+| реєстр протоколів | The association's searchable record of locked and withdrawn protocols (CONTEXT) |
+| помічник протоколу | The conversation that drafts wording and proposes amounts; never the source of a number (CONTEXT, ADR 0005) |
+| кворум, кворум пункту | Presence needed for the meeting, and for one agenda item (CONTEXT) |
+| член правління, головуючий, голова правління | Board member with a term; per-meeting chair (a slot); the elected chair position (CONTEXT) |
+| association (ОСББ) *(new)* | The housing association that owns all records; the scope of every governance and finance row (ADR 0010) |
+| association Google account *(new)* | One Google account owned by the association, not by a person; holds the Drive folder with case files, scans, PDFs and wording Docs (ADR 0004) |
+| протокол-виправлення *(new)* | A new protocol that references a signed one to correct or revoke it; the only way a signed decision changes (AC-30, ADR 0009) |
+| frozen version | The Doc text exported into Postgres with its revision id and sha256 on готовий до голосування or готовий до підпису; the legal text (ADR 0006) |
+| named range | A Google Docs marker around a slot value in the wording, used to keep text and slot equal (ADR 0006) |
+| check snapshot | The list of блокуючі перевірки, попередження and applied rule ids stored on готовий до підпису (ADR 0007) |
+| locked hash | sha256 of the canonical snapshot of a signed protocol, re-verified daily (ADR 0009) |
+| job | A row in `governance_jobs` processed by `cmd/worker` with retries (ADR 0008) |
+| RLS | Postgres Row-Level Security: policies that hide rows of other associations (ADR 0010) |
+| `InAssociation` | Platform helper that runs a transaction with `app.association_id` set for RLS (ADR 0010) |
+| OIDC | OpenID Connect, the "sign in with Google" protocol (ADR 0003) |
+| `drive.file` | Google OAuth scope giving access only to files the app created (ADR 0004) |

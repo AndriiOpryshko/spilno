@@ -431,10 +431,21 @@ sequenceDiagram
 
 ## 7. Deployment view
 
-<!-- Usually N/A for a feature inside the core process: <!-- N/A: reuses the core deployment unit -->
-     plus one line of scaling numbers. Fill when the feature adds a process, a queue or storage. -->
+**Topology** → [ADR 0014](./adr.ao-architecture/0014-run-core-worker-and-postgres-on-one-vm-with-docker-compose.md). One VM runs a production compose file next to `infra/compose.yaml`: `caddy` (TLS, serves the built `apps/web` bundle, proxies `/api/*` to `core`), `core` (`cmd/api`, 1 replica), `worker` (`cmd/worker`, 1 replica, same image, different command), `postgres:18.6`, `otel-lgtm`. Load is ~13 associations × ~20 protocols a year (PRD §8 Reach), far below the ≥ 50 req/s read target per instance; a second worker replica is safe at any time (`SKIP LOCKED`), a second `core` replica needs only the session table, which is already in Postgres.
 
-<topology; storage for files; backup and restore numbers from PRD §6>
+**External dependencies:** Google Sign-In, Google Drive and Docs (association-owned account), Gemini API (paid tier). One Google Cloud project holds the OAuth client (sign-in and Drive/Docs scopes) and the Gemini API key; secrets (OAuth client secret, Gemini key, token-encryption key, database passwords for `spilno_owner` and `spilno_app`) come from an env file readable only by root on the VM.
+
+**Data and backup:** Postgres is dumped nightly (`pg_dump`, encrypted) to storage outside the VM, which gives RPO ≤ 24 h; restore onto a fresh VM from compose + dump fits RTO ≤ 4 h and is drilled quarterly (PRD §6). Files are **not** copied out of Google Drive: their protection is the read-only restriction, the daily hash check and `untrash` within Drive's 30-day trash window (ADR 0004); a permanent deletion is detected but not recoverable — accepted debt in §11.
+
+| Signal | Source | Alert |
+|---|---|---|
+| Request duration p95 per route | `otelhttp` histogram (existing) | read > 200 ms, write > 500 ms, upload > 3 s, PDF route > 5 s for 15 min |
+| Assistant draft time, request to filled draft | job `assistant_draft` duration | p95 > 30 s over a day |
+| Job queue age and failures per kind | `governance_jobs` gauge from the worker | oldest due job > 10 min; any job `failed` |
+| Integrity mismatches | `protocol_integrity_checks` | any mismatch, trashed or missing locked file |
+| Google API errors | Drive, Docs, Gemini client spans | error rate > 5 % for 15 min |
+| Uptime | external check on the `system` health endpoint | below 99.5 % monthly budget |
+| Backup | nightly dump job exit code and size | missing or failed dump |
 
 ## 8. Crosscutting concepts
 

@@ -356,24 +356,19 @@ sequenceDiagram
 
 ## 7. Deployment view
 
-<!-- 🎯 Навіщо: ТОПОЛОГІЯ, яку DevOps має знати без читання Helm-чартів — скільки реплік,  -->
-<!--           де живе фоновий обробник, ПРИ ЯКИХ ЧИСЛАХ масштабуємось.                     -->
-<!-- 📋 Що писати: 2-3 речення про топологію + метрики + алерти + конкретні числа-пороги.   -->
-<!-- 📌 Приклад: «500 IC → партиціонування за кварталом» (не «при зростанні подумаємо»).    -->
-<!-- 🎯 Можна N/A для XS/S функцій, що переюзають існуюче розгортання без змін.            -->
+One small virtual machine in the EU runs the whole system with docker compose, the same shape as `infra/compose.yaml` locally: `caddy` (TLS for the public HTTPS origin that OIDC needs, serves the built SPA, reverse-proxies `/api/*` to the API), `core-api` (1 replica), `worker` (1 replica, ADR-0001), `postgres:18.6` on a persistent volume. Secrets live in an env file on the VM, readable only by the services: the OIDC client (ADR-0003), the encrypted refresh token of the association Google account for Drive and Docs (ADR-0005, ADR-0013), the Gemini API key (ADR-0004), the session-cookie key. Telemetry goes over OTLP to `grafana/otel-lgtm` on the same VM (or a hosted Grafana stack with the same endpoint). Deploys are image pulls plus `docker compose up -d`; migrations run on API start (repo ADR 0004), and the worker starts after the API is healthy so River's schema exists.
 
-<Topology in 2-3 sentences. Where it runs (k8s / VM / serverless), replicas, scaling thresholds.>
+**Backups — none in the first release (deliberate deviation from PRD §6 "Durability of the registry").** No database backup and no restore drill until the registry becomes the only record of a decision. Rationale (author, 2026-10-25): production is still far off — the first release is a pilot in which the signed paper protocols and the files in the association's Google Drive remain the primary record; a database backup is added before the registry becomes the sole source. Tracked as a High risk in §11; restated as a decision override in §1 for downstream stages.
 
 **Monitoring:**
-- <Metrics — e.g. Prometheus `<metric_name>`>
-- <Alerts — e.g. "outbox lag > 10 min → page on-call">
-- <Tracing — e.g. OpenTelemetry HTTP spans>
+- Metrics: `http.server.request.duration` from otelhttp per route (PRD §6 open draft / registry decision / search p95 ≤ 1 s); `governance.scan_upload.duration` (upload through number-and-date reading, p95 ≤ 20 s) and `governance.scan_upload.rejected_size` (scans over 50 MB); `assistant.proposal.duration` (p95 ≤ 60 s) and `assistant.proposal.failures`; `governance.integrity.mismatches` and `governance.integrity.verified` per nightly run; River job counts by kind and state; `gdrive.request.errors` by operation.
+- Alerts: `governance.integrity.mismatches` > 0 → alert the maintainer at once; no successful nightly integrity run in 26 h → alert; failed jobs of one kind > 3 in 1 h → alert; `gdrive.request.errors` showing an authorization failure → alert (refresh token revoked, ADR-0005); external uptime check of the public origin every 5 min, monthly availability reported against 99%.
+- Tracing: otelhttp spans on every request, otelpgx spans on SQL, spans around each Drive, Docs and Gemini call in the worker, linked to the job id; logs via `log/slog` with `otelslog` (repo ADR 0001), never logging document content or personal data.
 
 **Scaling thresholds:**
-- <e.g. 500 IC × 5 goals × 26 checkpoints/Q = 65k rows/year — comfortable in one table>
-- <e.g. partitioning by quarter at >500k rows/year>
-
-<!-- For XS/S that doesn't change deployment: <!-- N/A: feature reuses existing deployment unit -->. -->
+- 15-20 protocols a year and ≤ 500 locked protocols (PRD §6 sizing) is decades of rows in single tables — no partitioning, one API and one worker replica.
+- Files: roughly up to 1.2 GB a year in the association's Drive; Drive quota is the first limit to watch (the account's storage is shared with its mail).
+- Revisit topology only when a second association joins (PRD §3 non-goal for the first release) or when `http.server.request.duration` p95 for draft open passes 1 s.
 
 ## 8. Crosscutting concepts
 

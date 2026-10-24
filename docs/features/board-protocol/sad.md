@@ -6,7 +6,7 @@ updated_at: "2026-10-24"
 feature_size: L
 stage: "04-05"
 ticket: ""
-target_surfaces: []  # filled in §4 — subset of: backend-service | web-frontend | mobile-app | desktop-app | cli | worker | library-sdk. Read (never re-derived) by api-forge/complete-sequence-diagrams/break-tasks/plan-tests/review-feature → _shared/surfaces.md
+target_surfaces: [backend-service, web-frontend, worker]  # filled in §4 — subset of: backend-service | web-frontend | mobile-app | desktop-app | cli | worker | library-sdk. Read (never re-derived) by api-forge/complete-sequence-diagrams/break-tasks/plan-tests/review-feature → _shared/surfaces.md
 ---
 
 # Software Architecture Document — board-protocol
@@ -122,28 +122,25 @@ C4Context
 
 ## 4. Solution strategy
 
-<!-- 🎯 Навіщо: 3-4 СТРАТЕГІЧНІ СТОВПИ, з яких потім ростуть усі ADR. Без §4 кожен ADR    -->
-<!--           виглядає випадковим — нема зонтика. ⭐ Найгустіша секція — тут ADR-gate    -->
-<!--           спрацьовує майже завжди (рішення незворотні + мульти-модульні).            -->
-<!-- 📋 Що писати: спершу Target surface(s), потім 3-4 стратегічні вибори.                -->
-<!--           На кожен — заголовок + 2-3 речення rationale.                              -->
-<!-- 📌 ПЕРШЕ рішення §4 — Target surface(s): ЩО САМЕ будуємо. Записується у frontmatter   -->
-<!--           target_surfaces: [...] і гейтить §5 (один контейнер на поверхню) + усі       -->
-<!--           наступні стадії. Деривиться з PRD §1 «для кого» + §4 ролей. → _shared/surfaces.md -->
-<!-- 📌 Приклад: «Зберігати урок як таблицю блоків» — стовп, з якого виросло ADR-0001.    -->
+**Target surface(s) (the first decision — what's being built):** `[backend-service, web-frontend, worker]` → [ADR-0001](./adr/0001-build-backend-web-and-worker-surfaces.md)
 
-**Target surface(s) (the first decision — what's being built):** `<e.g. [backend-service, web-frontend]>`
-<!-- Mirror this list into the frontmatter `target_surfaces`. For each declared UI surface          -->
-<!-- (web-frontend / mobile-app / desktop-app) add a UI-architecture choice below (web → SSR/SPA/   -->
-<!-- hybrid; mobile → native/cross-platform). Multi-surface is usually an ADR (multi-module +       -->
-<!-- irreversible). The UI reuses the repo's existing design system / components / tokens from       -->
-<!-- architecture-map.md §Frontend — it does not design greenfield. → _shared/surfaces.md           -->
+- **backend-service** — the existing core API (`services/core/cmd/api`) owns the OpenAPI contract, all writes and every authorization decision.
+- **web-frontend** — the existing SPA (`apps/web`) consumes the contract through orval-generated hooks; it authors no contract.
+- **worker** — a separate process (`services/core/cmd/worker`, same Go module and contexts) that runs the slow and scheduled work: reading case documents and signed scans with the text-generation service, building conversation proposals, copying files in Google Drive, the nightly integrity check of locked protocols and the nightly backup. It has no request/response surface; it consumes jobs (ADR-0006).
+
+**UI-architecture (web-frontend) — inline, no ADR (gate 1 of 3).** Client-side SPA as fixed by repo ADR 0001: TanStack Router pages under `src/routes/`, feature components under `src/features/governance/` and new `src/features/cases/`, grown from the existing protocol-draft prototype (slot origin and status, advisory vs blocking notices, readiness gate before printing) and replacing its in-memory `api.ts` with the generated hooks. The UI reuses the shadcn primitives in `src/components/ui` (badge, button, card, input, kbd, skeleton, textarea; new ones added through shadcn, not hand-rolled) and the Tailwind v4 tokens; no second styling system. Results that take seconds — a proposal from the помічник протоколу, the number and date read from a signed scan — and other members' попереднє голосування reach the browser by **polling**: a long action answers at once with the job or resource it started, and TanStack Query re-fetches its status about every 2 s while it is pending and stops when it settles. No server push in the first release.
 
 **Top strategic choices (the seeds for ADRs):**
 
-1. **<e.g. Module isolation through events>** — <2-3 sentences rationale referencing Quality Goals and constraints>.
-2. **<e.g. Single-store persistence (Postgres)>** — <2-3 sentences>.
-3. **<e.g. UI-architecture: SPA consuming the backend API>** — <per declared UI surface; 2-3 sentences>.
+1. **Board decisions stay in `governance`; cases, the assistant and identity get their own contexts** → [ADR-0002](./adr/0002-extend-governance-and-add-cases-assistant-identity-contexts.md). The roster, правила статуту, шаблони формулювання, protocol drafts, слоти рішення, attendance, votes, checks, overrides and the реєстр протоколів live in `governance`, because quorum, majority and locking need all of them consistent in one transaction (QG-1, QG-2). `cases` owns справи and their document versions, which both protocols and `finance` contracts cite. `assistant` owns the помічник протоколу and is the only context that may import the text-generation client — depguard turns "the AI only proposes" into a lint rule: `governance` can receive proposals, never call the model. `identity` owns accounts and sessions; `finance` gains джерела коштів and the decision that approved each contract (PRD §8 default adopted).
+2. **Sign-in through OIDC with server-side sessions in Postgres** → [ADR-0003](./adr/0003-sign-in-with-oidc-and-postgres-sessions.md). A person signs in with Google (any OIDC provider by configuration); the verified email links the account to a person in the roster; the session is a Postgres row behind an HttpOnly cookie. Whether that person is a current член правління is decided by spilno from the roster on every request, never by the identity provider (QG-3, AC-16, AC-19). Resolves PRD §8 "How does a член правління sign in".
+3. **Gemini API reads documents and drafts, behind a port; people confirm** → [ADR-0004](./adr/0004-use-gemini-api-for-document-reading-and-drafting.md). The worker sends a справа's documents (fetched from Google Drive), a signed scan or a conversation request to the Gemini API on a paid tier whose terms exclude using the data for training, and gets back structured proposals: slot values with the quoted fragment and the document they came from, the protocol number and date read from a scan, connecting text. Nothing it returns is a fact until a person confirms it (AC-21, AC-27, AC-28). Resolves PRD §8 "May case documents … be processed by a text-generation service outside the association's own hosting".
+4. **Files live in an association-owned Google Drive folder; Postgres keeps their metadata** → [ADR-0005](./adr/0005-store-files-in-association-owned-google-drive-folder.md). Case documents, signed scans, copies printed for signing and export packages are stored in a `spilno/` folder of the association's Google account, shared with nobody; spilno reaches it through the Drive API with that account's authorization. Postgres keeps, per file version, the Drive file id, revision id, sha256, size, media type, author and time. Members read and add files only through spilno, which checks the term on every request (QG-3); an existing file in the association's Drive is attached by copying it into the case folder, so later edits of the original never touch the cited version (AC-09, AC-17b).
+5. **Background work goes through a River job queue in Postgres to the worker** → [ADR-0006](./adr/0006-run-background-work-in-worker-via-river-queue.md). The API enqueues a job in the same transaction as the domain write that needs it (an uploaded scan, a conversation turn, an attached document), so a job is never lost or orphaned; the worker retries failed calls with backoff and runs the nightly periodic jobs. River's schema is copied into a goose migration so goose stays the only migrator (repo ADR 0004).
+6. **A locked protocol is an immutable, fingerprinted snapshot** → [ADR-0007](./adr/0007-lock-protocols-as-fingerprinted-immutable-snapshots.md). Locking writes one canonical JSON snapshot — text, slots, attendance, неучасть у голосуванні, votes, applied rule versions, roster, computed quorum and majority, overrides, and the Drive id, revision and sha256 of the signed scan and of every cited document version — plus its SHA-256 fingerprint. A database trigger rejects UPDATE and DELETE on locked rows; the registry and the export read only the snapshot; the nightly job recomputes every fingerprint and compares the sha256 Drive reports for each pinned file, alerting on any mismatch (QG-1, AC-17, AC-17b).
+7. **правила статуту are a typed catalog of effective-dated parameters** → [ADR-0008](./adr/0008-keep-charter-rules-as-typed-effective-dated-parameters.md). A fixed set of rule kinds — quorum size (count, or share of the roster in force), majority (threshold and what it is counted from), board competence limit, whether a non-voting member counts toward a кворум пункту — each stored as append-only versions with effective date, charter or decision reference, author and time. Quorum and majority are pure functions in `governance/domain`, checked by a regression suite over the 30+ historical protocols on every change (QG-2, AC-01, AC-02b, AC-02c).
+
+**Guiding principle across all seven: a deterministic core with an advisory assistant.** Every number, check and lock decision is computed by deterministic code from confirmed data; the text-generation service, documents and Drive are inputs that propose or store, never decide (PRD §3 non-goals "Legal advice or interpretive blocking", "The autonomous part of approach B").
 
 Each tactical decision in later sections should be traceable to one of these strategic seeds. Tactical decisions that *contradict* a strategic choice are red flags — surface them in §11 Risks.
 

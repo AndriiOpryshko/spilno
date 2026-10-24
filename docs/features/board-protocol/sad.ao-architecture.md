@@ -48,21 +48,26 @@ Latency, durability (RPO ≤ 24 h, RTO ≤ 4 h) and availability (99.5 %) from P
 
 ## 2. Constraints
 
-**Technical** (versions from `mise.toml`, `go.mod`, `package.json`, `infra/compose.yaml`):
-- <Go x.y, chi, oapi-codegen strict server, sqlc + pgx, goose>
-- <Postgres x>
-- <React x, TanStack Router, shadcn/ui, generated TS client>
+**Technical** (versions from `mise.toml`, `services/core/go.mod`, `apps/web/package.json`, `infra/compose.yaml`):
+- Go 1.27.3, chi v5, oapi-codegen v2.8 strict server, sqlc + pgx/v5, otelpgx, goose (repo ADR 0001, 0003, 0004).
+- Postgres 18.6 (`postgres:18.6-alpine`), one database for the whole `core` process.
+- React 19.3, TypeScript 6.0.3, Vite 8, Tailwind 4.3, shadcn/ui, TanStack Router 1.170 + Query 5.104, orval-generated hooks.
+- Observability: OpenTelemetry → `grafana/otel-lgtm` 0.37 (traces, metrics, logs via `otelslog`).
 
-**Repo ADRs that bind this feature:**
-- <0001 stack> · <0002 bounded contexts> · <0003 spec-first codegen> · <0004 migrations and queries>
+**Repo ADRs that bind this feature:** [0001 Stack](../../adr/0001-stack.md) · [0002 Bounded contexts](../../adr/0002-bounded-contexts.md) · [0003 Spec-first codegen](../../adr/0003-spec-first-codegen.md) · [0004 Migrations and queries](../../adr/0004-migrations-and-queries.md). None is superseded by this feature.
 
-**Conventions** (`CLAUDE.md`): one OpenAPI contract, one tag per context, paths `/<context>/`;
-contexts import each other only through `module.go`; problem+json errors; `r.Group`, never
-`r.Mount`; generated files are never edited.
+**Starting point of the repo** (scan 2026-10-25): contexts `system`, `finance` (contracts) and `governance` (meetings: kind, held date, optional end and location, `quorum_required`); no sign-in, no association scope, no file storage, no outbound HTTP client, no background jobs. Migrations live in one directory `services/core/migrations/` (`0000N_*.sql`), not per context; tables use CHECK constraints and the shared `set_updated_at` trigger.
 
-**Organisational:** <effort, deadline, team — from PRD or TBD with a §11 row>
+**Conventions** (`CLAUDE.md`): one OpenAPI contract, one tag per context, paths `/<context>/`; contexts import each other only through `module.go` (depguard `<bc>-private`); `domain/` imports only stdlib and uuid; problem+json errors; `r.Group`, never `r.Mount`; generated files are never edited; integration tests on `testdb.New(t)`.
 
-**Regulatory / legal:** <personal data of co-owners, record retention, signature law — from PRD §6.1 and brief §18>
+**Organisational:** one developer; rollout Stage 0 (sign-in, association scope) → Stage 1 (US-01-US-09) → Stage 2 (US-10-US-12) (PRD §9). There is no fixed project deadline: the date of an association's annual general meeting, which the KPI "100 % of spending decisions locked before the annual meeting" is measured against, is the association's own setting, kept with the association record (Stage 0).
+
+**Regulatory / legal** (PRD §6.1, §6, §3):
+- Data class Confidential: names and terms of board members, signatures on scans, co-owners' names and apartment numbers in case documents, reasons for неучасть у голосуванні (personal data under the Law of Ukraine "On Personal Data Protection").
+- Signed and withdrawn protocols kept ≥ 5 years and never hard-deleted.
+- The binding signature is on paper; no electronic signing, no binding electronic vote.
+- Case documents go to a text-generation service only under an agreement that excludes training on the data.
+- Security review required before Stage 1 release (first feature with authorization, personal data and an external AI service).
 
 ## 3. Context and scope
 

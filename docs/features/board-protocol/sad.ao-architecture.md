@@ -195,28 +195,202 @@ C4Container
 
 ## 6. Runtime view
 
-<!-- Seed the primary flows here; complete-sequence-diagrams adds the rest. Participants are §5
-     container aliases. Messages are semantic — no HTTP verbs, paths or status codes.
-     With an ao-prd PRD: one flow per critical §10 transition (e.g. mark ready, sign and lock,
-     refused edit after lock) and name the PRD AC each flow covers. -->
+Seed flows, one per critical transition of PRD §10, each naming the ACs it covers. Participants are the §5 container aliases; messages are semantic (no paths or status codes — those come with `/sdlc:api-forge`). Every request runs inside `InAssociation` (ADR 0010) after `identity.RequireSession`; this is drawn once in Flow 7 and implied elsewhere. Withdrawal (AC-34, AC-34b, AC-34c), the meeting-facts entry (AC-15b, AC-15c) and the Stage 2 flows (US-10-US-12) are left to `/sdlc:complete-sequence-diagrams`.
 
-**Flow 1: <happy path> — covers AC-<NN>**
+**Flow 1: Draft through the помічник (none → чернетка) — covers AC-03, AC-04, AC-05, AC-06**
 
 ```mermaid
 sequenceDiagram
-    actor M as <glossary role>
-    participant W as web
-    participant P as <new context>
-    participant G as <existing context>
-    participant D as db
-    M->>W: <action>
-    W->>P: <command>
-    P->>G: <read through module.go>
-    P->>D: <write in one transaction>
-    P-->>W: <result>
+    actor M as член правління
+    participant web as Web client
+    participant gov as governance
+    participant db as Database
+    participant worker as Worker
+    participant drive as Google Drive and Docs
+    participant gemini as Gemini API
+    M->>web: Attach estimate to the справа, ask for a draft for a meeting
+    web->>gov: Request assistant draft (case, meeting, purpose)
+    gov->>db: Load meeting and case documents
+    alt meeting not stored for the association
+        gov-->>web: governance.meeting_not_found, no draft
+    else case has no document
+        gov-->>web: governance.source_document_required
+    else
+        gov->>db: Create protocol in чернетка and enqueue assistant_draft job in one transaction
+        gov-->>web: Job accepted
+        web->>gov: Poll job status every 2 s
+        worker->>db: Claim job with SKIP LOCKED
+        worker->>drive: Download case files
+        worker->>gemini: Send files, purpose, board and rules on the meeting date
+        gemini-->>worker: Wording, попередження, proposed amounts with fragments
+        worker->>drive: Create wording Doc with named ranges, share with current members
+        worker->>db: Store slots as origin ai and unconfirmed, mark job done
+        gov-->>web: Draft ready, amount 184 500 грн proposed with its source fragment
+    end
 ```
 
-**Flow 2: <refused transition / failure mode> — covers AC-<NN>**
+**Flow 2: Freeze for the попереднє голосування and vote (чернетка → готовий до голосування) — covers AC-12, AC-13, AC-14, AC-15, AC-16, AC-18**
+
+```mermaid
+sequenceDiagram
+    actor M as член правління
+    participant web as Web client
+    participant gov as governance
+    participant drive as Google Drive and Docs
+    participant db as Database
+    M->>web: Mark готовий до голосування
+    web->>gov: Transition to voting (expected version)
+    gov->>drive: Export Doc text at current revision
+    gov->>db: Load slots, meeting facts, board and rules on the meeting date
+    gov->>gov: Evaluate snapshot
+    alt amount proposed and unconfirmed
+        gov-->>web: governance.amount_unconfirmed naming the slot
+    else number in text differs from a slot
+        gov-->>web: governance.text_slot_mismatch naming the slot
+    else
+        gov->>db: Store frozen version N with revision id and sha256, set state готовий до голосування
+        gov->>drive: Set Doc read-only
+        gov-->>web: Version N open for voting
+    end
+    M->>web: Cast own vote za on item 1
+    web->>gov: Cast vote (version N, item 1)
+    alt vote for another member
+        gov-->>web: governance.vote_on_behalf
+    else draft not frozen
+        gov-->>web: governance.voting_not_open
+    else
+        gov->>db: Store vote with member, time and version N
+        gov-->>web: Tally 3 za of 3 voting, advisory
+    end
+```
+
+**Flow 3: Mark готовий до підпису with an override (чернетка or готовий до голосування → готовий до підпису) — covers AC-06, AC-09, AC-19, AC-19b, AC-19c, AC-20, AC-21, AC-21b, AC-23, AC-24, AC-25, AC-25b, AC-27**
+
+```mermaid
+sequenceDiagram
+    actor M as член правління
+    participant web as Web client
+    participant gov as governance
+    participant fin as finance
+    participant drive as Google Drive and Docs
+    participant db as Database
+    M->>web: Record обхід блокування for the competence limit with a reason
+    web->>gov: Record override (check code, reason)
+    alt reason empty
+        gov-->>web: governance.reason_required
+    else check not overridable
+        gov-->>web: Refused, unconfirmed or unsourced numbers are never overridden
+    else
+        gov->>db: Store override with author, time, reason
+    end
+    M->>web: Mark готовий до підпису
+    web->>gov: Transition to ready to sign
+    gov->>drive: Export Doc text at current revision
+    gov->>fin: Contracts in force on the meeting date
+    gov->>db: Load slots, meeting facts, board, rules, overrides
+    gov->>gov: Evaluate snapshot
+    alt blocking check open, for example кворум not reached
+        gov-->>web: governance.quorum_missing naming the rule and its effective date
+    else all blocking checks resolved or overridden
+        gov->>db: Advisory lock, take lowest free number, store frozen version, check snapshot, enqueue render_pdf
+        gov->>drive: Set Doc read-only
+        gov-->>web: готовий до підпису No 14 with попередження (no preliminary vote, missing rule, no service note)
+    end
+```
+
+**Flow 4: An edit returns the draft to чернетка (готовий до голосування or готовий до підпису → чернетка) — covers AC-17, AC-26**
+
+```mermaid
+sequenceDiagram
+    actor M as член правління
+    participant web as Web client
+    participant gov as governance
+    participant drive as Google Drive and Docs
+    participant db as Database
+    M->>web: Edit wording, agenda or a decision slot
+    web->>gov: Change (expected version)
+    alt version changed meanwhile
+        gov-->>web: governance.draft_changed with the newer version
+    else meeting fact, confirmation without change, or override
+        gov->>db: Store the fact, state unchanged, checks rerun on next read
+        gov-->>web: Same state, updated checks
+    else wording, agenda or decision slot
+        gov->>db: Set state чернетка, release number, keep votes on version N
+        gov->>drive: Lift Doc read-only restriction
+        gov-->>web: Back to чернетка, next vote starts on version N+1
+    end
+```
+
+**Flow 5: Upload the signed copy and lock (готовий до підпису → підписаний) — covers AC-28, AC-28b, AC-29, AC-31**
+
+```mermaid
+sequenceDiagram
+    actor M as член правління
+    participant web as Web client
+    participant gov as governance
+    participant drive as Google Drive and Docs
+    participant db as Database
+    participant worker as Worker
+    participant gemini as Gemini API
+    M->>web: Upload signed scan
+    web->>gov: Upload signed copy (file)
+    alt state is not готовий до підпису
+        gov-->>web: governance.transition_not_allowed
+    else file above 20 MB or not PDF, JPEG, PNG
+        gov-->>web: governance.signed_copy_invalid, state unchanged
+    else
+        gov->>drive: Stream file to the protocol folder while hashing
+        gov->>db: Store file metadata, set підписаний, store locked hash, enqueue read_signed_scan, one transaction
+        gov->>drive: Set read-only on scan, PDF and case documents
+        gov-->>web: Protocol No 14 locked in the реєстр протоколів
+        worker->>db: Claim read_signed_scan
+        worker->>drive: Download scan
+        worker->>gemini: Read number and date
+        gemini-->>worker: No 15, 2026-10-20 or unreadable
+        worker->>db: Store попередження with the read values, or not checked
+    end
+```
+
+**Flow 6: A change to a locked protocol is refused (підписаний or знятий з розгляду → any) — covers AC-30, AC-30b, AC-35**
+
+```mermaid
+sequenceDiagram
+    actor M as член правління
+    participant web as Web client
+    participant gov as governance
+    participant db as Database
+    M->>web: Change a slot of protocol No 14, or withdraw it
+    web->>gov: Change or withdraw
+    gov->>db: Load protocol state
+    alt state підписаний
+        gov-->>web: governance.protocol_locked, offer a correcting protocol
+    else state знятий з розгляду
+        gov-->>web: governance.transition_not_allowed, offer a new draft copied from it
+    end
+    Note over gov,db: Any write that bypasses app is rejected by the lock trigger, ADR 0009
+```
+
+**Flow 7: Access outside the term or the association is refused — covers AC-32, AC-33**
+
+```mermaid
+sequenceDiagram
+    actor P as член правління, term ended or other association
+    participant web as Web client
+    participant idn as identity
+    participant gov as governance
+    participant db as Database
+    P->>web: Open protocol by id
+    web->>idn: Request with session cookie
+    idn->>idn: Resolve session to account and association
+    idn->>gov: Forward with actor
+    gov->>db: In association transaction, find board term in force today
+    alt no term in force for the account
+        gov-->>web: governance.not_board_member, nothing changed
+    else protocol belongs to another association
+        db-->>gov: No row visible under RLS
+        gov-->>web: governance.protocol_not_found
+    end
+```
 
 ## 7. Deployment view
 

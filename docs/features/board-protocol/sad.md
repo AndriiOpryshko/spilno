@@ -232,35 +232,127 @@ C4Container
 
 ## 6. Runtime view
 
-<!-- 🎯 Навіщо: ПОТІК У RUNTIME для 1-2 критичних сценаріїв. Хто з ким коли і у якому     -->
-<!--           порядку говорить. Без §6 §5 — лише купа коробок без життя.                  -->
-<!-- 📋 Що писати: Mermaid sequenceDiagram. Учасники — імена з §5 (не вигадуй нові!).      -->
-<!--           Повідомлення семантичні («складає чорновик»), БЕЗ HTTP-методів/шляхів —     -->
-<!--           ендпоінт-рівневі sequence-діаграми зʼявляться у stage 06 (api-forge).        -->
-<!-- ⏳ RESERVED FOR SEQUENCES: architecture-design сіє лише primary flow(s) тут.          -->
-<!--           complete-sequence-diagrams (stage 06) ДОПОВНЮЄ §6 кожним критичним flow /    -->
-<!--           кожним §5 AC — без обмеження. Не намагайся покрити все тут.                  -->
-<!-- 📌 Приклад: «methodist → web-app: складає чорновик → web-app → content-api: зберегти». -->
+Primary flows seeded by architecture-design; `complete-sequence-diagrams` adds a flow, branch or explicit N/A for every PRD §5 acceptance criterion. Participants are the §5 containers and the glossary roles; the worker runs the owning context's code in its own process, so its writes go straight to Postgres through that context. Every request from the SPA passes the session check (ADR-0003) before it reaches a context.
 
-**Critical flow 1: <flow name>**
+**Critical flow 1: draft through the помічник протоколу and confirm slots (US-12, US-09, AC-26, AC-28b)**
 
 ```mermaid
 sequenceDiagram
-    actor User
-    participant API
-    participant Service
-    participant DB
-    User->>API: <request>
-    API->>Service: <call>
-    Service->>DB: <write tx>
-    DB-->>Service: ok
-    Service-->>API: result
-    API-->>User: 201
+    actor Chair as головуючий
+    participant SPA as Web SPA
+    participant API as Core API
+    participant DB as Postgres
+    participant W as Worker
+    participant Drive as Google Drive
+    participant G as Gemini API
+
+    Chair->>SPA: Describes the decision and attaches the contract and invoice
+    SPA->>API: Send conversation turn with files
+    API->>Drive: Store files in the case folder
+    Drive-->>API: File ids, revisions, sha256
+    API->>DB: Save document versions and the turn, enqueue proposal job in one transaction
+    API-->>SPA: Turn accepted with job id
+    loop About every 2 s while the job is pending
+        SPA->>API: Poll job status
+        API-->>SPA: Pending
+    end
+    W->>DB: Take the proposal job
+    W->>Drive: Download the case's document versions
+    W->>G: Documents, request and the slot schema
+    alt Valid structured answer
+        G-->>W: Slot values with quoted fragments, text fragments
+        W->>DB: Validate, then apply the proposal at its draft revision, leaving confirmed slots untouched
+    else Unreachable, timed out or invalid answer
+        W->>DB: Retry with backoff, then mark the job failed
+    end
+    SPA->>API: Poll job status
+    API-->>SPA: Proposal ready or failed
+    SPA->>API: Load the draft
+    API->>DB: Read draft, rules and roster in force, document versions
+    API-->>SPA: Draft with unconfirmed slots, warnings and blocking checks
+    Chair->>SPA: Confirms a slot against its quoted fragment
+    SPA->>API: Confirm slot at the revision it was shown
+    alt Revision matches
+        API->>DB: Mark slot confirmed by the person, bump revision
+        API-->>SPA: Updated draft and checks
+    else Draft changed meanwhile
+        API-->>SPA: Revision conflict, reload the draft
+    end
 ```
 
-<!-- For XS/S: 1 flow above is enough. For M+: add 2-4 more (e.g. failure-mode flow, async flow). -->
+**Critical flow 2: from готовий до підпису to a locked protocol (US-05, US-06, AC-12b, AC-14, AC-14b, AC-14c, AC-14d, AC-15)**
 
-**Critical flow 2: <e.g. async event propagation>** — <if applicable, otherwise N/A>.
+```mermaid
+sequenceDiagram
+    actor Chair as головуючий
+    actor Member as член правління
+    participant SPA as Web SPA
+    participant API as Core API
+    participant DB as Postgres
+    participant W as Worker
+    participant Drive as Google Drive
+    participant G as Gemini API
+
+    Chair->>SPA: Marks the draft готовий до підпису with the proposed number
+    SPA->>API: Mark ready for signing at the shown revision
+    API->>DB: Evaluate checks on the current inputs and match overrides
+    alt A blocking check has no matching override
+        API-->>SPA: Refused, every blocking check listed with its rule
+    else All blocking checks resolved or overridden
+        API->>DB: Set ready_for_signing, enqueue render job in one transaction
+        W->>DB: Take the render job
+        W->>Drive: Copy the pinned template, fill it, export PDF
+        W->>DB: Record the issued copy with revision and sha256
+        SPA->>API: Poll until the copy is issued
+        API-->>SPA: Copy ready to download
+        Chair->>SPA: Downloads and prints the copy
+    end
+    Note over Chair,Member: The board signs the paper copy outside the system
+    Member->>SPA: Uploads the signed scan and its confirmations
+    SPA->>API: Upload scan against the current issued copy
+    alt Handwritten corrections reported
+        API-->>SPA: Not locked, the draft stays open for correction and re-print
+    else Draft edited after the copy was issued
+        API-->>SPA: Refused, the copy is void and must be re-issued
+    else Scan accepted
+        API->>Drive: Store the scan in the protocol folder
+        API->>DB: Save the scan version, enqueue scan reading in one transaction
+        W->>Drive: Download the scan
+        W->>G: Read the protocol number and meeting date
+        G-->>W: Number and date, or unreadable
+        W->>DB: Store the reading and a warning if it differs or is unreadable
+        SPA->>API: Poll the reading
+        API-->>SPA: Reading with any warning, both values side by side
+        Member->>SPA: Confirms the lock
+        SPA->>API: Lock the protocol
+        API->>DB: One transaction to re-evaluate checks, build snapshot and fingerprint, insert the locked row, apply decision links
+        API-->>SPA: Locked and listed in the реєстр протоколів
+    end
+```
+
+**Critical flow 3: nightly integrity check of locked protocols (PRD §6 "Integrity of locked protocols")**
+
+```mermaid
+sequenceDiagram
+    participant W as Worker
+    participant DB as Postgres
+    participant Drive as Google Drive
+
+    W->>DB: Take the nightly verify job
+    loop Each locked protocol
+        W->>DB: Read the snapshot and its stored fingerprint
+        W->>W: Recompute the fingerprint from the canonical snapshot
+        W->>Drive: Ask the sha256 of each pinned file
+        Drive-->>W: Current sha256 per file, or not found
+        alt Fingerprint and every sha256 match
+            W->>DB: Record the protocol as verified
+        else Any mismatch or missing file
+            W->>DB: Record the mismatch with protocol and file
+            Note over W: Error log and mismatch metric raise the alert
+        end
+    end
+    W->>DB: Record the run with counts of verified and mismatched
+```
 
 ## 7. Deployment view
 

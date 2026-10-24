@@ -146,49 +146,80 @@ Each tactical decision in later sections should be traceable to one of these str
 
 ## 5. Building block view
 
-<!-- 🎯 Навіщо: ВНУТРІШНЯ ДЕКОМПОЗИЦІЯ — модулі, контейнери, БД. Статична топологія:   -->
-<!--           хто з ким може говорити. Без §5 §6 (сценарії) не має словника учасників. -->
-<!-- 📋 Що писати: 1 абзац про стиль (шари/гексагональна/clean/на подіях) +            -->
-<!--           дерево папок + Mermaid C4Container.                                       -->
-<!-- 📌 ОДИН Container на кожну оголошену target_surface (frontmatter): fullstack        -->
-<!--           [backend-service, web-frontend] = backend-API container + web/SPA container; -->
-<!--           [backend-service, mobile-app] = API + mobile app. Container(web, …) нижче — -->
-<!--           лише приклад однієї поверхні; додай/заміни під оголошене у §4. → _shared/surfaces.md -->
-<!-- 📌 Приклад: «web-app, content-api, media-worker, postgres, s3, cdn».                -->
-
-<One paragraph: layered / hexagonal / clean / event-driven. Why.>
+Hexagonal modular monolith, unchanged from repo ADR 0002: each bounded context keeps `domain/` (stdlib + uuid only) → `app/` (use cases) → `ports/` (interfaces app needs) ← `adapters/` (HTTP, Postgres, Drive, model), and other contexts reach it only through its `module.go`. The feature adds a second entry point, `cmd/worker`, that wires the same contexts and runs their job handlers (ADR-0001, ADR-0006). Contexts per ADR-0002.
 
 **Internal decomposition:**
 
 ```
-<e.g. internal/modules/goals/>
-├── domain/       <entities + sentinel errors>
-├── app/          <use cases / services>
-├── infra/        <repository + outbox impl>
-├── ports/        <HTTP handlers, DTOs, error mapping>
-└── module.go     <self-wiring>
+services/core/
+├── cmd/api/main.go            + identity, cases, assistant modules; session middleware before every context group
+├── cmd/worker/main.go         NEW — River client; registers job handlers and periodic jobs exported by each module.go
+├── internal/governance/       EXTENDED — board decisions
+│   ├── domain/                meeting · roster entry (term) · charter rule kinds + versions · wording template
+│   │                          draft (lifecycle, revision, wording versions) · agenda item · слот рішення (value, origin, status, source)
+│   │                          attendance · неучасть у голосуванні · попереднє голосування · check · override
+│   │                          quorum.go (pure: meeting quorum, кворум пункту, majority) · locked snapshot (canonical form, fingerprint)
+│   ├── app/                   roster/ · rules/ · templates/ · drafts/ · voting/ · checks/ · locking/ · registry/ · export/
+│   ├── ports/                 repositories · CaseDocuments · FundingContracts · ProtocolFiles · Renderer · Jobs
+│   ├── adapters/              http/ (+gen/) · postgres/ (+queries/, sqlcgen/) · gdrive/ · render/
+│   └── module.go              routes · CurrentMember(person, date) · ApplyProposal(draft, proposal) · job handlers
+├── internal/cases/            NEW — справи, case documents and versions, file metadata, text read from documents
+├── internal/assistant/        NEW — conversations, proposals; ports.TextModel + adapters/gemini (the only model client)
+├── internal/identity/         NEW — accounts ↔ roster persons, sessions, OIDC flow, the session middleware
+├── internal/finance/          EXTENDED — джерела коштів; contract → джерело коштів + approving decision id
+├── internal/platform/
+│   ├── gdrive/                NEW — Drive API client for the association account (upload, copy, download, sha256)
+│   ├── jobs/                  NEW — River client construction shared by api (enqueue) and worker (run)
+│   └── httpapi/               + current principal in context; unauthenticated/forbidden as problem+json
+└── migrations/                00004… — identity, cases, governance board-decision tables, finance columns, River schema
+apps/web/src/
+├── routes/                    sign-in · cases · protocols/$id (draft, votes, checks, print, upload) · registry · board (roster, rules, templates)
+└── features/                  governance/ (grows from the prototype) · cases/ · assistant/ (conversation panel)
 ```
+
+**Context interactions (all in-process calls through `module.go`, no shared tables):**
+
+| From → To | Why | Shape |
+|---|---|---|
+| identity → governance | Is this person a current член правління today? (AC-16, AC-19) | `CurrentMember(person, date)` query |
+| governance → cases | Document versions a slot is confirmed against; "document changed or replaced" (AC-09) | read query + a callback registered by governance |
+| governance → finance | Contracts on the same джерело коштів approved by чинні рішення (AC-25) | read query |
+| finance → governance | Is the approving decision still чинне? | read query |
+| assistant → cases | Documents of the справа to send to the model | read query |
+| assistant → governance | Hand over a proposal; governance stores it as unconfirmed slots and text | `ApplyProposal` command |
+| any → worker | Slow or scheduled work | River job enqueued in the caller's transaction (ADR-0006) |
 
 **C4 Container (L2):**
 
 ```mermaid
 C4Container
-    title <system> — Containers
+    title board-protocol — Containers
 
-    Person(user, "<User>")
+    Person(chair, "головуючий", "Drafts and prints the protocol")
+    Person(member, "член правління", "Votes, locks, overrides, searches")
 
-    Container_Boundary(boundary, "<Our System>") {
-        Container(web, "<Web/API container>", "<technology>", "<purpose>")
-        Container(svc, "<Service container>", "<technology>", "<purpose>")
-        ContainerDb(db, "<DB>", "<technology>", "<purpose>")
+    Container_Boundary(spilno, "spilno") {
+        Container(spa, "Web SPA", "React 19, TanStack Router and Query, shadcn", "Board UI; consumes the core API contract")
+        Container(api, "Core API", "Go 1.27, chi, oapi-codegen", "Owns the OpenAPI contract and every authorization decision; contexts governance, cases, assistant, identity, finance")
+        Container(worker, "Worker", "Go 1.27, River", "Reads documents and scans, builds proposals, copies files, nightly integrity check and backup")
+        ContainerDb(db, "Postgres 18", "pgx/v5, sqlc", "Records, file metadata, sessions, job queue, locked snapshots")
     }
 
-    System_Ext(ext, "<External>", "<purpose>")
+    System_Ext(idp, "Identity provider", "Google OIDC")
+    System_Ext(drive, "Google Drive", "Association-owned folder holding every file")
+    System_Ext(gemini, "Gemini API", "Paid tier; reads documents, proposes slots and text")
+    System_Ext(backup, "Off-site backup storage", "Daily database backups")
 
-    Rel(user, web, "<interaction>", "<protocol>")
-    Rel(web, svc, "<service calls>")
-    Rel(svc, db, "<reads/writes>", "<driver>")
-    Rel(svc, ext, "<emits>", "<protocol>")
+    Rel(chair, spa, "Uses", "HTTPS")
+    Rel(member, spa, "Uses", "HTTPS")
+    Rel(spa, api, "Calls, polls job status", "JSON/HTTPS")
+    Rel(api, db, "Reads/writes, enqueues jobs", "SQL")
+    Rel(api, idp, "Delegates sign-in", "OIDC/HTTPS")
+    Rel(api, drive, "Uploads and streams files", "Drive API/HTTPS")
+    Rel(worker, db, "Takes jobs, writes results", "SQL")
+    Rel(worker, drive, "Reads and copies files, checks sha256", "Drive API/HTTPS")
+    Rel(worker, gemini, "Sends documents and requests", "HTTPS")
+    Rel(worker, backup, "Ships nightly dumps", "HTTPS")
 ```
 
 ## 6. Runtime view

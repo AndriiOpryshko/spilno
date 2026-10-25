@@ -20,19 +20,23 @@ contexts: [governance, identity (new)]
      Inputs: PRD.md (§5.1 / §9 / §10 when written by ao-prd), CONTEXT.md, docs/adr/, CLAUDE.md,
      references/repo-practice.md.
      Realigned 2026-10-25 to the rescoped Stage 1 of PRD.ao-prd.md (draft → informal poll →
-     print → signed scan); superseded and deferred ADRs are listed in §9. -->
+     print → signed scan); superseded and deferred ADRs are listed in §9.
+     Amended 2026-10-25 after the cross-check with sad.md: roster sign-in, no separate admission list
+     (ADR 0022 supersedes 0003), needs_review on a new document version (ADR 0004, 0017),
+     частки будинку and allocation between buildings moved to Stage 2 (ADR 0020), registry
+     lists signed protocols only with withdrawn numbers as gaps. -->
 
 > **Inputs:** [PRD](./PRD.ao-prd.md) · [CONTEXT](./CONTEXT.md) · repo ADRs [`docs/adr/`](../../adr/) · reference context `services/core/internal/governance`
 
 ## 1. Introduction and goals
 
-**Intent.** Stage 1 of board-protocol is the помічник протоколу's draft and the keeping of the document until it is signed. A член правління picks a meeting, attaches case documents to the справа of an agenda item and asks the помічник for a draft; the помічник writes the wording and proposes amounts and other values, each with a visible link to the document it came from. Any current член правління edits the text in spilno (чернетка). The board may run an informal попереднє голосування on the current text (готовий до голосування), labelled as not the meeting's vote; any edit or «повернути в чернетку» ends the round. Rendering the PDF print copy reserves the protocol number (готовий до підпису) and is refused while any value the помічник proposed is unconfirmed — the one Stage 1 gate. The board signs on paper; uploading the signed scan with the meeting facts written on it locks the protocol (підписаний). A draft that will not be signed is closed as знятий з розгляду with a reason. Blocking checks and overrides, the finance cross-check, reading the scan with AI and the audit export are Stage 2 (PRD §1, §3, §10).
+**Intent.** Stage 1 of board-protocol is the помічник протоколу's draft and the keeping of the document until it is signed. A член правління picks a meeting, attaches case documents to the справа of an agenda item and asks the помічник for a draft; the помічник writes the wording and proposes amounts and other values, each with a visible link to the document it came from. Any current член правління edits the text in spilno (чернетка). The board may run an informal попереднє голосування on the current text (готовий до голосування), labelled as not the meeting's vote; any edit or «повернути в чернетку» ends the round. Rendering the PDF print copy reserves the protocol number (готовий до підпису) and is refused while any value the помічник proposed is unconfirmed — the one Stage 1 gate. The board signs on paper; uploading the signed scan with the meeting facts written on it locks the protocol (підписаний). A draft that will not be signed is closed as знятий з розгляду with a reason. Blocking checks and overrides, the finance cross-check, allocation between buildings by частки будинку, reading the scan with AI and the audit export are Stage 2 (PRD §1, §3, §10).
 
 **Top-3 quality goals** (full scenarios in §10):
 
 1. **Integrity of signed protocols** — a підписаний protocol changes only through a new referencing protocol; 0 changes to its text, meeting facts or scan after lock (PRD §6 Integrity, AC-30, AC-30b).
 2. **Traceability of numbers and an informal poll** — every value the помічник proposed shows its source document and who confirmed it, no unconfirmed value reaches the print copy, and the poll never passes for the meeting's vote (PRD §2, AC-06, AC-06b, AC-46).
-3. **Confidentiality of the association's records** — only a член правління with a term in force acts on or reads them; an identifier not stored for the association answers "not found" (PRD §6.1, AC-32, AC-33).
+3. **Confidentiality of the association's records** — only a person the roster names as a current член правління acts on or reads them, and anyone else is refused before any record is read, so existence is never revealed; a member opening an identifier not stored for the association gets "not found" (PRD §6.1, AC-32, AC-33).
 
 Latency, durability (RPO ≤ 24 h, RTO ≤ 4 h) and availability (99.5 %) from PRD §6 are additional scenarios in §10; they yield to the three goals above when they conflict.
 
@@ -120,9 +124,9 @@ C4Context
 
 **Strategic pillars:**
 
-1. **Extend `governance`; `finance` is untouched in Stage 1.** Protocols, справи, board terms, association settings and частки будинку join the existing meetings in `governance`. A contract is only a document of a справа in Stage 1; reading contracts in force through `finance/module.go` comes with AC-10 in Stage 2 ([ADR 0012](./adr.ao-architecture/0012-add-a-funding-source-to-finance-contracts-and-read-contracts-in-force-through-finance-module.md), deferred). Constraint: repo ADR 0002, PRD §5.1 `governance.*` codes, protocol 1:1 with a meeting → [ADR 0002](./adr.ao-architecture/0002-keep-protocols-cases-roster-and-charter-rules-in-the-governance-context.md).
-2. **Google sign-in in a new `identity` context (Stage 0).** OIDC with Google, server-side sessions in an HTTP-only cookie, the association record and invitations; `identity/module.go` gives `governance` the current actor. Authorization stays in `governance/app` against the board term in force on the action date (PRD §10). Constraint: PRD §8 sign-in OQ → [ADR 0003](./adr.ao-architecture/0003-sign-in-with-google-in-a-new-identity-context.md).
-3. **Files on the association's Google Drive, sha256 and Drive revision in Postgres.** Case documents, signed scans and print copies live in a folder of one association-owned Google account (scope `drive.file`); Postgres keeps metadata, the Drive revision at upload and sha256. The folder is shared with nobody; members open files through spilno. On lock or withdrawal files get a Drive read-only restriction; the nightly integrity check compares sha256 with Drive metadata, without downloading. Constraint: PRD §6 file limits and retention, QG-1 → [ADR 0004](./adr.ao-architecture/0004-store-case-files-and-signed-scans-on-the-associations-google-drive-with-hashes-in-postgres.md).
+1. **Extend `governance`; `finance` is untouched in Stage 1.** Protocols, справи, board terms (the roster with each member's sign-in e-mail) and association settings join the existing meetings in `governance`; частки будинку come with AC-07 in Stage 2. A contract is only a document of a справа in Stage 1; reading contracts in force through `finance/module.go` comes with AC-10 in Stage 2 ([ADR 0012](./adr.ao-architecture/0012-add-a-funding-source-to-finance-contracts-and-read-contracts-in-force-through-finance-module.md), deferred). Constraint: repo ADR 0002, PRD §5.1 `governance.*` codes, protocol 1:1 with a meeting → [ADR 0002](./adr.ao-architecture/0002-keep-protocols-cases-roster-and-charter-rules-in-the-governance-context.md).
+2. **Google sign-in in a new `identity` context, admitted by the governance roster (Stage 0).** OIDC with Google, server-side sessions in an HTTP-only cookie and the association record; no separate admission list. The verified Google e-mail is matched against the roster: the `identity` middleware asks `governance` (through `governance/module.go`, injected by `cmd/api`) whether that e-mail is a current член правління today (Europe/Kyiv) and answers 403 `governance.not_board_member` before the request reaches any resource. `identity/module.go` gives `governance` the current actor. Constraint: PRD §8 sign-in OQ, AC-32 → [ADR 0022](./adr.ao-architecture/0022-sign-in-with-google-and-admit-only-current-board-members-from-the-governance-roster.md), superseding ADR 0003.
+3. **Files on the association's Google Drive, sha256 and Drive revision in Postgres.** Case documents, signed scans and print copies live in a folder of one association-owned Google account (scope `drive.file`); Postgres keeps metadata, the Drive revision at upload and sha256. The folder is shared with nobody; members open files through spilno. On lock or withdrawal files get a Drive read-only restriction; the nightly integrity check compares sha256 with Drive metadata, without downloading. A new version of a case document — added in spilno or found changed on Drive — marks the open drafts' values and wording that cited it `needs_review` (AC-43). Constraint: PRD §6 file limits and retention, QG-1 → [ADR 0004](./adr.ao-architecture/0004-store-case-files-and-signed-scans-on-the-associations-google-drive-with-hashes-in-postgres.md).
 4. **Gemini writes wording and proposes, never decides.** The paid Gemini API is called only from the worker, through a `TextGenerator` port; a depguard rule keeps the Gemini SDK inside `governance/adapters/gemini`. Every proposed value is stored with origin `ai`, unconfirmed, with its source document and fragment. Constraint: PRD §6.1, CONTEXT "помічник протоколу" → [ADR 0005](./adr.ao-architecture/0005-call-gemini-through-a-governance-textgenerator-port-for-wording-and-proposals-only.md).
 5. **Text is fragments with slot placeholders, edited in spilno with a revision number.** Plain text fragments plus references to slots and meeting facts; every save sends the expected revision and a stale one is refused (`governance.draft_changed`, AC-11b); every accepted change is an append-only revision with its author (AC-11). A poll round and a print copy each reference one revision; any change while готовий до голосування or готовий до підпису returns to чернетка (AC-17, AC-26). Constraint: PRD §8 closed OQ "edited in spilno" → [ADR 0017](./adr.ao-architecture/0017-store-protocol-text-as-fragments-with-slot-placeholders-edited-in-spilno.md), superseding ADR 0006.
 6. **The print copy is rendered from a pinned Google Docs template in a job; the number is reserved on first render and never reused.** Constraint: AC-25, AC-26, AC-34c, AC-45, PRD §6 print-copy rendering → [ADR 0018](./adr.ao-architecture/0018-render-the-print-copy-from-a-pinned-google-docs-template-in-a-worker-job.md), [ADR 0021](./adr.ao-architecture/0021-reserve-the-protocol-number-on-the-first-print-copy-and-never-reuse-it.md), superseding ADR 0013.
@@ -138,21 +142,21 @@ Every context keeps the repo's hexagonal layout (repo ADR 0002): `domain/` (stdl
 
 | Context | New? | Owns (aggregates, tables) | Provides to others via module.go | Uses from others |
 |---|---|---|---|---|
-| `governance` | existing, extended | meeting (`meetings` + `association_id`); protocol (`protocols`, `protocol_items`, `protocol_revisions`, `protocol_slots`, `slot_confirmations`, `poll_rounds`, `protocol_votes`, `print_copies`, `protocol_meeting_facts`, `protocol_snapshots`, `protocol_integrity_checks`, `protocol_number_counters`); справа (`cases`, `case_documents`, `governance_files`); board term (`board_terms`); частка будинку (`building_shares`); association settings (`association_settings`) | `Routes(r)`; `RegisterWorkers(workers)` and `PeriodicJobs()` for `cmd/worker` | `identity`: `RequireSession`, `ActorFrom(ctx)`, `GoogleTokenSource(ctx, association)` |
-| `identity` | **new** | association (`associations`: name, annual-meeting date, encrypted Google connection); account (`accounts`, Google subject + e-mail); `invitations`; `sessions` | `Routes(r)`; `RequireSession` middleware; `ActorFrom(ctx)` → account, association, e-mail; `GoogleTokenSource(ctx, association)` | — |
-| `finance` | existing, untouched in Stage 1 | contract (`contracts`) | `Routes(r)` | — (its route group is wrapped in `RequireSession` by `cmd/api`, no code change in the context) |
+| `governance` | existing, extended | meeting (`meetings` + `association_id`); protocol (`protocols`, `protocol_items`, `protocol_revisions`, `protocol_slots`, `slot_confirmations`, `poll_rounds`, `protocol_votes`, `print_copies`, `protocol_meeting_facts`, `protocol_snapshots`, `protocol_integrity_checks`, `protocol_number_counters`); справа (`cases`, `case_documents`, `governance_files`); board term — the roster with sign-in e-mail (`board_terms`); association settings (`association_settings`) | `Routes(r)`; `CurrentMember(ctx, association, email, date)` for the `identity` middleware; `RegisterWorkers(workers)` and `PeriodicJobs()` for `cmd/worker` | `identity`: `RequireMember`, `ActorFrom(ctx)`, `GoogleTokenSource(ctx, association)` |
+| `identity` | **new** | association (`associations`: name, annual-meeting date, encrypted Google connection); account (`accounts`, Google subject + e-mail); `sessions` | `Routes(r)`; `RequireMember` middleware (session + membership); `ActorFrom(ctx)` → account, association, e-mail, roster person; `GoogleTokenSource(ctx, association)` | `governance`: `CurrentMember` through the `MembershipChecker` port, wired by `cmd/api` (no import of `governance`, no cycle) |
+| `finance` | existing, untouched in Stage 1 | contract (`contracts`) | `Routes(r)` | — (its route group is wrapped in `RequireMember` by `cmd/api`, no code change in the context) |
 | `system` | existing, unchanged | — | health (stays public) | — |
 
 **Internal decomposition** (ported from the other SAD's §5, adapted to two contexts):
 
 ```
 services/core/
-├── cmd/api/main.go            + identity.New(...); RequireSession around every context group except system
+├── cmd/api/main.go            + identity.New(pool, governance); RequireMember around every context group except system and sign-in
 ├── cmd/worker/main.go         NEW — River client in work mode; registers governance.RegisterWorkers and PeriodicJobs
 ├── internal/governance/       EXTENDED
 │   ├── domain/                meeting.go (exists) · protocol.go (states, transitions, the AC-06 print guard)
 │   │                          text.go (fragments + validator — ADR 0017) · slot.go · poll.go · meeting_facts.go
-│   │                          board.go · shares.go (largest-remainder split) · settings.go · snapshot.go (canonical form,
+│   │                          board.go (roster, current member) · settings.go · snapshot.go (canonical form,
 │   │                          fingerprint — ADR 0019) · numbering.go (ADR 0021) · errors.go (PRD §5.1)
 │   ├── app/                   settings · board · cases · drafts · revisions · poll · printing · signing · withdrawal · registry;
 │   │                          authorization against the board term in force on the action date (PRD §10)
@@ -164,14 +168,14 @@ services/core/
 │   ├── adapters/gdocs/        Renderer: copy pinned template, batchUpdate, export PDF (ADR 0018)
 │   ├── jobs/                  River workers: assistant_draft · render_pdf · apply_drive_restrictions · verify_integrity (periodic)
 │   └── module.go              Routes · RegisterWorkers · PeriodicJobs · enqueue helpers used inside app transactions
-├── internal/identity/         NEW — OIDC flow, sessions, invitations, association record, encrypted Google refresh token
+├── internal/identity/         NEW — OIDC flow, sessions, RequireMember (roster check via MembershipChecker), association record, encrypted Google refresh token
 ├── internal/platform/
 │   ├── jobs/                  NEW — River client from the shared pgx pool: insert-only for api, insert + work for worker
 │   ├── google/                NEW — Drive and Docs clients from an oauth2 token source
-│   └── httpapi/               + problem+json for identity.session_required / identity.invitation_required
+│   └── httpapi/               + problem+json for identity.session_required (401) and governance.not_board_member (403) from the middleware
 └── migrations/                identity · governance protocol tables · meetings.association_id backfill · River schema · triggers
 apps/web/src/
-├── routes/                    sign-in · settings (board, shares, association settings) · cases · protocols/$id (draft, poll, print, upload) · registry
+├── routes/                    sign-in · settings (board roster, association settings) · cases · protocols/$id (draft, poll, print, upload) · registry
 └── features/governance/       grows from the prototype: text editor with slot chips, slot rows, poll panel, meeting-facts form
 ```
 
@@ -179,7 +183,8 @@ apps/web/src/
 
 | From → To | Why | Shape |
 |---|---|---|
-| `cmd/api` → identity | Every protected request needs a session (Stage 0) | `RequireSession` middleware around the `governance` and `finance` groups |
+| `cmd/api` → identity | Every protected request needs a session and a current член правління (Stage 0, AC-32) | `RequireMember` middleware around the `governance` and `finance` groups |
+| identity → governance | Is this verified e-mail a current член правління today (Europe/Kyiv), and which roster person? | `CurrentMember(ctx, association, email, date)` through the `MembershipChecker` port, wired in `cmd/api` (ADR 0022) |
 | governance → identity | Who acts, for which association (AC-32, AC-33) | `ActorFrom(ctx)` query |
 | governance → identity | Token for the association's Google account (Drive, Docs) | `GoogleTokenSource(ctx, association)` |
 | governance (in `cmd/api`) → worker | Slow or external work after a committed change | River job inserted in the caller's transaction (ADR 0015) |
@@ -197,7 +202,7 @@ C4Container
     System_Boundary(sys, "spilno") {
         Container(web, "Web client", "React 19, TanStack Router, orval hooks", "Cases, text editor with slot chips, poll, print, upload, registry")
         Container_Boundary(core, "Core API — one Go process, cmd/api") {
-            Component(gov, "governance", "bounded context in cmd/api", "Meetings, protocols, cases, board terms, shares, settings, poll, lock")
+            Component(gov, "governance", "bounded context in cmd/api", "Meetings, protocols, cases, board roster, settings, poll, lock")
             Component(idn, "identity", "bounded context in cmd/api, new", "Google sign-in, sessions, association, Google connection")
             Component(fin, "finance", "bounded context in cmd/api, unchanged", "Contracts")
         }
@@ -215,6 +220,7 @@ C4Container
     Rel(web, gov, "Calls, polls job state", "OpenAPI, JSON")
     Rel(idn, gsi, "Verifies identity", "OIDC")
     Rel(gov, idn, "Current actor, Google token", "module.go")
+    Rel(idn, gov, "Is this e-mail a current член правління", "module.go via port")
     Rel(gov, db, "Reads and writes own tables, inserts jobs", "SQL")
     Rel(idn, db, "Reads and writes own tables", "SQL")
     Rel(fin, db, "Reads and writes own tables", "SQL")
@@ -230,7 +236,7 @@ The three bounded contexts are components of the single `cmd/api` process, not s
 
 ## 6. Runtime view
 
-One flow per Stage 1 transition of PRD §10, each naming the PRD.ao-prd.md ACs it covers, plus the nightly integrity check and the Google-failure rules. Participants are the §5 aliases; messages are semantic (no paths or status codes — those come with `/sdlc:api-forge`). Every request passes `identity.RequireSession` and the board-term check (drawn once in Flow 10) and every query carries the association id (ADR 0016). Searching the реєстр протоколів (AC-36) is a paginated read (§8) and has no flow.
+One flow per Stage 1 transition of PRD §10, each naming the PRD.ao-prd.md ACs it covers, plus the nightly integrity check and the Google-failure rules. Participants are the §5 aliases; messages are semantic (no paths or status codes — those come with `/sdlc:api-forge`). Every request passes `identity.RequireMember` — session plus the roster check (drawn once in Flow 10) and every query carries the association id (ADR 0016). Searching the реєстр протоколів (AC-36) is a paginated read (§8) and has no flow.
 
 **Flow 1: Draft through the помічник (none → чернетка) — covers AC-03, AC-04, AC-05, AC-06, AC-08, AC-45**
 
@@ -266,7 +272,7 @@ sequenceDiagram
     end
 ```
 
-**Flow 2: Confirm and edit in чернетка (чернетка → чернетка) — covers AC-06b, AC-07, AC-11, AC-11b, AC-43**
+**Flow 2: Confirm and edit in чернетка (чернетка → чернетка) — covers AC-06b, AC-11, AC-11b, AC-43**
 
 ```mermaid
 sequenceDiagram
@@ -278,7 +284,7 @@ sequenceDiagram
     M->>web: Correct 153 750 to 184 500 грн and confirm
     web->>gov: Confirm slot (value, expected revision 3)
     gov->>db: Update where revision is 3, append confirmation with proposed value kept, revision 4
-    gov-->>web: Amount confirmed, per-building amounts 107 010 and 77 490 грн computed from shares
+    gov-->>web: Amount confirmed with who and when, proposed 153 750 kept in history
     M2->>web: Reword a sentence, built on revision 3
     web->>gov: Save text (expected revision 3)
     alt revision changed meanwhile
@@ -289,8 +295,8 @@ sequenceDiagram
     end
     M->>web: Add a revised estimate as a new version of the earlier one
     web->>gov: Add case document version
-    gov->>db: Mark values taken from the earlier version as needing review and unconfirmed
-    gov-->>web: Confirmed value shown next to the value in the new version
+    gov->>db: Store the version, mark slots read from the earlier version and the wording that cited it needs_review, append revision, one transaction
+    gov-->>web: Confirmed value shown next to the value in the new version, wording flagged for review
 ```
 
 **Flow 3: Start the informal poll and vote (чернетка → готовий до голосування) — covers AC-13, AC-15, AC-16, AC-18, AC-46**
@@ -438,7 +444,7 @@ sequenceDiagram
     Note over gov,db: An UPDATE or DELETE of the snapshot, or a DELETE of any protocol, is rejected by triggers, ADR 0019
 ```
 
-**Flow 9: Nightly integrity check (worker, periodic) — covers PRD §6 Integrity; QG-1** (ported from the other SAD; sha256 via Drive metadata, no download)
+**Flow 9: Nightly integrity check (worker, periodic) — covers PRD §6 Integrity, AC-43; QG-1** (ported from the other SAD; sha256 via Drive metadata, no download; covers signed and withdrawn protocols, plus the справа documents of open drafts)
 
 ```mermaid
 sequenceDiagram
@@ -461,30 +467,47 @@ sequenceDiagram
             Note over worker: Mismatch metric raises the alert
         end
     end
+    loop Each справа document of an open draft
+        worker->>drive: Get sha256Checksum
+        alt sha256 differs from the stored version
+            worker->>db: Record a new document version, mark citing slots and wording needs_review, append revision
+        end
+    end
     worker->>db: Record the run with verified and mismatched counts
 ```
 
-**Flow 10: Access outside the term or the association is refused — covers AC-32, AC-33**
+**Flow 10: Access outside the term is refused before any resource; an unknown id for a member is not found — covers AC-32, AC-33** (roster sign-in, ADR 0022)
 
 ```mermaid
 sequenceDiagram
     actor P as person, term ended
+    actor M as член правління
     participant web as Web client
     participant idn as identity
     participant gov as governance
     participant db as Database
     P->>web: Open protocol by id
     web->>idn: Request with session cookie
-    idn->>idn: Resolve session to account and association
-    idn->>gov: Forward with actor
-    gov->>db: Find board term in force today for the account
-    alt no term in force
-        gov-->>web: governance.not_board_member, nothing changed
-    else term in force, id not stored for the association
-        db-->>gov: No row for id and association id
-        gov-->>web: governance.protocol_not_found
+    alt no session or session expired
+        idn-->>web: identity.session_required, sign in with Google
+    else session found
+        idn->>gov: CurrentMember for the session e-mail, today in Europe/Kyiv
+        gov->>db: Find a term in force today for the e-mail, not superseded
+        db-->>gov: No term, ended 2026-05-31
+        gov-->>idn: Not a current член правління
+        idn-->>web: governance.not_board_member for any path and id, nothing read or changed
     end
+    M->>web: Open protocol by an id not stored for the association
+    web->>idn: Request with session cookie
+    idn->>gov: CurrentMember for the session e-mail, today
+    gov-->>idn: Current член правління, roster person
+    idn->>gov: Forward with actor
+    gov->>db: Find protocol by id and association id
+    db-->>gov: No row
+    gov-->>web: governance.protocol_not_found
 ```
+
+The same membership check runs at the Google callback: an e-mail that is not a current член правління gets no session and sees `governance.not_board_member` on the sign-in page.
 
 **Flow 11: Google services fail — covers PRD §6 availability and the draft target; Flow 1, 5, 6, 7 branches**
 
@@ -550,29 +573,30 @@ sequenceDiagram
 
 | Concept | Convention for this feature | Where defined |
 |---|---|---|
-| Errors | RFC 9457 problem+json; `type` carries the PRD §5.1 code `<context>.<error_name>`. Kind → status: validation 422, not_found 404, invariant 409, conflict 409, authorization 403. Added beyond PRD §5.1: `governance.storage_unavailable` (503, Drive down during an upload, §6 Flow 11), `governance.register_start_locked` (409, start number changed after a number was issued, ADR 0021), `identity.session_required` (401), `identity.invitation_required` (403, Google account not invited). A withdrawal without a reason is a 422 from the OpenAPI validator (`minLength: 1`) | `internal/platform/httpapi`, PRD §5.1, §11 |
-| Authorization | PRD §10 roles × actions in `governance/app`: the actor's board term must be in force on the date of the action; who may vote is the board in force on that date; members shown in a draft come from the board on the meeting date; "own vote only" compares the vote's member with the actor (AC-16). `finance` routes require a session; `system` health stays public | PRD §10, ADR 0003, 0020 |
+| Errors | RFC 9457 problem+json; `type` carries the PRD §5.1 code `<context>.<error_name>`. Kind → status: validation 422, not_found 404, invariant 409, conflict 409, authorization 403. Added beyond PRD §5.1: `governance.storage_unavailable` (503, Drive down during an upload, §6 Flow 11), `governance.register_start_locked` (409, start number changed after a number was issued, ADR 0021), `identity.session_required` (401). The membership refusal is `governance.not_board_member` (403), returned by the `identity` middleware before routing (ADR 0022). A withdrawal without a reason is a 422 from the OpenAPI validator (`minLength: 1`) | `internal/platform/httpapi`, PRD §5.1, §11 |
+| Authorization | Every protected request (governance and finance groups): `identity.RequireMember` resolves the session and asks `governance.CurrentMember` whether its verified e-mail is a current член правління today (Europe/Kyiv); if not → 403 `governance.not_board_member` **before** the request reaches any resource, for every path and id, so existence is never revealed (AC-32). The roster is the only list of who may act. Inside `governance/app` (PRD §10): who may vote is the board in force on that date; members shown in a draft come from the board on the meeting date; "own vote only" compares the vote's member with the actor (AC-16). With one association a member's unknown id is plain 404 (AC-33). Sign-in routes and `system` health stay public | PRD §10, ADR 0022, 0020 |
 | Association scope | One association. `association_id` on every governance row; every sqlc query filters on it and every lookup by id is `id + association_id`, so an unknown id answers not found (AC-33). A test fails when a statement in `governance/adapters/postgres/queries/*.sql` on a governance table does not mention `association_id`. No Row-Level Security in Stage 1 (§11 accepted debt) | ADR 0016 |
 | Validation | OpenAPI request validator → 422 with field pointers; domain `Validate()` reports every broken field at once (as `meetings` and `contracts` do); AC-45 and AC-47 name every missing setting or fact at once | CLAUDE.md, repo ADR 0003 |
 | IDs | UUID (`gen_random_uuid()` / `github.com/google/uuid`); the protocol number is a separate per-association counter (ADR 0021) | repo convention |
-| Money and shares | Amounts as `bigint` kopiyky (`amount_cents`, as in `contracts`); частки будинку in basis points; per-building amounts split with the largest-remainder method so they sum to the confirmed amount (AC-07: 107 010 + 77 490 = 184 500 грн); amounts in words rendered from the integer by one renderer for screen and print copy | PRD AC-07, ADR 0017 |
-| Dates and time | Meeting date and term dates are calendar dates in Europe/Kyiv; "in force on D" compares dates, never timestamps; audit times are `timestamptz` | ADR 0020 |
+| Money | Amounts as `bigint` kopiyky (`amount_cents`, as in `contracts`); amounts in words rendered from the integer by one renderer for screen and print copy. Allocation between buildings by частки будинку is Stage 2 (AC-07, ADR 0020 note) | ADR 0017 |
+| Dates and time | Meeting date and term dates are calendar dates in Europe/Kyiv; "in force on D" and "current член правління today" compare dates, never timestamps; audit times are `timestamptz` | ADR 0020, 0022 |
 | Text | Fragments with slot and meeting-fact placeholders; the validator makes a fact in generated plain text a proposed slot; for hand-typed text it only highlights (AC-12 is Stage 2) | ADR 0017 |
+| Document versions | A new version of a case document — added in spilno (AC-43) or found by the nightly check when a Drive file's sha256 changed — is a new `case_documents` row; in the same transaction every slot read from the earlier version becomes `needs_review` (counts as unconfirmed for the print gate, AC-06) and the wording of every agenda item whose помічник-proposed text cited it is flagged `needs_review` (shown, does not block printing); a draft in готовий до голосування or готовий до підпису returns to чернетка (AC-17, AC-26) | ADR 0004, 0005, 0017 |
 | Concurrency | `protocols.revision`; every change sends the expected revision and gets `governance.draft_changed` on a mismatch (AC-11b) — for text, slots, agenda and transitions alike | ADR 0017 |
 | Lifecycle | PRD §10 states and transitions in `governance/domain/protocol.go`. The one content guard: готовий до підпису is refused while a value with origin `ai` is unconfirmed (`governance.amount_unconfirmed`, AC-06). Any change in готовий до голосування or готовий до підпису returns to чернетка (AC-17, AC-26). Lock needs the meeting facts (AC-47). Withdrawal from any non-final state needs a reason and is final (AC-34–AC-35). No blocking checks or overrides (ADR 0007 deferred) | PRD §10, ADR 0019, 0021 |
 | Informal poll | Poll rounds reference a revision; votes are per member, item and round; closed rounds are history, never counted; tallies carry the AC-46 label, never appear on the print copy and never pre-fill the meeting facts | PRD AC-13–AC-18, AC-46 |
-| Audit trail | Every revision, slot confirmation or correction, vote, meeting-fact entry, settings change, board-term or share row is its own append-only row with actor and time; the proposed value stays in history (AC-06b) | ADR 0017, 0019, 0020 |
-| Immutability | `app/` check + one snapshot row per final protocol under a trigger; DELETE of any protocol refused by a trigger; board terms and shares append-only under a trigger | ADR 0019, 0020 |
+| Audit trail | Every revision, slot confirmation or correction, vote, meeting-fact entry, settings change or board-term row is its own append-only row with actor and time; the proposed value stays in history (AC-06b) | ADR 0017, 0019, 0020 |
+| Immutability | `app/` check + one snapshot row per final protocol under a trigger; DELETE of any protocol refused by a trigger; board terms append-only under a trigger | ADR 0019, 0020 |
 | Migrations | goose, one directory `services/core/migrations/`; trigger functions inside `-- +goose StatementBegin/End`; River's schema copied into a goose migration; `cmd/api` applies pending migrations on start (repo ADR 0004) | repo ADR 0004, ADR 0015 |
 | Files | Drive of the association account, `drive.file` scope; ≤ 20 MB, PDF / JPEG / PNG checked by content sniffing, not by extension; sha256 and Drive revision recorded at upload; downloads streamed through `core` as attachments | ADR 0004, PRD §6 |
 | Background jobs | River; payloads carry ids (association, protocol, revision, file) and the trace context only, never document text or personal data; handlers are idempotent (check the target state first) so retries are safe; `assistant_draft` and `render_pdf` unique per protocol and revision; enqueued in the same transaction as the change | ADR 0015 |
 | Pagination | Opaque cursor over `(created_at, id)`, newest first, page 20 / max 100; the реєстр протоколів search (date, contractor, amount — AC-36) pages the same way | existing `governance` meetings list |
 | Rate limiting | <!-- N/A: a handful of signed-in users, all members of one board; Gemini spend bounded by one queued assistant_draft per protocol and revision; watched through the §7 job metrics --> N/A — deliberate: one board of a few members behind sign-in; Gemini cost bounded by the unique `assistant_draft` job | ADR 0015 |
-| Secrets | Env file on the VM; the association's Google refresh token encrypted with AES-GCM under a key from the environment | ADR 0003, 0014 |
+| Secrets | Env file on the VM; the association's Google refresh token encrypted with AES-GCM under a key from the environment | ADR 0022, 0014 |
 | Personal data in logs | `slog` attributes carry ids only — never document text, names, correction notes or Gemini prompts and responses | PRD §6.1 |
 | Observability | OTel spans per request and per job; the job payload carries the trace context so a request and its job share one trace; request-duration histogram per route; job metrics from the worker (§7) | repo ADR 0001, ADR 0015 |
 | i18n | UI and print copy in Ukrainian; error messages from PRD §5.1 verbatim | PRD §5.1 |
-| Stored data below the ADR gate | The protocol aggregate, poll and справа tables are listed in ADR 0002 (Migration); revisions in ADR 0017; print copies in ADR 0018; meeting facts, snapshots and integrity checks in ADR 0019; board terms, shares and settings in ADR 0020; the number counter in ADR 0021; identity tables in ADR 0003; River tables in ADR 0015 — no further data shape is decided outside an ADR | blast-radius rule |
+| Stored data below the ADR gate | The protocol aggregate, poll and справа tables are listed in ADR 0002 (Migration); revisions in ADR 0017; print copies in ADR 0018; meeting facts, snapshots and integrity checks in ADR 0019; board terms and settings in ADR 0020; the number counter in ADR 0021; identity tables in ADR 0022; River tables in ADR 0015 — no further data shape is decided outside an ADR | blast-radius rule |
 
 ## 9. Architecture decisions
 
@@ -580,7 +604,7 @@ sequenceDiagram
 |---|---|---|---|---|
 | [0001](./adr.ao-architecture/0001-deliver-board-protocol-as-core-endpoints-spa-routes-and-a-worker-process.md) | Deliver board-protocol as core endpoints, SPA routes in apps/web and a separate worker process | accepted | §4 | ✓ / ✓ / ✓ / – |
 | [0002](./adr.ao-architecture/0002-keep-protocols-cases-roster-and-charter-rules-in-the-governance-context.md) | Keep protocols, cases, the board roster and charter rules in the governance context | accepted | §4 | ✓ / ✓ / ✓ / ✓ |
-| [0003](./adr.ao-architecture/0003-sign-in-with-google-in-a-new-identity-context.md) | Sign in with Google in a new identity context | accepted | §4 | ✓ / ✓ / ✓ / ✓ |
+| [0003](./adr.ao-architecture/0003-sign-in-with-google-in-a-new-identity-context.md) | Sign in with Google in a new identity context | superseded by 0022 | §4 | ✓ / ✓ / ✓ / ✓ |
 | [0004](./adr.ao-architecture/0004-store-case-files-and-signed-scans-on-the-associations-google-drive-with-hashes-in-postgres.md) | Store case files and signed scans on the association's Google Drive with hashes in Postgres | accepted | §4 | ✓ / ✓ / ✓ / ✓ |
 | [0005](./adr.ao-architecture/0005-call-gemini-through-a-governance-textgenerator-port-for-wording-and-proposals-only.md) | Call Gemini through a governance TextGenerator port for wording and proposals only | accepted | §4 | – / ✓ / ✓ / – |
 | [0006](./adr.ao-architecture/0006-edit-protocol-wording-in-google-docs-and-freeze-it-into-postgres-on-transition.md) | Edit protocol wording in Google Docs and freeze it into Postgres on every transition | superseded by 0017 | §4 | ✓ / ✓ / ✓ / ✓ |
@@ -597,8 +621,9 @@ sequenceDiagram
 | [0017](./adr.ao-architecture/0017-store-protocol-text-as-fragments-with-slot-placeholders-edited-in-spilno.md) | Store protocol text as fragments with slot placeholders, edited in spilno with a revision number | accepted | §4 | ✓ / ✓ / ✓ / ✓ |
 | [0018](./adr.ao-architecture/0018-render-the-print-copy-from-a-pinned-google-docs-template-in-a-worker-job.md) | Render the print copy from a pinned Google Docs template in a worker job | accepted | §4 | – / ✓ / ✓ / ✓ |
 | [0019](./adr.ao-architecture/0019-lock-a-protocol-as-one-fingerprinted-snapshot-row-guarded-by-a-trigger.md) | Lock a protocol as one fingerprinted snapshot row guarded by a trigger, and never delete a protocol | accepted | §4 | ✓ / – / ✓ / ✓ |
-| [0020](./adr.ao-architecture/0020-keep-board-terms-and-building-shares-as-dated-rows-and-charter-rules-as-current-settings.md) | Keep board terms and building shares as append-only dated rows, and charter rules as current association settings | accepted | §5 | ✓ / – / ✓ / ✓ |
+| [0020](./adr.ao-architecture/0020-keep-board-terms-and-building-shares-as-dated-rows-and-charter-rules-as-current-settings.md) | Keep board terms as append-only dated rows, and charter rules as current association settings (amended: building shares → Stage 2) | accepted | §5 | ✓ / – / ✓ / ✓ |
 | [0021](./adr.ao-architecture/0021-reserve-the-protocol-number-on-the-first-print-copy-and-never-reuse-it.md) | Reserve the protocol number on the first print copy and never reuse it | accepted | §5 | ✓ / – / ✓ / ✓ |
+| [0022](./adr.ao-architecture/0022-sign-in-with-google-and-admit-only-current-board-members-from-the-governance-roster.md) | Sign in with Google and admit only a person the governance roster names as a current член правління | accepted | §4 | ✓ / ✓ / ✓ / ✓ |
 
 I = irreversible, C = multi-context, A = legitimate alternative, D = touches the database (references/blast-radius-heuristic.md). ADR files: `docs/features/board-protocol/adr.ao-architecture/NNNN-<decision>.md`. Superseded ADRs keep their text with `superseded_by` in the frontmatter; deferred ones return with Stage 2. Repo-level ADRs stay in `docs/adr/`; none is superseded. ADR 0014 is a candidate for promotion to repo ADR 0005 (hosting applies to every feature).
 
@@ -618,8 +643,8 @@ Targets are copied verbatim from PRD §6; where PRD §6 has no number (QG-2) the
 
 **QG-3. Confidentiality of the association's records** (§1 goal 3)
 - **When:** a person whose board term ended, or who was never a член правління, signs in and calls any protected operation; or a member opens a protocol or справа by an identifier not stored for the association.
-- **Then:** refusal for the ended term with nothing changed (AC-32); "not found" for an identifier not stored for the association (AC-33).
-- **How verify:** an integration test generated from `openapi.yaml` that calls every `governance` operation with a session whose term ended yesterday (test parameter, not a target) and expects 403 `governance.not_board_member`; a test that calls every by-id operation with a random UUID and expects 404; the security review required by PRD §6.1 before Stage 1 release.
+- **Then:** refusal for the ended term with nothing read or changed, the same 403 for every path and id (AC-32); "not found" for a member opening an identifier not stored for the association (AC-33).
+- **How verify:** an integration test generated from `openapi.yaml` that calls every `governance` and `finance` operation, with existing and random ids, using a session whose term ended yesterday (test parameter, not a target) and expects the same 403 `governance.not_board_member` with no handler reached; a test that calls every by-id operation with a random UUID and expects 404; the security review required by PRD §6.1 before Stage 1 release.
 
 **QG-4. Responsiveness** (additional)
 - **When:** a member works with the association's records at normal load.
@@ -638,22 +663,23 @@ Targets are copied verbatim from PRD §6; where PRD §6 has no number (QG-2) the
 | Compromise or loss of the association Google account: it is the single home of every file (ADR 0004, 0018); anyone holding it can edit or permanently delete files outside spilno, and there is no copy outside Google (§7) | High | Account owned by the association, not a person; password and 2-step verification held by two members; folder shared with nobody; read-only restriction on lock; nightly sha256 check against Drive metadata with alert; `untrash` within 30 days; the signed paper original is kept as today | голова правління |
 | Case documents with personal data leave the hosting for Gemini; a free-tier key would allow training on them (PRD §6.1, ADR 0005) | Medium | Billing-enabled Google Cloud project checked at deploy; key only in the VM env file; send only the справа documents the draft needs; no prompts or responses in logs | Tech lead |
 | The refresh token of the association Google account is revoked or expires — uploads, rendering, restrictions and the nightly check stop | Medium | Alert on any Drive or Docs authorization error (§7); a short re-connection runbook in settings; uploads fail visibly with `governance.storage_unavailable`, jobs retry and nothing is half-written | Andrii Opryshko |
-| Local development needs a sign-in shim instead of Google, which must never reach production (ADR 0003) | Medium | Shim enabled only by a dev configuration flag; a test asserts it is off in the production configuration; the production compose file does not set the flag | Andrii Opryshko |
+| Local development needs a sign-in shim instead of Google, which must never reach production (ADR 0022) | Medium | Shim enabled only by a dev configuration flag; a test asserts it is off in the production configuration; the production compose file does not set the flag | Andrii Opryshko |
 | Upload of a 20 MB scan includes the Drive upload and may exceed 3 s p95 (PRD §6, ADR 0004) | Medium | Measure the upload route from the first release; if over target, switch to a Drive resumable upload started by `core` and finished by the browser | Andrii Opryshko |
 | Rendering through the Docs API: variable-length agenda tables are verbose, tests need a Google test account or recorded responses, and the 5 s target now depends on Google (ADR 0018) | Medium | A fake `Renderer` port for unit and integration tests; one smoke test against a test Google account; a Typst adapter behind the same port as the fallback | Andrii Opryshko |
 | One VM is a single point of failure for 99.5 % monthly (ADR 0014) | Medium | Compose + nightly dump restore drilled quarterly within 4 h; uptime alert; move to managed hosting if the budget is missed twice | Andrii Opryshko |
 | Two SADs for this feature on one branch: `sad.md` + `adr/` from `sdlc:architecture-design` and this file + `adr.ao-architecture/`; aligned on 2026-10-25 but numbered differently | Medium | Pick the canonical SAD before `/sdlc:break-tasks` and point downstream skills at it; run parallel skill sessions in separate worktrees | Andrii Opryshko |
 | Text validator false positives force rephrasing of plain prose (ADR 0017) | Low | Highlight only for hand-typed text in Stage 1; word lists covered by their own tests | Andrii Opryshko |
 | PRD §6 Retention and Durability overridden for files: they live only on Google Drive (§1 Decision overrides) | Medium | Update PRD §6: RPO for files is Google's, the signed paper original is the legal copy; before `/sdlc:break-tasks` | Andrii Opryshko |
-| Four error codes added beyond PRD §5.1: `governance.storage_unavailable`, `governance.register_start_locked`, `identity.session_required`, `identity.invitation_required` (§8) | Low | Added to PRD §5.1 on 2026-10-25 | Andrii Opryshko |
-| A член правління without a Google account cannot sign in (ADR 0003) | Low | The association creates a Google account for that member; revisit the emailed link option if it recurs | голова правління |
+| Three error codes added beyond PRD §5.1: `governance.storage_unavailable`, `governance.register_start_locked`, `identity.session_required` (§8) | Low | Added to PRD §5.1 on 2026-10-25 | Andrii Opryshko |
+| A member whose Google e-mail changes, or is recorded wrongly in the roster, is refused until the roster is corrected (ADR 0022) | Low | Sign-in e-mail shown and edited with the term in the board settings; another current член правління corrects it | Andrii Opryshko |
+| A член правління without a Google account cannot sign in (ADR 0022) | Low | The association creates a Google account for that member; revisit the emailed link option if it recurs | голова правління |
 | Existing `meetings` have no association; backfill to the single association (ADR 0016); PRD §9 also assigns existing contracts, which this SAD leaves to Stage 2 with ADR 0012 because `finance` is untouched | Low | Backfill in the migration, confirmed by a член правління at setup; test on a copy of the dev database | Andrii Opryshko |
 | Open question (PRD §8): which meeting forms the charter allows and which clause | Open question | Resolve before Stage 1 release; recorded in the association settings and printed on every copy (AC-45) | голова правління |
 | Open question (PRD §8): time the next 2-3 protocols to replace the estimated KPI baselines | Open question | Resolve before Stage 1 release | Andrii Opryshko |
 | Open questions (PRD §8) for Stage 2: competence limit per protocol / job / estimate; кворум vs majority on a 4-member board; overrun of the act; acts per expense line; fund line on contracts; reading the scan | Open question | Resolve before Stage 2, with ADR 0007 and ADR 0012 revisited | голова правління, Andrii Opryshko |
 | Open question (PRD §8): confirm Reach, 13 associations at about 20 protocols each | Open question | Resolve before roadmap scoring; §7 sizing assumes it | Andrii Opryshko |
 
-PRD §8 questions closed by this SAD: sign-in (ADR 0003), the association record and existing meetings (ADR 0016), personal data to the text-generation service (ADR 0005, paid tier), the editor for the wording edited in spilno (ADR 0017).
+PRD §8 questions closed by this SAD: sign-in (ADR 0022, superseding 0003), the association record and existing meetings (ADR 0016), personal data to the text-generation service (ADR 0005, paid tier), the editor for the wording edited in spilno (ADR 0017).
 
 **Accepted debt:**
 - No Row-Level Security: one association in Stage 1, scope enforced by an explicit `association_id` filter and a query test; RLS is an additive guard when a second association is onboarded (ADR 0016).
@@ -674,19 +700,21 @@ Domain terms are defined in [CONTEXT.md](./CONTEXT.md) `## Glossary`; this table
 | правило статуту | Charter parameter; in Stage 1 a current value in the association settings, effective dates in Stage 2 (CONTEXT, ADR 0020) |
 | попереднє голосування | Informal per-member poll on one frozen revision; not the meeting's vote (CONTEXT, AC-46) |
 | чернетка / готовий до голосування / готовий до підпису / підписаний / знятий з розгляду | States of a protocol (CONTEXT, PRD §10) |
-| реєстр протоколів | The association's searchable record of locked and withdrawn protocols (CONTEXT) |
+| реєстр протоколів | The association's searchable record of signed (locked) protocols; a number taken by a знятий з розгляду protocol shows as a gap marked «знято з розгляду», the withdrawn protocol stays an internal record (CONTEXT, ADR 0021) |
 | помічник протоколу | The conversation that drafts wording and proposes values; never the source of a number (CONTEXT, ADR 0005) |
 | член правління, головуючий, голова правління | Board member with a term; per-meeting chair (a slot); the elected chair position (CONTEXT) |
 | блокуюча перевірка, обхід блокування | Deterministic check and its override — Stage 2 (CONTEXT, ADR 0007 deferred) |
 | association (ОСББ) *(new)* | The housing association that owns all records; one in Stage 1 (ADR 0016) |
 | association settings *(new)* | Current meeting form, signers, register start number, current правила статуту and print template revision (AC-45, ADR 0020) |
 | meeting facts *(new)* | Members present, vote count per agenda item and the handwritten-corrections note, entered from the signed paper at upload (AC-28, AC-44, AC-47) |
-| print copy *(new)* | The PDF rendered from one revision for signing; issued, void or never signed (ADR 0018) |
+| друкована копія (print copy) | The PDF rendered from one revision for signing; issued, void or never signed (CONTEXT, ADR 0018) |
 | протокол-виправлення *(new)* | A new protocol that references a signed one to correct or revoke it (AC-30, ADR 0019) |
 | association Google account *(new)* | One Google account owned by the association, not by a person; holds the Drive folder (ADR 0004) |
 | revision | Numbered, append-only state of a draft's text, agenda and slots; the expected revision guards concurrent saves (ADR 0017) |
 | fragment | One piece of protocol text: plain text, or a placeholder for a slot or a meeting fact (ADR 0017) |
 | snapshot, fingerprint | The canonical jsonb record of a locked or withdrawn protocol and its sha256 (ADR 0019) |
+| roster | The board terms with each member's sign-in e-mail kept by `governance`; the only list sign-in admits from (ADR 0020, 0022) |
+| `needs_review` | Status of a slot, and flag on an agenda item's wording, after a case document it cited got a new version (AC-43, ADR 0017) |
 | River | Go job queue on Postgres used by `cmd/api` (insert) and `cmd/worker` (work) (ADR 0015) |
-| OIDC | OpenID Connect, the "sign in with Google" protocol (ADR 0003) |
+| OIDC | OpenID Connect, the "sign in with Google" protocol (ADR 0022) |
 | `drive.file` | Google OAuth scope giving access only to files the app created (ADR 0004) |

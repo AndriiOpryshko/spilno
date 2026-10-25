@@ -8,6 +8,8 @@ deciders: ["Andrii Opryshko"]
 
 # 0017 Store protocol text as fragments with slot placeholders, edited in spilno with a revision number
 
+> Amended 2026-10-25: added the `needs_review` mark from the other SAD — when a case document gets a new version (in spilno or found by the nightly check, ADR 0004), every slot read from the earlier version and the wording of every agenda item whose помічник-proposed text cited it are marked `needs_review` (AC-43).
+
 ## Context and problem statement
 
 The product owner decided on 2026-10-25 that the wording is edited in spilno (PRD §8, closed OQ), by hand or in the conversation with the помічник протоколу (US-04). A second save of an old version is refused (AC-11b), who changed the text is recorded (AC-11), every slot keeps its value and source through a text edit (AC-11), a poll round freezes the current text (AC-13, AC-17) and the print copy freezes it again (AC-25, AC-26). ADR 0006 put the wording in a shared Google Doc, which could not honour AC-11b and needed Doc sharing for members; this ADR supersedes ADR 0006. The idea of text as fragments with placeholders is ported from the other SAD's ADR 0011 (`adr/0011-store-decision-text-as-fragments-with-slot-placeholders.md`).
@@ -39,7 +41,8 @@ The product owner decided on 2026-10-25 that the wording is edited in spilno (PR
 - Shape per agenda item: `[{text: "…"} | {slot: <slot id>} | {meeting: date | chair | members}]`, stored as jsonb. The помічник is asked for this structure (ADR 0005). A deterministic validator in `governance/domain` turns any fact in a generated plain fragment (digits, Ukrainian number words, dates, currency marks, document numbers, roster names) into a proposed new slot with origin `ai`, unconfirmed — so it falls under the one Stage 1 print gate (AC-06). For hand-typed text the validator only highlights such fragments; making it blocking is AC-12 (Stage 2).
 - Every change sends the protocol's `revision`; `app/` compares and increments it in one `UPDATE … WHERE revision = $expected`; a mismatch answers `governance.draft_changed` with the newer revision (AC-11b). Each accepted change appends a `protocol_revisions` row (revision, agenda and text jsonb, slot values snapshot, changed by, changed at) — this is "who changed it" (AC-11).
 - A poll round (AC-13) and a print copy (AC-25, ADR 0018) each reference one revision. Any change to text, agenda or a value while готовий до голосування or готовий до підпису returns the protocol to чернетка in the same transaction (AC-17, AC-26, AC-43).
-- The web editor is a structured text field with slot chips (shadcn primitives); chips show origin and confirmation (US-03).
+- Slot status is `unconfirmed` · `confirmed` · `needs_review`. Each revision written by the помічник records, per agenda item, the case document versions its wording cited (ADR 0005). A new version of a case document, in the same transaction as the version row, sets `needs_review` on every slot read from the earlier version and on the wording of every agenda item that cited it, appending a revision (and returning a draft in готовий до голосування or готовий до підпису to чернетка, AC-17, AC-26). A `needs_review` slot counts as unconfirmed for the print gate (AC-06, AC-43) until a person confirms the old or the new value; the wording mark is shown and cleared by a person's edit, by accepting the text as is, or by a new помічник request — it does not block printing (the one Stage 1 gate stays on values).
+- The web editor is a structured text field with slot chips (shadcn primitives); chips show origin, confirmation and `needs_review` (US-03).
 
 ### Consequences
 

@@ -34,7 +34,7 @@ Moving to готовий до підпису renders a PDF print copy from the c
 
 ## Decision outcome
 
-**Chosen:** option 1. No new binary or container, Cyrillic and fonts work as in any Doc, and the board can adjust the layout in an editor it knows; Google is already a dependency (ADR 0003, 0004).
+**Chosen:** option 1. No new binary or container, Cyrillic and fonts work as in any Doc, and the board can adjust the layout in an editor it knows; Google is already a dependency (ADR 0022, 0004).
 
 - The layout template is a Google Doc in `spilno/<association>/templates/`, created by spilno at association setup so the `drive.file` scope reaches it. spilno stores its Drive revision id; an edit made in Drive takes effect only after a член правління adopts the new revision in spilno (recorded with author and time).
 - The transition to готовий до підпису commits state, reserved number (ADR 0021) and a `print_copies` row in state `pending` for that revision, and enqueues `render_pdf` (ADR 0015) in the same transaction. The worker copies the template, fills placeholders and agenda rows with values formatted by spilno's renderer (ADR 0017), exports PDF (`files.export`), stores it in the protocol folder, records Drive file id and sha256, sets the row `issued` and deletes the intermediate Doc. A PDF is rendered once and then only read; export is not byte-deterministic, so it is never regenerated for comparison.

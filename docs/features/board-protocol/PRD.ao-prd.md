@@ -61,6 +61,7 @@ Traceability:
   - Source of truth as a blocking rule — a decision value without a document and a confirmation (AC-09), text that differs from a slot (AC-12) — why: in Stage 1 every number shows its source document as a visible link and only the помічник's proposals need a person's confirmation (AC-06).
   - Cross-check with the finance contracts — the джерело коштів must be a contract in force (AC-10) — why: needs a fund line on contracts (§8).
   - Charter rules with effective dates (AC-02) — Stage 1 stores only the current rules in the association settings — why: the rules have not changed since the association was founded.
+  - Allocation between buildings by частки будинку (AC-07) — why: Stage 1 drafts carry one confirmed amount and the board splits it on paper as today; the split needs the inter-building decision kept as dated shares (architecture cross-check, 2026-10-25).
   - Reading the signed scan with AI (AC-28b) — why: the uploader enters the facts from the paper; reading reliability is open (§8).
   - Dropped from Stage 1, not deferred: the poll gate on unconfirmed amounts (AC-14) — why: the poll is informal, the only number gate is before printing (AC-06); pre-filling the meeting vote count from the poll (AC-15b) — why: the poll must never become evidence of an absentee vote; the count comes from the signed paper (AC-28).
   - Exporting the year's archive for the ревізійна комісія — left for a later feature together with the commission's access; was in US-09 before edit.
@@ -70,8 +71,8 @@ Traceability:
 
 ### US-01: Keep board composition and association settings  _(Stage 1)_
 **As a** член правління
-**I want** to record the board members with their terms, the частки будинку in force and the association settings — the meeting form the charter allows, who signs the protocol, the current правила статуту and the number the protocol register continues from
-**So that** every protocol shows the board as of its meeting date and every print copy carries the meeting form and signers (charter rules with effective dates: Stage 2)
+**I want** to record the board members with their terms and the association settings — the meeting form the charter allows, who signs the protocol, the current правила статуту and the number the protocol register continues from
+**So that** every protocol shows the board as of its meeting date and every print copy carries the meeting form and signers (charter rules with effective dates and частки будинку: Stage 2)
 
 ### US-02: Draft a protocol through the assistant  _(Stage 1)_
 **As a** член правління
@@ -164,11 +165,6 @@ Traceability:
 **Given** an estimate whose total is 184 500 грн including VAT and the помічник proposed 153 750 грн
 **When** the член правління corrects the amount to 184 500 грн and confirms it
 **Then** the slot records the corrected value, who confirmed it and when, keeps the proposed value in the history, and counts the amount as confirmed
-
-### AC-07 (US-03) — traceability
-**Given** an amount of 184 500 грн to be shared between two buildings and an inter-building decision in force on the meeting date with shares 58 % and 42 %
-**When** the член правління opens the draft
-**Then** the per-building amounts 107 010 грн and 77 490 грн are computed from the confirmed amount and the shares, show the inter-building decision as their source, and cannot be typed over
 
 ### AC-08 (US-03) — traceability
 **Given** a draft whose members, головуючий and meeting date are filled
@@ -301,9 +297,9 @@ Traceability:
 **Then** the system refuses and offers to start a new draft copied from it
 
 ### AC-36 (US-09) — happy path
-**Given** a член правління and a реєстр протоколів holding 14 signed and 3 withdrawn protocols for 2026
+**Given** a член правління and a реєстр протоколів holding 14 signed protocols for 2026, with 3 numbers taken by protocols знятий з розгляду
 **When** the член правління searches by the contractor "управляюча компанія" and the year 2026
-**Then** the system lists the matching protocols with number, date, amount and state, and each opens with its signed copy and meeting facts (none for withdrawn), справа documents, slot sources and poll history labelled as informal
+**Then** the system lists the matching signed protocols with number, date and amount, each opening with its signed copy, meeting facts, справа documents, slot sources and poll history labelled as informal; the numbers of withdrawn protocols show as gaps marked «знято з розгляду», and the withdrawn protocols themselves stay internal records outside the registry
 
 ### Deferred to Stage 2
 
@@ -313,6 +309,11 @@ These keep their ids and Stage 1 text as approved on 2026-10-24, so traceability
 **Given** a правило статуту "кворум: 3 members" in force from 2025-01-01 and a new one "кворум: 4 members" recorded with effect from 2026-11-01
 **When** a член правління prepares a protocol for a meeting held on 2026-10-20
 **Then** the protocol checks кворум against 3 members, names the rule in force on the meeting date, and the later rule is not applied
+
+#### AC-07 (US-03) — traceability  _(Stage 2: allocation between buildings — Stage 1 drafts carry one confirmed amount; the per-building split needs частки будинку kept as dated records, which Stage 1 does not store)_
+**Given** an amount of 184 500 грн to be shared between two buildings and an inter-building decision in force on the meeting date with shares 58 % and 42 %
+**When** the член правління opens the draft
+**Then** the per-building amounts 107 010 грн and 77 490 грн are computed from the confirmed amount and the shares, show the inter-building decision as their source, and cannot be typed over
 
 #### AC-09 (US-03) — domain invariant  _(Stage 2: source of truth as a blocking rule)_
 **Given** a draft with a decision slot (amount, counterparty or джерело коштів) that lacks either a document of the справа or a person's confirmation
@@ -445,7 +446,6 @@ These keep their ids and Stage 1 text as approved on 2026-10-24, so traceability
 | `governance.register_start_locked` | conflict | Номер, з якого продовжується реєстр, уже не змінити: протоколу вже видано номер. | AC-45 |
 | `governance.storage_unavailable` | unavailable | Сховище файлів зараз недоступне; спробуйте завантажити пізніше, нічого не збережено. | AC-28, AC-29 |
 | `identity.session_required` | authentication | Увійдіть через Google-акаунт. | AC-32 |
-| `identity.invitation_required` | authorization | Цей Google-акаунт не запрошено до об'єднання. | AC-32 |
 
 Deferred to Stage 2 with their ACs (§3): `governance.source_missing` (AC-09), `governance.funding_source_not_in_force` (AC-10), `governance.text_slot_mismatch` (AC-12), `governance.quorum_missing` (AC-19, AC-19b), `governance.majority_missing` (AC-19c), `governance.outside_board_competence` (AC-20), `governance.meeting_form_not_allowed` (AC-21), `governance.reserved_for_general_meeting` (AC-22), `governance.reason_required` (AC-24), `governance.template_text_fixed` (AC-38).
 
@@ -505,13 +505,13 @@ Deferred to Stage 2 with their ACs (§3): `governance.source_missing` (AC-09), `
 
 ## 9. Migration plan
 
-- **New records:** association settings (allowed meeting form, signers, the number the protocol register continues from, the current правила статуту without effective dates); board terms with their election protocols; частки будинку with the inter-building decision; справи with source documents and document versions; protocols with wording versions, слоти рішення and their sources and confirmations, poll rounds with their votes, print copies with the reserved number (void ones kept), signed copies with the meeting facts and the handwritten-corrections note. Each protocol links to exactly one meeting already stored by `governance`, and a meeting has at most one protocol; each agenda item of the protocol has its own справа.
+- **New records:** association settings (allowed meeting form, signers, the number the protocol register continues from, the current правила статуту without effective dates); board terms with their election protocols; справи with source documents and document versions; protocols with wording versions, слоти рішення and their sources and confirmations, poll rounds with their votes, print copies with the reserved number (void ones kept), signed copies with the meeting facts and the handwritten-corrections note. Each protocol links to exactly one meeting already stored by `governance`, and a meeting has at most one protocol; each agenda item of the protocol has its own справа.
 - **Existing meetings (`governance`):** untouched. A meeting may have no protocol; a protocol is created for an existing meeting or together with a new one. The meeting's quorum-required flag stays. No backfill. Members present and vote counts are recorded on the protocol at upload, not on the meeting, so existing meetings get nothing filled in.
 - **Existing contracts (`finance`):** untouched in Stage 1; a contract may be a document of a справа. The fund line on contracts and the in-force check come with AC-10 in Stage 2.
 - **Association scope:** one association; the association record is created once and existing meetings and contracts are assigned to it, confirmed by a член правління (§8). Records carry the association, but no multi-association scope is built.
 - **Past paper protocols:** not imported (§3); the settings hold the number the register continues from (AC-45).
 - **Reversibility:** rolling back Stage 1 or Stage 2 removes the screens and actions; stored protocols, print copies, signed copies, meeting facts and poll rounds are kept read-only. Signed and withdrawn protocols are never deleted.
-- **Rollout:** Stage 0 (prerequisite): sign-in and the association record. Stage 1: US-01–US-09 as in §5 (without the ACs deferred to Stage 2); before the first protocol a член правління records the board, shares and association settings (AC-45). Stage 2: the deferred ACs of §5 and US-10–US-12; between stages users see no blocking checks, overrides, templates, related-decision warnings or expense closure, and drafts behave as in Stage 1.
+- **Rollout:** Stage 0 (prerequisite): sign-in and the association record. Stage 1: US-01–US-09 as in §5 (without the ACs deferred to Stage 2); before the first protocol a член правління records the board and association settings (AC-45). Stage 2: the deferred ACs of §5 and US-10–US-12; between stages users see no blocking checks, overrides, templates, related-decision warnings or expense closure, and drafts behave as in Stage 1.
 
 ## 10. RBAC and state machine
 
@@ -533,7 +533,7 @@ Scope is one association. Rights to act come from a board term in force on the d
 | Slot | Counts as sourced when |
 |---|---|
 | amount, counterparty, джерело коштів and any other value the помічник proposed | a person's confirmation or correction; the document it was read from is shown as a link (a blocking source rule is Stage 2, AC-09) |
-| members, protocol number, частки будинку, meeting form, signers | the reference record (election protocol, protocol register, inter-building decision, association settings); no confirmation needed |
+| members, protocol number, meeting form, signers | the reference record (election protocol, protocol register, association settings); no confirmation needed (частки будинку: Stage 2, AC-07) |
 | members present, vote count per item, handwritten-corrections note | a член правління's entry from the signed paper at upload, recorded with who and when |
 
 ### States

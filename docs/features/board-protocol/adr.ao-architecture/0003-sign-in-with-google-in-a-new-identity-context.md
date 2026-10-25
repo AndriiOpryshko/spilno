@@ -1,5 +1,6 @@
 ---
-status: accepted
+status: superseded
+superseded_by: "0022"
 date: 2026-10-25
 feature: board-protocol
 sad_section: "§4"
@@ -7,6 +8,8 @@ deciders: ["Andrii Opryshko"]
 ---
 
 # 0003 Sign in with Google in a new identity context
+
+> **Status:** superseded by [0022](./0022-sign-in-with-google-and-admit-only-current-board-members-from-the-governance-roster.md) (2026-10-25): no invitations — the verified Google e-mail is matched against the governance roster, and a membership check before any resource answers 403 `governance.not_board_member`. OIDC, sessions and the association record are restated there unchanged.
 
 ## Context and problem statement
 

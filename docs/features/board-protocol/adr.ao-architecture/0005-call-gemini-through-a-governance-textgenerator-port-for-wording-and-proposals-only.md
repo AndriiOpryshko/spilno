@@ -8,9 +8,11 @@ deciders: ["Andrii Opryshko"]
 
 # 0005 Call Gemini through a governance TextGenerator port for wording and proposals only
 
+> Amended 2026-10-25: a Stage 1 `DraftProposal` carries no попередження — warnings come back with the deferred ACs (AC-27 and later, Stage 2); it carries wording and proposed values with their source links only. The wording of each agenda item now also lists the case document versions it cited, so a new version of one of them marks the wording `needs_review` (AC-43, ADR 0017).
+
 ## Context and problem statement
 
-The помічник протоколу writes wording and попередження, proposes amounts read from case documents (AC-03, AC-06); reading the number and date from a signed scan (AC-28b) is Stage 2. Case documents contain co-owners' names, so PRD §6.1 allows a text-generation service only under an agreement that excludes training on the data. The user chose Gemini. The Gemini API does not open Drive files by id, so the worker downloads them from Drive (ADR 0004) and sends them in the request.
+The помічник протоколу writes wording and proposes amounts read from case documents (AC-03, AC-06); reading the number and date from a signed scan (AC-28b) is Stage 2. Case documents contain co-owners' names, so PRD §6.1 allows a text-generation service only under an agreement that excludes training on the data. The user chose Gemini. The Gemini API does not open Drive files by id, so the worker downloads them from Drive (ADR 0004) and sends them in the request.
 
 ## Decision drivers
 
@@ -34,7 +36,7 @@ The помічник протоколу writes wording and попереджен�
 
 ## Decision outcome
 
-**Chosen:** option 1. `governance/ports.TextGenerator` has `Draft(ctx, DraftInput) (DraftProposal, error)` (Stage 2 adds `ReadSignedScan(ctx, File) (ScanReading, error)`); the adapter `governance/adapters/gemini/` uses the Google Gen AI Go SDK with a response schema (JSON shape the model must follow). The model name, API key and project come from the environment; the project must have billing enabled, because only paid Gemini API services exclude prompts from product improvement. A depguard rule `gemini-sdk` allows `google.golang.org/genai` only in `internal/governance/adapters/gemini/**`, so no other package can call the model. A `DraftProposal` holds wording per agenda item as fragments with slot placeholders (ADR 0017), попередження with a source link, and proposed slot values each with the document id and the fragment it was read from. The worker stores the wording as a new revision (ADR 0017) and the slots with origin `ai`, status unconfirmed; the transition to готовий до підпису is refused while any of them is unconfirmed (AC-06, `governance.amount_unconfirmed`).
+**Chosen:** option 1. `governance/ports.TextGenerator` has `Draft(ctx, DraftInput) (DraftProposal, error)` (Stage 2 adds `ReadSignedScan(ctx, File) (ScanReading, error)`); the adapter `governance/adapters/gemini/` uses the Google Gen AI Go SDK with a response schema (JSON shape the model must follow). The model name, API key and project come from the environment; the project must have billing enabled, because only paid Gemini API services exclude prompts from product improvement. A depguard rule `gemini-sdk` allows `google.golang.org/genai` only in `internal/governance/adapters/gemini/**`, so no other package can call the model. A `DraftProposal` holds wording per agenda item as fragments with slot placeholders (ADR 0017) together with the case document versions that wording cited, and proposed slot values each with the document version id and the fragment it was read from; it has no попередження in Stage 1. The worker stores the wording as a new revision with its cited document versions (ADR 0017) and the slots with origin `ai`, status unconfirmed; the transition to готовий до підпису is refused while any of them is unconfirmed (AC-06, `governance.amount_unconfirmed`).
 
 ### Consequences
 

@@ -39,7 +39,7 @@ A draft has no number (AC-08). The first render of the print copy gives a protoc
 ### Consequences
 
 - Good: no duplicates, no reuse, no search for holes; numbers follow the order of first render.
-- Bad: the register has gaps for withdrawn printed protocols; the registry shows them as знятий з розгляду so the ревізійна комісія sees why.
+- Bad: the register has gaps for withdrawn printed protocols; the реєстр протоколів lists signed protocols only, and a number taken by a withdrawn protocol shows as a gap marked «знято з розгляду», so the ревізійна комісія sees why (the withdrawn protocol itself stays an internal record, CONTEXT). Amended 2026-10-25: was "the registry shows them as знятий з розгляду".
 - Neutral: a number reserved in a transaction that rolls back is not consumed (the counter update rolls back too).
 
 ### Migration and rollback
@@ -49,6 +49,6 @@ A draft has no number (AC-08). The first render of the print copy gives a protoc
 
 ## Links
 
-- PRD: [PRD.ao-prd.md](../PRD.ao-prd.md) — AC-08, AC-25, AC-26, AC-34c, AC-45
+- PRD: [PRD.ao-prd.md](../PRD.ao-prd.md) — AC-08, AC-25, AC-26, AC-34c, AC-36, AC-45
 - SAD: [sad.ao-architecture.md](../sad.ao-architecture.md) §5, §6
 - Related ADR: supersedes [0013 Lowest free number](./0013-reserve-the-lowest-free-protocol-number-per-association-on-ready-to-sign.md) · [0018 Render the print copy](./0018-render-the-print-copy-from-a-pinned-google-docs-template-in-a-worker-job.md)

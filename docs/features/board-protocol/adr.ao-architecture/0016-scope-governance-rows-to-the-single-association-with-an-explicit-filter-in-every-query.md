@@ -8,6 +8,8 @@ deciders: ["Andrii Opryshko"]
 
 # 0016 Scope governance rows to the single association with an explicit filter in every query
 
+> Amended 2026-10-25: sign-in moved from ADR 0003 to ADR 0022; a person who is not a current член правління is refused with 403 before any protocol, справа or meeting is read, so the explicit filter and the 404 for an unknown id (AC-33) apply only to members who passed that gate.
+
 ## Context and problem statement
 
 Stage 1 serves one association; records carry the association, but there is no multi-association scope (PRD §3, §9 Association scope). ADR 0010 chose Postgres Row-Level Security with `InAssociation` transactions and two database roles, which protects against a second association that Stage 1 does not have, at the cost of a transaction per request and harder tests. AC-33 still answers "not found" for an identifier not stored for the association. This ADR supersedes ADR 0010.
@@ -43,11 +45,11 @@ Stage 1 serves one association; records carry the association, but there is no m
 
 ### Migration and rollback
 
-- Migration: (1) the identity migration creates the association record (ADR 0003); (2) add nullable `association_id` to `meetings`; (3) backfill existing meetings to that association, confirmed by a член правління at setup (PRD §9); (4) `SET NOT NULL` and an index. New governance tables are created with the column.
+- Migration: (1) the identity migration creates the association record and its first roster entry (ADR 0022); (2) add nullable `association_id` to `meetings`; (3) backfill existing meetings to that association, confirmed by a член правління at setup (PRD §9); (4) `SET NOT NULL` and an index. New governance tables are created with the column.
 - Rollback: drop the index and the `NOT NULL`; the column stays because signed protocols and their meetings carry it.
 
 ## Links
 
 - PRD: [PRD.ao-prd.md](../PRD.ao-prd.md) — AC-33; §3 "More than one association"; §8 association OQ; §9 Association scope
 - SAD: [sad.ao-architecture.md](../sad.ao-architecture.md) §5, §8, §11
-- Related ADR: supersedes [0010 Row-Level Security](./0010-scope-every-governance-and-finance-row-to-an-association-with-row-level-security.md) · [0003 Sign in with Google](./0003-sign-in-with-google-in-a-new-identity-context.md) · repo [0002 Bounded contexts](../../../adr/0002-bounded-contexts.md)
+- Related ADR: supersedes [0010 Row-Level Security](./0010-scope-every-governance-and-finance-row-to-an-association-with-row-level-security.md) · [0022 Roster sign-in](./0022-sign-in-with-google-and-admit-only-current-board-members-from-the-governance-roster.md) · repo [0002 Bounded contexts](../../../adr/0002-bounded-contexts.md)

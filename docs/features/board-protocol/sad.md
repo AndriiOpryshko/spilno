@@ -750,4 +750,3 @@ Domain terms are canonical in [CONTEXT.md](./CONTEXT.md) `## Glossary`; the shor
 | layout template | Google Doc defining the page layout of the print copy; distinct from a шаблон формулювання (ADR-0013) |
 | job | A River job carrying ids and the trace context only, enqueued in the writing transaction and run by the worker (ADR-0006) |
 
-<!-- fix-term follow-up: CONTEXT.md still says попереднє голосування "pre-fills the meeting vote count" and готовий до підпису is reached "when every блокуюча перевірка is resolved or overridden" — both contradict the 2026-10-25 rescope (AC-41, AC-14c); run /sdlc:fix-term for попереднє голосування, готовий до підпису, and add чернетка, підписаний, poll round (раунд опитування), print copy (друкована копія). -->

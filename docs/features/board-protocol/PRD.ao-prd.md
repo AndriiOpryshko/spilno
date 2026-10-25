@@ -442,6 +442,10 @@ These keep their ids and Stage 1 text as approved on 2026-10-24, so traceability
 | `governance.protocol_locked` | invariant | Підписаний протокол змінити або зняти не можна; створіть протокол-виправлення. | AC-30, AC-30b |
 | `governance.transition_not_allowed` | invariant | Цей перехід недоступний у поточному стані протоколу. | AC-31, AC-35 |
 | `governance.not_board_member` | authorization | Дія доступна лише члену правління з чинними повноваженнями. | AC-32 |
+| `governance.register_start_locked` | conflict | Номер, з якого продовжується реєстр, уже не змінити: протоколу вже видано номер. | AC-45 |
+| `governance.storage_unavailable` | unavailable | Сховище файлів зараз недоступне; спробуйте завантажити пізніше, нічого не збережено. | AC-28, AC-29 |
+| `identity.session_required` | authentication | Увійдіть через Google-акаунт. | AC-32 |
+| `identity.invitation_required` | authorization | Цей Google-акаунт не запрошено до об'єднання. | AC-32 |
 
 Deferred to Stage 2 with their ACs (§3): `governance.source_missing` (AC-09), `governance.funding_source_not_in_force` (AC-10), `governance.text_slot_mismatch` (AC-12), `governance.quorum_missing` (AC-19, AC-19b), `governance.majority_missing` (AC-19c), `governance.outside_board_competence` (AC-20), `governance.meeting_form_not_allowed` (AC-21), `governance.reserved_for_general_meeting` (AC-22), `governance.reason_required` (AC-24), `governance.template_text_fixed` (AC-38).
 
@@ -452,7 +456,7 @@ Deferred to Stage 2 with their ACs (§3): `governance.source_missing` (AC-09), `
 | Latency p95, read or list of the association's records | ≤ 200 ms (default) | server request-duration histogram per route |
 | Latency p95, write without file | ≤ 500 ms (default) | same histogram |
 | Latency p95, upload of a signed scan | ≤ 3 s for 20 MB (default) | same histogram, upload routes |
-| Print copy (PDF) rendering | ≤ 5 s p95 (default) | request duration |
+| Print copy (PDF) rendering | ≤ 5 s p95 (default) | duration of the render job from the transition to a ready copy |
 | Draft from the помічник протоколу | ≤ 30 s p95 from request to filled draft | assistant request duration |
 | Availability | 99.5 % monthly (default) | uptime check on the health endpoint |
 | Durability | RPO ≤ 24 h (nightly backup), RTO ≤ 4 h (default) | nightly backup log + quarterly restore drill |

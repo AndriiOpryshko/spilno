@@ -206,7 +206,7 @@ Traceability and deliberate decisions:
 ### AC-28 (US-12) — domain invariant
 **Given** a proposed draft with confirmed слоти рішення
 **When** the system writes or rewrites the connecting text of a decision, including after a change asked for in the conversation
-**Then** the text holds no amount, date, document reference, name or count that is not one of the decision's слоти рішення (amount, counterparty, джерело коштів, document reference with its number and date, term or date, person, votes, неучасть у голосуванні) or a meeting fact the system fills from the meeting record and the roster (meeting date, головуючий, members present); a requested change that would add one becomes a new slot to confirm instead
+**Then** the text holds no amount, date, document reference, name or count that is not one of the decision's слоти рішення (amount, counterparty, джерело коштів, document reference with its number and date, term or date, person, votes, неучасть у голосуванні) or a meeting fact from the meeting record (meeting date, головуючий); members present and vote counts stay blank fields on the print copy and are entered from the signed paper with the scan (AC-14); a requested change that would add one becomes a new slot to confirm instead
 
 ### AC-28b (US-12) — domain invariant
 **Given** a слот рішення a член правління has already confirmed

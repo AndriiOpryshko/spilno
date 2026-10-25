@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: deferred
 date: 2026-10-25
 feature: board-protocol
 sad_section: "§5"
@@ -7,6 +7,8 @@ deciders: ["Andrii Opryshko"]
 ---
 
 # 0012 Add a funding source to finance contracts and read contracts in force through finance module.go
+
+> **Status:** deferred to Stage 2 (2026-10-25): `finance` is untouched in Stage 1; the cross-check with contracts in force (AC-10) and the fund line on contracts moved to Stage 2 (PRD §3, §9).
 
 ## Context and problem statement
 

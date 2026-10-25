@@ -1,5 +1,6 @@
 ---
-status: accepted
+status: superseded
+superseded_by: "0015"
 date: 2026-10-25
 feature: board-protocol
 sad_section: "§4"
@@ -7,6 +8,8 @@ deciders: ["Andrii Opryshko"]
 ---
 
 # 0008 Queue AI, Drive and PDF work in a Postgres job table processed by cmd/worker
+
+> **Status:** superseded by [0015](./0015-run-background-jobs-in-cmd-worker-with-river-on-postgres.md) (2026-10-25): River replaces the hand-written job table; job kinds, ids-only payloads and idempotent handlers carry over.
 
 ## Context and problem statement
 

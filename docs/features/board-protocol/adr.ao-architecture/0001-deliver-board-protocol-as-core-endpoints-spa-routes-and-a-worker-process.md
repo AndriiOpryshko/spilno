@@ -10,7 +10,7 @@ deciders: ["Andrii Opryshko"]
 
 ## Context and problem statement
 
-board-protocol needs a browser UI for members of the board, the protocol rules and records in the core API, and slow external work: assistant drafts (≤ 30 s p95), reading the signed scan, rendering the printable PDF, syncing Google Doc access and a daily integrity check (PRD §6, US-02, US-07). SAD §4 decides which runnable containers the feature owns; every downstream stage reads this as `target_surfaces`.
+board-protocol needs a browser UI for members of the board, the protocol rules and records in the core API, and slow external work: assistant drafts (≤ 30 s p95), rendering the print copy, Drive read-only restrictions after lock and a nightly integrity check (PRD §6, US-02, US-06, US-07; reading the signed scan joins in Stage 2). SAD §4 decides which runnable containers the feature owns; every downstream stage reads this as `target_surfaces`.
 
 ## Decision drivers
 
@@ -23,7 +23,7 @@ board-protocol needs a browser UI for members of the board, the protocol rules a
 - Irreversible: yes — a second deploy unit and the web routes shape tasks, tests and deployment for every later stage.
 - Multi-context: yes — `apps/web` and `services/core` (`core` and `worker` binaries).
 - Legitimate alternative: yes — run background work as goroutines inside `core`.
-- Touches the database: no — the job table is decided in ADR 0008.
+- Touches the database: no — the job queue is decided in ADR 0015 (which superseded ADR 0008).
 
 ## Considered options
 
@@ -43,10 +43,10 @@ board-protocol needs a browser UI for members of the board, the protocol rules a
 
 ### Migration and rollback
 
-N/A — no stored data changes. Removing the worker leaves queued jobs in the table (ADR 0008).
+N/A — no stored data changes. Removing the worker leaves queued jobs in River's table (ADR 0015).
 
 ## Links
 
-- PRD: [PRD.ao-prd.md](../PRD.ao-prd.md) — US-02, US-07; §6 latency rows
+- PRD: [PRD.ao-prd.md](../PRD.ao-prd.md) — US-02, US-06, US-07; §6 latency rows
 - SAD: [sad.ao-architecture.md](../sad.ao-architecture.md) §4
-- Related ADR: [0008 Queue AI, Drive and PDF work](./0008-queue-ai-drive-and-pdf-work-in-a-postgres-job-table-processed-by-cmd-worker.md) · repo [0001 Stack](../../../adr/0001-stack.md)
+- Related ADR: [0015 River jobs](./0015-run-background-jobs-in-cmd-worker-with-river-on-postgres.md) · repo [0001 Stack](../../../adr/0001-stack.md)

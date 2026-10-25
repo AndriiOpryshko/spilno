@@ -44,7 +44,7 @@ The repo has only a local `infra/compose.yaml`; board-protocol is the first feat
 
 ### Migration and rollback
 
-- Migration: none for data; first deploy runs goose migrations as `spilno_owner` (ADR 0010).
+- Migration: none for data; `cmd/api` applies pending goose migrations on start (repo ADR 0004), and the worker starts after the API is healthy so River's schema exists (ADR 0015).
 - Rollback: restore the latest dump on a new host; locked protocols are never deleted.
 
 ## Links

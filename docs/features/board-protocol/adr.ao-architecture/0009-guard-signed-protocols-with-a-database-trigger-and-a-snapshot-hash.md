@@ -1,5 +1,6 @@
 ---
-status: accepted
+status: superseded
+superseded_by: "0019"
 date: 2026-10-25
 feature: board-protocol
 sad_section: "§4"
@@ -7,6 +8,8 @@ deciders: ["Andrii Opryshko"]
 ---
 
 # 0009 Guard signed and withdrawn protocols with a database trigger and a snapshot hash
+
+> **Status:** superseded by [0019](./0019-lock-a-protocol-as-one-fingerprinted-snapshot-row-guarded-by-a-trigger.md) (2026-10-25): one snapshot row with a fingerprint and one trigger replace triggers on every child table.
 
 ## Context and problem statement
 

@@ -1,5 +1,6 @@
 ---
-status: accepted
+status: superseded
+superseded_by: "0021"
 date: 2026-10-25
 feature: board-protocol
 sad_section: "§5"
@@ -7,6 +8,8 @@ deciders: ["Andrii Opryshko"]
 ---
 
 # 0013 Reserve the lowest free protocol number per association on ready to sign
+
+> **Status:** superseded by [0021](./0021-reserve-the-protocol-number-on-the-first-print-copy-and-never-reuse-it.md) (2026-10-25): the rescoped PRD keeps a number from the first print copy and never reuses it (AC-26, AC-34c).
 
 ## Context and problem statement
 

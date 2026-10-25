@@ -10,14 +10,14 @@ deciders: ["Andrii Opryshko"]
 
 ## Context and problem statement
 
-The помічник протоколу writes wording and попередження, proposes amounts read from case documents (AC-03, AC-06) and reads the number and date from a signed scan (AC-28b). Case documents contain co-owners' names, so PRD §6.1 allows a text-generation service only under an agreement that excludes training on the data. The user chose Gemini. The Gemini API does not open Drive files by id, so the worker downloads them from Drive (ADR 0004) and sends them in the request.
+The помічник протоколу writes wording and попередження, proposes amounts read from case documents (AC-03, AC-06); reading the number and date from a signed scan (AC-28b) is Stage 2. Case documents contain co-owners' names, so PRD §6.1 allows a text-generation service only under an agreement that excludes training on the data. The user chose Gemini. The Gemini API does not open Drive files by id, so the worker downloads them from Drive (ADR 0004) and sends them in the request.
 
 ## Decision drivers
 
 - CONTEXT "помічник протоколу": every number it proposes counts only after a person confirms it.
 - PRD §6: draft ≤ 30 s p95; PRD §7: ≤ 5 % of AI-proposed amounts corrected.
 - PRD §6.1: no training on the association's data.
-- ADR 0001 / 0008: AI calls run only in the worker.
+- ADR 0001 / 0015: AI calls run only in the worker.
 
 ## Blast radius
 
@@ -34,7 +34,7 @@ The помічник протоколу writes wording and попереджен�
 
 ## Decision outcome
 
-**Chosen:** option 1. `governance/ports.TextGenerator` has `Draft(ctx, DraftInput) (DraftProposal, error)` and `ReadSignedScan(ctx, File) (ScanReading, error)`; the adapter `governance/adapters/gemini/` uses the Google Gen AI Go SDK with a response schema (JSON shape the model must follow). The model name, API key and project come from the environment; the project must have billing enabled, because only paid Gemini API services exclude prompts from product improvement. A `DraftProposal` holds wording per agenda item, попередження with a source link, and proposed slot values each with the document id and the fragment it was read from. The worker writes wording into the Doc (ADR 0006) and slots with origin `ai`, status unconfirmed; nothing from the AI enters a блокуюча перевірка (ADR 0007).
+**Chosen:** option 1. `governance/ports.TextGenerator` has `Draft(ctx, DraftInput) (DraftProposal, error)` (Stage 2 adds `ReadSignedScan(ctx, File) (ScanReading, error)`); the adapter `governance/adapters/gemini/` uses the Google Gen AI Go SDK with a response schema (JSON shape the model must follow). The model name, API key and project come from the environment; the project must have billing enabled, because only paid Gemini API services exclude prompts from product improvement. A depguard rule `gemini-sdk` allows `google.golang.org/genai` only in `internal/governance/adapters/gemini/**`, so no other package can call the model. A `DraftProposal` holds wording per agenda item as fragments with slot placeholders (ADR 0017), попередження with a source link, and proposed slot values each with the document id and the fragment it was read from. The worker stores the wording as a new revision (ADR 0017) and the slots with origin `ai`, status unconfirmed; the transition to готовий до підпису is refused while any of them is unconfirmed (AC-06, `governance.amount_unconfirmed`).
 
 ### Consequences
 
@@ -49,6 +49,6 @@ N/A — no stored data changes beyond the slot origin already in the protocol mo
 
 ## Links
 
-- PRD: [PRD.ao-prd.md](../PRD.ao-prd.md) — US-02, US-03, AC-03, AC-06, AC-28b; §6.1 abuse case "leaking personal data"
-- SAD: [sad.ao-architecture.md](../sad.ao-architecture.md) §4
-- Related ADR: [0004 Files on Google Drive](./0004-store-case-files-and-signed-scans-on-the-associations-google-drive-with-hashes-in-postgres.md) · [0008 Job table](./0008-queue-ai-drive-and-pdf-work-in-a-postgres-job-table-processed-by-cmd-worker.md)
+- PRD: [PRD.ao-prd.md](../PRD.ao-prd.md) — US-02, US-03, AC-03, AC-06, AC-43 (AC-28b in Stage 2); §6.1 abuse case "leaking personal data"
+- SAD: [sad.ao-architecture.md](../sad.ao-architecture.md) §4, §5, §8
+- Related ADR: [0004 Files on Google Drive](./0004-store-case-files-and-signed-scans-on-the-associations-google-drive-with-hashes-in-postgres.md) · [0015 River jobs](./0015-run-background-jobs-in-cmd-worker-with-river-on-postgres.md) · [0017 Text as fragments](./0017-store-protocol-text-as-fragments-with-slot-placeholders-edited-in-spilno.md)

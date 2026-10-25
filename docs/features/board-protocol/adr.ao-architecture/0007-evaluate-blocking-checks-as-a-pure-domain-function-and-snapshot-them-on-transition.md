@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: deferred
 date: 2026-10-25
 feature: board-protocol
 sad_section: "§4"
@@ -7,6 +7,8 @@ deciders: ["Andrii Opryshko"]
 ---
 
 # 0007 Evaluate blocking checks as a pure domain function and snapshot them on transition
+
+> **Status:** deferred to Stage 2 (2026-10-25): blocking checks and overrides (AC-09, AC-12, AC-19–AC-24, AC-27) moved to Stage 2 in the rescoped PRD §3; the one Stage 1 gate — no print while a помічник-proposed value is unconfirmed (AC-06) — is a transition guard in `governance/domain` (SAD §8 Lifecycle).
 
 ## Context and problem statement
 

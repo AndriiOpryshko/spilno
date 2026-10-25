@@ -1,5 +1,6 @@
 ---
-status: accepted
+status: superseded
+superseded_by: "0016"
 date: 2026-10-25
 feature: board-protocol
 sad_section: "§5"
@@ -7,6 +8,8 @@ deciders: ["Andrii Opryshko"]
 ---
 
 # 0010 Scope every governance and finance row to an association with Row-Level Security and backfill existing rows to the first one
+
+> **Status:** superseded by [0016](./0016-scope-governance-rows-to-the-single-association-with-an-explicit-filter-in-every-query.md) (2026-10-25): Stage 1 serves one association; an explicit `association_id` filter replaces RLS, which moves to SAD §11 accepted debt.
 
 ## Context and problem statement
 

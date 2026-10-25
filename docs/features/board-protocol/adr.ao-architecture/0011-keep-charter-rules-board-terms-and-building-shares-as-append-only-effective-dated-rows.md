@@ -1,5 +1,6 @@
 ---
-status: accepted
+status: superseded
+superseded_by: "0020"
 date: 2026-10-25
 feature: board-protocol
 sad_section: "§5"
@@ -7,6 +8,8 @@ deciders: ["Andrii Opryshko"]
 ---
 
 # 0011 Keep charter rules, board terms and building shares as append-only effective-dated rows
+
+> **Status:** superseded by [0020](./0020-keep-board-terms-and-building-shares-as-dated-rows-and-charter-rules-as-current-settings.md) (2026-10-25): narrowed — board terms and building shares stay dated; charter rules with effective dates (AC-02) move to Stage 2.
 
 ## Context and problem statement
 

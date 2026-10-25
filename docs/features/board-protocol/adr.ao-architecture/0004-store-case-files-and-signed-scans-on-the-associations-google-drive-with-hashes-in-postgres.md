@@ -10,7 +10,7 @@ deciders: ["Andrii Opryshko"]
 
 ## Context and problem statement
 
-A справа holds source documents (estimates, invoices, contracts, owner requests, service notes); a protocol gets a printable PDF and a signed scan (AC-28, AC-29). PRD §6 limits files to 20 MB, PDF / JPEG / PNG, and keeps signed and withdrawn protocols ≥ 5 years, never hard-deleted. The user decided that all files live on Google Drive and Postgres keeps only metadata. Drive by itself lets anyone with access edit or delete a file, and its trash is emptied after 30 days, so the decision must say how QG-1 still holds.
+A справа holds source documents (estimates, invoices, contracts, owner requests, service notes); a protocol gets a PDF print copy (AC-25) and a signed scan (AC-28, AC-29). PRD §6 limits files to 20 MB, PDF / JPEG / PNG, and keeps signed and withdrawn protocols ≥ 5 years, never hard-deleted. The user decided that all files live on Google Drive and Postgres keeps only metadata. Drive by itself lets anyone with access edit or delete a file, and its trash is emptied after 30 days, so the decision must say how QG-1 still holds.
 
 ## Decision drivers
 
@@ -34,12 +34,12 @@ A справа holds source documents (estimates, invoices, contracts, owner req
 
 ## Decision outcome
 
-**Chosen:** option 1. At association setup a member connects one Google account owned by the association; `identity` stores its refresh token encrypted (AES-GCM, key from the environment). spilno uses scope `drive.file` (only files the app created), creates `spilno/<association>/` with sub-folders per справа and per protocol, and shares nothing in it except the wording Doc of ADR 0006. Uploads go web → `core` → Drive in one request, hashed with sha256 while streaming; `governance_files` stores `drive_file_id`, sha256, size, media type, kind, uploader and time. Members download through `core`, which streams from Drive. On lock, the job `apply_drive_restrictions` (ADR 0008) sets `contentRestrictions.readOnly` on the scan, the PDF and the справа documents, retried until Drive accepts it (SAD §6 Flow 8); the worker re-reads every locked file daily, compares sha256, restores a trashed file with `untrash` and raises an alert on a mismatch or a permanently deleted file.
+**Chosen:** option 1. At association setup a member connects one Google account owned by the association; `identity` stores its refresh token encrypted (AES-GCM, key from the environment). spilno uses scope `drive.file` (only files the app created), creates `spilno/<association>/` with sub-folders per справа and per protocol, and shares nothing in it (the wording is edited in spilno, ADR 0017; the print template Doc is read only by the app, ADR 0018). Uploads go web → `core` → Drive in one request, hashed with sha256 while streaming; `governance_files` stores `drive_file_id`, the Drive revision (`headRevisionId`) at upload, sha256, size, media type, kind, uploader and time. Members download through `core`, which streams from Drive. On lock or withdrawal, the job `apply_drive_restrictions` (ADR 0015) sets `contentRestrictions.readOnly` on the scan, the print copy and the справа documents, retried until Drive accepts it (SAD §6 Flow 8). The nightly `verify_integrity` job (ADR 0019) compares each locked file's sha256 with Drive metadata (`files.get` field `sha256Checksum`, filled by Drive for uploaded binary files) without downloading it, restores a trashed file with `untrash` and raises an alert on a mismatch or a permanently deleted file.
 
 ### Consequences
 
 - Good: no file store to run; the association sees its documents in its own Drive.
-- Good: tampering is detected within a day, and trashed files are restored before Drive empties the trash.
+- Good: tampering is detected within a day, and trashed files are restored before Drive empties the trash; the check costs one metadata call per file, not a download.
 - Bad: whoever signs in to the association's Google account can delete a file permanently; protection is detection only (SAD §11, High).
 - Bad: Drive files are not in the Postgres backup; RPO/RTO for files depend on Google (SAD §7, §11).
 - Neutral: upload latency includes the Drive upload; the 3 s target is watched per route (SAD §10).
@@ -47,10 +47,10 @@ A справа holds source documents (estimates, invoices, contracts, owner req
 ### Migration and rollback
 
 - Migration: new table `governance_files`; no existing rows. Association setup adds the Google connection (ADR 0003).
-- Rollback: metadata rows of signed protocols are never deleted (ADR 0009); files stay on Drive. Moving to another store later is a copy job keyed by `drive_file_id` and verified by sha256.
+- Rollback: metadata rows of signed protocols are never deleted (ADR 0019); files stay on Drive. Moving to another store later is a copy job keyed by `drive_file_id` and verified by sha256.
 
 ## Links
 
 - PRD: [PRD.ao-prd.md](../PRD.ao-prd.md) — US-02, US-07, AC-28, AC-29; §6 File size, Retention
 - SAD: [sad.ao-architecture.md](../sad.ao-architecture.md) §4, §7
-- Related ADR: [0009 Guard signed protocols](./0009-guard-signed-protocols-with-a-database-trigger-and-a-snapshot-hash.md) · [0003 Sign in with Google](./0003-sign-in-with-google-in-a-new-identity-context.md)
+- Related ADR: [0019 Lock snapshot](./0019-lock-a-protocol-as-one-fingerprinted-snapshot-row-guarded-by-a-trigger.md) · [0003 Sign in with Google](./0003-sign-in-with-google-in-a-new-identity-context.md)

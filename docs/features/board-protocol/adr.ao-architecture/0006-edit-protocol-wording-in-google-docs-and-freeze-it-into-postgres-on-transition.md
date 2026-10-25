@@ -1,5 +1,6 @@
 ---
-status: accepted
+status: superseded
+superseded_by: "0017"
 date: 2026-10-25
 feature: board-protocol
 sad_section: "§4"
@@ -7,6 +8,8 @@ deciders: ["Andrii Opryshko"]
 ---
 
 # 0006 Edit protocol wording in Google Docs and freeze it into Postgres on every transition
+
+> **Status:** superseded by [0017](./0017-store-protocol-text-as-fragments-with-slot-placeholders-edited-in-spilno.md) (2026-10-25): the product owner decided the wording is edited in spilno; the print copy is rendered per [0018](./0018-render-the-print-copy-from-a-pinned-google-docs-template-in-a-worker-job.md). The AC-11b decision override and `sync_doc_access` are withdrawn with it.
 
 ## Context and problem statement
 

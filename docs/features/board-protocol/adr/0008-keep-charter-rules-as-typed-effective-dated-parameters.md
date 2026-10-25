@@ -1,5 +1,5 @@
 ---
-status: Accepted
+status: Deferred
 owner: "Andrii Opryshko"
 reviewers: []
 updated_at: "2026-10-25"
@@ -10,9 +10,11 @@ ticket: ""
 
 # 0008 — Keep правила статуту as a typed catalog of effective-dated parameters
 
-- **Status:** Accepted
+- **Status:** Deferred to Stage 2
 - **Date:** 2026-10-25
 - **Deciders:** Andrii Opryshko (Architect), with Claude during the architecture-design pass
+
+> **Deferred to Stage 2 (2026-10-25).** Stage 1 computes no quorum or majority and stores only the current association settings (meeting form, signers, start number — PRD AC-42); effective-dated rules come with the Stage 2 checks (PRD §3). Re-validate this ADR when Stage 2 is specified.
 
 ## Context
 
@@ -49,6 +51,6 @@ Kinds (first release): `quorum_size` — `{count: n}` or `{share: "2/3", of: "ro
 
 ## Links
 
-- PRD: [[../PRD.md]] §1, §6, §6.1, §8, AC-01, AC-02b, AC-02c, AC-05, AC-05b, AC-06, AC-11, AC-23b
-- SAD: [[../sad.md]] §4, §5, §10
-- Related ADR: [[0007-lock-protocols-as-fingerprinted-immutable-snapshots]]
+- PRD: [PRD.md](../PRD.md) §1, §6, §6.1, §8, AC-01, AC-02b, AC-02c, AC-05, AC-05b, AC-06, AC-11, AC-23b
+- SAD: [sad.md](../sad.md) §4, §5, §10
+- Related ADR: [ADR-0007](./0007-lock-protocols-as-fingerprinted-immutable-snapshots.md)

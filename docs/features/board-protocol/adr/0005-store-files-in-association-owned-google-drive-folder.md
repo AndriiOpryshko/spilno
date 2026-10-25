@@ -14,54 +14,58 @@ ticket: ""
 - **Date:** 2026-10-25
 - **Deciders:** Andrii Opryshko (Architect), with Claude during the architecture-design pass
 
+> **Amended 2026-10-25 (Stage 1 rescope):** spilno uses only the `drive.file` scope, so it sees only files it created; "attach an existing Drive file by copying it" is dropped from Stage 1 (it needs a wider scope or a Picker flow — SAD §11). Limits restated against PRD §6 (≤ 20 MB, PDF / JPEG / PNG, upload p95 ≤ 3 s). The refresh token is encrypted with AES-GCM. The database is now backed up ([ADR-0016](./0016-back-up-postgres-nightly-off-the-vm-with-quarterly-restore-drills.md)); files are not. Export packages are Stage 2. The choice of the association's Drive is unchanged.
+
 ## Context
 
-The feature stores case documents and their versions, signed scans up to 50 MB, the copy printed for signing and export packages — roughly up to 1.2 GB a year at 15-20 protocols. The association keeps its documents in its Google Drive; the author's requirement is that all files stay on the association's Drive, with only metadata in Postgres. A locked protocol must keep the exact document versions it cited (AC-17b), a changed document must flag the slots confirmed against it (AC-09), and a former member must see nothing (AC-19).
+The feature stores case documents and their versions, the PDF print copies and the signed scans, files up to 20 MB (PRD §6), at 15-20 protocols a year. The association keeps its documents in its Google Drive; the author's requirement is that all files stay on the association's Drive, with only metadata in Postgres. A locked protocol must keep the exact document versions it cited and its signed scan (AC-14, AC-17), a newer document version must flag the slots confirmed against it (AC-09), and a former member must see nothing (AC-19).
 
 ## Decision drivers
 
-- QG-1, AC-17b: cited and signed files never change after lock; the periodic integrity check must cover files.
+- QG-1, AC-17: cited and signed files never change after lock; the periodic integrity check must cover files.
 - QG-3, AC-19: access ends on the term end date, with no hint that records exist.
-- PRD §6: signed-copy upload p95 ≤ 20 s. (Durability RPO ≤ 24 h with quarterly restore is deliberately not met in the first release — no database backup; SAD §1 decision override, §7, §11.)
+- PRD §6: files up to 20 MB, PDF / JPEG / PNG, upload p95 ≤ 3 s for 20 MB; retention ≥ 5 years, never hard-deleted.
 - PRD §6.1 abuse case "Malicious upload": files served for download, never rendered as active content.
+- Least privilege: the smallest Google scope that does the job.
 
 ## Considered options
 
 1. **Immutable content-addressed blobs in Postgres** behind a port — one backup covers data and files.
 2. **S3-compatible object storage** (MinIO locally) with metadata in Postgres.
-3. **Association's Google Drive, folder shared with nobody but the association account** — members reach files only through spilno.
-4. **Association's Google Drive, folder shared with current members**, permissions synced daily with the roster terms.
+3. **Association's Google Drive, folder created by spilno under `drive.file` and shared with nobody** — members reach files only through spilno.
+4. **Association's Google Drive with the full `drive` scope, folder shared with current members**, permissions synced daily with the roster terms.
 
 ## Decision outcome
 
-**Chosen:** Option 3. Files stay where the association keeps its records, and access control stays in one place — spilno's per-request term check — instead of a daily permission sync that would let a former member keep Drive access for up to a day and edit cited files.
+**Chosen:** Option 3. Files stay where the association keeps its records, access control stays in one place — spilno's per-request term check — and `drive.file` limits what a leaked token can reach to the files spilno itself created.
 
 Shape:
-- spilno is authorized once against the association-owned Google account (OAuth consent with an offline refresh token, kept encrypted as a secret). A shared infrastructure package `internal/platform/google` wraps the Drive and Docs APIs; `cases` and `governance` each implement their own file port on it.
-- Layout: `spilno/cases/<case-id>/`, `spilno/protocols/<protocol-id>/` (copies for signing, signed scan), `spilno/exports/`. The folder is not shared with anyone.
-- Per file version Postgres keeps: Drive file id, head revision id, sha256 (from Drive's `sha256Checksum`, verified on upload), size, media type, original name, author, time. A new version of a document is a new Drive file, never an overwrite.
-- An existing file in the association's Drive is attached by **copying** it into the case folder through spilno's own file browser, so editing the original later never touches the cited copy.
-- Uploads go browser → API (type and size check, ≤ 50 MB) → Drive resumable upload. Downloads are proxied by the API after the term check and served with `Content-Disposition: attachment`; members never receive Drive links.
-- The nightly integrity job compares the sha256 Drive reports for every pinned file with the stored one.
+- spilno is authorized once against the association-owned Google account (OAuth consent for `drive.file` with an offline refresh token). The token is stored by `identity` encrypted with AES-GCM under a key from the environment and handed to `governance` as a token source ([ADR-0014](./0014-keep-board-protocol-in-governance-and-add-only-an-identity-context.md)). `internal/platform/google` builds the Drive and Docs clients; `governance/adapters/gdrive` implements the `Files` port.
+- Layout: `spilno/cases/<case-id>/`, `spilno/protocols/<protocol-id>/` (print copies, signed scan), `spilno/templates/` (layout templates, ADR-0013). spilno creates the folders; they are not shared with anyone.
+- Per file version Postgres keeps: Drive file id, head revision id, sha256 (computed while streaming and compared with Drive's `sha256Checksum`), size, media type, original name, author, time, `association_id`. A new version of a document is a new Drive file, never an overwrite.
+- Uploads go browser → API (content-sniffed type and size check, ≤ 20 MB) → Drive upload. Downloads are proxied by the API after the term check and served with `Content-Disposition: attachment`; members never receive Drive links.
+- The nightly integrity job compares the sha256 and revision Drive reports for every pinned file with the stored ones; for documents of open drafts a change marks the citing slots needing review (AC-09).
 
 ## Consequences
 
 **Positive**
 - The association's records stay in the association's account, independent of spilno's hosting.
 - One authorization path: the roster term check, enforced by the API for every file read.
+- `drive.file` is a non-sensitive scope: a smaller consent screen and a smaller blast radius for the token.
 - Drive reports a sha256 per binary file, so the integrity check needs no download.
 
 **Negative**
-- A file read or write depends on the Drive API being reachable; uploads and downloads go through the API process, adding a hop to the 20 s upload budget.
-- A database backup, once added, will not cover files: restoring will need both the database dump and the Drive folder, and the restore drill must check they agree. The first release has no database backup at all (SAD §1 decision override, §11).
-- Whoever holds the association Google account can edit or delete files outside spilno; the integrity check detects it but cannot prevent it (tracked in §11).
+- A file read or write depends on the Drive API being reachable; uploads go through the API process, adding a hop to the 3 s upload budget (SAD §11).
+- The database backup does not cover files: restoring needs the dump and the Drive folder, and the restore drill checks they agree (ADR-0016).
+- A file already elsewhere in the association's Drive cannot be attached directly; a member downloads and uploads it (SAD §11).
+- Whoever holds the association Google account can edit or delete files outside spilno; the integrity check detects it but cannot prevent it (SAD §11).
 - If the refresh token is revoked, file access stops until someone re-authorizes; the account's storage quota is shared with its mail.
 
 **Neutral**
-- The file ports keep a later move to object storage an adapter plus a copy script.
+- The `Files` port keeps a later move to object storage an adapter plus a copy script.
 
 ## Links
 
-- PRD: [[../PRD.md]] §6, §6.1, AC-09, AC-17b, AC-19, AC-20
-- SAD: [[../sad.md]] §4, §5, §7, §11
-- Related ADR: [[0004-use-gemini-api-for-document-reading-and-drafting]], [[0007-lock-protocols-as-fingerprinted-immutable-snapshots]]
+- PRD: [PRD.md](../PRD.md) §6, §6.1, AC-09, AC-14, AC-17, AC-19
+- SAD: [sad.md](../sad.md) §4, §5, §7, §8, §11
+- Related ADR: [ADR-0004](./0004-use-gemini-api-for-document-reading-and-drafting.md), [ADR-0007](./0007-lock-protocols-as-fingerprinted-immutable-snapshots.md), [ADR-0014](./0014-keep-board-protocol-in-governance-and-add-only-an-identity-context.md), [ADR-0016](./0016-back-up-postgres-nightly-off-the-vm-with-quarterly-restore-drills.md)

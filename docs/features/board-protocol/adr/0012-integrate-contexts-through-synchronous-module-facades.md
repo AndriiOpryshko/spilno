@@ -1,5 +1,5 @@
 ---
-status: Accepted
+status: Superseded
 owner: "Andrii Opryshko"
 reviewers: []
 updated_at: "2026-10-25"
@@ -10,9 +10,11 @@ ticket: ""
 
 # 0012 — Integrate contexts through synchronous module.go facades wired in the composition root
 
-- **Status:** Accepted
+- **Status:** Superseded by ADR-0014
 - **Date:** 2026-10-25
 - **Deciders:** Andrii Opryshko (Architect), with Claude during the architecture-design pass
+
+> **Superseded 2026-10-25 by [ADR-0014](./0014-keep-board-protocol-in-governance-and-add-only-an-identity-context.md).** With only `governance` and `identity` in play, the facade rule narrows to governance ↔ identity and is restated there; the cases, assistant and finance ports below no longer exist. Kept for history.
 
 ## Context
 
@@ -57,6 +59,7 @@ Rules:
 
 ## Links
 
-- PRD: [[../PRD.md]] AC-09, AC-16, AC-19, AC-25, AC-25b, AC-26
-- SAD: [[../sad.md]] §5, §8
-- Related ADR: [[0002-extend-governance-and-add-cases-assistant-identity-contexts]], [[0010-evaluate-checks-on-read-and-bind-overrides-to-input-fingerprints]]
+- PRD: [PRD.md](../PRD.md) AC-09, AC-16, AC-19, AC-25, AC-25b, AC-26
+- SAD: [sad.md](../sad.md) §5, §8
+- Related ADR: [ADR-0002](./0002-extend-governance-and-add-cases-assistant-identity-contexts.md), [ADR-0010](./0010-evaluate-checks-on-read-and-bind-overrides-to-input-fingerprints.md)
+- Superseded by: [ADR-0014](./0014-keep-board-protocol-in-governance-and-add-only-an-identity-context.md)

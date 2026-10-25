@@ -14,14 +14,16 @@ ticket: ""
 - **Date:** 2026-10-25
 - **Deciders:** Andrii Opryshko (Architect), with Claude during the architecture-design pass
 
+> **Amended 2026-10-25 (Stage 1 rescope):** AC-03b (only the головуючий edits) was dropped — any current член правління edits a draft (AC-29); the `identity` context is fixed by [ADR-0014](./0014-keep-board-protocol-in-governance-and-add-only-an-identity-context.md); the membership question goes to `governance.CurrentMember` on today's Europe/Kyiv date. The decision is unchanged.
+
 ## Context
 
-The app has no sign-in today (PRD §6.1, §8: "How does a член правління sign in … decided in architecture as a prerequisite"). The feature needs to know who casts each попереднє голосування (AC-05e), who edits a draft (AC-03b — only the головуючий), who locks a protocol or records an обхід блокування (AC-16), and must deny a person whose term has ended without revealing that records exist (AC-19). The board is 5-7 volunteers; the association's documents already live in a Google account (ADR-0005).
+The app has no sign-in today (PRD §6.1, §8: "How does a член правління sign in … decided in architecture as a prerequisite"). The feature needs to know who casts each попереднє голосування (AC-05e), who edits a draft (AC-29 — any current член правління, author recorded), who uploads the signed scan and locks a protocol (AC-16), and must deny a person whose term has ended without revealing that records exist (AC-19). The board is 5-7 volunteers; the association's documents already live in a Google account (ADR-0005).
 
 ## Decision drivers
 
 - QG-3: only current члени правління see cases, drafts and the registry; access ends on the term end date.
-- PRD §6.1: authors of every vote, override, upload and rule change are recorded.
+- PRD §6.1: authors of every edit, vote, print, upload, withdrawal and settings change are recorded.
 - §3: no email-delivery system in the context — sign-in must not require one.
 - One developer; security review required — fewer secrets kept by us is better.
 
@@ -35,7 +37,7 @@ The app has no sign-in today (PRD §6.1, §8: "How does a член правлі�
 
 **Chosen:** Option 1. No passwords or email delivery to operate, and the provider never decides membership: on every request the session's person is checked against the roster for a term covering today, so a term end cuts access immediately even if the Google session lives on.
 
-Shape: authorization-code flow with PKCE in `identity`; an account row links a provider subject and verified email to a roster person; a session row (random id, person, created, last seen, expires, revoked) behind an HttpOnly, Secure, SameSite=Lax cookie; sign-out and revocation delete the row. An HTTP middleware resolves the session and asks `governance` (through its `module.go`) whether the person is a current член правління today; if not, every context answers as if nothing exists (AC-19). An account whose email matches no roster person cannot sign in.
+Shape: authorization-code flow with PKCE in `identity`; an account row links a provider subject and verified email to a roster person; a session row (random id, person, created, last seen, expires, revoked) behind an HttpOnly, Secure, SameSite=Lax cookie; sign-out and revocation delete the row. An HTTP middleware resolves the session and asks `governance` (through its `module.go`, `CurrentMember(ctx, email, date)`) whether the person is a current член правління on today's Europe/Kyiv date; if not, every context answers as if nothing exists (AC-19). An account whose email matches no roster person cannot sign in.
 
 ## Consequences
 
@@ -54,6 +56,6 @@ Shape: authorization-code flow with PKCE in `identity`; an account row links a p
 
 ## Links
 
-- PRD: [[../PRD.md]] §6.1, §8, AC-03b, AC-05e, AC-16, AC-19
-- SAD: [[../sad.md]] §4, §8
-- Related ADR: [[0002-extend-governance-and-add-cases-assistant-identity-contexts]]
+- PRD: [PRD.md](../PRD.md) §6.1, §8, AC-29, AC-05e, AC-16, AC-19
+- SAD: [sad.md](../sad.md) §4, §8
+- Related ADR: [ADR-0014](./0014-keep-board-protocol-in-governance-and-add-only-an-identity-context.md), [ADR-0005](./0005-store-files-in-association-owned-google-drive-folder.md)

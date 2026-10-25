@@ -1,5 +1,5 @@
 ---
-status: Accepted
+status: Superseded
 owner: "Andrii Opryshko"
 reviewers: []
 updated_at: "2026-10-25"
@@ -10,9 +10,11 @@ ticket: ""
 
 # 0002 — Extend governance with board decisions and add cases, assistant and identity contexts
 
-- **Status:** Accepted
+- **Status:** Superseded by ADR-0014
 - **Date:** 2026-10-25
 - **Deciders:** Andrii Opryshko (Architect), with Claude during the architecture-design pass
+
+> **Superseded 2026-10-25 by [ADR-0014](./0014-keep-board-protocol-in-governance-and-add-only-an-identity-context.md).** The Stage 1 rescope keeps справи and the помічник протоколу inside `governance` and adds only `identity`; `finance` is untouched. There are no `cases` or `assistant` contexts. Kept for history.
 
 ## Context
 
@@ -62,6 +64,7 @@ Ownership:
 
 ## Links
 
-- PRD: [[../PRD.md]] §4, §8
-- SAD: [[../sad.md]] §4, §5
-- Related ADR: [[0004-use-gemini-api-for-document-reading-and-drafting]], [[0007-lock-protocols-as-fingerprinted-immutable-snapshots]]
+- PRD: [PRD.md](../PRD.md) §4, §8
+- SAD: [sad.md](../sad.md) §4, §5
+- Related ADR: [ADR-0004](./0004-use-gemini-api-for-document-reading-and-drafting.md), [ADR-0007](./0007-lock-protocols-as-fingerprinted-immutable-snapshots.md)
+- Superseded by: [ADR-0014](./0014-keep-board-protocol-in-governance-and-add-only-an-identity-context.md)

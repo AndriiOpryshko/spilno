@@ -8,20 +8,22 @@ stage: "04-05"
 ticket: ""
 ---
 
-# 0013 — Render signing copies and export summaries from Google Docs templates
+# 0013 — Render print copies from Google Docs layout templates
 
 - **Status:** Accepted
 - **Date:** 2026-10-25
 - **Deciders:** Andrii Opryshko (Architect), with Claude during the architecture-design pass
 
+> **Amended 2026-10-25 (Stage 1 rescope):** Google Docs only renders the print copy — it is never an editing surface for the protocol text, which is edited in spilno ([ADR-0011](./0011-store-decision-text-as-fragments-with-slot-placeholders.md)). The copy carries the settings (meeting form, signers), the reserved number ([ADR-0017](./0017-reserve-the-protocol-number-at-first-print-and-never-reuse-it.md)) and blank fields for members present and the vote count per item (AC-14c). Under `drive.file` spilno creates the layout template itself. The export package (AC-20) is Stage 2. The choice of Docs rendering is unchanged.
+
 ## Context
 
-Marking a draft готовий до підпису produces the copy that is printed or downloaded and signed, carrying the protocol number and meeting date (AC-14c); a later edit voids it and the member is told to re-issue (AC-14b). The export is one downloadable file with the signed scan, a decision summary with votes and quorum, and every cited case document in the version the protocol cites (AC-20). Text must be Ukrainian with proper fonts. All files live in the association's Google Drive (ADR-0005). The author asked to reuse Google Docs for this.
+Marking a draft готовий до підпису produces the PDF that is printed and signed at the meeting, with the meeting date, the meeting form and the signers from the settings, the protocol number, and blank fields for members present and the vote count per item to fill in by hand (AC-14c); it carries no poll result (AC-33, AC-41). A later edit voids it and the member is told not to sign earlier copies (AC-14b). Text must be Ukrainian with proper fonts. All files live in the association's Google Drive under the `drive.file` scope ([ADR-0005](./0005-store-files-in-association-owned-google-drive-folder.md)). The author asked to reuse Google Docs for this.
 
 ## Decision drivers
 
-- AC-14b, AC-14c: the system must know exactly which copy was issued and whether it is still valid.
-- AC-20: export holds cited documents in their cited versions.
+- PRD §6: print copy rendering p95 ≤ 5 s.
+- AC-14b, AC-14c: the system must know exactly which copy was rendered and whether it is still valid.
 - ADR-0005: files in the association's Drive; no new service preferred for one developer.
 
 ## Considered options
@@ -36,9 +38,8 @@ Marking a draft готовий до підпису produces the copy that is pri
 **Chosen:** Option 4. No new binary or service, Cyrillic and fonts work as in any Google Doc, and the board adjusts the layout in an editor it knows.
 
 Shape:
-- Layout templates (protocol, export summary) are Google Docs in `spilno/templates/`. spilno pins each template's Drive revision: an edit made in Drive takes effect only after a член правління adopts it in spilno (recorded with author and time). Layout templates are distinct from шаблони формулювання, which are data in `governance` (ADR-0011).
-- On готовий до підпису the worker copies the pinned template, fills placeholders and table rows (attendance, agenda items, votes, неучасть у голосуванні) through Docs `batchUpdate` with values formatted by spilno's renderer (ADR-0011), exports PDF with `files.export`, stores it in `spilno/protocols/<id>/`, records the issued copy (draft revision, Drive id, sha256 — ADR-0009) and deletes the intermediate Doc. A PDF is rendered once and then only read: export is not byte-deterministic, so it is never regenerated for comparison.
-- Export: the worker renders the summary the same way, then builds one ZIP — summary PDF, signed scan, every cited document version as originally uploaded, `manifest.json` with each file's sha256 and the snapshot fingerprint — stores it in `spilno/exports/` and the API serves it as a download.
+- The layout template is a Google Doc in `spilno/templates/`, created by spilno from a seed kept in the repo so that `drive.file` covers it. spilno pins the template's Drive revision: an edit made in Docs takes effect only after a член правління adopts it in spilno (recorded with author and time). Layout templates are distinct from шаблони формулювання (Stage 2).
+- On готовий до підпису the worker's `render_print_copy` job copies the pinned template, fills placeholders and table rows (agenda items with the frozen text, slot values formatted by spilno's renderer — ADR-0011, meeting date as the Europe/Kyiv calendar date, meeting form, signers, number; blank attendance and vote-count rows) through Docs `batchUpdate`, exports PDF with `files.export`, stores it in `spilno/protocols/<id>/`, records the print copy (revision, number, Drive id, sha256 — ADR-0009) and deletes the intermediate Doc. The job is idempotent per protocol and revision. A PDF is rendered once and then only read: export is not byte-deterministic, so it is never regenerated for comparison.
 
 ## Consequences
 
@@ -47,16 +48,16 @@ Shape:
 - Layout changes need no release.
 
 **Negative**
-- Rendering depends on Google API availability and quotas (a few seconds per copy, retried by River).
+- Rendering depends on Google API availability and quotas; three API calls per copy put the 5 s target at risk (SAD §11), retried by River.
 - Variable-length tables through `batchUpdate` are verbose to build and to test; integration tests need a test Google account or a recorded fake.
-- Someone with Drive access can change a template; pinning and adoption keep it from reaching protocols unnoticed, and the issued PDF's sha256 is what counts.
-- Auditors unpack a ZIP rather than read one PDF.
+- Someone with Drive access can change the template; pinning and adoption keep it from reaching protocols unnoticed, and the rendered PDF's sha256 is what counts.
 
 **Neutral**
 - A Typst renderer could replace the Docs adapter behind the same `governance/ports.Renderer`.
+- The Stage 2 export summary reuses the same renderer.
 
 ## Links
 
-- PRD: [[../PRD.md]] AC-14, AC-14b, AC-14c, AC-20
-- SAD: [[../sad.md]] §5, §6
-- Related ADR: [[0005-store-files-in-association-owned-google-drive-folder]], [[0009-track-draft-lifecycle-with-states-and-revision-numbers]], [[0011-store-decision-text-as-fragments-with-slot-placeholders]]
+- PRD: [PRD.md](../PRD.md) §6, AC-14b, AC-14c, AC-33, AC-41
+- SAD: [sad.md](../sad.md) §5, §6, §10, §11
+- Related ADR: [ADR-0005](./0005-store-files-in-association-owned-google-drive-folder.md), [ADR-0009](./0009-track-draft-lifecycle-with-states-and-revision-numbers.md), [ADR-0011](./0011-store-decision-text-as-fragments-with-slot-placeholders.md), [ADR-0017](./0017-reserve-the-protocol-number-at-first-print-and-never-reuse-it.md)

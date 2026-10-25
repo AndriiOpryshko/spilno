@@ -1,5 +1,5 @@
 ---
-status: Accepted
+status: Deferred
 owner: "Andrii Opryshko"
 reviewers: []
 updated_at: "2026-10-25"
@@ -10,9 +10,11 @@ ticket: ""
 
 # 0010 — Evaluate checks on read and bind each override to the check's input fingerprint
 
-- **Status:** Accepted
+- **Status:** Deferred to Stage 2
 - **Date:** 2026-10-25
 - **Deciders:** Andrii Opryshko (Architect), with Claude during the architecture-design pass
+
+> **Deferred to Stage 2 (2026-10-25).** Blocking checks and overrides moved to Stage 2 (PRD §3). The only Stage 1 gates are validation, not блокуючі перевірки: an incomplete agenda (AC-04) and an unconfirmed proposed value (AC-21) block printing. Re-validate this ADR when Stage 2 is specified.
 
 ## Context
 
@@ -53,6 +55,6 @@ Shape:
 
 ## Links
 
-- PRD: [[../PRD.md]] §1, §6.1, §7, AC-04, AC-05b, AC-05c, AC-06, AC-10, AC-11, AC-12, AC-12b, AC-13, AC-14d, AC-16, AC-24, AC-25, AC-25b, AC-27
-- SAD: [[../sad.md]] §5, §8
-- Related ADR: [[0008-keep-charter-rules-as-typed-effective-dated-parameters]], [[0012-integrate-contexts-through-synchronous-module-facades]]
+- PRD: [PRD.md](../PRD.md) §1, §6.1, §7, AC-04, AC-05b, AC-05c, AC-06, AC-10, AC-11, AC-12, AC-12b, AC-13, AC-14d, AC-16, AC-24, AC-25, AC-25b, AC-27
+- SAD: [sad.md](../sad.md) §5, §8
+- Related ADR: [ADR-0008](./0008-keep-charter-rules-as-typed-effective-dated-parameters.md), [ADR-0012](./0012-integrate-contexts-through-synchronous-module-facades.md)

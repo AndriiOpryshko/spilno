@@ -16,6 +16,8 @@ ticket: ""
 
 > **Amended 2026-10-25 (Stage 1 rescope):** AC-03b (only the головуючий edits) was dropped — any current член правління edits a draft (AC-29); the `identity` context is fixed by [ADR-0014](./0014-keep-board-protocol-in-governance-and-add-only-an-identity-context.md); the membership question goes to `governance.CurrentMember` on today's Europe/Kyiv date. The decision is unchanged.
 
+> **Amended 2026-10-25 (cross-check with the ao-architecture SAD):** the refusal is named: a session whose email is not a current член правління today gets 403 `identity.not_current_member` from the middleware **before** any resource is read, with one body whether the target exists or not — which is how PRD.md AC-19 "denies access and does not reveal whether any protocol or case exists" is met. No session gets 401 `identity.session_required`. The decision is unchanged.
+
 ## Context
 
 The app has no sign-in today (PRD §6.1, §8: "How does a член правління sign in … decided in architecture as a prerequisite"). The feature needs to know who casts each попереднє голосування (AC-05e), who edits a draft (AC-29 — any current член правління, author recorded), who uploads the signed scan and locks a protocol (AC-16), and must deny a person whose term has ended without revealing that records exist (AC-19). The board is 5-7 volunteers; the association's documents already live in a Google account (ADR-0005).
@@ -37,7 +39,7 @@ The app has no sign-in today (PRD §6.1, §8: "How does a член правлі�
 
 **Chosen:** Option 1. No passwords or email delivery to operate, and the provider never decides membership: on every request the session's person is checked against the roster for a term covering today, so a term end cuts access immediately even if the Google session lives on.
 
-Shape: authorization-code flow with PKCE in `identity`; an account row links a provider subject and verified email to a roster person; a session row (random id, person, created, last seen, expires, revoked) behind an HttpOnly, Secure, SameSite=Lax cookie; sign-out and revocation delete the row. An HTTP middleware resolves the session and asks `governance` (through its `module.go`, `CurrentMember(ctx, email, date)`) whether the person is a current член правління on today's Europe/Kyiv date; if not, every context answers as if nothing exists (AC-19). An account whose email matches no roster person cannot sign in.
+Shape: authorization-code flow with PKCE in `identity`; an account row links a provider subject and verified email to a roster person; a session row (random id, person, created, last seen, expires, revoked) behind an HttpOnly, Secure, SameSite=Lax cookie; sign-out and revocation delete the row. An HTTP middleware resolves the session and asks `governance` (through its `module.go`, `CurrentMember(ctx, email, date)`) whether the person is a current член правління on today's Europe/Kyiv date; if not, it answers 403 `identity.not_current_member` before any context reads a resource, the same for an existing and a missing id (AC-19). An account whose email matches no roster person cannot sign in.
 
 ## Consequences
 

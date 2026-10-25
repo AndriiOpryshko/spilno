@@ -18,6 +18,7 @@ target_surfaces: [backend-service, web-frontend, worker]  # filled in §4 — su
 <!--    fills §6 with every critical flow / §5 AC — no cap. -->
 <!-- Numbers in §10 come VERBATIM from PRD §6 NFR — no inventing, no rounding. -->
 <!-- Realigned 2026-10-25 to the Stage 1 rescope of PRD.md (draft → informal poll → print → signed scan). -->
+<!-- Cross-checked 2026-10-25 with sad.ao-architecture.md: withdrawn snapshots, Drive read-only + untrash, typed facts only highlighted, register start locked after the first number, registry lists signed protocols only. -->
 
 ## 1. Introduction and goals
 
@@ -135,13 +136,13 @@ C4Context
 1. **Everything board-protocol owns lives in `governance`; only sign-in gets a new `identity` context** → [ADR-0014](./adr/0014-keep-board-protocol-in-governance-and-add-only-an-identity-context.md) (supersedes [ADR-0002](./adr/0002-extend-governance-and-add-cases-assistant-identity-contexts.md) and [ADR-0012](./adr/0012-integrate-contexts-through-synchronous-module-facades.md)). Settings, roster, справи and their document versions, drafts, слоти рішення, conversations and proposals, poll rounds, print copies, meeting facts and the реєстр протоколів are one context, so a transition or a lock is one local transaction. The Gemini SDK may be imported only in `governance/adapters/gemini` — a depguard rule turns "the AI only proposes" into a lint failure. `identity` owns accounts, sessions and the association's Google connection; `finance` is untouched in Stage 1.
 2. **Sign-in through OIDC with server-side sessions in Postgres** → [ADR-0003](./adr/0003-sign-in-with-oidc-and-postgres-sessions.md). A person signs in with Google; the verified email links the account to a person in the roster; the session is a Postgres row behind an HttpOnly cookie. Whether that person is a current член правління is decided by spilno from the roster on every request (QG-3, AC-16, AC-19). Resolves PRD §8 "How does a член правління sign in".
 3. **Gemini API drafts, behind a port in `governance`; people confirm** → [ADR-0004](./adr/0004-use-gemini-api-for-document-reading-and-drafting.md). The worker sends the справа's documents (fetched from Drive) and the conversation request to the paid tier of the Gemini API and gets back structured proposals: slot values with the quoted fragment and the document they came from, and connecting text as fragments. Nothing it returns is a fact until a person confirms it; printing is refused while any proposed value is unconfirmed (AC-21, AC-28, AC-28b). Reading the signed scan is Stage 2 (AC-14d). Resolves PRD §8 "May case documents … be processed by a text-generation service outside the association's own hosting".
-4. **Files live in an association-owned Google Drive folder under the `drive.file` scope; Postgres keeps their metadata** → [ADR-0005](./adr/0005-store-files-in-association-owned-google-drive-folder.md). Case documents, print copies and signed scans are uploaded through spilno into a `spilno/` folder that spilno itself created and shares with nobody. Postgres keeps, per file version, the Drive file id, revision id, sha256 (computed at upload and compared with Drive's), size, media type, author and time. Members read files only through spilno, which checks the term on every request (QG-3). Attaching a file that already sits elsewhere in the association's Drive needs a wider scope and is Stage 2 (§11).
+4. **Files live in an association-owned Google Drive folder under the `drive.file` scope; Postgres keeps their metadata** → [ADR-0005](./adr/0005-store-files-in-association-owned-google-drive-folder.md). Case documents, print copies and signed scans are uploaded through spilno into a `spilno/` folder that spilno itself created and shares with nobody. Postgres keeps, per file version, the Drive file id, revision id, sha256 (computed at upload and compared with Drive's), size, media type, author and time. Members read files only through spilno, which checks the term on every request (QG-3). On lock and on withdrawal a job sets Drive's `contentRestrictions.readOnly` on the protocol's files, and the nightly check restores a trashed file with `untrash` and alerts — both possible under `drive.file` because spilno created the files. Attaching a file that already sits elsewhere in the association's Drive needs a wider scope and is Stage 2 (§11).
 5. **Background work goes through a River job queue in Postgres to the worker** → [ADR-0006](./adr/0006-run-background-work-in-worker-via-river-queue.md). The API enqueues a job in the same transaction as the domain write that needs it, so a job is never lost or orphaned; payloads carry ids (and the trace context) only, and handlers are idempotent so retries are safe. River's schema is copied into a goose migration so goose stays the only migrator (repo ADR 0004).
-6. **A locked protocol is an immutable, fingerprinted snapshot, and no protocol is ever deleted** → [ADR-0007](./adr/0007-lock-protocols-as-fingerprinted-immutable-snapshots.md). Locking writes one canonical `jsonb` snapshot — frozen text, slots with their source document versions, meeting facts, the handwritten-corrections note, the print copy and the signed scan (Drive id, revision, sha256), poll rounds as history — plus its SHA-256 fingerprint. A trigger on the snapshot table rejects UPDATE and DELETE; a second trigger rejects DELETE on `protocols` in any state (PRD §6 Retention); the nightly job recomputes every fingerprint and compares each pinned file's sha256 (QG-1, AC-17).
+6. **A signed or withdrawn protocol is an immutable, fingerprinted snapshot, and no protocol is ever deleted** → [ADR-0007](./adr/0007-lock-protocols-as-fingerprinted-immutable-snapshots.md). Locking writes one canonical `jsonb` snapshot of kind `signed` — frozen text, slots with their source document versions, meeting facts, the handwritten-corrections note, the print copy and the signed scan (Drive id, revision, sha256), poll rounds as history — plus its SHA-256 fingerprint; withdrawing writes one of kind `withdrawn` with the reason. A trigger on the snapshot table rejects UPDATE and DELETE; a second trigger rejects DELETE on `protocols` in any state (PRD §6 Retention); the nightly job recomputes every fingerprint of both kinds and compares each pinned file's sha256 (QG-1, AC-17). The реєстр протоколів reads only `signed` snapshots; a withdrawn protocol's number shows there as a gap marked «знято з розгляду».
 7. **One association, scoped by an `association_id` column and explicit query filters, without Row-Level Security** → [ADR-0015](./adr/0015-scope-owned-rows-to-one-association-with-explicit-query-filters.md). Every table this feature owns carries `association_id`; every sqlc query filters on it; RLS waits until a second association joins (PRD §3).
 8. **Nightly `pg_dump` off the VM, RPO ≤ 24 h, restore drilled quarterly** → [ADR-0016](./adr/0016-back-up-postgres-nightly-off-the-vm-with-quarterly-restore-drills.md). Meets PRD §6 "Durability of the registry" from the first release.
 
-**Guiding principle across all eight: a deterministic core with an advisory assistant.** Every state change, number reservation and lock is decided by deterministic code from confirmed data; the text-generation service, documents and Drive are inputs that propose or store, never decide (PRD §3 non-goals "Legal advice or interpretive blocking", "The autonomous part of approach B"). In Stage 1 the system computes no quorum or majority and blocks on nothing but missing data: an incomplete agenda (AC-04), an unconfirmed proposed value (AC-21), missing settings (AC-42) and missing meeting facts (AC-34).
+**Guiding principle across all eight: a deterministic core with an advisory assistant.** Every state change, number reservation and lock is decided by deterministic code from confirmed data; the text-generation service, documents and Drive are inputs that propose or store, never decide (PRD §3 non-goals "Legal advice or interpretive blocking", "The autonomous part of approach B"). In Stage 1 the system computes no quorum or majority and blocks on nothing but missing data: an incomplete agenda (AC-04), an unconfirmed proposed value (AC-21), missing settings (AC-42) and missing meeting facts (AC-34). A number a person types into the decision text is highlighted, not blocked (blocking it is Stage 2).
 
 Each tactical decision in later sections should be traceable to one of these strategic seeds. Tactical decisions that *contradict* a strategic choice are red flags — surface them in §11 Risks.
 
@@ -153,7 +154,7 @@ Hexagonal modular monolith, unchanged from repo ADR 0002: each bounded context k
 
 | Context | New? | Owns (aggregates, tables) | Provides to others via module.go | Uses from others |
 |---|---|---|---|---|
-| `governance` | existing, extended | meeting (`meetings` + `association_id`); association settings — meeting form, signers, register start number (`association_settings`); board roster with terms and sign-in email (`board_members`); справа and document versions with file metadata (`cases`, `case_documents`); protocol — state, revision, reserved number (`protocols`), agenda items, слоти рішення and confirmations, text fragments; conversation turns and proposals (`assistant_turns`); poll rounds and votes (`poll_rounds`, `poll_votes`); print copies (`print_copies`); meeting facts and correction note (`meeting_facts`); lock snapshot (`locked_protocols`); integrity runs | `Routes(r)`; `Worker()` — job handlers and periodic jobs for `cmd/worker`; `CurrentMember(ctx, email, date)` | `identity`: `ActorFrom(ctx)`, `GoogleTokenSource(ctx, association)` |
+| `governance` | existing, extended | meeting (`meetings` + `association_id`); association settings — meeting form, signers, register start number (`association_settings`); board roster with terms and sign-in email (`board_members`); справа and document versions with file metadata (`cases`, `case_documents`); protocol — state, revision, reserved number (`protocols`), agenda items, слоти рішення and confirmations, text fragments; conversation turns and proposals (`assistant_turns`); poll rounds and votes (`poll_rounds`, `poll_votes`); print copies (`print_copies`); meeting facts and correction note (`meeting_facts`); signed and withdrawn snapshots (`protocol_snapshots`, kind `signed` | `withdrawn`); integrity runs | `Routes(r)`; `Worker()` — job handlers and periodic jobs for `cmd/worker`; `CurrentMember(ctx, email, date)` | `identity`: `ActorFrom(ctx)`, `GoogleTokenSource(ctx, association)` |
 | `identity` | **new** | association (`associations`: one row, name); account (`accounts`: Google subject, verified email); `sessions`; the association's Google connection (`google_connections`: refresh token encrypted with AES-GCM) | `Routes(r)`; `RequireSession` middleware; `ActorFrom(ctx)` → account, person, association; `GoogleTokenSource(ctx, association)` | `governance`: `CurrentMember(ctx, email, date)` |
 | `finance` | existing, **untouched** | contract (`contracts`) | `Routes(r)` | — (its route group is wrapped by `RequireSession` in `cmd/api`) |
 | `system` | existing, unchanged | — | health (stays public) | — |
@@ -168,12 +169,12 @@ services/core/
 │   ├── domain/                meeting (exists) · settings · roster entry (term) · справа + document version
 │   │                          protocol (state, revision, number) · agenda item · слот рішення (value, origin, status, source)
 │   │                          text fragments + fact validator · poll round + vote · print copy · meeting facts
-│   │                          lock snapshot (canonical form, fingerprint) · proposal
+│   │                          protocol snapshot, signed or withdrawn (canonical form, fingerprint) · proposal
 │   ├── app/                   settings/ · roster/ · cases/ · drafts/ · assistant/ · poll/ · printing/ · signing/ · withdrawal/ · registry/
 │   ├── ports/                 repositories · TextModel · Files · Renderer · Actor · GoogleToken · Jobs
 │   ├── adapters/              http/ (+gen/) · postgres/ (+queries/, sqlcgen/) · gemini/ (TextModel — the only importer of the Gemini SDK)
-│   │                          gdrive/ (Files) · gdocs/ (Renderer)
-│   ├── jobs/                  propose_draft · render_print_copy · verify_locked_protocols · remove_orphan_file
+│   │                          gdrive/ (Files: upload, stream, sha256, readOnly restriction, untrash) · gdocs/ (Renderer)
+│   ├── jobs/                  propose_draft · render_print_copy · apply_drive_restrictions · verify_protocol_snapshots · remove_orphan_file
 │   └── module.go              Routes · Worker · CurrentMember
 ├── internal/identity/         NEW — association, accounts ↔ roster persons, sessions, OIDC flow, Google connection, RequireSession
 ├── internal/finance/          UNCHANGED in Stage 1
@@ -181,7 +182,7 @@ services/core/
 │   ├── google/                NEW — Drive and Docs API clients built from a token source
 │   ├── jobs/                  NEW — River client construction shared by api (enqueue) and worker (run)
 │   └── httpapi/               + current principal in context; unauthenticated/forbidden as problem+json
-└── migrations/                00004… — identity, governance board-protocol tables with association_id, lock and no-delete triggers, River schema
+└── migrations/                00004… — identity, governance board-protocol tables with association_id, snapshot and no-delete triggers, River schema
 apps/web/src/
 ├── routes/                    sign-in · settings (association, roster) · cases · protocols/$id (draft, conversation, poll, print, upload) · registry
 └── features/governance/       grows from the prototype: conversation panel, slot rows, text editor with slot chips, poll, print, signing
@@ -200,11 +201,12 @@ apps/web/src/
 **Key building-block decisions (inside `governance`):**
 
 - **Lifecycle with explicit states, poll rounds and a revision number** → [ADR-0009](./adr/0009-track-draft-lifecycle-with-states-and-revision-numbers.md). `чернетка` ⇄ `готовий до голосування` (round N frozen) → `готовий до підпису` (print copy rendered) → `підписаний`; `знятий з розгляду` from any non-final state with a reason. Any edit, or «повернути в чернетку», bumps `revision`, returns the draft to чернетка, closes the open poll round and voids the current print copy; stale writes get 409 `governance.draft_revision_conflict`; proposals never overwrite confirmed slots (AC-05d, AC-14b, AC-28b).
-- **Decision text as fragments with slot placeholders, edited in spilno** → [ADR-0011](./adr/0011-store-decision-text-as-fragments-with-slot-placeholders.md). Text is plain fragments plus references to slots and meeting facts; a deterministic validator turns any fact typed into plain text into a proposed slot (AC-28).
+- **Decision text as fragments with slot placeholders, edited in spilno** → [ADR-0011](./adr/0011-store-decision-text-as-fragments-with-slot-placeholders.md). Text is plain fragments plus references to slots and meeting facts; a deterministic validator turns any fact the помічник протоколу writes into plain text into a proposed, unconfirmed slot (AC-28); a fact a person types into plain text is only highlighted in Stage 1, with an offer to make it a slot — it never stops printing (blocking: Stage 2).
 - **Print copy rendered from a Google Docs layout template** → [ADR-0013](./adr/0013-render-signing-copies-from-google-docs-templates.md). The worker fills a pinned template with the frozen text, the settings (meeting form, signers) and the reserved number, leaves blank fields for members present and the vote count per item, exports PDF to Drive and records its sha256 (AC-14c). Docs only renders; it is never an editing surface.
-- **Protocol number reserved at the first print, never reused** → [ADR-0017](./adr/0017-reserve-the-protocol-number-at-first-print-and-never-reuse-it.md). Taken from a per-association counter that starts at the settings value, kept on return to чернетка and on withdrawal, gaps allowed (AC-14c, AC-14b, AC-37, AC-42).
+- **Protocol number reserved at the first print, never reused** → [ADR-0017](./adr/0017-reserve-the-protocol-number-at-first-print-and-never-reuse-it.md). Taken from a per-association counter that starts at the settings value, kept on return to чернетка and on withdrawal, gaps allowed (AC-14c, AC-14b, AC-37, AC-42). The start value may be changed only until the first number is issued, then 409 `governance.register_start_locked`. The реєстр протоколів lists signed protocols only; a withdrawn protocol's number shows as a gap marked «знято з розгляду».
 - **Meeting facts entered with the signed scan; no lock without them** → [ADR-0018](./adr/0018-enter-meeting-facts-with-the-signed-scan-and-refuse-lock-without-them.md). Members present, the vote count per agenda item and the handwritten-corrections note are entered in the same request as the scan, never pre-filled from the poll (AC-14, AC-34, AC-15, AC-41).
-- **слот рішення** (inline): typed value (amount in kopiyky, counterparty, джерело коштів, document reference, date or term, person), origin (`ai` · `document` · `human`), status (`unconfirmed` · `confirmed` · `needs_review`), source document version id and quoted fragment; confirmation records person and time; an alternative value proposed later is stored beside the confirmed one (AC-21, AC-22, AC-28b, AC-09). Meeting facts for the text (meeting date, головуючий) are filled from the meeting record and the roster.
+- **слот рішення** (inline): typed value (amount in kopiyky, counterparty, джерело коштів, document reference, date or term, person), origin (`ai` · `document` · `human`), status (`unconfirmed` · `confirmed` · `needs_review`), source document version id and quoted fragment; confirmation records person and time; an alternative value proposed later is stored beside the confirmed one (AC-21, AC-22, AC-28b, AC-09). Meeting facts for the text: the meeting date and головуючий are filled from the meeting record; members present and the vote counts are not filled by the system — they are entered from the signed paper with the scan (ADR-0018).
+- **Protocol snapshot, signed or withdrawn** → [ADR-0007](./adr/0007-lock-protocols-as-fingerprinted-immutable-snapshots.md), [ADR-0005](./adr/0005-store-files-in-association-owned-google-drive-folder.md). Lock and withdrawal each insert one `protocol_snapshots` row with its fingerprint in their transaction and enqueue `apply_drive_restrictions`, which sets `contentRestrictions.readOnly` on the pinned files; the nightly `verify_protocol_snapshots` covers both kinds.
 - **Stage 2 placeholders:** [ADR-0008](./adr/0008-keep-charter-rules-as-typed-effective-dated-parameters.md) (typed effective-dated правила статуту) and [ADR-0010](./adr/0010-evaluate-checks-on-read-and-bind-overrides-to-input-fingerprints.md) (checks and override fingerprints) are deferred; Stage 1 stores only the current settings and has no блокуючі перевірки.
 
 **C4 Container (L2):**
@@ -379,6 +381,7 @@ sequenceDiagram
     participant API as Core API
     participant Drive as Google Drive
     participant DB as Postgres
+    participant W as Worker
 
     Note over M,SPA: The board signs the paper copy at the meeting, outside the system
     M->>SPA: Uploads the scan, enters members present, votes per item, corrections flag and note
@@ -394,8 +397,10 @@ sequenceDiagram
     else Valid
         API->>Drive: Stream the scan to the protocol folder while hashing
         Drive-->>API: File id, revision, sha256
-        API->>DB: One transaction - scan metadata, meeting facts with author and time, build snapshot and fingerprint, insert the locked row, set підписаний
+        API->>DB: One transaction - scan metadata, meeting facts with author and time, build the signed snapshot and fingerprint, insert it, set підписаний, enqueue apply_drive_restrictions
         API-->>SPA: Locked and listed in the реєстр протоколів, quorum and signers not checked
+        W->>DB: Take apply_drive_restrictions by protocol id
+        W->>Drive: Set contentRestrictions.readOnly on the print copy, the scan and the cited document versions
     end
 ```
 
@@ -416,7 +421,7 @@ sequenceDiagram
     else State знятий з розгляду
         API-->>SPA: governance.transition_not_allowed, offer a new draft copied from it
     end
-    Note over API,DB: A write that bypasses the app is rejected by the snapshot trigger, and DELETE of any protocol by the no-delete trigger (ADR-0007)
+    Note over API,DB: A write that bypasses the app is rejected by the snapshot trigger (signed and withdrawn), and DELETE of any protocol by the no-delete trigger (ADR-0007)
 ```
 
 **Flow 7: Access outside the term is refused — AC-19, AC-16**
@@ -487,6 +492,8 @@ sequenceDiagram
     participant SPA as Web SPA
     participant API as Core API
     participant DB as Postgres
+    participant W as Worker
+    participant Drive as Google Drive
 
     M->>SPA: Closes as знятий з розгляду with a reason
     SPA->>API: Withdraw with reason at the shown revision
@@ -496,12 +503,14 @@ sequenceDiagram
     else State підписаний
         API-->>SPA: governance.protocol_locked, offer a new decision that revokes or corrects it
     else чернетка, готовий до голосування or готовий до підпису
-        API->>DB: One transaction - set знятий з розгляду with reason and author, close an open poll round, keep справи, versions, rounds and print copies as never signed, keep a reserved number
-        API-->>SPA: Withdrawn, never-printed drafts take no number, No 14 stays with its protocol
+        API->>DB: One transaction - record reason and author, close an open poll round, keep справи, versions, rounds and print copies as never signed, keep a reserved number, insert the withdrawn snapshot and fingerprint, set знятий з розгляду, enqueue apply_drive_restrictions
+        API-->>SPA: Withdrawn, never-printed drafts take no number, No 14 stays with its protocol and shows in the реєстр протоколів as a gap marked знято з розгляду
+        W->>DB: Take apply_drive_restrictions by protocol id
+        W->>Drive: Set contentRestrictions.readOnly on its print copies and cited document versions
     end
 ```
 
-**Flow 10: Nightly integrity check of locked protocols (PRD §6 "Integrity of locked protocols")**
+**Flow 10: Nightly integrity check of signed and withdrawn snapshots (PRD §6 "Integrity of locked protocols", "Retention")**
 
 ```mermaid
 sequenceDiagram
@@ -509,12 +518,17 @@ sequenceDiagram
     participant DB as Postgres
     participant Drive as Google Drive
 
-    W->>DB: Take the nightly verify job
-    loop Each locked protocol
+    W->>DB: Take the nightly verify_protocol_snapshots job
+    loop Each signed or withdrawn snapshot
         W->>DB: Read the snapshot and its stored fingerprint
         W->>W: Recompute the fingerprint from the canonical snapshot
-        W->>Drive: Ask the sha256 and revision of each pinned file
-        Drive-->>W: Current sha256 per file, or not found
+        W->>Drive: Ask the sha256, revision and trashed flag of each pinned file
+        Drive-->>W: Current metadata per file, or not found
+        alt A pinned file is in the trash
+            W->>Drive: untrash the file
+            W->>DB: Record the restore with protocol and file
+            Note over W: Restore metric raises the alert
+        end
         alt Fingerprint and every sha256 match
             W->>DB: Record the protocol as verified
         else Any mismatch or missing file
@@ -548,7 +562,7 @@ sequenceDiagram
 
 One small virtual machine in the EU runs the whole system with docker compose, the same shape as `infra/compose.yaml` locally: `caddy` (TLS for the public HTTPS origin that OIDC needs, serves the built SPA, reverse-proxies `/api/*` to the API), `core-api` (1 replica), `worker` (1 replica, same image, different command, ADR-0001), `postgres:18.6` on a persistent volume, `backup` (nightly `pg_dump`, ADR-0016) and `otel-lgtm` (or a hosted Grafana stack with the same OTLP endpoint). Secrets live in an env file on the VM, readable only by the services: the OIDC client (ADR-0003), the AES-GCM key that encrypts the association Google account's refresh token (ADR-0005), the Gemini API key (ADR-0004), the session-cookie key, the backup encryption key and storage credentials (ADR-0016). Deploys are image pulls plus `docker compose up -d`; migrations run on API start (repo ADR 0004), and the worker starts after the API is healthy so River's schema exists.
 
-**Data and backup → [ADR-0016](./adr/0016-back-up-postgres-nightly-off-the-vm-with-quarterly-restore-drills.md).** Postgres is dumped nightly (`pg_dump -Fc`, encrypted with `age`) to storage outside the VM's provider account, which gives RPO ≤ 24 h; restore onto a fresh VM from compose + the latest dump fits RTO ≤ 4 h and is drilled quarterly, with a drill record kept (PRD §6). Files stay on the association's Google Drive and are not copied out; Postgres holds their sha256 and revision, and the nightly integrity check detects a changed or missing file (accepted debt, §11).
+**Data and backup → [ADR-0016](./adr/0016-back-up-postgres-nightly-off-the-vm-with-quarterly-restore-drills.md).** Postgres is dumped nightly (`pg_dump -Fc`, encrypted with `age`) to storage outside the VM's provider account, which gives RPO ≤ 24 h; restore onto a fresh VM from compose + the latest dump fits RTO ≤ 4 h and is drilled quarterly, with a drill record kept (PRD §6). Files stay on the association's Google Drive and are not copied out; Postgres holds their sha256 and revision; files of signed and withdrawn protocols carry Drive's read-only restriction, the nightly integrity check restores a trashed file with `untrash` and detects a changed or missing one (accepted debt, §11).
 
 **Monitoring:**
 
@@ -559,7 +573,7 @@ One small virtual machine in the EU runs the whole system with docker compose, t
 | Proposal time, request to filled draft | `governance.proposal.duration` from the `propose_draft` job | p95 > 30 s over a day |
 | Rejected uploads | `governance.upload.rejected` by reason (size, type) | none (reviewed weekly) |
 | Job queue age and failures per kind | River job counts by kind and state, from the worker | oldest available job > 10 min; > 3 failed jobs of one kind in 1 h |
-| Integrity mismatches | `governance.integrity.mismatches`, `governance.integrity.verified` per nightly run | any mismatch or missing file at once; no successful run in 26 h |
+| Integrity mismatches | `governance.integrity.mismatches`, `governance.integrity.restored` (untrashed files), `governance.integrity.verified` per nightly run over signed and withdrawn snapshots | any mismatch, missing or restored file at once; no successful run in 26 h |
 | Google API errors | Drive, Docs and Gemini client spans; `google.request.errors` by operation | error rate > 5 % for 15 min; any authorization failure (refresh token revoked) at once |
 | Backup | `backup` job exit code, dump size, success timestamp | missing or failed dump; no success in 26 h; dump size drop > 50 % |
 | Uptime | external check on the `system` health endpoint every 5 min | monthly ratio below 99.5 % |
@@ -577,17 +591,18 @@ One small virtual machine in the EU runs the whole system with docker compose, t
 |---|---|---|
 | Logging | `log/slog` JSON to stdout + `otelslog`; fields `module=<bc>`, `job_id`, `protocol_id`, `trace_id` where known; never log document content, extracted text, conversation text, correction notes, personal data, tokens or keys | repo ADR 0001; here |
 | Authentication | OIDC authorization-code flow with PKCE, server-side session row behind an HttpOnly, Secure, SameSite=Lax cookie; no session → 401 `identity.session_required`; `system/health` stays public | ADR-0003 |
-| Authorization | Every protected request: a session whose email is not a current член правління today (term covers today's Europe/Kyiv date) → 403 `identity.not_current_member` **before** the request reaches any resource, so existence is never revealed (AC-19, AC-16). Inside `governance`: any current член правління edits a draft, starts or ends a poll, prints, locks, withdraws and keeps settings and roster (AC-29, PRD §6.1); a member casts and changes only their own vote (AC-05e); the author of every action is recorded | ADR-0003; PRD §6.1 |
+| Authorization | Every protected request: the identity middleware asks `governance.CurrentMember` through its `module.go`; a session whose email is not a current член правління today (term covers today's Europe/Kyiv date) → 403 `identity.not_current_member` **before** the request reaches any resource, so existence is never revealed (AC-19, AC-16). Inside `governance`: any current член правління edits a draft, starts or ends a poll, prints, locks, withdraws and keeps settings and roster (AC-29, PRD §6.1); a member casts and changes only their own vote (AC-05e); the author of every action is recorded | ADR-0003; PRD §6.1 |
 | Association scope | `association_id` on every table this feature owns (and on `meetings`); every sqlc query filters on it explicitly; no RLS in Stage 1; another association's id answers not found | ADR-0015 |
-| Error handling | RFC 9457 `application/problem+json` through `internal/platform/httpapi`; machine code `<context>.<error_name>` (e.g. `governance.settings_missing`, `governance.slot_unconfirmed`, `governance.meeting_facts_missing`, `governance.protocol_locked`, `governance.storage_unavailable`); 422 names every broken field at once; 409 on a stale revision or a refused transition | CLAUDE.md; repo ADR 0003; ADR-0009 |
+| Error handling | RFC 9457 `application/problem+json` through `internal/platform/httpapi`; machine code `<context>.<error_name>` (e.g. `governance.settings_missing`, `governance.slot_unconfirmed`, `governance.meeting_facts_missing`, `governance.protocol_locked`, `governance.register_start_locked`, `governance.storage_unavailable`, `identity.not_current_member`); 422 names every broken field at once; 409 on a stale revision, a refused transition or a register start change after the first number; 403 for a non-member before any resource | CLAUDE.md; repo ADR 0003; ADR-0003; ADR-0009; ADR-0017 |
+| Text facts | A fact in text written by the помічник протоколу becomes an unconfirmed proposed slot (AC-28) and printing waits for its confirmation (AC-21) — the one Stage 1 print gate; a fact a person types into the text is highlighted only (Stage 2 blocks it) | ADR-0011; PRD AC-21, AC-28 |
 | Lifecycle | States and transitions of PRD §1 in `governance/domain/protocol.go`; refused transitions answer `governance.transition_not_allowed`, `governance.poll_not_open`, `governance.not_ready_for_signing` | ADR-0009 |
 | ID strategy | UUIDs (`github.com/google/uuid`) for every entity; cross-context references by id only, no foreign keys between contexts; the protocol number is a separate human sequence per association | repo ADR 0002; ADR-0017 |
 | Money | Integer kopiyky (`bigint`) plus currency, matching `finance.contracts.amount_cents`; formatting (digits and words) in one renderer | ADR-0011; here |
 | Dates and time | Roster terms are calendar `date`s; `meetings.held_at` is `timestamptz` and is converted to the Europe/Kyiv calendar date wherever a date is meant — "roster in force on the meeting date" (AC-03), the date printed on the copy (AC-14c) and "term covers today" (AC-19); event times are `timestamptz` | here |
 | Audit trail | Slot confirmations, wording changes, poll votes, prints, meeting facts, uploads, withdrawals and lock are append-only rows with author and time; history is never updated in place | PRD AC-29, AC-14, AC-16 |
-| Immutability and retention | Lock snapshot table: trigger rejects UPDATE and DELETE; `protocols`: trigger rejects DELETE in any state; withdrawn protocols refuse changes in `app/`; triggers wrapped in `-- +goose StatementBegin/End` | ADR-0007; PRD §6 Retention |
+| Immutability and retention | `protocol_snapshots` (kinds `signed` and `withdrawn`): trigger rejects UPDATE and DELETE; `protocols`: trigger rejects DELETE in any state; signed and withdrawn protocols refuse changes in `app/`; triggers wrapped in `-- +goose StatementBegin/End`; the nightly check verifies both kinds; the реєстр протоколів reads only `signed`, a withdrawn number shows as a gap «знято з розгляду» | ADR-0007; ADR-0017; PRD §6 Retention |
 | Concurrency | Optimistic: each mutation carries the protocol revision it was built on | ADR-0009 |
-| Files | Allow-list PDF, JPEG, PNG checked by content sniffing, not by extension; ≤ 20 MB; sha256 computed while streaming and compared with Drive's; stored in the association's Drive under `drive.file`; served only through the API as `Content-Disposition: attachment` with `X-Content-Type-Options: nosniff`, never inline | ADR-0005; PRD §6, §6.1 |
+| Files | Allow-list PDF, JPEG, PNG checked by content sniffing, not by extension; ≤ 20 MB; sha256 computed while streaming and compared with Drive's; stored in the association's Drive under `drive.file`; on lock and withdrawal set `contentRestrictions.readOnly`; a trashed pinned file is restored with `untrash` by the nightly check and alerted; a new document version is a new file and marks citing slots of open drafts `needs_review`; served only through the API as `Content-Disposition: attachment` with `X-Content-Type-Options: nosniff`, never inline | ADR-0005; PRD §6, §6.1 |
 | Secrets | Env file on the VM; the association Google account's refresh token stored in `identity.google_connections` encrypted with AES-GCM (random nonce per write, key from the environment, key id kept for rotation) | ADR-0003, ADR-0005 |
 | Text-generation boundary | Only `governance/adapters/gemini` imports the Gemini SDK (depguard); prompts carry only the documents of the справа being drafted; output is schema-validated and treated as untrusted proposals; facts in text only as slot placeholders | ADR-0014, ADR-0004, ADR-0011 |
 | Background jobs | River; payloads carry ids and the W3C trace context only, never content; handlers are idempotent (keyed by protocol id and revision) so retries are safe; job enqueued in the same transaction as the write that needs it | ADR-0006 |
@@ -602,11 +617,11 @@ One small virtual machine in the EU runs the whole system with docker compose, t
 |---|---|---|---|
 | [0001](./adr/0001-build-backend-web-and-worker-surfaces.md) | Build board-protocol as backend service, web frontend and a separate worker | Accepted | §4 |
 | [0002](./adr/0002-extend-governance-and-add-cases-assistant-identity-contexts.md) | Extend governance with board decisions and add cases, assistant and identity contexts | Superseded by ADR-0014 | §4 |
-| [0003](./adr/0003-sign-in-with-oidc-and-postgres-sessions.md) | Sign in through OIDC (Google first) with server-side sessions in Postgres | Accepted | §4 |
+| [0003](./adr/0003-sign-in-with-oidc-and-postgres-sessions.md) | Sign in through OIDC (Google first) with server-side sessions in Postgres | Accepted (amended 2026-10-25) | §4, §8 |
 | [0004](./adr/0004-use-gemini-api-for-document-reading-and-drafting.md) | Use the Gemini API, behind a port, to read case documents and to draft | Accepted (amended 2026-10-25) | §4 |
-| [0005](./adr/0005-store-files-in-association-owned-google-drive-folder.md) | Store files in an association-owned Google Drive folder, with metadata in Postgres | Accepted (amended 2026-10-25) | §4 |
+| [0005](./adr/0005-store-files-in-association-owned-google-drive-folder.md) | Store files in an association-owned Google Drive folder, with metadata in Postgres | Accepted (amended 2026-10-25) | §4, §6, §8 |
 | [0006](./adr/0006-run-background-work-in-worker-via-river-queue.md) | Run background work in the worker through a River job queue in Postgres | Accepted (amended 2026-10-25) | §4 |
-| [0007](./adr/0007-lock-protocols-as-fingerprinted-immutable-snapshots.md) | Lock a protocol as an immutable, fingerprinted snapshot and never delete a protocol | Accepted (amended 2026-10-25) | §4 |
+| [0007](./adr/0007-lock-protocols-as-fingerprinted-immutable-snapshots.md) | Lock a protocol as an immutable, fingerprinted snapshot and never delete a protocol | Accepted (amended 2026-10-25) | §4, §6, §8 |
 | [0008](./adr/0008-keep-charter-rules-as-typed-effective-dated-parameters.md) | Keep правила статуту as a typed catalog of effective-dated parameters | Deferred to Stage 2 | §5 |
 | [0009](./adr/0009-track-draft-lifecycle-with-states-and-revision-numbers.md) | Track the protocol lifecycle with explicit states, poll rounds and a revision number | Accepted (amended 2026-10-25) | §5 |
 | [0010](./adr/0010-evaluate-checks-on-read-and-bind-overrides-to-input-fingerprints.md) | Evaluate checks on read and bind each override to the check's input fingerprint | Deferred to Stage 2 | §5 |
@@ -616,7 +631,7 @@ One small virtual machine in the EU runs the whole system with docker compose, t
 | [0014](./adr/0014-keep-board-protocol-in-governance-and-add-only-an-identity-context.md) | Keep board-protocol in governance and add only an identity context | Accepted | §4, §5 |
 | [0015](./adr/0015-scope-owned-rows-to-one-association-with-explicit-query-filters.md) | Scope owned rows to one association with an association_id column and explicit query filters, without RLS | Accepted | §4, §8 |
 | [0016](./adr/0016-back-up-postgres-nightly-off-the-vm-with-quarterly-restore-drills.md) | Back up Postgres nightly off the VM with quarterly restore drills | Accepted | §4, §7 |
-| [0017](./adr/0017-reserve-the-protocol-number-at-first-print-and-never-reuse-it.md) | Reserve the protocol number at the first print copy and never reuse it | Accepted | §5 |
+| [0017](./adr/0017-reserve-the-protocol-number-at-first-print-and-never-reuse-it.md) | Reserve the protocol number at the first print copy and never reuse it | Accepted (amended 2026-10-25) | §5, §8 |
 | [0018](./adr/0018-enter-meeting-facts-with-the-signed-scan-and-refuse-lock-without-them.md) | Enter the meeting facts with the signed scan and refuse the lock without them | Accepted | §5, §6 |
 
 Inline decisions below the ADR gate: web UI-architecture (SPA per repo ADR 0001, polling for slow results — §4), single-VM compose topology (§7), crosscutting conventions (§8).
@@ -628,9 +643,9 @@ ADR files live under `docs/features/board-protocol/adr/NNNN-<title>.md`. An ADR 
 The three goals of §1 first, then the remaining PRD §6 targets. Targets are quoted from PRD §6 verbatim; any other number under "How verify" is a test parameter, not a target, and plan-tests may change it.
 
 **QG-1. Integrity of locked protocols**
-- **When:** anyone tries to change a locked protocol — through the API, by a direct SQL UPDATE or DELETE on `governance.locked_protocols` or DELETE on `governance.protocols`, or by editing or deleting a pinned file in the association's Google Drive.
-- **Then:** "0 changes to text, meeting facts or signed copy after lock": the API refuses and explains that a locked protocol changes only through a new board decision that references it (AC-17); the triggers reject the UPDATE or DELETE (ADR-0007); a change made in Drive is caught by the "periodic fingerprint comparison of every locked protocol, alert on mismatch".
-- **How verify:** integration tests on `testdb.New(t)` that lock a protocol and assert UPDATE and DELETE on its snapshot row fail, and DELETE on a protocol in each state fails; API test for AC-17 on text, meeting facts and signed copy; worker test with a fake Drive port returning a different sha256 for one pinned file, asserting a recorded mismatch and `governance.integrity.mismatches` incremented; in production the nightly run's mismatch count stays 0 and its alert (§7) is wired.
+- **When:** anyone tries to change a locked protocol — through the API, by a direct SQL UPDATE or DELETE on `governance.protocol_snapshots` or DELETE on `governance.protocols`, or by editing, trashing or deleting a pinned file in the association's Google Drive. The same holds for a withdrawn protocol's snapshot.
+- **Then:** "0 changes to text, meeting facts or signed copy after lock": the API refuses and explains that a locked protocol changes only through a new board decision that references it (AC-17); the triggers reject the UPDATE or DELETE (ADR-0007); Drive's read-only restriction stops a casual edit of a pinned file, a trashed one is restored with `untrash` (ADR-0005), and any other change made in Drive is caught by the "periodic fingerprint comparison of every locked protocol, alert on mismatch".
+- **How verify:** integration tests on `testdb.New(t)` that lock a protocol and withdraw another and assert UPDATE and DELETE on both snapshot rows fail, and DELETE on a protocol in each state fails; API test for AC-17 on text, meeting facts and signed copy; worker test with a fake Drive port returning a different sha256 for one pinned file, asserting a recorded mismatch and `governance.integrity.mismatches` incremented, and returning one file as trashed, asserting `untrash` was called and `governance.integrity.restored` incremented; a worker test that `apply_drive_restrictions` sets `contentRestrictions.readOnly` on every pinned file after lock and after withdrawal; in production the nightly run's mismatch count stays 0 and its alert (§7) is wired.
 
 **QG-2. Traceability of proposed numbers**
 - **When:** the помічник протоколу proposes slot values, a член правління asks in the conversation for a change, or a draft is marked готовий до підпису.
@@ -670,7 +685,7 @@ The three goals of §1 first, then the remaining PRD §6 targets. Targets are qu
 **QG-9. Retention**
 - **When:** any time within 5 years of a protocol being locked or withdrawn.
 - **Then:** "locked and withdrawn protocols, print copies and scans kept ≥ 5 years, never hard-deleted" (PRD §6).
-- **How verify:** the no-delete trigger test of QG-1; a test that withdrawing keeps справи, versions, rounds and print copies; no API operation deletes a protocol, print copy or scan (contract review in api-forge).
+- **How verify:** the no-delete trigger test of QG-1; a test that withdrawing keeps справи, versions, rounds and print copies and writes a `withdrawn` snapshot; no API operation deletes a protocol, print copy or scan (contract review in api-forge).
 
 **QG-10. Availability**
 - **When:** any calendar month of operation.
@@ -683,7 +698,7 @@ The three goals of §1 first, then the remaining PRD §6 targets. Targets are qu
 |---|---|---|---|
 | Personal data of co-owners and contractors leaves the association's hosting for the Gemini API (ADR-0004; PRD §8 "May case documents … be processed …") | High | Paid tier only (no use of data to improve the provider's products); only the documents of the справа being drafted are sent; the board approves the processing by its own decision before the Stage 1 release; no content in logs | Andrii Opryshko |
 | The Gemini Files API keeps an uploaded copy of a case document on Google's side for up to 48 h (ADR-0004) | Medium | Send inline whenever the file fits the inline request limit; delete a Files API upload right after the response; covered by the same board approval; listed as accepted debt | Andrii Opryshko |
-| The association's Google account is the single home of every file (ADR-0005, ADR-0013): its compromise or loss takes all case documents and signed scans; the database backup does not cover files | High | Account owned by the association, not a person; two-factor authentication and two administrators; the `spilno/` folder shared with nobody; the nightly sha256 check detects any change (§6 Flow 10); the signed paper original is kept as today | Andrii Opryshko |
+| The association's Google account is the single home of every file (ADR-0005, ADR-0013): its compromise or loss takes all case documents and signed scans; the database backup does not cover files | High | Account owned by the association, not a person; two-factor authentication and two administrators; the `spilno/` folder shared with nobody; files of signed and withdrawn protocols carry Drive's read-only restriction; the nightly sha256 check restores a trashed file with `untrash` and detects any other change (§6 Flow 10); the signed paper original is kept as today | Andrii Opryshko |
 | Upload of a 20 MB file goes browser → API → Drive and may exceed "p95 ≤ 3 s for 20 MB" (PRD §6, ADR-0005) | Medium | Measure the upload routes from the first release; if over target, let the API open a Drive resumable session and the browser send the bytes, with the API verifying sha256 and revision afterwards | Andrii Opryshko |
 | Rendering through the Docs API (copy, batchUpdate, export) may exceed "p95 ≤ 5 s" and needs a Google test account for tests (ADR-0013) | Medium | A fake `Renderer` port for unit and integration tests; one smoke test against a test Google account; a Typst adapter remains a fallback behind the same port | Andrii Opryshko |
 | `drive.file` scope lets spilno see only files it created: attaching a file that already sits elsewhere in the association's Drive is not possible in Stage 1 (ADR-0005) | Low | Members download and upload such a file through spilno; a Google Picker flow (still `drive.file`) or a wider scope is a Stage 2 decision | Andrii Opryshko |
@@ -719,7 +734,7 @@ Domain terms are canonical in [CONTEXT.md](./CONTEXT.md) `## Glossary`; the shor
 | готовий до голосування | State with wording frozen as one poll round so members vote on exactly that version; any edit returns it to чернетка |
 | готовий до підпису | State with text frozen and a PDF print copy rendered with a reserved number; reached only with every proposed value confirmed; any edit returns it to чернетка |
 | джерело коштів | Fund or income line of the approved budget that pays for a decision |
-| знятий з розгляду | Final state of a never-signed draft, with a reason; keeps its справи, versions, poll rounds, print copies and any reserved number |
+| знятий з розгляду | Final state of a never-signed draft, with a reason; keeps its справи, versions, poll rounds, print copies and any reserved number in an immutable `withdrawn` snapshot; an internal record, not listed in the реєстр протоколів |
 | кворум | Minimum number of board members present for valid decisions, per the charter; not computed in Stage 1 |
 | кошторис робіт | The management company's priced estimate for one job |
 | обхід блокування | A recorded choice, with a reason, to proceed despite a блокуюча перевірка — **Stage 2** |
@@ -728,7 +743,7 @@ Domain terms are canonical in [CONTEXT.md](./CONTEXT.md) `## Glossary`; the shor
 | підписаний | Final state after the signed scan and meeting facts are uploaded; locked and immutable |
 | правило статуту | One charter parameter kept as data; Stage 1 keeps only the current settings (meeting form, signers, start number) |
 | протокол правління | The signed record of one board meeting |
-| реєстр протоколів | The association's searchable record of locked protocols with signed copies, meeting facts, cited documents and poll history |
+| реєстр протоколів | The association's searchable record of signed (locked) protocols with signed copies, meeting facts, cited documents and poll history; a number taken by a withdrawn protocol shows as a gap marked «знято з розгляду» |
 | ревізійна комісія | The association's audit body; receives export packages in Stage 2, has no access |
 | слот рішення | One typed field of a decision holding a value, its origin and the case document it is confirmed against |
 | справа | The bundle of source documents a decision is based on and cites |
@@ -737,15 +752,15 @@ Domain terms are canonical in [CONTEXT.md](./CONTEXT.md) `## Glossary`; the shor
 | чернетка | Editable state of a protocol draft; any current член правління edits it |
 | член правління | Person elected to the board for a term; may use the system while the term covers today |
 | **Architecture terms (this SAD)** | |
-| association settings | The current meeting form, signers and the number the register continues from (AC-42); not effective-dated in Stage 1 |
+| association settings | The current meeting form, signers and the number the register continues from (AC-42); not effective-dated in Stage 1; the start number is locked once the first number is issued (ADR-0017) |
 | association Google account | The Google account owned by the association whose Drive folder `spilno/`, created by spilno under `drive.file`, holds every file (ADR-0005) |
 | poll round | Immutable copy of a draft's agenda items, text fragments and slot values taken when the poll starts; votes reference it; closed on return to чернетка or on print (ADR-0009) |
 | print copy | The PDF rendered when a draft is marked готовий до підпису, recorded with the revision, number and sha256; voided by any edit (ADR-0009, ADR-0013) |
 | reserved number | The protocol number taken at the first print copy; kept on return and withdrawal, never reused (ADR-0017) |
-| meeting facts | Members present, the vote count per agenda item and the handwritten-corrections note, entered with the signed scan (ADR-0018) |
+| meeting facts | Members present, the vote count per agenda item and the handwritten-corrections note, entered by a person from the signed paper with the scan, never filled from the roster or the poll (ADR-0018) |
 | revision | Integer on a protocol incremented by every change; every mutation carries the revision it was built on (ADR-0009) |
-| lock snapshot | Canonical `jsonb` record of everything a locked protocol shows, append-only (ADR-0007) |
-| fingerprint | SHA-256 of a lock snapshot's canonical serialization, recomputed nightly (ADR-0007) |
+| protocol snapshot | Canonical `jsonb` record of everything a signed (`kind = signed`) or withdrawn (`kind = withdrawn`) protocol shows, append-only (ADR-0007) |
+| fingerprint | SHA-256 of a protocol snapshot's canonical serialization, recomputed nightly for both kinds (ADR-0007) |
 | text fragment / slot placeholder | Decision text is plain fragments plus references to слоти рішення and meeting facts (ADR-0011) |
 | layout template | Google Doc defining the page layout of the print copy; distinct from a шаблон формулювання (ADR-0013) |
 | job | A River job carrying ids and the trace context only, enqueued in the writing transaction and run by the worker (ADR-0006) |

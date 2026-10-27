@@ -1,0 +1,1 @@
+DROP INDEX CONCURRENTLY IF EXISTS idx_meetings_chair_board_member_id;

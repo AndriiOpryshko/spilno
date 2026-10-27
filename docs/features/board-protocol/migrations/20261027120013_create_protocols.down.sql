@@ -1,0 +1,9 @@
+DROP INDEX IF EXISTS idx_protocol_transitions_actor;
+DROP INDEX IF EXISTS idx_protocol_transitions_protocol_created;
+DROP TABLE IF EXISTS protocol_transitions;
+DROP INDEX IF EXISTS idx_protocols_association_state_created;
+DROP INDEX IF EXISTS idx_protocols_created_by;
+DROP INDEX IF EXISTS idx_protocols_copied_from;
+DROP INDEX IF EXISTS idx_protocols_meeting_id;
+DROP INDEX IF EXISTS uq_protocols_meeting_not_withdrawn;
+DROP TABLE IF EXISTS protocols;

@@ -1,0 +1,9 @@
+DROP INDEX IF EXISTS idx_case_documents_created_by;
+DROP INDEX IF EXISTS idx_case_documents_previous_version;
+DROP INDEX IF EXISTS idx_case_documents_case_id;
+DROP TABLE IF EXISTS case_documents;
+DROP INDEX IF EXISTS idx_cases_created_by;
+DROP INDEX IF EXISTS idx_cases_association_created;
+DROP TABLE IF EXISTS cases;
+DROP INDEX IF EXISTS idx_files_uploaded_by;
+DROP TABLE IF EXISTS files;

@@ -31,7 +31,7 @@ Layouts:
 Design references:
 
 - Figma file: https://www.figma.com/design/D06IijJnLn8WEgU85fnD84
-- current screenshot (prototype before redesign): design/screenshots/cases-before-desktop.png, design/screenshots/cases-before-mobile.png
+- current screenshot (prototype before redesign): docs/design/screenshots/cases-before-desktop.png, docs/design/screenshots/cases-before-mobile.png
 - desktop frame: https://www.figma.com/design/D06IijJnLn8WEgU85fnD84?node-id=22-2
 - mobile frame: https://www.figma.com/design/D06IijJnLn8WEgU85fnD84?node-id=22-118
 - states frame: https://www.figma.com/design/D06IijJnLn8WEgU85fnD84?node-id=22-192
@@ -42,5 +42,5 @@ Done:
 - the approved design is implemented in `apps/web/src/features/governance/cases-screen.tsx`;
 - the Keep behaviour works;
 - `pnpm --filter @spilno/web lint`, `typecheck`, `test` pass;
-- desktop and mobile checked in the browser (design/screenshots/cases-after-*.png);
+- desktop and mobile checked in the browser (docs/design/screenshots/cases-after-*.png);
 - git diff touches only the governance feature, theme tokens and shared primitives it needs.

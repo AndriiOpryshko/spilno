@@ -1,0 +1,2239 @@
+# board-protocol — API contract delta (Stage 1), derived by /sdlc:api-forge board-protocol.
+#   fields + constraints  ← data-model.md (every field traces to a column; maxLength/enum copied)
+#   error responses       ← sad.md §6 Flows 1–13 alt-branches + §8 error catalogue
+#   endpoint list + shape ← PRD.md §4 user stories / §5 Stage 1 acceptance criteria
+# Self-contained delta: implement-tasks merges these paths and schemas into services/core/api/openapi.yaml
+# (one contract per repo, repo ADR 0003), then `mise run gen`. Conventions: .claude/rules/openapi.md
+# ("spilno specifics"). Existing operations are untouched except the Meeting schemas (chair_board_member_id).
+openapi: 3.1.0
+
+info:
+  title: spilno core API — board-protocol delta
+  version: 0.1.0
+  description: |
+    A board chair of a young association writes 15-20 board protocols a year by hand, from contracts,
+    invoices and chat approvals; numbers in protocols have no link to their source and signed protocols
+    are hard to find later. This API lets a current член правління describe a decision to the помічник
+    протоколу with the case documents attached, review and confirm the proposed слоти рішення (each linked
+    to the document it came from), run an informal попереднє голосування, print the copy for signing with
+    a reserved number, lock the protocol by uploading the signed scan with the meeting facts, withdraw a
+    draft, and search the реєстр протоколів (PRD §1–§2, Stage 1). Every operation except sign-in requires a
+    session of a person whose board term covers today.
+
+servers:
+  - url: http://localhost:8080
+    description: Local core API (the SPA reaches it as /api/* through its proxy)
+
+security:
+  - SessionCookie: []
+
+tags:
+  - name: identity
+    description: Sign-in, sessions and the current principal.
+  - name: governance
+    description: Board meetings and their decisions.
+
+paths:
+  # ───────────────────────────── identity ─────────────────────────────
+  /identity/sign-in:
+    get:
+      operationId: startSignIn
+      tags: [identity]
+      summary: Redirect to the identity provider (OIDC authorization code + PKCE)
+      description: ADR-0003. Public. Stores the PKCE verifier and state server-side and redirects.
+      security: []
+      responses:
+        "302":
+          description: Redirect to the provider's authorization endpoint.
+          headers:
+            Location:
+              schema: { type: string, format: uri }
+              example: https://accounts.example.test/o/oauth2/auth?client_id=test-client&state=test-state
+  /identity/sign-in/callback:
+    get:
+      operationId: completeSignIn
+      tags: [identity]
+      summary: Finish sign-in, create the session and redirect to the SPA
+      description: |
+        ADR-0003. Public. The verified email must belong to a roster person whose term covers today's
+        Europe/Kyiv date; otherwise no session is created.
+      security: []
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema: { type: string, minLength: 1 }
+          example: <authorization-code>
+        - name: state
+          in: query
+          required: true
+          schema: { type: string, minLength: 1 }
+          example: <state>
+      responses:
+        "302":
+          description: Session created; redirect to the SPA root.
+          headers:
+            Location:
+              schema: { type: string }
+              example: /
+            Set-Cookie:
+              description: HttpOnly, Secure, SameSite=Lax session cookie.
+              schema: { type: string }
+              example: spilno_session=<token>; Path=/; HttpOnly; Secure; SameSite=Lax
+        "401":
+          description: Unknown, expired or replayed state — start sign-in again.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+              examples: { session_required: { $ref: "#/components/examples/SessionRequired" } }
+        "403": { $ref: "#/components/responses/NotCurrentMember" }
+  /identity/sign-out:
+    post:
+      operationId: signOut
+      tags: [identity]
+      summary: Delete the current session
+      responses:
+        "204":
+          description: Session row deleted, cookie cleared.
+          headers:
+            Set-Cookie:
+              schema: { type: string }
+              example: spilno_session=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax
+        "401": { $ref: "#/components/responses/SessionRequired" }
+  /identity/session:
+    get:
+      operationId: getSession
+      tags: [identity]
+      summary: The signed-in person, their roster entry and the association
+      responses:
+        "200":
+          description: The current principal.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Principal" }
+              example:
+                account_id: 0192f6a0-0000-7000-8000-000000000a01
+                email: user-1@example.test
+                board_member_id: 0192f6a0-0000-7000-8000-000000000b01
+                full_name: Test User
+                association: { id: 00000000-0000-7000-8000-000000000001, name: Test Association }
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403": { $ref: "#/components/responses/NotCurrentMember" }
+
+  # ─────────────────────── governance: settings & roster ───────────────────────
+  /governance/settings:
+    get:
+      operationId: getAssociationSettings
+      tags: [governance]
+      summary: Current association settings (latest saved revision)
+      responses:
+        "200":
+          description: Current settings.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AssociationSettings" }
+              examples: { association_settings: { $ref: "#/components/examples/AssociationSettings" } }
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "404":
+          description: Nothing saved yet (`governance.settings_missing`, every setting named in `errors`).
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+              examples: { settings_missing: { $ref: "#/components/examples/SettingsMissing" } }
+    put:
+      operationId: saveAssociationSettings
+      tags: [governance]
+      summary: Save a new revision of the association settings (AC-42, Flow 12)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AssociationSettingsInput" }
+            example:
+              meeting_form: Засідання правління в очній формі
+              signers: Головуючий і секретар засідання
+              register_start_number: 31
+      responses:
+        "200":
+          description: Saved; this revision is now current.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AssociationSettings" }
+              examples: { association_settings: { $ref: "#/components/examples/AssociationSettings" } }
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "409":
+          description: The start number changed after the first protocol number was issued (ADR-0017).
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+              examples: { register_start_locked: { $ref: "#/components/examples/RegisterStartLocked" } }
+        "422":
+          description: A setting is missing (`governance.settings_invalid`, every missing setting named at once).
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+              examples: { settings_invalid: { $ref: "#/components/examples/SettingsInvalid" } }
+  /governance/board-members:
+    get:
+      operationId: listBoardMembers
+      tags: [governance]
+      summary: Board roster with terms, newest entry first (US-01)
+      parameters:
+        - name: "on"
+          in: query
+          description: Only members whose term covers this calendar date (roster in force).
+          schema: { type: string, format: date }
+          example: "2026-11-05"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: One page of roster entries (latest revision of each).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BoardMemberPage" }
+              example:
+                items: [{"id": "0192f6a0-0000-7000-8000-000000000b02", "full_name": "Test User", "sign_in_email": "user-2@example.test", "term_start": "2025-03-01", "term_end": null, "revised_by_member_id": "0192f6a0-0000-7000-8000-000000000b01", "revised_at": "2026-10-27T09:05:00Z"}]
+                next_cursor: null
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+    post:
+      operationId: createBoardMember
+      tags: [governance]
+      summary: Add a person to the board roster for one term (AC-02, Flow 12)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BoardMemberInput" }
+            example:
+              full_name: Test User
+              sign_in_email: user-2@example.test
+              term_start: "2025-03-01"
+              term_end: null
+      responses:
+        "201":
+          description: Roster entry created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BoardMember" }
+              examples: { board_member: { $ref: "#/components/examples/BoardMember" } }
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "422":
+          description: Term start missing or term end before term start (`governance.roster_entry_invalid`).
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+              examples: { roster_entry_invalid: { $ref: "#/components/examples/RosterEntryInvalid" } }
+  /governance/board-members/{board_member_id}:
+    parameters:
+      - $ref: "#/components/parameters/BoardMemberId"
+    put:
+      operationId: updateBoardMember
+      tags: [governance]
+      summary: Save a new revision of a roster entry (e.g. the term ends) (AC-02, Flow 12)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BoardMemberInput" }
+            example:
+              full_name: Test User
+              sign_in_email: user-2@example.test
+              term_start: "2025-03-01"
+              term_end: "2027-02-28"
+      responses:
+        "200":
+          description: Revision saved; it is now the current one.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BoardMember" }
+              examples: { board_member: { $ref: "#/components/examples/BoardMember" } }
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422":
+          description: Term start missing or term end before term start (`governance.roster_entry_invalid`).
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+              examples: { roster_entry_invalid: { $ref: "#/components/examples/RosterEntryInvalid" } }
+
+  # ─────────────────────── governance: cases and files ───────────────────────
+  /governance/cases:
+    get:
+      operationId: listCases
+      tags: [governance]
+      summary: List справи, newest first
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: One page of cases.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CasePage" }
+              example:
+                items: [{"id": "0192f6a0-0000-7000-8000-000000000c01", "title": "Гідроізоляція покрівлі, будинок 1", "created_by_member_id": "0192f6a0-0000-7000-8000-000000000b01", "created_at": "2026-10-20T09:00:00Z"}]
+                next_cursor: null
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+    post:
+      operationId: createCase
+      tags: [governance]
+      summary: Open a справа (US-02)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CaseInput" }
+            example: { title: "Гідроізоляція покрівлі, будинок 1" }
+      responses:
+        "201":
+          description: Case created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Case" }
+              examples: { case: { $ref: "#/components/examples/Case" } }
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+  /governance/cases/{case_id}:
+    parameters:
+      - $ref: "#/components/parameters/CaseId"
+    get:
+      operationId: getCase
+      tags: [governance]
+      summary: One справа with all its document versions (AC-03, AC-19)
+      responses:
+        "200":
+          description: The case.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CaseDetail" }
+              example:
+                id: 0192f6a0-0000-7000-8000-000000000c01
+                title: Гідроізоляція покрівлі, будинок 1
+                created_by_member_id: 0192f6a0-0000-7000-8000-000000000b01
+                created_at: "2026-10-20T09:00:00Z"
+                documents: [{"id": "0192f6a0-0000-7000-8000-000000000d02", "case_id": "0192f6a0-0000-7000-8000-000000000c01", "file": {"id": "0192f6a0-0000-7000-8000-000000000702", "original_name": "rakhunok-123.pdf", "media_type": "application/pdf", "size_bytes": 482113, "sha256": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08", "uploaded_by_member_id": "0192f6a0-0000-7000-8000-000000000b01", "created_at": "2026-10-20T09:10:00Z"}, "previous_version_id": null, "document_date": "2026-10-18", "created_by_member_id": "0192f6a0-0000-7000-8000-000000000b01", "created_at": "2026-10-20T09:10:00Z"}]
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /governance/cases/{case_id}/documents:
+    parameters:
+      - $ref: "#/components/parameters/CaseId"
+    post:
+      operationId: addCaseDocument
+      tags: [governance]
+      summary: Upload a document, or a newer version of one, into a справа (US-04, AC-09, Flow 3, Flow 8)
+      description: |
+        A version with `previous_version_id` marks every slot of an open draft that cites the previous
+        version `needs_review`, and returns a готовий до голосування / готовий до підпису draft to чернетка
+        (AC-09, AC-05d, AC-14b). The file is streamed to storage before the transaction (Flow 8).
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { $ref: "#/components/schemas/CaseDocumentUpload" }
+            encoding:
+              file: { contentType: "application/pdf, image/jpeg, image/png" }
+            example:
+              file: <binary kosztorys.pdf>
+              previous_version_id: 0192f6a0-0000-7000-8000-000000000d01
+              document_date: "2026-10-18"
+      responses:
+        "201":
+          description: Document version stored.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CaseDocument" }
+              examples: { case_document: { $ref: "#/components/examples/CaseDocument" } }
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422":
+          description: |
+            File over 20 MB or not PDF / JPEG / PNG by content (`governance.file_invalid`), or
+            `previous_version_id` is not a document of this case.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+              examples: { file_invalid: { $ref: "#/components/examples/FileInvalid" } }
+        "503": { $ref: "#/components/responses/StorageUnavailable" }
+  /governance/files/{file_id}:
+    parameters:
+      - $ref: "#/components/parameters/FileId"
+    get:
+      operationId: downloadFile
+      tags: [governance]
+      summary: Download a stored file — case document, print copy or signed scan (US-07, Flow 13)
+      description: Served as an attachment with `X-Content-Type-Options nosniff`, never inline (SAD §8 Files).
+      responses:
+        "200":
+          description: The file bytes of the pinned revision.
+          headers:
+            Content-Disposition:
+              schema: { type: string }
+              example: attachment; filename="protocol-14-signed.pdf"
+            X-Content-Type-Options:
+              schema: { type: string, const: nosniff }
+          content:
+            application/pdf:
+              schema: { type: string, contentMediaType: application/pdf }
+            image/jpeg:
+              schema: { type: string, contentMediaType: image/jpeg }
+            image/png:
+              schema: { type: string, contentMediaType: image/png }
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/StorageUnavailable" }
+
+  # ─────────────────────── governance: drafting ───────────────────────
+  /governance/meetings/{meeting_id}/assistant-turns:
+    parameters:
+      - $ref: "#/components/parameters/MeetingId"
+    post:
+      operationId: createAssistantTurn
+      tags: [governance]
+      summary: Ask the помічник протоколу for a draft of the meeting's protocol, or refine it (US-12, Flow 1)
+      description: |
+        Opens the meeting's protocol draft if it has none (AC-26), otherwise adds the справа as a new agenda
+        item to the existing draft (AC-03c) or refines it. Uploaded files become document versions of the
+        справа. Answers at once with the job that builds the proposal; poll `getJob` (SAD §4). A change to a
+        готовий до голосування / готовий до підпису draft returns it to чернетка (AC-05d, AC-14b).
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { $ref: "#/components/schemas/AssistantTurnInput" }
+            encoding:
+              files: { contentType: "application/pdf, image/jpeg, image/png" }
+            example:
+              message: Затвердити договір на гідроізоляцію покрівлі з ремонтного фонду
+              case_id: 0192f6a0-0000-7000-8000-000000000c01
+              case_document_ids: [0192f6a0-0000-7000-8000-000000000d01, 0192f6a0-0000-7000-8000-000000000d02]
+      responses:
+        "202":
+          description: Turn stored with the draft; the proposal is being built.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AssistantTurnAccepted" }
+              example:
+                turn: {"id": "0192f6a0-0000-7000-8000-000000000901", "protocol_id": "0192f6a0-0000-7000-8000-000000000e01", "role": "member", "author_member_id": "0192f6a0-0000-7000-8000-000000000b01", "message": "Затвердити договір на гідроізоляцію покрівлі з ремонтного фонду", "protocol_revision": 1, "case_document_ids": ["0192f6a0-0000-7000-8000-000000000d01", "0192f6a0-0000-7000-8000-000000000d02"], "created_at": "2026-10-27T10:00:00Z"}
+                protocol_id: 0192f6a0-0000-7000-8000-000000000e01
+                job: {"id": 1042, "kind": "governance.propose_draft", "state": "pending", "protocol_id": "0192f6a0-0000-7000-8000-000000000e01", "attempt": 0, "max_attempts": 5, "created_at": "2026-10-27T10:00:00Z", "finalized_at": null}
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: |
+            `governance.settings_missing` — meeting form, signers or start number not saved, every missing
+            setting named (AC-42); `governance.protocol_locked` — the meeting's protocol is already signed.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+              examples:
+                settings_missing: { $ref: "#/components/examples/SettingsMissing" }
+                protocol_locked: { $ref: "#/components/examples/ProtocolLocked" }
+        "422":
+          description: A file is over 20 MB or not PDF / JPEG / PNG (`governance.file_invalid`), or files are sent without `case_id`.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+              examples: { file_invalid: { $ref: "#/components/examples/FileInvalid" } }
+        "503": { $ref: "#/components/responses/StorageUnavailable" }
+  /governance/meetings/{meeting_id}/agenda-items:
+    parameters:
+      - $ref: "#/components/parameters/MeetingId"
+    post:
+      operationId: addAgendaItemFromCase
+      tags: [governance]
+      summary: Open the meeting's draft from a справа, or add the справа as an agenda item (US-02, AC-03c)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AgendaItemFromCaseInput" }
+            example: { case_id: 0192f6a0-0000-7000-8000-000000000c02 }
+      responses:
+        "201":
+          description: The meeting's draft with the new agenda item.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Protocol" }
+              examples: { protocol: { $ref: "#/components/examples/Protocol" } }
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Settings missing (AC-42) or the meeting's protocol is already signed.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+              examples:
+                settings_missing: { $ref: "#/components/examples/SettingsMissing" }
+                protocol_locked: { $ref: "#/components/examples/ProtocolLocked" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+  /governance/jobs/{job_id}:
+    parameters:
+      - $ref: "#/components/parameters/JobId"
+    get:
+      operationId: getJob
+      tags: [governance]
+      summary: Status of a proposal or print-copy job, polled about every 2 s (SAD §4, Flows 1, 4, 8)
+      responses:
+        "200":
+          description: Job status.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Job" }
+              examples: { job_failed: { $ref: "#/components/examples/JobFailed" } }
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /governance/jobs/{job_id}/retry:
+    parameters:
+      - $ref: "#/components/parameters/JobId"
+    post:
+      operationId: retryJob
+      tags: [governance]
+      summary: Retry a failed job (Flow 8 "retry offered")
+      responses:
+        "202":
+          description: Job scheduled again.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Job" }
+              examples: { job_pending: { $ref: "#/components/examples/JobPending" } }
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: The job is not failed (`governance.transition_not_allowed`).
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+              examples: { transition_not_allowed: { $ref: "#/components/examples/TransitionNotAllowed" } }
+  /governance/protocols:
+    get:
+      operationId: listProtocols
+      tags: [governance]
+      summary: List protocol drafts and protocols, newest first, optionally by state
+      parameters:
+        - name: state
+          in: query
+          schema: { $ref: "#/components/schemas/ProtocolState" }
+          example: draft
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: One page of protocols.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProtocolSummaryPage" }
+              example:
+                items:
+                  - id: 0192f6a0-0000-7000-8000-000000000e01
+                    meeting_id: 0192f6a0-0000-7000-8000-000000000f01
+                    meeting_date: "2026-11-05"
+                    state: ready_for_signing
+                    revision: 7
+                    number: 14
+                    created_at: "2026-10-27T10:00:00Z"
+                next_cursor: null
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+  /governance/protocols/{protocol_id}:
+    parameters:
+      - $ref: "#/components/parameters/ProtocolId"
+    get:
+      operationId: getProtocol
+      tags: [governance]
+      summary: Open a draft with its meeting, roster in force, documents, slots, poll rounds and print copies (AC-03)
+      responses:
+        "200":
+          description: The protocol in its current state.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Protocol" }
+              examples: { protocol: { $ref: "#/components/examples/Protocol" } }
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /governance/protocols/{protocol_id}/assistant-turns:
+    parameters:
+      - $ref: "#/components/parameters/ProtocolId"
+    get:
+      operationId: listAssistantTurns
+      tags: [governance]
+      summary: The conversation kept with the draft, newest first (AC-26)
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: One page of turns.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AssistantTurnPage" }
+              example:
+                items: [{"id": "0192f6a0-0000-7000-8000-000000000901", "protocol_id": "0192f6a0-0000-7000-8000-000000000e01", "role": "member", "author_member_id": "0192f6a0-0000-7000-8000-000000000b01", "message": "Затвердити договір на гідроізоляцію покрівлі з ремонтного фонду", "protocol_revision": 1, "case_document_ids": ["0192f6a0-0000-7000-8000-000000000d01", "0192f6a0-0000-7000-8000-000000000d02"], "created_at": "2026-10-27T10:00:00Z"}]
+                next_cursor: null
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+  /governance/protocols/{protocol_id}/agenda-items/{agenda_item_id}/wording:
+    parameters:
+      - $ref: "#/components/parameters/ProtocolId"
+      - $ref: "#/components/parameters/AgendaItemId"
+    put:
+      operationId: saveAgendaItemWording
+      tags: [governance]
+      summary: Reword an agenda item's subject and text (AC-29, AC-05d, AC-14b, Flows 1, 3)
+      description: |
+        Any current член правління may edit. Saves a new wording version with its author and time; every
+        slot keeps its value and source. A draft готовий до голосування / готовий до підпису returns to
+        чернетка: the open round closes, the print copy is voided, the number stays.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AgendaItemWordingInput" }
+            example:
+              protocol_revision: 7
+              subject: Про затвердження договору на гідроізоляцію покрівлі
+              fragments:
+                - { text: "Затвердити договір з " }
+                - { slot: 0192f6a0-0000-7000-8000-000000001101 }
+                - { text: " на суму " }
+                - { slot: 0192f6a0-0000-7000-8000-000000001102 }
+      responses:
+        "200":
+          description: The updated protocol.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Protocol" }
+              examples: { protocol: { $ref: "#/components/examples/Protocol" } }
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/ProtocolEditConflict" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+  /governance/protocols/{protocol_id}/agenda-items/{agenda_item_id}/slots:
+    parameters:
+      - $ref: "#/components/parameters/ProtocolId"
+      - $ref: "#/components/parameters/AgendaItemId"
+    post:
+      operationId: addDecisionSlot
+      tags: [governance]
+      summary: Turn a typed fact into a слот рішення by hand (ADR-0011 highlight offer, AC-28)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DecisionSlotInput" }
+            example:
+              protocol_revision: 7
+              kind: funding_source
+              value: { text_value: Ремонтний фонд, source_document_id: 0192f6a0-0000-7000-8000-000000000d01 }
+      responses:
+        "201":
+          description: Slot created by a person (origin `human`, confirmed).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Protocol" }
+              examples: { protocol: { $ref: "#/components/examples/Protocol" } }
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/ProtocolEditConflict" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+  /governance/protocols/{protocol_id}/slots/{slot_id}/confirmation:
+    parameters:
+      - $ref: "#/components/parameters/ProtocolId"
+      - $ref: "#/components/parameters/SlotId"
+    post:
+      operationId: confirmDecisionSlot
+      tags: [governance]
+      summary: Confirm one value of a slot — the proposed one or an alternative beside it (AC-21, AC-22, AC-28b)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SlotConfirmationInput" }
+            example: { protocol_revision: 7, slot_value_id: 0192f6a0-0000-7000-8000-000000001201 }
+      responses:
+        "200":
+          description: Slot confirmed; the protocol with its new revision.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Protocol" }
+              examples: { protocol: { $ref: "#/components/examples/Protocol" } }
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/ProtocolEditConflict" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+  /governance/protocols/{protocol_id}/slots/{slot_id}/values:
+    parameters:
+      - $ref: "#/components/parameters/ProtocolId"
+      - $ref: "#/components/parameters/SlotId"
+    post:
+      operationId: correctDecisionSlot
+      tags: [governance]
+      summary: Correct a slot by hand; a corrected value counts as confirmed (AC-21)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SlotCorrectionInput" }
+            example:
+              protocol_revision: 7
+              value: { amount_kopiyky: 18450000, currency: UAH, source_document_id: 0192f6a0-0000-7000-8000-000000000d02 }
+      responses:
+        "201":
+          description: Value stored (origin `human`) and confirmed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Protocol" }
+              examples: { protocol: { $ref: "#/components/examples/Protocol" } }
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/ProtocolEditConflict" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
+  # ─────────────────────── governance: lifecycle ───────────────────────
+  /governance/protocols/{protocol_id}/poll-rounds:
+    parameters:
+      - $ref: "#/components/parameters/ProtocolId"
+    post:
+      operationId: startPollRound
+      tags: [governance]
+      summary: Freeze the wording as the next round of the попереднє голосування (чернетка → готовий до голосування) (AC-30, Flow 2)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProtocolRevisionInput" }
+            example: { protocol_revision: 7 }
+      responses:
+        "201":
+          description: Round opened; unconfirmed slots stay shown as unconfirmed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PollRound" }
+              examples: { poll_round: { $ref: "#/components/examples/PollRound" } }
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/ProtocolEditConflict" }
+  /governance/protocols/{protocol_id}/poll-rounds/{round_number}/votes:
+    parameters:
+      - $ref: "#/components/parameters/ProtocolId"
+      - $ref: "#/components/parameters/RoundNumber"
+    put:
+      operationId: castPollVote
+      tags: [governance]
+      summary: Cast or change one's own informal vote on an agenda item (AC-31, AC-05e, AC-32, Flow 2)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PollVoteInput" }
+            example:
+              agenda_item_id: 0192f6a0-0000-7000-8000-000000001001
+              board_member_id: 0192f6a0-0000-7000-8000-000000000b01
+              choice: for
+      responses:
+        "200":
+          description: Vote stored; the round's tally, labelled informal, with no verdict on quorum or majority.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PollRound" }
+              examples: { poll_round: { $ref: "#/components/examples/PollRound" } }
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403":
+          description: |
+            `governance.vote_on_behalf` — `board_member_id` is not the signed-in member (AC-05e); or
+            `identity.not_current_member`.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+              examples:
+                vote_on_behalf: { $ref: "#/components/examples/VoteOnBehalf" }
+                not_current_member: { $ref: "#/components/examples/NotCurrentMember" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: |
+            The poll is open only while the draft is готовий до голосування (AC-32):
+            `governance.poll_not_open` (чернетка, готовий до підпису, or a closed round),
+            `governance.protocol_locked` (підписаний), `governance.transition_not_allowed` (знятий з розгляду).
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+              examples:
+                poll_not_open: { $ref: "#/components/examples/PollNotOpen" }
+                protocol_locked: { $ref: "#/components/examples/ProtocolLocked" }
+                transition_not_allowed: { $ref: "#/components/examples/TransitionNotAllowed" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+  /governance/protocols/{protocol_id}/return-to-draft:
+    parameters:
+      - $ref: "#/components/parameters/ProtocolId"
+    post:
+      operationId: returnProtocolToDraft
+      tags: [governance]
+      summary: «Повернути в чернетку» (готовий до голосування / готовий до підпису → чернетка) (AC-05d, AC-14b, Flow 3)
+      description: |
+        Closes the open round with its votes kept and no longer counted, voids the current print copy (copies
+        printed earlier must not be signed), keeps the reserved number.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProtocolRevisionInput" }
+            example: { protocol_revision: 8 }
+      responses:
+        "200":
+          description: Back in чернетка.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Protocol" }
+              examples: { protocol: { $ref: "#/components/examples/Protocol" } }
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/ProtocolEditConflict" }
+  /governance/protocols/{protocol_id}/ready-for-signing:
+    parameters:
+      - $ref: "#/components/parameters/ProtocolId"
+    post:
+      operationId: markProtocolReadyForSigning
+      tags: [governance]
+      summary: Mark готовий до підпису — freeze the text, reserve the number, render the print copy (AC-04, AC-21, AC-14c, AC-33, Flow 4)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProtocolRevisionInput" }
+            example: { protocol_revision: 7 }
+      responses:
+        "202":
+          description: |
+            готовий до підпису with its number; the print copy is rendering — poll `getJob`, then the copy
+            appears in `print_copies`. An open round is closed; the copy carries no poll result (AC-41).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProtocolWithJob" }
+              example:
+                protocol: {"id": "0192f6a0-0000-7000-8000-000000000e01", "meeting": {"id": "0192f6a0-0000-7000-8000-000000000f01", "held_at": "2026-11-05T16:00:00Z", "meeting_date": "2026-11-05", "chair_board_member_id": "0192f6a0-0000-7000-8000-000000000b01"}, "state": "draft", "revision": 8, "number": 14, "copied_from_protocol_id": null, "created_by_member_id": "0192f6a0-0000-7000-8000-000000000b01", "created_at": "2026-10-27T10:00:00Z", "roster_in_force": [{"id": "0192f6a0-0000-7000-8000-000000000b02", "full_name": "Test User", "sign_in_email": "user-2@example.test", "term_start": "2025-03-01", "term_end": null, "revised_by_member_id": "0192f6a0-0000-7000-8000-000000000b01", "revised_at": "2026-10-27T09:05:00Z"}], "agenda_items": [{"id": "0192f6a0-0000-7000-8000-000000001001", "position": 1, "case_id": "0192f6a0-0000-7000-8000-000000000c01", "subject": "Про затвердження договору на гідроізоляцію покрівлі", "fragments": [{"text": "Затвердити договір з "}, {"slot": "0192f6a0-0000-7000-8000-000000001101"}], "wording_author_member_id": null, "wording_revised_at": "2026-10-27T10:00:20Z", "slots": [{"id": "0192f6a0-0000-7000-8000-000000001101", "kind": "counterparty", "status": "unconfirmed", "values": [{"id": "0192f6a0-0000-7000-8000-000000001201", "origin": "ai", "amount_kopiyky": null, "currency": null, "text_value": "ТОВ Тест Покрівля", "date_value": null, "date_end_value": null, "person_member_id": null, "source_document_id": "0192f6a0-0000-7000-8000-000000000d01", "source_fragment": "Підрядник: ТОВ «Тест Покрівля»", "assistant_turn_id": "0192f6a0-0000-7000-8000-000000000902", "author_member_id": null, "created_at": "2026-10-27T10:00:20Z"}]}]}], "documents": [{"id": "0192f6a0-0000-7000-8000-000000000d02", "case_id": "0192f6a0-0000-7000-8000-000000000c01", "file": {"id": "0192f6a0-0000-7000-8000-000000000702", "original_name": "rakhunok-123.pdf", "media_type": "application/pdf", "size_bytes": 482113, "sha256": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08", "uploaded_by_member_id": "0192f6a0-0000-7000-8000-000000000b01", "created_at": "2026-10-20T09:10:00Z"}, "previous_version_id": null, "document_date": "2026-10-18", "created_by_member_id": "0192f6a0-0000-7000-8000-000000000b01", "created_at": "2026-10-20T09:10:00Z"}], "poll_rounds": [], "print_copies": [], "transitions": [{"from_state": null, "to_state": "draft", "revision": 1, "actor_member_id": "0192f6a0-0000-7000-8000-000000000b01", "created_at": "2026-10-27T10:00:00Z"}]}
+                job: {"id": 1042, "kind": "governance.propose_draft", "state": "pending", "protocol_id": "0192f6a0-0000-7000-8000-000000000e01", "attempt": 0, "max_attempts": 5, "created_at": "2026-10-27T10:00:00Z", "finalized_at": null}
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: |
+            `governance.draft_incomplete` — no agenda item or an item without a subject, every part named
+            (AC-04); `governance.slot_unconfirmed` — every unconfirmed proposed slot named (AC-21);
+            `governance.draft_revision_conflict`; `governance.transition_not_allowed` (already готовий до
+            підпису or знятий з розгляду); `governance.protocol_locked`.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+              examples:
+                draft_incomplete: { $ref: "#/components/examples/DraftIncomplete" }
+                slot_unconfirmed: { $ref: "#/components/examples/SlotUnconfirmed" }
+                draft_revision_conflict: { $ref: "#/components/examples/DraftRevisionConflict" }
+                transition_not_allowed: { $ref: "#/components/examples/TransitionNotAllowed" }
+                protocol_locked: { $ref: "#/components/examples/ProtocolLocked" }
+  /governance/protocols/{protocol_id}/signed-copy:
+    parameters:
+      - $ref: "#/components/parameters/ProtocolId"
+    post:
+      operationId: lockProtocolWithSignedCopy
+      tags: [governance]
+      summary: Upload the signed scan with the meeting facts and lock (готовий до підпису → підписаний) (AC-14, AC-34, AC-15, AC-40, AC-16, Flow 5)
+      description: |
+        The facts are validated before the scan is streamed (ADR-0018); the form starts empty — nothing is
+        pre-filled from the poll (AC-41). Quorum, majority and who signed are not checked (AC-14).
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { $ref: "#/components/schemas/SignedCopyUpload" }
+            encoding:
+              scan: { contentType: "application/pdf, image/jpeg, image/png" }
+              meeting_facts: { contentType: application/json }
+            example:
+              print_copy_id: 0192f6a0-0000-7000-8000-000000001301
+              scan: <binary protocol-14-signed.pdf>
+              meeting_facts:
+                present_member_ids: [0192f6a0-0000-7000-8000-000000000b01, 0192f6a0-0000-7000-8000-000000000b02, 0192f6a0-0000-7000-8000-000000000b03]
+                item_votes:
+                  - { agenda_item_id: 0192f6a0-0000-7000-8000-000000001001, votes_for: 3, votes_against: 0, votes_abstained: 0 }
+                has_handwritten_corrections: true
+                corrections_note: У пункті 1 виправлено номер рахунку від руки, підписано всіма присутніми
+      responses:
+        "201":
+          description: Locked and listed in the реєстр протоколів.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SignedProtocol" }
+              examples: { signed_protocol: { $ref: "#/components/examples/SignedProtocol" } }
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: |
+            `governance.not_ready_for_signing` — чернетка or готовий до голосування, mark готовий до підпису
+            and print first (AC-40); `governance.draft_revision_conflict` — `print_copy_id` is not the current
+            print copy; `governance.protocol_locked` (AC-17); `governance.transition_not_allowed` (знятий з розгляду).
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+              examples:
+                not_ready_for_signing: { $ref: "#/components/examples/NotReadyForSigning" }
+                draft_revision_conflict: { $ref: "#/components/examples/DraftRevisionConflict" }
+                protocol_locked: { $ref: "#/components/examples/ProtocolLocked" }
+                transition_not_allowed: { $ref: "#/components/examples/TransitionNotAllowed" }
+        "422":
+          description: |
+            `governance.meeting_facts_missing` — members present or a vote count per item missing, every fact
+            named, protocol stays готовий до підпису (AC-34); `governance.correction_note_required` (AC-15);
+            `governance.file_invalid` — over 20 MB or not PDF / JPEG / PNG.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+              examples:
+                meeting_facts_missing: { $ref: "#/components/examples/MeetingFactsMissing" }
+                correction_note_required: { $ref: "#/components/examples/CorrectionNoteRequired" }
+                file_invalid: { $ref: "#/components/examples/FileInvalid" }
+        "503": { $ref: "#/components/responses/StorageUnavailable" }
+  /governance/protocols/{protocol_id}/withdrawal:
+    parameters:
+      - $ref: "#/components/parameters/ProtocolId"
+    post:
+      operationId: withdrawProtocol
+      tags: [governance]
+      summary: Close a draft as знятий з розгляду with a reason (AC-35, AC-36, AC-37, AC-38, Flow 9)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WithdrawalInput" }
+            example: { protocol_revision: 9, reason: Не підписано на засіданні }
+      responses:
+        "200":
+          description: |
+            знятий з розгляду; справи, versions, rounds and print copies kept as never signed; a reserved number
+            stays with it and shows as a gap in the реєстр протоколів; a never-printed draft takes no number.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Protocol" }
+              examples: { protocol: { $ref: "#/components/examples/Protocol" } }
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: |
+            `governance.protocol_locked` — a signed protocol changes only through a new decision that revokes or
+            corrects it (AC-38); `governance.transition_not_allowed` (already withdrawn); `governance.draft_revision_conflict`.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+              examples:
+                protocol_locked: { $ref: "#/components/examples/ProtocolLocked" }
+                transition_not_allowed: { $ref: "#/components/examples/TransitionNotAllowed" }
+                draft_revision_conflict: { $ref: "#/components/examples/DraftRevisionConflict" }
+        "422":
+          description: Empty reason (`governance.reason_required`).
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+              examples: { reason_required: { $ref: "#/components/examples/ReasonRequired" } }
+  /governance/protocols/{protocol_id}/copy:
+    parameters:
+      - $ref: "#/components/parameters/ProtocolId"
+    post:
+      operationId: copyWithdrawnProtocol
+      tags: [governance]
+      summary: Start a new draft copied from a withdrawn one (AC-39)
+      responses:
+        "201":
+          description: New чернетка for the same meeting with `copied_from_protocol_id` set and no number.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Protocol" }
+              examples: { protocol: { $ref: "#/components/examples/Protocol" } }
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: The source is not знятий з розгляду, or the meeting already has an open draft (`governance.transition_not_allowed`).
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+              examples: { transition_not_allowed: { $ref: "#/components/examples/TransitionNotAllowed" } }
+
+  # ─────────────────────── governance: реєстр протоколів ───────────────────────
+  /governance/registry/decisions:
+    get:
+      operationId: searchRegistry
+      tags: [governance]
+      summary: Search decisions of signed protocols, newest meeting first (AC-18, Flow 13)
+      description: |
+        Filters combine with AND. `counterparty` and `subject` match as "contains", case-insensitive.
+        `withdrawn_numbers` lists numbers held by знятий з розгляду protocols inside the page's number range,
+        shown as gaps marked «знято з розгляду».
+      parameters:
+        - name: counterparty
+          in: query
+          schema: { type: string, minLength: 1, maxLength: 500 }
+          example: ТОВ Тест Покрівля
+        - name: subject
+          in: query
+          schema: { type: string, minLength: 1, maxLength: 500 }
+          example: гідроізоляція
+        - name: amount_kopiyky
+          in: query
+          description: Exact amount.
+          schema: { type: integer, format: int64, minimum: 0 }
+          example: 18450000
+        - name: amount_from_kopiyky
+          in: query
+          schema: { type: integer, format: int64, minimum: 0 }
+          example: 10000000
+        - name: amount_to_kopiyky
+          in: query
+          schema: { type: integer, format: int64, minimum: 0 }
+          example: 20000000
+        - name: date_from
+          in: query
+          schema: { type: string, format: date }
+          example: "2026-01-01"
+        - name: date_to
+          in: query
+          schema: { type: string, format: date }
+          example: "2026-12-31"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: One page of matching decisions (empty page when nothing matches).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RegistryDecisionPage" }
+              example:
+                items:
+                  - protocol_id: 0192f6a0-0000-7000-8000-000000000e01
+                    agenda_item_id: 0192f6a0-0000-7000-8000-000000001001
+                    number: 14
+                    meeting_date: "2026-11-05"
+                    subject: Про затвердження договору на гідроізоляцію покрівлі
+                    counterparty: ТОВ Тест Покрівля
+                    amount_kopiyky: 18450000
+                    currency: UAH
+                withdrawn_numbers: [13]
+                next_cursor: null
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "422":
+          description: A broken filter — range "from" above "to", a bad period (`governance.search_invalid`, every filter named).
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+              examples: { search_invalid: { $ref: "#/components/examples/SearchInvalid" } }
+  /governance/registry/protocols/{protocol_id}:
+    parameters:
+      - $ref: "#/components/parameters/ProtocolId"
+    get:
+      operationId: getSignedProtocol
+      tags: [governance]
+      summary: Open a signed protocol with its signed copy, meeting facts, cited documents and poll history (AC-18, AC-41, AC-15, Flow 13)
+      responses:
+        "200":
+          description: The signed snapshot.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SignedProtocol" }
+              examples: { signed_protocol: { $ref: "#/components/examples/SignedProtocol" } }
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+components:
+  securitySchemes:
+    SessionCookie:
+      type: apiKey
+      in: cookie
+      name: spilno_session
+      description: Server-side session (ADR-0003); HttpOnly, Secure, SameSite=Lax.
+
+  parameters:
+    Limit:
+      name: limit
+      in: query
+      description: Page size.
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    Cursor:
+      name: cursor
+      in: query
+      description: Opaque cursor from a previous page's next_cursor; omit for the first page.
+      schema: { type: string, minLength: 1 }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Client-generated key; a retry with the same key within 24 h returns the first result instead of a second turn and upload.
+      schema: { type: string, format: uuid }
+      example: 0192f6a0-0000-7000-8000-00000000ffff
+    ProtocolId:
+      name: protocol_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    MeetingId:
+      name: meeting_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    CaseId:
+      name: case_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    FileId:
+      name: file_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    BoardMemberId:
+      name: board_member_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    AgendaItemId:
+      name: agenda_item_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    SlotId:
+      name: slot_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    RoundNumber:
+      name: round_number
+      in: path
+      required: true
+      schema: { type: integer, format: int32, minimum: 1 }
+    JobId:
+      name: job_id
+      in: path
+      required: true
+      schema: { type: integer, format: int64, minimum: 1 }
+
+  responses:
+    SessionRequired:
+      description: No valid session (`identity.session_required`).
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+          examples: { session_required: { $ref: "#/components/examples/SessionRequired" } }
+    NotCurrentMember:
+      description: |
+        The signed-in person's board term does not cover today (`identity.not_current_member`); the same body
+        whether the requested id exists or not (AC-19, AC-16).
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+          examples: { not_current_member: { $ref: "#/components/examples/NotCurrentMember" } }
+    NotFound:
+      description: No such resource in the association.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+          example: { type: about:blank, title: Not Found, status: 404 }
+    ValidationFailed:
+      description: Request failed validation; every broken field named in `errors`.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+          example:
+            type: about:blank
+            title: Validation failed
+            status: 422
+            errors: [{ pointer: /protocol_revision, detail: property "protocol_revision" is missing }]
+    StorageUnavailable:
+      description: File storage unavailable; nothing was committed, try again later (`governance.storage_unavailable`, Flow 8).
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+          examples: { storage_unavailable: { $ref: "#/components/examples/StorageUnavailable" } }
+    ProtocolEditConflict:
+      description: |
+        `governance.draft_revision_conflict` — the draft changed since the shown revision, reload (ADR-0009);
+        `governance.protocol_locked` — signed, changes only through a new decision that references it (AC-17);
+        `governance.transition_not_allowed` — знятий з розгляду, offer a new draft copied from it (AC-39), or a
+        transition the current state does not allow.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+          examples:
+            draft_revision_conflict: { $ref: "#/components/examples/DraftRevisionConflict" }
+            protocol_locked: { $ref: "#/components/examples/ProtocolLocked" }
+            transition_not_allowed: { $ref: "#/components/examples/TransitionNotAllowed" }
+
+  examples:
+    SessionRequired:
+      value: { type: about:blank, title: Unauthorized, status: 401, code: identity.session_required, detail: Увійдіть, щоб продовжити }
+    NotCurrentMember:
+      value: { type: about:blank, title: Forbidden, status: 403, code: identity.not_current_member, detail: Доступ мають лише чинні члени правління }
+    SettingsMissing:
+      value:
+        type: about:blank
+        title: Settings missing
+        status: 409
+        code: governance.settings_missing
+        detail: Заповніть налаштування об'єднання перед першою чернеткою
+        errors:
+          - { pointer: /meeting_form, detail: not set }
+          - { pointer: /signers, detail: not set }
+          - { pointer: /register_start_number, detail: not set }
+    SettingsInvalid:
+      value:
+        type: about:blank
+        title: Validation failed
+        status: 422
+        code: governance.settings_invalid
+        errors: [{ pointer: /signers, detail: required }]
+    RegisterStartLocked:
+      value: { type: about:blank, title: Conflict, status: 409, code: governance.register_start_locked, detail: Номер, з якого продовжується реєстр, не змінюється після видачі першого номера }
+    RosterEntryInvalid:
+      value:
+        type: about:blank
+        title: Validation failed
+        status: 422
+        code: governance.roster_entry_invalid
+        errors: [{ pointer: /term_end, detail: before term_start }]
+    FileInvalid:
+      value:
+        type: about:blank
+        title: Validation failed
+        status: 422
+        code: governance.file_invalid
+        errors: [{ pointer: /file, detail: "media type text/html is not allowed; PDF, JPEG or PNG up to 20 MB" }]
+    StorageUnavailable:
+      value: { type: about:blank, title: Service Unavailable, status: 503, code: governance.storage_unavailable, detail: Сховище файлів недоступне, спробуйте пізніше }
+    DraftRevisionConflict:
+      value: { type: about:blank, title: Conflict, status: 409, code: governance.draft_revision_conflict, detail: Чернетку змінено, оновіть сторінку }
+    ProtocolLocked:
+      value: { type: about:blank, title: Conflict, status: 409, code: governance.protocol_locked, detail: Підписаний протокол змінюється лише новим рішенням правління, що на нього посилається }
+    TransitionNotAllowed:
+      value: { type: about:blank, title: Conflict, status: 409, code: governance.transition_not_allowed, detail: Чернетку знято з розгляду; створіть нову чернетку як її копію }
+    PollNotOpen:
+      value: { type: about:blank, title: Conflict, status: 409, code: governance.poll_not_open, detail: Опитування відкрите лише поки чернетка готова до голосування }
+    VoteOnBehalf:
+      value: { type: about:blank, title: Forbidden, status: 403, code: governance.vote_on_behalf, detail: Кожен член правління голосує лише за себе }
+    DraftIncomplete:
+      value:
+        type: about:blank
+        title: Conflict
+        status: 409
+        code: governance.draft_incomplete
+        errors: [{ pointer: /agenda_items/1/subject, detail: missing }]
+    SlotUnconfirmed:
+      value:
+        type: about:blank
+        title: Conflict
+        status: 409
+        code: governance.slot_unconfirmed
+        errors: [{ pointer: /agenda_items/0/slots/0192f6a0-0000-7000-8000-000000001102, detail: unconfirmed }]
+    NotReadyForSigning:
+      value: { type: about:blank, title: Conflict, status: 409, code: governance.not_ready_for_signing, detail: Спершу позначте готовим до підпису й надрукуйте }
+    MeetingFactsMissing:
+      value:
+        type: about:blank
+        title: Validation failed
+        status: 422
+        code: governance.meeting_facts_missing
+        errors:
+          - { pointer: /meeting_facts/present_member_ids, detail: empty }
+          - { pointer: /meeting_facts/item_votes/0192f6a0-0000-7000-8000-000000001001, detail: missing }
+    CorrectionNoteRequired:
+      value:
+        type: about:blank
+        title: Validation failed
+        status: 422
+        code: governance.correction_note_required
+        errors: [{ pointer: /meeting_facts/corrections_note, detail: required when has_handwritten_corrections }]
+    ReasonRequired:
+      value:
+        type: about:blank
+        title: Validation failed
+        status: 422
+        code: governance.reason_required
+        errors: [{ pointer: /reason, detail: required }]
+    SearchInvalid:
+      value:
+        type: about:blank
+        title: Validation failed
+        status: 422
+        code: governance.search_invalid
+        errors: [{ pointer: /query/amount_from_kopiyky, detail: above amount_to_kopiyky }]
+    AssociationSettings:
+      value:
+        id: 0192f6a0-0000-7000-8000-000000000501
+        meeting_form: Засідання правління в очній формі
+        signers: Головуючий і секретар засідання
+        register_start_number: 31
+        next_number: 31
+        created_by_member_id: 0192f6a0-0000-7000-8000-000000000b01
+        created_at: "2026-10-27T09:00:00Z"
+    BoardMember:
+      value:
+        id: 0192f6a0-0000-7000-8000-000000000b02
+        full_name: Test User
+        sign_in_email: user-2@example.test
+        term_start: "2025-03-01"
+        term_end: null
+        revised_by_member_id: 0192f6a0-0000-7000-8000-000000000b01
+        revised_at: "2026-10-27T09:05:00Z"
+    Case:
+      value:
+        id: 0192f6a0-0000-7000-8000-000000000c01
+        title: Гідроізоляція покрівлі, будинок 1
+        created_by_member_id: 0192f6a0-0000-7000-8000-000000000b01
+        created_at: "2026-10-20T09:00:00Z"
+    CaseDocument:
+      value:
+        id: 0192f6a0-0000-7000-8000-000000000d02
+        case_id: 0192f6a0-0000-7000-8000-000000000c01
+        file:
+          id: 0192f6a0-0000-7000-8000-000000000702
+          original_name: rakhunok-123.pdf
+          media_type: application/pdf
+          size_bytes: 482113
+          sha256: 9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08
+          uploaded_by_member_id: 0192f6a0-0000-7000-8000-000000000b01
+          created_at: "2026-10-20T09:10:00Z"
+        previous_version_id: null
+        document_date: "2026-10-18"
+        created_by_member_id: 0192f6a0-0000-7000-8000-000000000b01
+        created_at: "2026-10-20T09:10:00Z"
+    AssistantTurn:
+      value:
+        id: 0192f6a0-0000-7000-8000-000000000901
+        protocol_id: 0192f6a0-0000-7000-8000-000000000e01
+        role: member
+        author_member_id: 0192f6a0-0000-7000-8000-000000000b01
+        message: Затвердити договір на гідроізоляцію покрівлі з ремонтного фонду
+        protocol_revision: 1
+        case_document_ids: [0192f6a0-0000-7000-8000-000000000d01, 0192f6a0-0000-7000-8000-000000000d02]
+        created_at: "2026-10-27T10:00:00Z"
+    JobPending:
+      value:
+        id: 1042
+        kind: governance.propose_draft
+        state: pending
+        protocol_id: 0192f6a0-0000-7000-8000-000000000e01
+        attempt: 0
+        max_attempts: 5
+        created_at: "2026-10-27T10:00:00Z"
+        finalized_at: null
+    JobFailed:
+      value:
+        id: 1042
+        kind: governance.propose_draft
+        state: failed
+        protocol_id: 0192f6a0-0000-7000-8000-000000000e01
+        attempt: 5
+        max_attempts: 5
+        created_at: "2026-10-27T10:00:00Z"
+        finalized_at: "2026-10-27T10:03:10Z"
+    PollRound:
+      value:
+        id: 0192f6a0-0000-7000-8000-000000001401
+        round_number: 2
+        protocol_revision: 8
+        label: Попереднє внутрішнє опитування правління — не є голосуванням засідання і не замінює його
+        opened_by_member_id: 0192f6a0-0000-7000-8000-000000000b01
+        created_at: "2026-10-27T11:00:00Z"
+        closed_at: null
+        closed_by_member_id: null
+        frozen_agenda_items: []
+        items:
+          - agenda_item_id: 0192f6a0-0000-7000-8000-000000001001
+            tally: { for: 3, against: 1, abstain: 1 }
+            votes:
+              - { board_member_id: 0192f6a0-0000-7000-8000-000000000b01, choice: for, created_at: "2026-10-27T11:05:00Z" }
+    Protocol:
+      value:
+        id: 0192f6a0-0000-7000-8000-000000000e01
+        meeting:
+          id: 0192f6a0-0000-7000-8000-000000000f01
+          held_at: "2026-11-05T16:00:00Z"
+          meeting_date: "2026-11-05"
+          chair_board_member_id: 0192f6a0-0000-7000-8000-000000000b01
+        state: draft
+        revision: 8
+        number: 14
+        copied_from_protocol_id: null
+        created_by_member_id: 0192f6a0-0000-7000-8000-000000000b01
+        created_at: "2026-10-27T10:00:00Z"
+        roster_in_force: [{"id": "0192f6a0-0000-7000-8000-000000000b02", "full_name": "Test User", "sign_in_email": "user-2@example.test", "term_start": "2025-03-01", "term_end": null, "revised_by_member_id": "0192f6a0-0000-7000-8000-000000000b01", "revised_at": "2026-10-27T09:05:00Z"}]
+        agenda_items:
+          - id: 0192f6a0-0000-7000-8000-000000001001
+            position: 1
+            case_id: 0192f6a0-0000-7000-8000-000000000c01
+            subject: Про затвердження договору на гідроізоляцію покрівлі
+            fragments:
+              - { text: "Затвердити договір з " }
+              - { slot: 0192f6a0-0000-7000-8000-000000001101 }
+            wording_author_member_id: null
+            wording_revised_at: "2026-10-27T10:00:20Z"
+            slots:
+              - id: 0192f6a0-0000-7000-8000-000000001101
+                kind: counterparty
+                status: unconfirmed
+                values:
+                  - id: 0192f6a0-0000-7000-8000-000000001201
+                    origin: ai
+                    amount_kopiyky: null
+                    currency: null
+                    text_value: ТОВ Тест Покрівля
+                    date_value: null
+                    date_end_value: null
+                    person_member_id: null
+                    source_document_id: 0192f6a0-0000-7000-8000-000000000d01
+                    source_fragment: "Підрядник: ТОВ «Тест Покрівля»"
+                    assistant_turn_id: 0192f6a0-0000-7000-8000-000000000902
+                    author_member_id: null
+                    created_at: "2026-10-27T10:00:20Z"
+        documents: [{"id": "0192f6a0-0000-7000-8000-000000000d02", "case_id": "0192f6a0-0000-7000-8000-000000000c01", "file": {"id": "0192f6a0-0000-7000-8000-000000000702", "original_name": "rakhunok-123.pdf", "media_type": "application/pdf", "size_bytes": 482113, "sha256": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08", "uploaded_by_member_id": "0192f6a0-0000-7000-8000-000000000b01", "created_at": "2026-10-20T09:10:00Z"}, "previous_version_id": null, "document_date": "2026-10-18", "created_by_member_id": "0192f6a0-0000-7000-8000-000000000b01", "created_at": "2026-10-20T09:10:00Z"}]
+        poll_rounds: []
+        print_copies: []
+        transitions:
+          - { from_state: null, to_state: draft, revision: 1, actor_member_id: 0192f6a0-0000-7000-8000-000000000b01, created_at: "2026-10-27T10:00:00Z" }
+    SignedProtocol:
+      value:
+        protocol_id: 0192f6a0-0000-7000-8000-000000000e01
+        number: 14
+        meeting_date: "2026-11-05"
+        meeting:
+          id: 0192f6a0-0000-7000-8000-000000000f01
+          held_at: "2026-11-05T16:00:00Z"
+          meeting_date: "2026-11-05"
+          chair_board_member_id: 0192f6a0-0000-7000-8000-000000000b01
+        agenda_items: []
+        documents: []
+        print_copy:
+          id: 0192f6a0-0000-7000-8000-000000001301
+          protocol_revision: 9
+          number: 14
+          file: { id: 0192f6a0-0000-7000-8000-000000000703, original_name: protocol-14.pdf, media_type: application/pdf, size_bytes: 91234, sha256: 2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae, uploaded_by_member_id: null, created_at: "2026-11-01T12:00:04Z" }
+          requested_by_member_id: 0192f6a0-0000-7000-8000-000000000b01
+          created_at: "2026-11-01T12:00:04Z"
+          voided_at: null
+        meeting_facts:
+          signed_scan: { id: 0192f6a0-0000-7000-8000-000000000704, original_name: protocol-14-signed.pdf, media_type: application/pdf, size_bytes: 1834221, sha256: fcde2b2edba56bf408601fb721fe9b5c338d10ee429ea04fae5511b68fbf8fb9, uploaded_by_member_id: 0192f6a0-0000-7000-8000-000000000b01, created_at: "2026-11-06T08:00:00Z" }
+          present_member_ids: [0192f6a0-0000-7000-8000-000000000b01, 0192f6a0-0000-7000-8000-000000000b02, 0192f6a0-0000-7000-8000-000000000b03]
+          item_votes:
+            - { agenda_item_id: 0192f6a0-0000-7000-8000-000000001001, votes_for: 3, votes_against: 0, votes_abstained: 0 }
+          has_handwritten_corrections: true
+          corrections_note: У пункті 1 виправлено номер рахунку від руки, підписано всіма присутніми
+          entered_by_member_id: 0192f6a0-0000-7000-8000-000000000b01
+          entered_at: "2026-11-06T08:00:00Z"
+        poll_history: []
+        locked_by_member_id: 0192f6a0-0000-7000-8000-000000000b01
+        locked_at: "2026-11-06T08:00:00Z"
+
+  schemas:
+    # ── errors ──
+    Problem:
+      description: |
+        RFC 9457 problem details (internal/platform/httpapi). `code` is an extension member
+        `<context>.<error_name>`; it is set by a context and absent on a 422 from the shared request validator.
+        Delta to the repo schema: adds `code`.
+      type: object
+      required: [type, title, status]
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+        code:
+          type: string
+          pattern: "^[a-z]+\\.[a-z_]+$"
+        errors:
+          type: array
+          items: { $ref: "#/components/schemas/FieldError" }
+    FieldError:
+      type: object
+      required: [pointer, detail]
+      properties:
+        pointer: { type: string }
+        detail: { type: string }
+
+    # ── shared value types ──
+    Currency:
+      description: Existing repo schema (finance), reused as slot_values.currency / registry_entries.currency.
+      type: string
+      enum: [UAH, EUR, USD]
+    ProtocolState:
+      description: protocols.state (ADR-0009); UI labels чернетка · готовий до голосування · готовий до підпису · підписаний · знятий з розгляду.
+      type: string
+      enum: [draft, ready_for_vote, ready_for_signing, signed, withdrawn]
+    FileRef:
+      description: files row. Drive file and revision ids are never exposed (ADR-0005).
+      type: object
+      additionalProperties: false
+      required: [id, original_name, media_type, size_bytes, sha256, uploaded_by_member_id, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        original_name: { type: string, maxLength: 255 }
+        media_type: { type: string, enum: [application/pdf, image/jpeg, image/png] }
+        size_bytes: { type: integer, format: int64, maximum: 20971520 }
+        sha256:
+          description: Hex of the 32-byte SHA-256 computed while streaming.
+          type: string
+          pattern: "^[0-9a-f]{64}$"
+        uploaded_by_member_id:
+          description: Null for a print copy rendered by the worker.
+          type: [string, "null"]
+          format: uuid
+        created_at: { type: string, format: date-time }
+
+    # ── identity ──
+    Principal:
+      type: object
+      additionalProperties: false
+      required: [account_id, email, board_member_id, full_name, association]
+      properties:
+        account_id: { type: string, format: uuid }
+        email: { type: string, format: email, maxLength: 320 }
+        board_member_id: { type: string, format: uuid }
+        full_name: { type: string, maxLength: 200 }
+        association: { $ref: "#/components/schemas/Association" }
+    Association:
+      type: object
+      additionalProperties: false
+      required: [id, name]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string, maxLength: 200 }
+
+    # ── settings & roster ──
+    AssociationSettingsInput:
+      type: object
+      additionalProperties: false
+      required: [meeting_form, signers, register_start_number]
+      properties:
+        meeting_form: { type: string, minLength: 1, maxLength: 500 }
+        signers: { type: string, minLength: 1, maxLength: 500 }
+        register_start_number: { type: integer, format: int32, minimum: 1 }
+    AssociationSettings:
+      type: object
+      additionalProperties: false
+      required: [id, meeting_form, signers, register_start_number, next_number, created_by_member_id, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        meeting_form: { type: string, maxLength: 500 }
+        signers: { type: string, maxLength: 500 }
+        register_start_number: { type: integer, format: int32 }
+        next_number:
+          description: protocol_registers.next_number — the number the next first print takes; differs from register_start_number once a number was issued.
+          type: integer
+          format: int32
+        created_by_member_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+    BoardMemberInput:
+      type: object
+      additionalProperties: false
+      required: [full_name, term_start]
+      properties:
+        full_name: { type: string, minLength: 1, maxLength: 200 }
+        sign_in_email:
+          description: Null for a person who never signs in.
+          type: [string, "null"]
+          format: email
+          maxLength: 320
+        term_start: { type: string, format: date }
+        term_end:
+          description: Not before term_start (domain). Null = open term.
+          type: [string, "null"]
+          format: date
+    BoardMember:
+      description: board_members + its latest board_member_revisions row.
+      type: object
+      additionalProperties: false
+      required: [id, full_name, sign_in_email, term_start, term_end, revised_by_member_id, revised_at]
+      properties:
+        id: { type: string, format: uuid }
+        full_name: { type: string, maxLength: 200 }
+        sign_in_email: { type: [string, "null"], format: email, maxLength: 320 }
+        term_start: { type: string, format: date }
+        term_end: { type: [string, "null"], format: date }
+        revised_by_member_id: { type: [string, "null"], format: uuid }
+        revised_at: { type: string, format: date-time }
+    BoardMemberPage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/BoardMember" }
+        next_cursor: { type: [string, "null"] }
+
+    # ── meetings (delta to the existing schemas) ──
+    NewMeeting:
+      description: Existing schema; delta adds chair_board_member_id.
+      type: object
+      additionalProperties: false
+      required: [title, held_at]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        kind: { $ref: "#/components/schemas/MeetingKind" }
+        held_at: { type: string, format: date-time }
+        ends_at: { type: [string, "null"], format: date-time }
+        location: { type: [string, "null"], maxLength: 200 }
+        quorum_required: { type: boolean, default: true }
+        chair_board_member_id:
+          description: "The головуючий rendered by the {meeting: chair} fragment (AC-28)."
+          type: [string, "null"]
+          format: uuid
+    Meeting:
+      description: Existing schema; delta adds chair_board_member_id.
+      type: object
+      required: [id, title, kind, held_at, ends_at, location, quorum_required, chair_board_member_id, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        kind: { $ref: "#/components/schemas/MeetingKind" }
+        held_at: { type: string, format: date-time }
+        ends_at: { type: [string, "null"], format: date-time }
+        location: { type: [string, "null"] }
+        quorum_required: { type: boolean }
+        chair_board_member_id: { type: [string, "null"], format: uuid }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    MeetingKind:
+      description: Existing schema, unchanged.
+      type: string
+      enum: [REGULAR, EXTRAORDINARY]
+    ProtocolMeeting:
+      type: object
+      additionalProperties: false
+      required: [id, held_at, meeting_date, chair_board_member_id]
+      properties:
+        id: { type: string, format: uuid }
+        held_at: { type: string, format: date-time }
+        meeting_date:
+          description: Europe/Kyiv calendar date of held_at (SAD §8 Dates).
+          type: string
+          format: date
+        chair_board_member_id: { type: [string, "null"], format: uuid }
+
+    # ── cases ──
+    CaseInput:
+      type: object
+      additionalProperties: false
+      required: [title]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+    Case:
+      type: object
+      additionalProperties: false
+      required: [id, title, created_by_member_id, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string, maxLength: 200 }
+        created_by_member_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+    CaseDetail:
+      description: Case with its document versions (a closed shape, so not allOf over Case).
+      type: object
+      additionalProperties: false
+      required: [id, title, created_by_member_id, created_at, documents]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string, maxLength: 200 }
+        created_by_member_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        documents:
+          type: array
+          items: { $ref: "#/components/schemas/CaseDocument" }
+    CasePage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Case" }
+        next_cursor: { type: [string, "null"] }
+    CaseDocumentUpload:
+      type: object
+      required: [file]
+      properties:
+        file:
+          description: PDF, JPEG or PNG by content, ≤ 20 MB.
+          type: string
+          contentMediaType: application/octet-stream
+        previous_version_id:
+          description: The version this one replaces (a revised estimate, an amendment) — AC-09.
+          type: string
+          format: uuid
+        document_date:
+          description: The date written on the document; AC-22 picks the latest by it.
+          type: string
+          format: date
+    CaseDocument:
+      type: object
+      additionalProperties: false
+      required: [id, case_id, file, previous_version_id, document_date, created_by_member_id, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        case_id: { type: string, format: uuid }
+        file: { $ref: "#/components/schemas/FileRef" }
+        previous_version_id: { type: [string, "null"], format: uuid }
+        document_date: { type: [string, "null"], format: date }
+        created_by_member_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+
+    # ── assistant & jobs ──
+    AssistantTurnInput:
+      type: object
+      required: [message]
+      properties:
+        message:
+          description: Conversation text — confidential, never logged.
+          type: string
+          minLength: 1
+        case_id:
+          description: The справа this turn is about; becomes an agenda item if the draft has none for it (AC-03c). Required with files.
+          type: string
+          format: uuid
+        case_document_ids:
+          description: Existing document versions of the справа attached to this turn.
+          type: array
+          items: { type: string, format: uuid }
+        files:
+          description: New documents uploaded into the справа with this turn; each PDF, JPEG or PNG ≤ 20 MB.
+          type: array
+          items: { type: string, contentMediaType: application/octet-stream }
+    AssistantTurn:
+      type: object
+      additionalProperties: false
+      required: [id, protocol_id, role, author_member_id, message, protocol_revision, case_document_ids, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        protocol_id: { type: string, format: uuid }
+        role: { type: string, enum: [member, assistant] }
+        author_member_id:
+          description: Null for an assistant turn.
+          type: [string, "null"]
+          format: uuid
+        message: { type: string }
+        protocol_revision: { type: integer, format: int32 }
+        case_document_ids:
+          type: array
+          items: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+    AssistantTurnPage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/AssistantTurn" }
+        next_cursor: { type: [string, "null"] }
+    AssistantTurnAccepted:
+      type: object
+      additionalProperties: false
+      required: [turn, protocol_id, job]
+      properties:
+        turn: { $ref: "#/components/schemas/AssistantTurn" }
+        protocol_id: { type: string, format: uuid }
+        job: { $ref: "#/components/schemas/Job" }
+    Job:
+      description: |
+        A River job (ADR-0006) the SPA polls. `state` folds River's states: available/scheduled/retryable →
+        pending, running → running, completed → completed, discarded/cancelled → failed.
+      type: object
+      additionalProperties: false
+      required: [id, kind, state, protocol_id, attempt, max_attempts, created_at, finalized_at]
+      properties:
+        id: { type: integer, format: int64 }
+        kind: { type: string, enum: [governance.propose_draft, governance.render_print_copy] }
+        state: { type: string, enum: [pending, running, completed, failed] }
+        protocol_id: { type: string, format: uuid }
+        attempt: { type: integer, format: int32 }
+        max_attempts: { type: integer, format: int32 }
+        created_at: { type: string, format: date-time }
+        finalized_at: { type: [string, "null"], format: date-time }
+
+    # ── protocol aggregate ──
+    ProtocolRevisionInput:
+      type: object
+      additionalProperties: false
+      required: [protocol_revision]
+      properties:
+        protocol_revision:
+          description: The revision the request was built on (ADR-0009).
+          type: integer
+          format: int32
+          minimum: 1
+    AgendaItemFromCaseInput:
+      type: object
+      additionalProperties: false
+      required: [case_id]
+      properties:
+        case_id: { type: string, format: uuid }
+    TextFragment:
+      description: ADR-0011 — a plain text fragment, a slot placeholder, or a meeting fact.
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [text]
+          properties:
+            text: { type: string }
+        - type: object
+          additionalProperties: false
+          required: [slot]
+          properties:
+            slot: { type: string, format: uuid }
+        - type: object
+          additionalProperties: false
+          required: [meeting]
+          properties:
+            meeting: { type: string, enum: [date, chair, present] }
+    AgendaItemWordingInput:
+      type: object
+      additionalProperties: false
+      required: [protocol_revision, subject, fragments]
+      properties:
+        protocol_revision: { type: integer, format: int32, minimum: 1 }
+        subject:
+          description: Null allowed in a draft; refused at готовий до підпису (AC-04).
+          type: [string, "null"]
+          maxLength: 500
+        fragments:
+          type: array
+          items: { $ref: "#/components/schemas/TextFragment" }
+    SlotKind:
+      description: decision_slots.kind (AC-28 list).
+      type: string
+      enum: [amount, counterparty, funding_source, document_ref, date, term, person, votes, non_participation]
+    SlotStatus:
+      description: decision_slots.status — the AC-21 print gate reads it.
+      type: string
+      enum: [unconfirmed, confirmed, needs_review]
+    SlotOrigin:
+      type: string
+      enum: [ai, document, human]
+    SlotValueInput:
+      description: Only the fields of the slot's kind are set (checked in governance/domain).
+      type: object
+      additionalProperties: false
+      properties:
+        amount_kopiyky: { type: [integer, "null"], format: int64 }
+        currency:
+          oneOf:
+            - $ref: "#/components/schemas/Currency"
+            - type: "null"
+        text_value: { type: [string, "null"], maxLength: 500 }
+        date_value: { type: [string, "null"], format: date }
+        date_end_value: { type: [string, "null"], format: date }
+        person_member_id: { type: [string, "null"], format: uuid }
+        source_document_id: { type: [string, "null"], format: uuid }
+    SlotValue:
+      type: object
+      additionalProperties: false
+      required: [id, origin, amount_kopiyky, currency, text_value, date_value, date_end_value, person_member_id, source_document_id, source_fragment, assistant_turn_id, author_member_id, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        origin: { $ref: "#/components/schemas/SlotOrigin" }
+        amount_kopiyky: { type: [integer, "null"], format: int64 }
+        currency:
+          oneOf:
+            - $ref: "#/components/schemas/Currency"
+            - type: "null"
+        text_value: { type: [string, "null"], maxLength: 500 }
+        date_value: { type: [string, "null"], format: date }
+        date_end_value: { type: [string, "null"], format: date }
+        person_member_id: { type: [string, "null"], format: uuid }
+        source_document_id:
+          description: The case document version the value came from (AC-21, AC-09).
+          type: [string, "null"]
+          format: uuid
+        source_fragment:
+          description: Quoted fragment shown next to the value (AC-21).
+          type: [string, "null"]
+        assistant_turn_id: { type: [string, "null"], format: uuid }
+        author_member_id: { type: [string, "null"], format: uuid }
+        created_at: { type: string, format: date-time }
+    SlotConfirmation:
+      type: object
+      additionalProperties: false
+      required: [slot_value_id, protocol_revision, confirmed_by_member_id, created_at]
+      properties:
+        slot_value_id: { type: string, format: uuid }
+        protocol_revision: { type: integer, format: int32 }
+        confirmed_by_member_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+    DecisionSlot:
+      description: A слот рішення; `confirmation` is the latest one and is absent while the slot was never confirmed.
+      type: object
+      additionalProperties: false
+      required: [id, kind, status, values]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { $ref: "#/components/schemas/SlotKind" }
+        status: { $ref: "#/components/schemas/SlotStatus" }
+        values:
+          description: Every value, newest first — the proposal, alternatives from other documents (AC-22) and a new value beside a confirmed one (AC-28b, AC-09).
+          type: array
+          items: { $ref: "#/components/schemas/SlotValue" }
+        confirmation: { $ref: "#/components/schemas/SlotConfirmation" }
+    DecisionSlotInput:
+      type: object
+      additionalProperties: false
+      required: [protocol_revision, kind, value]
+      properties:
+        protocol_revision: { type: integer, format: int32, minimum: 1 }
+        kind: { $ref: "#/components/schemas/SlotKind" }
+        value: { $ref: "#/components/schemas/SlotValueInput" }
+    SlotConfirmationInput:
+      type: object
+      additionalProperties: false
+      required: [protocol_revision, slot_value_id]
+      properties:
+        protocol_revision: { type: integer, format: int32, minimum: 1 }
+        slot_value_id: { type: string, format: uuid }
+    SlotCorrectionInput:
+      type: object
+      additionalProperties: false
+      required: [protocol_revision, value]
+      properties:
+        protocol_revision: { type: integer, format: int32, minimum: 1 }
+        value: { $ref: "#/components/schemas/SlotValueInput" }
+    AgendaItem:
+      type: object
+      additionalProperties: false
+      required: [id, position, case_id, subject, fragments, wording_author_member_id, wording_revised_at, slots]
+      properties:
+        id: { type: string, format: uuid }
+        position: { type: integer, format: int32, minimum: 1, maximum: 32767 }
+        case_id: { type: [string, "null"], format: uuid }
+        subject: { type: [string, "null"], maxLength: 500 }
+        fragments:
+          type: array
+          items: { $ref: "#/components/schemas/TextFragment" }
+        wording_author_member_id:
+          description: Author of the current wording version; null = помічник протоколу (AC-29).
+          type: [string, "null"]
+          format: uuid
+        wording_revised_at: { type: string, format: date-time }
+        slots:
+          type: array
+          items: { $ref: "#/components/schemas/DecisionSlot" }
+    ProtocolTransition:
+      type: object
+      additionalProperties: false
+      required: [from_state, to_state, revision, actor_member_id, created_at]
+      properties:
+        from_state:
+          oneOf:
+            - $ref: "#/components/schemas/ProtocolState"
+            - type: "null"
+        to_state: { $ref: "#/components/schemas/ProtocolState" }
+        revision: { type: integer, format: int32 }
+        actor_member_id: { type: [string, "null"], format: uuid }
+        created_at: { type: string, format: date-time }
+    PollChoice:
+      type: string
+      enum: [for, against, abstain]
+    PollVoteInput:
+      type: object
+      additionalProperties: false
+      required: [agenda_item_id, board_member_id, choice]
+      properties:
+        agenda_item_id: { type: string, format: uuid }
+        board_member_id:
+          description: Must be the signed-in member (AC-05e).
+          type: string
+          format: uuid
+        choice: { $ref: "#/components/schemas/PollChoice" }
+    PollVote:
+      type: object
+      additionalProperties: false
+      required: [board_member_id, choice, created_at]
+      properties:
+        board_member_id: { type: string, format: uuid }
+        choice: { $ref: "#/components/schemas/PollChoice" }
+        created_at: { type: string, format: date-time }
+    PollTally:
+      type: object
+      additionalProperties: false
+      required: [for, against, abstain]
+      properties:
+        for: { type: integer, format: int32, minimum: 0 }
+        against: { type: integer, format: int32, minimum: 0 }
+        abstain: { type: integer, format: int32, minimum: 0 }
+    PollRoundItem:
+      type: object
+      additionalProperties: false
+      required: [agenda_item_id, tally, votes]
+      properties:
+        agenda_item_id: { type: string, format: uuid }
+        tally: { $ref: "#/components/schemas/PollTally" }
+        votes:
+          description: Latest vote of each member in this round.
+          type: array
+          items: { $ref: "#/components/schemas/PollVote" }
+    PollRound:
+      description: One round of the попереднє голосування; never a verdict on quorum, majority or adoption (AC-31, AC-41).
+      type: object
+      additionalProperties: false
+      required: [id, round_number, protocol_revision, label, opened_by_member_id, created_at, closed_at, closed_by_member_id, frozen_agenda_items, items]
+      properties:
+        id: { type: string, format: uuid }
+        round_number: { type: integer, format: int32, minimum: 1 }
+        protocol_revision: { type: integer, format: int32 }
+        label:
+          type: string
+          const: Попереднє внутрішнє опитування правління — не є голосуванням засідання і не замінює його
+        opened_by_member_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        closed_at: { type: [string, "null"], format: date-time }
+        closed_by_member_id: { type: [string, "null"], format: uuid }
+        frozen_agenda_items:
+          description: The wording and slot values the round was opened on (poll_rounds.frozen).
+          type: array
+          items: { $ref: "#/components/schemas/AgendaItem" }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/PollRoundItem" }
+    PrintCopy:
+      type: object
+      additionalProperties: false
+      required: [id, protocol_revision, number, file, requested_by_member_id, created_at, voided_at]
+      properties:
+        id: { type: string, format: uuid }
+        protocol_revision: { type: integer, format: int32 }
+        number: { type: integer, format: int32 }
+        file: { $ref: "#/components/schemas/FileRef" }
+        requested_by_member_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        voided_at:
+          description: Set when an edit voided the copy — it must not be signed (AC-14b).
+          type: [string, "null"]
+          format: date-time
+    Protocol:
+      description: The protocol aggregate in its current state (draft view).
+      type: object
+      additionalProperties: false
+      required: [id, meeting, state, revision, number, copied_from_protocol_id, created_by_member_id, created_at, roster_in_force, agenda_items, documents, poll_rounds, print_copies, transitions]
+      properties:
+        id: { type: string, format: uuid }
+        meeting: { $ref: "#/components/schemas/ProtocolMeeting" }
+        state: { $ref: "#/components/schemas/ProtocolState" }
+        revision: { type: integer, format: int32, minimum: 1 }
+        number:
+          description: Reserved at the first print copy, never cleared (ADR-0017).
+          type: [integer, "null"]
+          format: int32
+        copied_from_protocol_id: { type: [string, "null"], format: uuid }
+        created_by_member_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        roster_in_force:
+          description: Board members whose term covers the meeting date (AC-03).
+          type: array
+          items: { $ref: "#/components/schemas/BoardMember" }
+        agenda_items:
+          type: array
+          items: { $ref: "#/components/schemas/AgendaItem" }
+        documents:
+          description: Document versions of the справи behind the agenda items (AC-03).
+          type: array
+          items: { $ref: "#/components/schemas/CaseDocument" }
+        poll_rounds:
+          description: Every round, newest first; closed rounds are history and not counted (AC-05d).
+          type: array
+          items: { $ref: "#/components/schemas/PollRound" }
+        print_copies:
+          description: Every rendered copy, newest first; only a copy with voided_at null may be signed.
+          type: array
+          items: { $ref: "#/components/schemas/PrintCopy" }
+        transitions:
+          type: array
+          items: { $ref: "#/components/schemas/ProtocolTransition" }
+    ProtocolWithJob:
+      type: object
+      additionalProperties: false
+      required: [protocol, job]
+      properties:
+        protocol: { $ref: "#/components/schemas/Protocol" }
+        job: { $ref: "#/components/schemas/Job" }
+    ProtocolSummary:
+      type: object
+      additionalProperties: false
+      required: [id, meeting_id, meeting_date, state, revision, number, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        meeting_id: { type: string, format: uuid }
+        meeting_date: { type: string, format: date }
+        state: { $ref: "#/components/schemas/ProtocolState" }
+        revision: { type: integer, format: int32 }
+        number: { type: [integer, "null"], format: int32 }
+        created_at: { type: string, format: date-time }
+    ProtocolSummaryPage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ProtocolSummary" }
+        next_cursor: { type: [string, "null"] }
+
+    # ── signing ──
+    MeetingItemVotes:
+      type: object
+      additionalProperties: false
+      required: [agenda_item_id, votes_for, votes_against, votes_abstained]
+      properties:
+        agenda_item_id: { type: string, format: uuid }
+        votes_for: { type: integer, format: int32, minimum: 0, maximum: 32767 }
+        votes_against: { type: integer, format: int32, minimum: 0, maximum: 32767 }
+        votes_abstained: { type: integer, format: int32, minimum: 0, maximum: 32767 }
+    MeetingFactsInput:
+      description: Facts written on the signed paper; never pre-filled from the poll (AC-41, ADR-0018). Completeness is checked in the domain so every missing fact is named at once (AC-34).
+      type: object
+      additionalProperties: false
+      required: [present_member_ids, item_votes, has_handwritten_corrections]
+      properties:
+        present_member_ids:
+          description: Members present — a subset of the roster in force on the meeting date.
+          type: array
+          uniqueItems: true
+          items: { type: string, format: uuid }
+        item_votes:
+          description: One entry per agenda item.
+          type: array
+          items: { $ref: "#/components/schemas/MeetingItemVotes" }
+        has_handwritten_corrections: { type: boolean }
+        corrections_note:
+          description: Required when has_handwritten_corrections (AC-15).
+          type: [string, "null"]
+    SignedCopyUpload:
+      type: object
+      required: [print_copy_id, scan, meeting_facts]
+      properties:
+        print_copy_id:
+          description: The current (not voided) print copy that was signed.
+          type: string
+          format: uuid
+        scan:
+          description: PDF, JPEG or PNG by content, ≤ 20 MB.
+          type: string
+          contentMediaType: application/octet-stream
+        meeting_facts: { $ref: "#/components/schemas/MeetingFactsInput" }
+    MeetingFacts:
+      type: object
+      additionalProperties: false
+      required: [signed_scan, present_member_ids, item_votes, has_handwritten_corrections, corrections_note, entered_by_member_id, entered_at]
+      properties:
+        signed_scan: { $ref: "#/components/schemas/FileRef" }
+        present_member_ids:
+          type: array
+          items: { type: string, format: uuid }
+        item_votes:
+          type: array
+          items: { $ref: "#/components/schemas/MeetingItemVotes" }
+        has_handwritten_corrections: { type: boolean }
+        corrections_note:
+          description: Shown next to the frozen text; the signed paper prevails (AC-15).
+          type: [string, "null"]
+        entered_by_member_id: { type: string, format: uuid }
+        entered_at: { type: string, format: date-time }
+    WithdrawalInput:
+      type: object
+      additionalProperties: false
+      required: [protocol_revision, reason]
+      properties:
+        protocol_revision: { type: integer, format: int32, minimum: 1 }
+        reason:
+          description: Kept in the withdrawn snapshot (ADR-0007).
+          type: string
+          minLength: 1
+
+    # ── реєстр протоколів ──
+    SignedProtocol:
+      description: Read from the signed protocol_snapshots row (ADR-0007); nothing here changes after lock.
+      type: object
+      additionalProperties: false
+      required: [protocol_id, number, meeting_date, meeting, agenda_items, documents, print_copy, meeting_facts, poll_history, locked_by_member_id, locked_at]
+      properties:
+        protocol_id: { type: string, format: uuid }
+        number: { type: integer, format: int32 }
+        meeting_date: { type: string, format: date }
+        meeting: { $ref: "#/components/schemas/ProtocolMeeting" }
+        agenda_items:
+          description: Frozen text and slots with the document versions they were confirmed against.
+          type: array
+          items: { $ref: "#/components/schemas/AgendaItem" }
+        documents:
+          description: Cited case document versions.
+          type: array
+          items: { $ref: "#/components/schemas/CaseDocument" }
+        print_copy: { $ref: "#/components/schemas/PrintCopy" }
+        meeting_facts: { $ref: "#/components/schemas/MeetingFacts" }
+        poll_history:
+          description: The drafts' poll rounds as history, each labelled informal (AC-41).
+          type: array
+          items: { $ref: "#/components/schemas/PollRound" }
+        locked_by_member_id: { type: string, format: uuid }
+        locked_at: { type: string, format: date-time }
+    RegistryDecision:
+      description: registry_entries row — one decision (agenda item) of a signed protocol.
+      type: object
+      additionalProperties: false
+      required: [protocol_id, agenda_item_id, number, meeting_date, subject, counterparty, amount_kopiyky, currency]
+      properties:
+        protocol_id: { type: string, format: uuid }
+        agenda_item_id: { type: string, format: uuid }
+        number: { type: integer, format: int32 }
+        meeting_date: { type: string, format: date }
+        subject: { type: string, maxLength: 500 }
+        counterparty: { type: [string, "null"], maxLength: 500 }
+        amount_kopiyky: { type: [integer, "null"], format: int64 }
+        currency:
+          oneOf:
+            - $ref: "#/components/schemas/Currency"
+            - type: "null"
+    RegistryDecisionPage:
+      type: object
+      required: [items, withdrawn_numbers, next_cursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/RegistryDecision" }
+        withdrawn_numbers:
+          description: Numbers of знятий з розгляду protocols inside this page's number range — gaps marked «знято з розгляду».
+          type: array
+          items: { type: integer, format: int32 }
+        next_cursor: { type: [string, "null"] }

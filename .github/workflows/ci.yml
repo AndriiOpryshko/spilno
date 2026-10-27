@@ -72,6 +72,8 @@ jobs:
           --health-interval 2s --health-timeout 3s --health-retries 30
     steps:
       - uses: actions/checkout@v5
+      # Same as in web: go build stamps VCS info and needs git to trust the workspace.
+      - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - uses: actions/setup-go@v5
         with:
           go-version-file: services/core/go.mod

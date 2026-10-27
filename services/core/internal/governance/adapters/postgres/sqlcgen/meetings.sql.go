@@ -12,9 +12,9 @@ import (
 )
 
 const createMeeting = `-- name: CreateMeeting :one
-INSERT INTO meetings (title, kind, held_at, ends_at, location, quorum_required)
-VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, title, kind, held_at, ends_at, location, quorum_required, created_at, updated_at
+INSERT INTO meetings (title, kind, held_at, ends_at, location, quorum_required, association_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING id, title, kind, held_at, ends_at, location, quorum_required, created_at, updated_at, association_id
 `
 
 type CreateMeetingParams struct {
@@ -24,6 +24,7 @@ type CreateMeetingParams struct {
 	EndsAt         pgtype.Timestamptz
 	Location       pgtype.Text
 	QuorumRequired bool
+	AssociationID  pgtype.UUID
 }
 
 func (q *Queries) CreateMeeting(ctx context.Context, arg CreateMeetingParams) (Meeting, error) {
@@ -34,6 +35,7 @@ func (q *Queries) CreateMeeting(ctx context.Context, arg CreateMeetingParams) (M
 		arg.EndsAt,
 		arg.Location,
 		arg.QuorumRequired,
+		arg.AssociationID,
 	)
 	var i Meeting
 	err := row.Scan(
@@ -46,12 +48,13 @@ func (q *Queries) CreateMeeting(ctx context.Context, arg CreateMeetingParams) (M
 		&i.QuorumRequired,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.AssociationID,
 	)
 	return i, err
 }
 
 const getMeeting = `-- name: GetMeeting :one
-SELECT id, title, kind, held_at, ends_at, location, quorum_required, created_at, updated_at FROM meetings WHERE id = $1
+SELECT id, title, kind, held_at, ends_at, location, quorum_required, created_at, updated_at, association_id FROM meetings WHERE id = $1
 `
 
 func (q *Queries) GetMeeting(ctx context.Context, id pgtype.UUID) (Meeting, error) {
@@ -67,19 +70,22 @@ func (q *Queries) GetMeeting(ctx context.Context, id pgtype.UUID) (Meeting, erro
 		&i.QuorumRequired,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.AssociationID,
 	)
 	return i, err
 }
 
 const listMeetings = `-- name: ListMeetings :many
-SELECT id, title, kind, held_at, ends_at, location, quorum_required, created_at, updated_at FROM meetings
-WHERE $1::timestamptz IS NULL
-   OR (created_at, id) < ($1::timestamptz, $2::uuid)
+SELECT id, title, kind, held_at, ends_at, location, quorum_required, created_at, updated_at, association_id FROM meetings
+WHERE association_id = $1
+  AND ($2::timestamptz IS NULL
+   OR (created_at, id) < ($2::timestamptz, $3::uuid))
 ORDER BY created_at DESC, id DESC
-LIMIT $3
+LIMIT $4
 `
 
 type ListMeetingsParams struct {
+	AssociationID  pgtype.UUID
 	AfterCreatedAt pgtype.Timestamptz
 	AfterID        pgtype.UUID
 	RowLimit       int32
@@ -88,7 +94,12 @@ type ListMeetingsParams struct {
 // Pages newest first by the (created_at, id) keyset; a NULL after_created_at
 // starts from the top.
 func (q *Queries) ListMeetings(ctx context.Context, arg ListMeetingsParams) ([]Meeting, error) {
-	rows, err := q.db.Query(ctx, listMeetings, arg.AfterCreatedAt, arg.AfterID, arg.RowLimit)
+	rows, err := q.db.Query(ctx, listMeetings,
+		arg.AssociationID,
+		arg.AfterCreatedAt,
+		arg.AfterID,
+		arg.RowLimit,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -106,6 +117,7 @@ func (q *Queries) ListMeetings(ctx context.Context, arg ListMeetingsParams) ([]M
 			&i.QuorumRequired,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.AssociationID,
 		); err != nil {
 			return nil, err
 		}

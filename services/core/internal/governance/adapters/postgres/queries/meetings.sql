@@ -1,6 +1,6 @@
 -- name: CreateMeeting :one
-INSERT INTO meetings (title, kind, held_at, ends_at, location, quorum_required)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO meetings (title, kind, held_at, ends_at, location, quorum_required, association_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING *;
 
 -- name: GetMeeting :one
@@ -10,7 +10,8 @@ SELECT * FROM meetings WHERE id = $1;
 -- Pages newest first by the (created_at, id) keyset; a NULL after_created_at
 -- starts from the top.
 SELECT * FROM meetings
-WHERE sqlc.narg(after_created_at)::timestamptz IS NULL
-   OR (created_at, id) < (sqlc.narg(after_created_at)::timestamptz, sqlc.narg(after_id)::uuid)
+WHERE association_id = sqlc.arg(association_id)
+  AND (sqlc.narg(after_created_at)::timestamptz IS NULL
+   OR (created_at, id) < (sqlc.narg(after_created_at)::timestamptz, sqlc.narg(after_id)::uuid))
 ORDER BY created_at DESC, id DESC
 LIMIT sqlc.arg(row_limit);

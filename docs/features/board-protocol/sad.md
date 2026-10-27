@@ -558,6 +558,181 @@ sequenceDiagram
     end
 ```
 
+### Flow 12: Maintain association settings and roster — AC-42, AC-02
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as <user> член правління
+    participant UI as <ui>
+    participant S as <service>
+    participant D as <data-store>
+
+    Note over U,UI: Precondition: a signed-in current член правління (Flow 7)
+    U->>UI: Fills the meeting form, the signers and the register start number
+    UI->>S: Save association settings
+    S->>D: Read current settings and whether a protocol number was already issued
+    D-->>S: Settings, issued-number flag
+    alt Meeting form, signers or start number missing
+        S-->>UI: governance.settings_invalid naming every missing setting
+        UI-->>U: Every missing field marked at once
+    else Start number changed after the first number was issued
+        S-->>UI: governance.register_start_locked
+        UI-->>U: Start number can no longer change, other settings unchanged
+    else Valid
+        S->>D: Write settings with author and time
+        Note over S,D: persists association_settings (one row per association)
+        S-->>UI: Saved settings
+        UI-->>U: Settings saved, drafts may now be requested
+    end
+    U->>UI: Adds a person to the board roster with term and sign-in email
+    UI->>S: Save roster entry
+    alt Term start missing or term end before term start
+        S-->>UI: governance.roster_entry_invalid naming every broken field
+        UI-->>U: Every broken field marked at once
+    else Valid
+        S->>D: Write roster entry with author and time
+        Note over S,D: persists board_members (looked up by association and sign-in email, and by term covering a date)
+        S-->>UI: Roster with terms
+        UI-->>U: Roster shown, person can sign in while the term covers today
+    end
+    Note over U,UI: Postcondition: drafts show the roster in force on the meeting date, print copies carry the meeting form and signers
+```
+
+### Flow 13: Search the реєстр протоколів and open a decision — AC-18, AC-41, AC-15
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as <user> член правління
+    participant UI as <ui>
+    participant S as <service>
+    participant D as <data-store>
+    participant X as <external-system>
+
+    Note over U,UI: Precondition: a signed-in current член правління (Flow 7), signed protocols in the реєстр
+    U->>UI: Searches by counterparty, amount or amount range, subject or period
+    UI->>S: Search the реєстр with filters and a cursor
+    S->>D: Query signed snapshots of the association by the filters, newest first
+    Note over S,D: reads protocol_snapshots of kind signed by counterparty, amount, subject and meeting date (index hints)
+    D-->>S: Matching decisions and withdrawn numbers in the range
+    alt Filters invalid (range from above to, unknown period)
+        S-->>UI: governance.search_invalid naming every broken filter
+        UI-->>U: Broken filters marked
+    else No match
+        S-->>UI: Empty page
+        UI-->>U: Nothing found, filters kept
+    else Matches
+        S-->>UI: Page of decisions with number, date, subject, amount, counterparty, next cursor
+        UI-->>U: List, a withdrawn number shown as a gap marked знято з розгляду
+    end
+    U->>UI: Opens decision No 14
+    UI->>S: Get the signed protocol
+    S->>D: Read the signed snapshot and verify its fingerprint
+    D-->>S: Frozen text, slots with source versions, meeting facts, corrections note, poll rounds
+    S-->>UI: Decision with meeting facts and who entered them, corrections note beside the frozen text, poll history labelled informal
+    UI-->>U: Decision, poll shown as Попереднє внутрішнє опитування правління and not the meeting's vote
+    U->>UI: Downloads the signed scan or a cited document
+    UI->>S: Get the file
+    S->>X: Stream the pinned file revision
+    alt File unreachable
+        X-->>S: Error
+        S-->>UI: governance.storage_unavailable
+        UI-->>U: Try again later, the record itself stays readable
+    else Stored
+        X-->>S: File bytes
+        S-->>UI: File as an attachment, never rendered inline
+        UI-->>U: Download
+    end
+    Note over U,UI: Postcondition: nothing changes, the read is recorded with its author
+```
+
+### Coverage: US/AC → flows
+
+| ID | Realized by (§6 heading) | How | Note |
+|---|---|---|---|
+| US-01 | Flow 12, Flow 1 | flow | |
+| US-02 | Flow 1, Flow 4 | flow | |
+| US-03 | Flow 2, Flow 3 | flow | |
+| US-04 | Flow 1, Flow 3 | flow | |
+| US-05 | — | N/A | Stage 2 (blocking checks and overrides), PRD §1, §3 |
+| US-06 | Flow 4, Flow 5, Flow 6 | flow | |
+| US-07 | Flow 13, Flow 7 | flow | |
+| US-08 | — | N/A | Stage 2 (export for the ревізійна комісія), PRD §1, §3 |
+| US-09 | Flow 1 | flow | |
+| US-10 | — | N/A | Stage 2 (шаблони формулювання), PRD §1, §3 |
+| US-11 | — | N/A | Stage 2 (попередження and related чинні рішення), PRD §1, §3 |
+| US-12 | Flow 1, Flow 8 | flow | |
+| US-13 | Flow 9, Flow 6 | flow | |
+| AC-42 | Flow 12, Flow 1 | flow | Saving in Flow 12, refusal in Flow 1 `alt Settings missing` |
+| AC-02 | Flow 12 | branch | `alt Term start missing or term end before term start` |
+| AC-26 | Flow 1 | flow | |
+| AC-03 | Flow 1 | flow | Step «Load the draft» |
+| AC-03c | Flow 1 | flow | Transaction step «new agenda item on the meeting's existing draft» |
+| AC-29 | Flow 1 | branch | `alt Revision matches` |
+| AC-04 | Flow 4 | branch | `alt No agenda item or an item without a subject` |
+| AC-30 | Flow 2 | flow | |
+| AC-31 | Flow 2 | branch | `else Own vote` |
+| AC-41 | Flow 2, Flow 4, Flow 13 | flow | Informal label on the poll, no poll result on the print copy, poll history labelled in the реєстр |
+| AC-05d | Flow 3 | flow | |
+| AC-05e | Flow 2 | branch | `else Vote for another member` |
+| AC-32 | Flow 2, Flow 6 | branch | `alt Draft not готовий до голосування` |
+| AC-09 | Flow 3 | branch | `else A case document gets a newer version`, plus the nightly sha256 note |
+| AC-21 | Flow 1, Flow 4 | branch | `else A proposed slot is unconfirmed` (Flow 4) |
+| AC-22 | Flow 1 | branch | `alt Valid structured answer` — the amount choice rule runs inside the propose_draft validation, not drawn step by step |
+| AC-28 | Flow 1 | branch | `alt Valid structured answer` — fact validator turns facts in text into unconfirmed slots |
+| AC-28b | Flow 1 | branch | `alt Valid structured answer` — confirmed slots kept, new value stored beside them |
+| AC-14c | Flow 4 | branch | `else Ready` |
+| AC-33 | Flow 4 | branch | `else Ready` — open poll round closed, no poll result on the copy |
+| AC-14b | Flow 3 | flow | |
+| AC-14 | Flow 5 | branch | `else Valid` |
+| AC-34 | Flow 5 | branch | `else Members present or a vote count missing` |
+| AC-15 | Flow 5, Flow 13 | branch | `else Corrections reported without a note` (Flow 5), note shown beside the frozen text (Flow 13) |
+| AC-40 | Flow 5 | branch | `alt State is чернетка or готовий до голосування` |
+| AC-16 | Flow 7 | branch | `alt No term covers today` |
+| AC-17 | Flow 6 | branch | `alt State підписаний` |
+| AC-18 | Flow 13 | flow | |
+| AC-19 | Flow 7 | flow | |
+| AC-35 | Flow 9 | branch | `else чернетка, готовий до голосування or готовий до підпису` |
+| AC-36 | Flow 9 | branch | `else чернетка, готовий до голосування or готовий до підпису` — poll round closed and kept |
+| AC-37 | Flow 9 | branch | `else чернетка, готовий до голосування or готовий до підпису` — reserved No 14 kept |
+| AC-38 | Flow 9, Flow 6 | branch | `else State підписаний` (Flow 9) |
+| AC-39 | Flow 6 | branch | `else State знятий з розгляду` |
+| AC-01 | — | N/A | Stage 2 (effective-dated rules), PRD §5 Deferred |
+| AC-02b | — | N/A | Stage 2 (effective-dated rules), PRD §5 Deferred |
+| AC-02c | — | N/A | Stage 2 (quorum computation), PRD §5 Deferred |
+| AC-03b | — | N/A | Dropped 2026-10-25, replaced by AC-29 |
+| AC-05 | — | N/A | Stage 2 (quorum and majority), PRD §5 Deferred |
+| AC-05b | — | N/A | Stage 2 (quorum and majority), PRD §5 Deferred |
+| AC-05c | — | N/A | Stage 2 (blocking checks), PRD §5 Deferred |
+| AC-06 | — | N/A | Stage 2 (quorum and majority), PRD §5 Deferred |
+| AC-07 | — | N/A | Stage 2 (attendance and non-voting rules), PRD §5 Deferred |
+| AC-08 | — | N/A | Stage 2 (attendance and non-voting rules), PRD §5 Deferred |
+| AC-10 | — | N/A | Stage 2 (source of truth as a blocking rule), PRD §5 Deferred |
+| AC-11 | — | N/A | Stage 2 (blocking checks), PRD §5 Deferred |
+| AC-12 | — | N/A | Stage 2 (overrides), PRD §5 Deferred |
+| AC-12b | — | N/A | Stage 2 (overrides), PRD §5 Deferred |
+| AC-13 | — | N/A | Stage 2 (overrides), PRD §5 Deferred |
+| AC-14d | — | N/A | Stage 2, PRD §5 Deferred |
+| AC-17b | — | N/A | Stage 2, PRD §5 Deferred |
+| AC-17c | — | N/A | Stage 2, PRD §5 Deferred |
+| AC-20 | — | N/A | Stage 2, PRD §5 Deferred |
+| AC-23 | — | N/A | Stage 2, PRD §5 Deferred |
+| AC-23b | — | N/A | Stage 2, PRD §5 Deferred |
+| AC-24 | — | N/A | Stage 2, PRD §5 Deferred |
+| AC-25 | — | N/A | Stage 2, PRD §5 Deferred |
+| AC-25b | — | N/A | Stage 2, PRD §5 Deferred |
+| AC-27 | — | N/A | Stage 2, PRD §5 Deferred |
+
+Coverage: 13/13 user stories · 59/59 ACs — 29 non-runtime N/A.
+
+**Flags:**
+- Flows 1–11 were seeded by architecture-design with concrete participants (Web SPA, Core API, Postgres, Worker, Google Drive, Gemini API, Backup job) and bold labels instead of `###` headings; left untouched (additive run), so this table cites them as «Flow N». Flows 12–13 use the generic vocabulary.
+- §6 follows the lifecycle order, not §4: Flow 12 (US-01) is appended rather than moved to the top, to keep the existing blocks untouched.
+- New error codes not yet in §8: `governance.settings_invalid`, `governance.roster_entry_invalid`, `governance.search_invalid` — for api-forge and the §8 error-handling row.
+- Async flows (1, 4, 5, 9, 10) show idempotent job handlers and retries; the dead-letter is River's failed/discarded state (Flow 8), with no separate dead-letter queue — confirm against ADR-0006 if a retry or alert shape is needed per job kind.
+- Index hints for generate-data-model: `board_members` by (association, sign-in email) and by term covering a date; `protocol_snapshots` of kind `signed` by counterparty, amount, subject and meeting date, cursor over (created_at, id).
+
 ## 7. Deployment view
 
 One small virtual machine in the EU runs the whole system with docker compose, the same shape as `infra/compose.yaml` locally: `caddy` (TLS for the public HTTPS origin that OIDC needs, serves the built SPA, reverse-proxies `/api/*` to the API), `core-api` (1 replica), `worker` (1 replica, same image, different command, ADR-0001), `postgres:18.6` on a persistent volume, `backup` (nightly `pg_dump`, ADR-0016) and `otel-lgtm` (or a hosted Grafana stack with the same OTLP endpoint). Secrets live in an env file on the VM, readable only by the services: the OIDC client (ADR-0003), the AES-GCM key that encrypts the association Google account's refresh token (ADR-0005), the Gemini API key (ADR-0004), the session-cookie key, the backup encryption key and storage credentials (ADR-0016). Deploys are image pulls plus `docker compose up -d`; migrations run on API start (repo ADR 0004), and the worker starts after the API is healthy so River's schema exists.

@@ -8,6 +8,12 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type Association struct {
+	ID        pgtype.UUID
+	Name      string
+	CreatedAt pgtype.Timestamptz
+}
+
 type Contract struct {
 	ID           pgtype.UUID
 	Counterparty string
@@ -29,4 +35,5 @@ type Meeting struct {
 	QuorumRequired bool
 	CreatedAt      pgtype.Timestamptz
 	UpdatedAt      pgtype.Timestamptz
+	AssociationID  pgtype.UUID
 }

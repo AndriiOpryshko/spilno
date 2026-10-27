@@ -16,6 +16,10 @@ import (
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/ports"
 )
 
+// stage1Association is the one association of Stage 1 (ADR-0015), created by migration 00004.
+// Meetings are written and listed within it until sign-in brings the association from the session.
+var stage1Association = pgtype.UUID{Bytes: uuid.MustParse("00000000-0000-7000-8000-000000000001"), Valid: true}
+
 type Meetings struct {
 	q *sqlcgen.Queries
 }
@@ -34,6 +38,7 @@ func (s *Meetings) Create(ctx context.Context, f domain.MeetingFields) (domain.M
 		EndsAt:         timestamptzOf(f.EndsAt),
 		Location:       textOf(f.Location),
 		QuorumRequired: f.QuorumRequired,
+		AssociationID:  stage1Association,
 	})
 	if err != nil {
 		return domain.Meeting{}, err
@@ -54,7 +59,7 @@ func (s *Meetings) Get(ctx context.Context, id uuid.UUID) (domain.Meeting, error
 
 func (s *Meetings) List(ctx context.Context, after *ports.MeetingKey, limit int) ([]domain.Meeting, error) {
 	// limit is bounded by app.MaxPageSize, so it fits int32.
-	arg := sqlcgen.ListMeetingsParams{RowLimit: int32(limit)}
+	arg := sqlcgen.ListMeetingsParams{AssociationID: stage1Association, RowLimit: int32(limit)}
 	if after != nil {
 		arg.AfterCreatedAt = pgtype.Timestamptz{Time: after.CreatedAt, Valid: true}
 		arg.AfterID = pgtype.UUID{Bytes: after.ID, Valid: true}

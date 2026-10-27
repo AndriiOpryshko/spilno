@@ -1,0 +1,12 @@
+DROP INDEX IF EXISTS idx_slot_confirmations_confirmed_by;
+DROP INDEX IF EXISTS idx_slot_confirmations_value;
+DROP INDEX IF EXISTS idx_slot_confirmations_slot_created;
+DROP TABLE IF EXISTS slot_confirmations;
+DROP INDEX IF EXISTS idx_slot_values_author;
+DROP INDEX IF EXISTS idx_slot_values_assistant_turn;
+DROP INDEX IF EXISTS idx_slot_values_person;
+DROP INDEX IF EXISTS idx_slot_values_source_document;
+DROP INDEX IF EXISTS idx_slot_values_slot_created;
+DROP TABLE IF EXISTS slot_values;
+DROP INDEX IF EXISTS idx_decision_slots_agenda_item_id;
+DROP TABLE IF EXISTS decision_slots;

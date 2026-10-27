@@ -44,7 +44,7 @@ Design references:
 
 - Figma file: https://www.figma.com/design/D06IijJnLn8WEgU85fnD84
 - approved direction and explored variants: https://www.figma.com/design/D06IijJnLn8WEgU85fnD84?node-id=11-2
-- current screenshot (prototype before redesign): design/screenshots/protocol-before-desktop.png, design/screenshots/protocol-before-mobile.png
+- current screenshot (prototype before redesign): docs/design/screenshots/protocol-before-desktop.png, docs/design/screenshots/protocol-before-mobile.png
 - desktop frame: https://www.figma.com/design/D06IijJnLn8WEgU85fnD84?node-id=23-137
 - mobile frame: https://www.figma.com/design/D06IijJnLn8WEgU85fnD84?node-id=23-420
 - states frame: https://www.figma.com/design/D06IijJnLn8WEgU85fnD84?node-id=23-650
@@ -56,5 +56,5 @@ Done:
 - the approved design is implemented in `apps/web/src/features/governance/protocol-screen.tsx` and `slot-row.tsx`;
 - the Keep behaviour works, `governance.test.ts` stays green;
 - `pnpm --filter @spilno/web lint`, `typecheck`, `test` pass;
-- desktop and mobile checked in the browser (design/screenshots/protocol-after-*.png);
+- desktop and mobile checked in the browser (docs/design/screenshots/protocol-after-*.png);
 - diff layers: new values land in theme variables, the screen is composed from existing components, data enters through the props listed above.

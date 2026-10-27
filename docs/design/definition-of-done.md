@@ -8,7 +8,7 @@
 - [ ] Потрібні states показані або позначені N/A.
 - [ ] Design затверджений людиною до implementation.
 - [ ] Реалізація знаходиться у чинному screen, не в окремій demo-route.
-- [ ] Поведінка з `design/brief.md` не зламана.
+- [ ] Поведінка з `docs/design/brief.md` не зламана.
 - [ ] Project typecheck/lint/tests/build проходять настільки, наскільки вони існують у repo.
 - [ ] Desktop і mobile перевірені у browser.
 - [ ] `git diff --stat` містить лише очікуваний scope.

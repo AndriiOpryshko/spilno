@@ -198,7 +198,7 @@ Queries: "ОСББ сервіс протокол засідання правлі
 
 ## 17. Repo reference
 - **Bounded context**: new `governance`; the prototype already expects it (`apps/web/src/features/governance/api.ts` stands in for `@/api/gen/endpoints/governance/governance`). Only `system` exists on the server (`services/core/internal/system/`).
-- **Adjacent modules**: `apps/web/src/features/governance/` — `types.ts` (`CaseStatus`, `DocumentKind` offer/invoice/contract/act, `SlotOrigin` system/ai/human, warning tiers at `types.ts:58`), `protocol-screen.tsx`, `slot-row.tsx`, `readiness.ts`, `validation.ts`; print via `window.print()` at `readiness-card.tsx:54`; routes `cases.index.tsx`, `cases.$caseId.protocol.tsx`; `design/protocol-brief.md`. Conventions: ADR 0002 (context layout, depguard), 0003 (one OpenAPI spec, tag per context), 0004 (goose, sqlc per context). No server-side upload, rendering or AI yet — new nodes for architecture ADRs.
+- **Adjacent modules**: `apps/web/src/features/governance/` — `types.ts` (`CaseStatus`, `DocumentKind` offer/invoice/contract/act, `SlotOrigin` system/ai/human, warning tiers at `types.ts:58`), `protocol-screen.tsx`, `slot-row.tsx`, `readiness.ts`, `validation.ts`; print via `window.print()` at `readiness-card.tsx:54`; routes `cases.index.tsx`, `cases.$caseId.protocol.tsx`; `docs/design/protocol-brief.md`. Conventions: ADR 0002 (context layout, depguard), 0003 (one OpenAPI spec, tag per context), 0004 (goose, sqlc per context). No server-side upload, rendering or AI yet — new nodes for architecture ADRs.
 - **Sentinel error seeds**: no domain sentinel convention yet (`fmt.Errorf` wrapping; problem+json in `services/core/internal/platform/httpapi/problem.go`). Seeds: `governance.quorum_missing`, `governance.outside_board_competence`, `governance.amount_mismatch`, `governance.amount_unconfirmed`, `governance.source_not_found`, `governance.reference_stale`, `governance.version_immutable`.
 
 ## 18. Legal and competence check
@@ -208,7 +208,7 @@ Queries: "ОСББ сервіс протокол засідання правлі
 - **What happens if this is wrong**: a decision over the limit or in a form the charter does not allow can be voided and re-voted at the general meeting; a wrong amount or share leads to a dispute with the management company or between buildings.
 
 ## Related
-- CONTEXT.md (canonical glossary); idea-brief.md (other skill, kept for comparison); design/protocol-brief.md
+- CONTEXT.md (canonical glossary); idea-brief.md (other skill, kept for comparison); docs/design/protocol-brief.md
 
 ## DoD self-check
 - [x] 18 sections present

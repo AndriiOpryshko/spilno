@@ -1,25 +1,25 @@
-import type { ProtocolDraft } from './types';
+import type { ProtocolDraft, ProtocolSlot, ProtocolWarning } from './types';
 
 export interface Readiness {
   ready: boolean;
   total: number;
   verified: number;
-  blockingWarnings: number;
-  unresolvedSlots: number;
+  // Values the помічник proposed that nobody confirmed yet: the only Stage 1 gate (AC-06).
+  blockingSlots: ProtocolSlot[];
+  // Tier-3 checks are Stage 2 blocking checks; in Stage 1 they stay visible and never block.
+  advisoryWarnings: ProtocolWarning[];
 }
 
-// Printing is blocked by tier-3 checks and by any slot a human has not confirmed yet.
-// Tier-2 warnings are advisory and never block.
+export const isUnconfirmedAi = (s: ProtocolSlot) => s.origin === 'ai' && s.status !== 'verified';
+
+// Marking готовий до підпису and printing wait only for unconfirmed AI-proposed values (BR-11).
 export function getReadiness(draft: ProtocolDraft): Readiness {
-  const blockingWarnings = draft.warnings.filter((w) => w.tier === 3).length;
-  const unresolvedSlots = draft.slots.filter((s) => s.status !== 'verified').length;
-  const blockedSlots = new Set(draft.warnings.filter((w) => w.tier === 3).map((w) => w.slotId));
-  const verified = draft.slots.filter((s) => s.status === 'verified' && !blockedSlots.has(s.id)).length;
+  const blockingSlots = draft.slots.filter(isUnconfirmedAi);
   return {
-    ready: blockingWarnings === 0 && unresolvedSlots === 0,
+    ready: blockingSlots.length === 0,
     total: draft.slots.length,
-    verified,
-    blockingWarnings,
-    unresolvedSlots,
+    verified: draft.slots.filter((s) => s.status === 'verified').length,
+    blockingSlots,
+    advisoryWarnings: draft.warnings.filter((w) => w.tier === 3),
   };
 }

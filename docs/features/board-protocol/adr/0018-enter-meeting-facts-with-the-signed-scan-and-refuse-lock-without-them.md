@@ -10,6 +10,8 @@ ticket: ""
 
 # 0018 — Enter the meeting facts with the signed scan and refuse the lock without them
 
+> Amended 2026-10-28 (capstone retro): one corrections note per signed copy, not per correction, to match the contract and the data model.
+
 - **Status:** Accepted
 - **Date:** 2026-10-25
 - **Deciders:** Andrii Opryshko (Architect), with Claude during the Stage 1 rescope
@@ -36,7 +38,7 @@ Blast-radius gate: irreversible (the facts are frozen into every locked snapshot
 
 ## Decision outcome
 
-**Chosen:** Option 1. One multipart request carries the scan and the facts: members present (a subset of the roster in force on the meeting's Europe/Kyiv date), for each agenda item the counts for, against and abstained, the handwritten-corrections flag and, when set, a note per correction. The API validates the state (AC-40), the term (AC-16) and the facts first and names every missing fact at once (`governance.meeting_facts_missing`, `governance.correction_note_required`); only then streams the scan to Drive and, in one transaction, stores the scan metadata, the facts with who entered them and when, builds the snapshot and sets `підписаний`. The form starts empty — nothing is copied from the poll. The system checks neither quorum nor majority nor who signed (AC-14).
+**Chosen:** Option 1. One multipart request carries the scan and the facts: members present (a subset of the roster in force on the meeting's Europe/Kyiv date), for each agenda item the counts for, against and abstained, the handwritten-corrections flag and, when set, one note describing the corrections on the whole signed copy (as `SignedCopyUpload.corrections_note` in contracts/openapi.yaml and `meeting_facts.corrections_note` in data-model.md). The API validates the state (AC-40), the term (AC-16) and the facts first and names every missing fact at once (`governance.meeting_facts_missing`, `governance.correction_note_required`); only then streams the scan to Drive and, in one transaction, stores the scan metadata, the facts with who entered them and when, builds the snapshot and sets `підписаний`. The form starts empty — nothing is copied from the poll. The system checks neither quorum nor majority nor who signed (AC-14).
 
 ## Consequences
 

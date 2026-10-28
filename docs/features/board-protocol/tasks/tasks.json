@@ -1,0 +1,980 @@
+{
+  "slug": "board-protocol",
+  "tasks": [
+    {
+      "id": "T01",
+      "title": "Promote the identity migrations: accounts, sessions, google_connections",
+      "layer": "migration",
+      "deps": [],
+      "acs": [
+        "AC-19",
+        "AC-16"
+      ],
+      "dod": "The three identity migrations are live goose files that apply, revert and re-apply cleanly in `mise run test`.",
+      "files_hint": [
+        "docs/features/board-protocol/migrations/20261027120002_create_accounts.up.sql",
+        "docs/features/board-protocol/migrations/20261027120002_create_accounts.down.sql",
+        "docs/features/board-protocol/migrations/20261027120003_create_sessions.up.sql",
+        "docs/features/board-protocol/migrations/20261027120003_create_sessions.down.sql",
+        "docs/features/board-protocol/migrations/20261027120004_create_google_connections.up.sql",
+        "docs/features/board-protocol/migrations/20261027120004_create_google_connections.down.sql"
+      ]
+    },
+    {
+      "id": "T02",
+      "title": "Promote the roster, settings and meetings-chair migrations",
+      "layer": "migration",
+      "deps": [
+        "T01"
+      ],
+      "acs": [
+        "AC-42",
+        "AC-02"
+      ],
+      "dod": "board_members, association_settings, protocol_registers and meetings.chair_board_member_id with its index are live and roundtrip cleanly.",
+      "files_hint": [
+        "docs/features/board-protocol/migrations/20261027120005_create_board_members.up.sql",
+        "docs/features/board-protocol/migrations/20261027120005_create_board_members.down.sql",
+        "docs/features/board-protocol/migrations/20261027120006_create_association_settings.up.sql",
+        "docs/features/board-protocol/migrations/20261027120006_create_association_settings.down.sql",
+        "docs/features/board-protocol/migrations/20261027120007_add_association_and_chair_to_meetings.up.sql",
+        "docs/features/board-protocol/migrations/20261027120007_add_association_and_chair_to_meetings.down.sql",
+        "docs/features/board-protocol/migrations/20261027120011_create_idx_meetings_chair.up.sql",
+        "docs/features/board-protocol/migrations/20261027120011_create_idx_meetings_chair.down.sql"
+      ]
+    },
+    {
+      "id": "T03",
+      "title": "Promote the case, protocol, agenda-item and decision-slot migrations",
+      "layer": "migration",
+      "deps": [
+        "T02"
+      ],
+      "acs": [
+        "AC-26",
+        "AC-03",
+        "AC-03c",
+        "AC-21",
+        "AC-29"
+      ],
+      "dod": "files, cases, case_documents, protocols, protocol_transitions, agenda_items(+versions) and decision_slots(+values, confirmations) are live and roundtrip cleanly.",
+      "files_hint": [
+        "docs/features/board-protocol/migrations/20261027120012_create_cases.up.sql",
+        "docs/features/board-protocol/migrations/20261027120012_create_cases.down.sql",
+        "docs/features/board-protocol/migrations/20261027120013_create_protocols.up.sql",
+        "docs/features/board-protocol/migrations/20261027120013_create_protocols.down.sql",
+        "docs/features/board-protocol/migrations/20261027120014_create_agenda_items.up.sql",
+        "docs/features/board-protocol/migrations/20261027120014_create_agenda_items.down.sql",
+        "docs/features/board-protocol/migrations/20261027120016_create_decision_slots.up.sql",
+        "docs/features/board-protocol/migrations/20261027120016_create_decision_slots.down.sql"
+      ]
+    },
+    {
+      "id": "T04",
+      "title": "Promote the assistant-turn and poll migrations and add the River schema",
+      "layer": "migration",
+      "deps": [
+        "T03"
+      ],
+      "acs": [
+        "AC-26",
+        "AC-30",
+        "AC-31"
+      ],
+      "dod": "assistant_turns, poll_rounds, poll_votes and River's schema (as one goose file from the pinned River version) are live and roundtrip cleanly.",
+      "files_hint": [
+        "docs/features/board-protocol/migrations/20261027120015_create_assistant_turns.up.sql",
+        "docs/features/board-protocol/migrations/20261027120015_create_assistant_turns.down.sql",
+        "docs/features/board-protocol/migrations/20261027120017_create_poll_rounds.up.sql",
+        "docs/features/board-protocol/migrations/20261027120017_create_poll_rounds.down.sql",
+        "services/core/go.mod"
+      ]
+    },
+    {
+      "id": "T05",
+      "title": "Promote the print-copy, meeting-facts, snapshot, trigger and integrity-run migrations",
+      "layer": "migration",
+      "deps": [
+        "T04"
+      ],
+      "acs": [
+        "AC-14c",
+        "AC-14",
+        "AC-15",
+        "AC-17"
+      ],
+      "dod": "print_copies, meeting_facts, protocol_snapshots, registry_entries, the no-update/no-delete triggers and integrity_runs are live; an integration test proves UPDATE/DELETE on a snapshot and DELETE on a protocol are rejected.",
+      "files_hint": [
+        "docs/features/board-protocol/migrations/20261027120018_create_print_copies.up.sql",
+        "docs/features/board-protocol/migrations/20261027120018_create_print_copies.down.sql",
+        "docs/features/board-protocol/migrations/20261027120019_create_meeting_facts.up.sql",
+        "docs/features/board-protocol/migrations/20261027120019_create_meeting_facts.down.sql",
+        "docs/features/board-protocol/migrations/20261027120020_create_protocol_snapshots.up.sql",
+        "docs/features/board-protocol/migrations/20261027120020_create_protocol_snapshots.down.sql",
+        "docs/features/board-protocol/migrations/20261027120021_create_protocol_immutability_triggers.up.sql",
+        "docs/features/board-protocol/migrations/20261027120021_create_protocol_immutability_triggers.down.sql",
+        "docs/features/board-protocol/migrations/20261027120022_create_integrity_runs.up.sql",
+        "docs/features/board-protocol/migrations/20261027120022_create_integrity_runs.down.sql"
+      ]
+    },
+    {
+      "id": "T06",
+      "title": "Add the problem `code` member to httpapi with a governance error registry",
+      "layer": "infra",
+      "deps": [],
+      "acs": [
+        "AC-02",
+        "AC-42"
+      ],
+      "dod": "httpapi writes the `code` extension member (`<context>.<error_name>`) with `type: about:blank` for registered domain errors, exactly as contracts/openapi.yaml `Problem`; validator 422s keep no `code`; a unit test checks every contract code has one registry entry.",
+      "files_hint": [
+        "services/core/internal/platform/httpapi/",
+        "services/core/internal/governance/domain/errors.go"
+      ]
+    },
+    {
+      "id": "T07",
+      "title": "Merge the contract delta, add the identity context skeleton and regenerate server and client",
+      "layer": "wiring",
+      "deps": [],
+      "acs": [
+        "AC-19"
+      ],
+      "dod": "`mise run gen` and `mise run gen:check` pass with the merged delta; every new operation answers a 501 problem from a stub; `mise run lint` and `mise run test` stay green.",
+      "files_hint": [
+        "services/core/api/openapi.yaml",
+        "services/core/internal/identity/module.go",
+        "services/core/internal/identity/adapters/http/",
+        "services/core/internal/governance/adapters/http/",
+        "services/core/sqlc.yaml",
+        "services/core/.golangci.yml",
+        "services/core/cmd/api/main.go",
+        "apps/web/src/api/gen/"
+      ]
+    },
+    {
+      "id": "T08",
+      "title": "Sign in with Google OIDC and keep sessions in Postgres",
+      "layer": "app",
+      "deps": [
+        "T01",
+        "T06",
+        "T07"
+      ],
+      "acs": [
+        "AC-19",
+        "AC-16"
+      ],
+      "dod": "startSignIn / completeSignIn / signOut / getSession work against a fake OIDC provider in integration tests, the session is an HttpOnly cookie backed by a `sessions` row, and a test asserts the dev sign-in shim is off in the production config.",
+      "files_hint": [
+        "services/core/internal/identity/domain/",
+        "services/core/internal/identity/app/",
+        "services/core/internal/identity/ports/",
+        "services/core/internal/identity/adapters/postgres/",
+        "services/core/internal/identity/adapters/oidc/",
+        "services/core/internal/identity/adapters/http/handlers.go",
+        "services/core/internal/platform/config/"
+      ]
+    },
+    {
+      "id": "T09",
+      "title": "Model association settings and roster entries with all-fields validation",
+      "layer": "domain",
+      "deps": [],
+      "acs": [
+        "AC-42",
+        "AC-02"
+      ],
+      "dod": "Unit tests prove a roster entry without a term start or with an end before the start is rejected naming every broken field, and settings report every missing value (meeting form, signers, register start) at once.",
+      "files_hint": [
+        "services/core/internal/governance/domain/settings.go",
+        "services/core/internal/governance/domain/board_member.go",
+        "services/core/internal/governance/domain/settings_test.go",
+        "services/core/internal/governance/domain/board_member_test.go"
+      ]
+    },
+    {
+      "id": "T10",
+      "title": "Serve settings and roster: use cases, Postgres repositories, handlers and CurrentMember",
+      "layer": "ports",
+      "deps": [
+        "T02",
+        "T06",
+        "T07",
+        "T09"
+      ],
+      "acs": [
+        "AC-42",
+        "AC-02"
+      ],
+      "dod": "Handler tests show getAssociationSettings / saveAssociationSettings / list/create/updateBoardMember return the contract shapes, 422 `governance.settings_invalid` / `governance.roster_entry_invalid` name every field (AC-02), and 409 `governance.register_start_locked` after the first number.",
+      "files_hint": [
+        "services/core/internal/governance/app/settings.go",
+        "services/core/internal/governance/app/roster.go",
+        "services/core/internal/governance/adapters/postgres/settings.go",
+        "services/core/internal/governance/adapters/postgres/board_members.go",
+        "services/core/internal/governance/adapters/postgres/queries/settings.sql",
+        "services/core/internal/governance/adapters/postgres/queries/board_members.sql",
+        "services/core/internal/governance/adapters/http/settings.go",
+        "services/core/internal/governance/adapters/http/board_members.go",
+        "services/core/internal/governance/module.go"
+      ]
+    },
+    {
+      "id": "T11",
+      "title": "Require a session and a current член правління on the governance and finance routes",
+      "layer": "wiring",
+      "deps": [
+        "T08",
+        "T10"
+      ],
+      "acs": [
+        "AC-19",
+        "AC-16"
+      ],
+      "dod": "Integration tests show no session → 401 `identity.session_required`, an ended or never-held term → 403 `identity.not_current_member` with the same body for an existing and a missing id, `/system/health` stays public and the existing e2e smoke passes.",
+      "files_hint": [
+        "services/core/cmd/api/main.go",
+        "services/core/internal/identity/adapters/http/middleware.go",
+        "services/core/internal/platform/httpapi/principal.go",
+        "services/core/internal/governance/meetings_test.go",
+        "services/core/internal/finance/"
+      ]
+    },
+    {
+      "id": "T12",
+      "title": "Store the association's Google connection and expose GoogleTokenSource",
+      "layer": "infra",
+      "deps": [
+        "T01",
+        "T07"
+      ],
+      "acs": [
+        "AC-26",
+        "AC-14"
+      ],
+      "dod": "A unit test round-trips the refresh token through AES-GCM, an integration test stores and reads a connection, and `GoogleTokenSource(ctx, association)` returns a token source built from it.",
+      "files_hint": [
+        "services/core/internal/identity/adapters/postgres/google_connections.go",
+        "services/core/internal/identity/adapters/postgres/queries/google_connections.sql",
+        "services/core/internal/identity/app/google.go",
+        "services/core/internal/platform/google/",
+        "services/core/cmd/google-connect/"
+      ]
+    },
+    {
+      "id": "T13",
+      "title": "Implement the Drive Files adapter with sha256 checks and an in-memory fake",
+      "layer": "infra",
+      "deps": [
+        "T12"
+      ],
+      "acs": [
+        "AC-26",
+        "AC-14",
+        "AC-17"
+      ],
+      "dod": "The `Files` port (upload, stream, sha256, set read-only, untrash) has a Drive adapter and an in-memory fake that pass the same contract test; the Drive adapter compares its computed sha256 with Drive's.",
+      "files_hint": [
+        "services/core/internal/governance/ports/files.go",
+        "services/core/internal/governance/adapters/gdrive/"
+      ]
+    },
+    {
+      "id": "T14",
+      "title": "Wire the River client, the cmd/worker binary and the job status endpoints",
+      "layer": "wiring",
+      "deps": [
+        "T04",
+        "T07",
+        "T11"
+      ],
+      "acs": [
+        "AC-26",
+        "AC-14c"
+      ],
+      "dod": "A job enqueued in the caller's transaction is run by `cmd/worker` in an integration test, a rolled-back transaction leaves no job, and getJob / retryJob return the contract shapes.",
+      "files_hint": [
+        "services/core/internal/platform/jobs/",
+        "services/core/cmd/worker/main.go",
+        "mprocs.yaml",
+        "services/core/internal/governance/ports/jobs.go",
+        "services/core/internal/governance/module.go",
+        "services/core/internal/governance/adapters/http/jobs.go",
+        "services/core/internal/governance/jobs/"
+      ]
+    },
+    {
+      "id": "T15",
+      "title": "Model the protocol lifecycle: states, revision, transitions and refusals",
+      "layer": "domain",
+      "deps": [],
+      "acs": [
+        "AC-05d",
+        "AC-14b",
+        "AC-17",
+        "AC-32",
+        "AC-35",
+        "AC-36",
+        "AC-37",
+        "AC-38",
+        "AC-39",
+        "AC-40"
+      ],
+      "dod": "Table-driven unit tests cover every allowed and refused transition of the Stage 1 state machine, revision bumps and the stale-revision conflict.",
+      "files_hint": [
+        "services/core/internal/governance/domain/protocol.go",
+        "services/core/internal/governance/domain/protocol_test.go"
+      ]
+    },
+    {
+      "id": "T16",
+      "title": "Model agenda items and слоти рішення: confirm, correct, needs review and readiness",
+      "layer": "domain",
+      "deps": [
+        "T15"
+      ],
+      "acs": [
+        "AC-04",
+        "AC-21",
+        "AC-28b",
+        "AC-09",
+        "AC-29",
+        "AC-03c"
+      ],
+      "dod": "Unit tests prove a proposed slot stays unconfirmed until a person confirms or corrects it, a later value never overwrites a confirmed one (stored beside it, needs review), a newer document version marks citing slots for review, and readiness lists every missing agenda part and unconfirmed slot.",
+      "files_hint": [
+        "services/core/internal/governance/domain/agenda_item.go",
+        "services/core/internal/governance/domain/slot.go",
+        "services/core/internal/governance/domain/readiness.go",
+        "services/core/internal/governance/domain/slot_test.go",
+        "services/core/internal/governance/domain/readiness_test.go"
+      ]
+    },
+    {
+      "id": "T17",
+      "title": "Add text fragments, the fact validator and the amount recommendation rule",
+      "layer": "domain",
+      "deps": [
+        "T16"
+      ],
+      "acs": [
+        "AC-28",
+        "AC-22",
+        "AC-21",
+        "AC-28b"
+      ],
+      "dod": "Unit tests prove an amount, date, document reference, name or count written by the assistant in plain text becomes a new unconfirmed slot, a person-typed fact is only highlighted, and the amount rule picks the latest-dated full-cost document per AC-22 while listing the alternatives.",
+      "files_hint": [
+        "services/core/internal/governance/domain/text.go",
+        "services/core/internal/governance/domain/factcheck.go",
+        "services/core/internal/governance/domain/proposal.go",
+        "services/core/internal/governance/domain/factcheck_test.go",
+        "services/core/internal/governance/domain/proposal_test.go"
+      ]
+    },
+    {
+      "id": "T18",
+      "title": "Model poll rounds and the own-vote rule",
+      "layer": "domain",
+      "deps": [
+        "T15"
+      ],
+      "acs": [
+        "AC-30",
+        "AC-31",
+        "AC-05e",
+        "AC-32",
+        "AC-41",
+        "AC-05d"
+      ],
+      "dod": "Unit tests prove a round freezes the wording at its revision, a member casts and changes only their own vote, voting is refused unless готовий до голосування, a closed round keeps its votes uncounted, and the tally carries no quorum or adoption verdict.",
+      "files_hint": [
+        "services/core/internal/governance/domain/poll.go",
+        "services/core/internal/governance/domain/poll_test.go"
+      ]
+    },
+    {
+      "id": "T19",
+      "title": "Model meeting facts and the canonical fingerprinted snapshot",
+      "layer": "domain",
+      "deps": [
+        "T16",
+        "T18"
+      ],
+      "acs": [
+        "AC-14",
+        "AC-34",
+        "AC-15",
+        "AC-17"
+      ],
+      "dod": "Unit tests prove the lock refuses missing members present or a missing vote count per item naming all of them, requires a correction note when corrections are reported, and the canonical snapshot form yields a stable SHA-256 fingerprint for equal input.",
+      "files_hint": [
+        "services/core/internal/governance/domain/meeting_facts.go",
+        "services/core/internal/governance/domain/snapshot.go",
+        "services/core/internal/governance/domain/snapshot_test.go"
+      ]
+    },
+    {
+      "id": "T20",
+      "title": "Persist the protocol aggregate with a revision guard",
+      "layer": "infra",
+      "deps": [
+        "T03",
+        "T16"
+      ],
+      "acs": [
+        "AC-29",
+        "AC-05d",
+        "AC-03"
+      ],
+      "dod": "Integration tests on `testdb.New(t)` save and load a protocol with agenda items, slots, values and confirmations, reject a write with a stale revision as `governance.draft_revision_conflict`, record each transition and never return another association's rows.",
+      "files_hint": [
+        "services/core/internal/governance/adapters/postgres/protocols.go",
+        "services/core/internal/governance/adapters/postgres/queries/protocols.sql",
+        "services/core/internal/governance/adapters/postgres/queries/agenda_items.sql",
+        "services/core/internal/governance/adapters/postgres/queries/slots.sql",
+        "services/core/internal/governance/ports/protocols.go"
+      ]
+    },
+    {
+      "id": "T21",
+      "title": "Serve cases: create, list, open, add document versions and download files",
+      "layer": "ports",
+      "deps": [
+        "T03",
+        "T11",
+        "T13"
+      ],
+      "acs": [
+        "AC-19",
+        "AC-26",
+        "AC-09"
+      ],
+      "dod": "Handler tests show listCases / createCase / getCase / addCaseDocument / downloadFile return the contract shapes, uploads over 20 MB or outside PDF/JPEG/PNG get 422 `governance.file_invalid`, Drive failure gives 503 `governance.storage_unavailable`, and downloads are `Content-Disposition: attachment` with no Drive id on the wire.",
+      "files_hint": [
+        "services/core/internal/governance/domain/case.go",
+        "services/core/internal/governance/app/cases.go",
+        "services/core/internal/governance/adapters/postgres/cases.go",
+        "services/core/internal/governance/adapters/postgres/queries/cases.sql",
+        "services/core/internal/governance/adapters/http/cases.go",
+        "services/core/internal/governance/adapters/http/files.go"
+      ]
+    },
+    {
+      "id": "T22",
+      "title": "Open a draft for a meeting from a case, get and list protocols",
+      "layer": "ports",
+      "deps": [
+        "T10",
+        "T20",
+        "T21"
+      ],
+      "acs": [
+        "AC-42",
+        "AC-03",
+        "AC-03c",
+        "AC-04"
+      ],
+      "dod": "Handler tests show addAgendaItemFromCase opens a draft or adds the справа as a new item to the meeting's existing draft (AC-03c), refuses with 409 `governance.settings_missing` naming every missing setting (AC-42), and getProtocol shows meeting date, roster in force, case documents and items (AC-03).",
+      "files_hint": [
+        "services/core/internal/governance/app/drafts.go",
+        "services/core/internal/governance/adapters/http/protocols.go",
+        "services/core/internal/governance/adapters/http/agenda_items.go"
+      ]
+    },
+    {
+      "id": "T23",
+      "title": "Edit wording and слоти рішення: save wording, add, confirm and correct slots",
+      "layer": "ports",
+      "deps": [
+        "T17",
+        "T22"
+      ],
+      "acs": [
+        "AC-29",
+        "AC-21",
+        "AC-28b",
+        "AC-09",
+        "AC-05d",
+        "AC-14b"
+      ],
+      "dod": "Handler tests show saveAgendaItemWording keeps author and time for any current член правління (AC-29), confirm/correctDecisionSlot record person and time, any edit on готовий до голосування or готовий до підпису returns the draft to чернетка (AC-05d, AC-14b), and a newer case document marks citing slots needs_review (AC-09).",
+      "files_hint": [
+        "services/core/internal/governance/app/editing.go",
+        "services/core/internal/governance/adapters/http/wording.go",
+        "services/core/internal/governance/adapters/http/slots.go"
+      ]
+    },
+    {
+      "id": "T24",
+      "title": "Implement the Gemini TextModel adapter as the only importer of the SDK",
+      "layer": "infra",
+      "deps": [
+        "T07",
+        "T17"
+      ],
+      "acs": [
+        "AC-26",
+        "AC-21",
+        "AC-22"
+      ],
+      "dod": "A unit test maps a recorded structured Gemini answer into a domain proposal (slot values with fragment and document version, text fragments), malformed answers are an error, and the `gemini-sdk-in-adapter` depguard rule fails lint for any other importer.",
+      "files_hint": [
+        "services/core/internal/governance/ports/textmodel.go",
+        "services/core/internal/governance/adapters/gemini/",
+        "services/core/.golangci.yml",
+        "services/core/go.mod"
+      ]
+    },
+    {
+      "id": "T25",
+      "title": "Take conversation turns and propose a draft in the propose_draft job",
+      "layer": "app",
+      "deps": [
+        "T04",
+        "T14",
+        "T23",
+        "T24"
+      ],
+      "acs": [
+        "AC-26",
+        "AC-21",
+        "AC-22",
+        "AC-28",
+        "AC-28b",
+        "AC-03c"
+      ],
+      "dod": "With the fake TextModel and Files, createAssistantTurn returns a job, the propose_draft handler fills the draft's slots as unconfirmed with fragments and document links (AC-26, AC-21), keeps confirmed slots (AC-28b), is idempotent on retry, and listAssistantTurns returns the conversation.",
+      "files_hint": [
+        "services/core/internal/governance/app/assistant.go",
+        "services/core/internal/governance/jobs/propose_draft.go",
+        "services/core/internal/governance/adapters/postgres/assistant_turns.go",
+        "services/core/internal/governance/adapters/postgres/queries/assistant_turns.sql",
+        "services/core/internal/governance/adapters/http/assistant_turns.go"
+      ]
+    },
+    {
+      "id": "T26",
+      "title": "Start the попереднє голосування, cast own votes and return to draft",
+      "layer": "ports",
+      "deps": [
+        "T04",
+        "T18",
+        "T22"
+      ],
+      "acs": [
+        "AC-30",
+        "AC-31",
+        "AC-41",
+        "AC-05d",
+        "AC-05e",
+        "AC-32"
+      ],
+      "dod": "Handler tests show startPollRound freezes round N (AC-30), castPollVote accepts only the caller's vote (403 `governance.vote_on_behalf`, AC-05e) and only while готовий до голосування (409 `governance.poll_not_open`, AC-32), the tally has no verdict and carries the informal label (AC-31, AC-41), and returnProtocolToDraft closes the round (AC-05d).",
+      "files_hint": [
+        "services/core/internal/governance/app/poll.go",
+        "services/core/internal/governance/adapters/postgres/poll.go",
+        "services/core/internal/governance/adapters/postgres/queries/poll.sql",
+        "services/core/internal/governance/adapters/http/poll.go",
+        "services/core/internal/governance/adapters/http/return_to_draft.go"
+      ]
+    },
+    {
+      "id": "T27",
+      "title": "Render the print copy from a pinned Google Docs template, with a fake Renderer",
+      "layer": "infra",
+      "deps": [
+        "T12"
+      ],
+      "acs": [
+        "AC-14c",
+        "AC-41",
+        "AC-42"
+      ],
+      "dod": "A unit test checks the Docs batchUpdate requests fill the frozen text, meeting date, meeting form, signers and number and leave blank fields for members present and vote counts with no poll result, and a fake Renderer produces a deterministic PDF for tests.",
+      "files_hint": [
+        "services/core/internal/governance/ports/renderer.go",
+        "services/core/internal/governance/adapters/gdocs/"
+      ]
+    },
+    {
+      "id": "T28",
+      "title": "Mark ready for signing: reserve the number and render the print copy in a job",
+      "layer": "ports",
+      "deps": [
+        "T05",
+        "T14",
+        "T23",
+        "T26",
+        "T27"
+      ],
+      "acs": [
+        "AC-04",
+        "AC-21",
+        "AC-14c",
+        "AC-33",
+        "AC-14b",
+        "AC-41",
+        "AC-42"
+      ],
+      "dod": "Handler and job tests show markProtocolReadyForSigning refuses an incomplete agenda or unconfirmed slot naming all (AC-04, AC-21), otherwise freezes the text, takes the next register number once (concurrent calls give no duplicates), closes an open round (AC-33) and renders the copy; a return to draft voids the copy and keeps the number (AC-14b).",
+      "files_hint": [
+        "services/core/internal/governance/app/printing.go",
+        "services/core/internal/governance/jobs/render_print_copy.go",
+        "services/core/internal/governance/adapters/postgres/print_copies.go",
+        "services/core/internal/governance/adapters/postgres/queries/print_copies.sql",
+        "services/core/internal/governance/adapters/postgres/queries/protocol_registers.sql",
+        "services/core/internal/governance/adapters/http/ready_for_signing.go"
+      ]
+    },
+    {
+      "id": "T29",
+      "title": "Lock with the signed scan and meeting facts, and apply Drive restrictions",
+      "layer": "ports",
+      "deps": [
+        "T19",
+        "T28"
+      ],
+      "acs": [
+        "AC-14",
+        "AC-34",
+        "AC-15",
+        "AC-40",
+        "AC-16",
+        "AC-17",
+        "AC-41"
+      ],
+      "dod": "Handler tests show lockProtocolWithSignedCopy locks only from готовий до підпису (AC-40), refuses missing facts naming all (AC-34) or corrections without a note (AC-15), records author and time, writes one `signed` snapshot with fingerprint in the same tx and enqueues apply_drive_restrictions; any later change gets 409 `governance.protocol_locked` (AC-17).",
+      "files_hint": [
+        "services/core/internal/governance/app/signing.go",
+        "services/core/internal/governance/adapters/postgres/meeting_facts.go",
+        "services/core/internal/governance/adapters/postgres/snapshots.go",
+        "services/core/internal/governance/adapters/postgres/queries/meeting_facts.sql",
+        "services/core/internal/governance/adapters/postgres/queries/snapshots.sql",
+        "services/core/internal/governance/adapters/http/signed_copy.go",
+        "services/core/internal/governance/jobs/apply_drive_restrictions.go"
+      ]
+    },
+    {
+      "id": "T30",
+      "title": "Withdraw a protocol with a reason and copy a withdrawn draft",
+      "layer": "ports",
+      "deps": [
+        "T29"
+      ],
+      "acs": [
+        "AC-35",
+        "AC-36",
+        "AC-37",
+        "AC-38",
+        "AC-39"
+      ],
+      "dod": "Handler tests show withdrawProtocol from чернетка, готовий до голосування or готовий до підпису writes a `withdrawn` snapshot with the reason and keeps справи, versions, rounds and any number (AC-35–37), refuses a locked protocol (AC-38) and a missing reason (`governance.reason_required`), and copyWithdrawnProtocol starts a new draft from a withdrawn one (AC-39).",
+      "files_hint": [
+        "services/core/internal/governance/app/withdrawal.go",
+        "services/core/internal/governance/adapters/http/withdrawal.go",
+        "services/core/internal/governance/adapters/http/copy.go"
+      ]
+    },
+    {
+      "id": "T31",
+      "title": "Search the реєстр протоколів and open a signed protocol",
+      "layer": "ports",
+      "deps": [
+        "T29"
+      ],
+      "acs": [
+        "AC-18",
+        "AC-41",
+        "AC-15",
+        "AC-19"
+      ],
+      "dod": "Integration tests over 30 seeded signed protocols show searchRegistry filters by counterparty, exact amount or range, subject and date period with cursor pages, and getSignedProtocol returns the signed copy link, meeting facts, cited documents, correction note and poll history labelled informal.",
+      "files_hint": [
+        "services/core/internal/governance/app/registry.go",
+        "services/core/internal/governance/adapters/postgres/registry.go",
+        "services/core/internal/governance/adapters/postgres/queries/registry.sql",
+        "services/core/internal/governance/adapters/http/registry.go"
+      ]
+    },
+    {
+      "id": "T32",
+      "title": "Run the nightly integrity check of snapshots and clean up orphan files",
+      "layer": "app",
+      "deps": [
+        "T14",
+        "T29",
+        "T30"
+      ],
+      "acs": [
+        "AC-17"
+      ],
+      "dod": "Job tests with the fake Files show the nightly run recomputes every signed and withdrawn fingerprint and pinned-file sha256, records an integrity run with findings, untrashes a trashed file and logs an alert on any mismatch.",
+      "files_hint": [
+        "services/core/internal/governance/jobs/verify_protocol_snapshots.go",
+        "services/core/internal/governance/jobs/remove_orphan_file.go",
+        "services/core/internal/governance/adapters/postgres/integrity_runs.go",
+        "services/core/internal/governance/adapters/postgres/queries/integrity_runs.sql"
+      ]
+    },
+    {
+      "id": "T33",
+      "title": "Back up Postgres nightly off the VM and write the restore-drill runbook",
+      "layer": "infra",
+      "deps": [],
+      "acs": [],
+      "dod": "A script dumps the database with `pg_dump`, encrypts it with `age` and pushes it off-site; a local run against the dev database restores into a fresh container and the runbook records that drill.",
+      "files_hint": [
+        "infra/backup/",
+        "docs/runbooks/backup-restore.md"
+      ],
+      "nfr": [
+        "PRD §6 Durability (RPO ≤ 24 h, RTO ≤ 4 h)",
+        "QG-8",
+        "ADR-0016"
+      ]
+    },
+    {
+      "id": "T34",
+      "title": "Add the sign-in page, the session guard and 401/403 handling",
+      "layer": "ui",
+      "deps": [
+        "T07"
+      ],
+      "acs": [
+        "AC-19",
+        "AC-16"
+      ],
+      "dod": "Component tests show an unauthenticated visit redirects to the sign-in page, a 403 `identity.not_current_member` shows a no-access screen that reveals no record, and stories for both states pass the a11y check.",
+      "files_hint": [
+        "apps/web/src/routes/sign-in.tsx",
+        "apps/web/src/routes/__root.tsx",
+        "apps/web/src/api/fetch.ts",
+        "apps/web/src/i18n/uk.ts"
+      ]
+    },
+    {
+      "id": "T35",
+      "title": "Build the association settings and roster screens",
+      "layer": "ui",
+      "deps": [
+        "T07"
+      ],
+      "acs": [
+        "AC-42",
+        "AC-02"
+      ],
+      "dod": "Component tests show the settings form and the roster form render every 422 `errors[]` entry next to its field at once (AC-02), the register start field is read-only after `register_start_locked`, and stories pass the a11y check.",
+      "files_hint": [
+        "apps/web/src/routes/settings.association.tsx",
+        "apps/web/src/routes/settings.roster.tsx",
+        "apps/web/src/features/governance/settings/"
+      ]
+    },
+    {
+      "id": "T36",
+      "title": "Move the cases list and case screen to generated hooks with document upload",
+      "layer": "ui",
+      "deps": [
+        "T07"
+      ],
+      "acs": [
+        "AC-26",
+        "AC-09"
+      ],
+      "dod": "Component tests show the case list and case screen load from listCases / getCase, uploading a document (or a newer version) calls addCaseDocument and shows `governance.file_invalid` inline, and stories pass the a11y check.",
+      "files_hint": [
+        "apps/web/src/features/governance/cases-screen.tsx",
+        "apps/web/src/routes/cases.index.tsx",
+        "apps/web/src/routes/cases.$caseId.index.tsx",
+        "apps/web/src/features/governance/case-documents.tsx"
+      ]
+    },
+    {
+      "id": "T37",
+      "title": "Move the protocol screen to generated hooks: agenda, slots and revision conflicts",
+      "layer": "ui",
+      "deps": [
+        "T07"
+      ],
+      "acs": [
+        "AC-03",
+        "AC-03c",
+        "AC-21",
+        "AC-28b",
+        "AC-09",
+        "AC-29",
+        "AC-04"
+      ],
+      "dod": "Component tests show the screen renders meeting date, roster in force, documents and agenda items from getProtocol, confirm/correct slot call the API with `protocol_revision`, a 409 `draft_revision_conflict` reloads with a notice, and a slot with an alternative value shows both (AC-28b).",
+      "files_hint": [
+        "apps/web/src/features/governance/protocol-screen.tsx",
+        "apps/web/src/features/governance/slot-row.tsx",
+        "apps/web/src/features/governance/api.ts",
+        "apps/web/src/features/governance/mock-data.ts",
+        "apps/web/src/features/governance/types.ts",
+        "apps/web/src/routes/protocols.$protocolId.tsx",
+        "apps/web/src/routes/cases.$caseId.protocol.tsx"
+      ]
+    },
+    {
+      "id": "T38",
+      "title": "Build the decision text editor with slot chips and highlighted typed facts",
+      "layer": "ui",
+      "deps": [
+        "T37"
+      ],
+      "acs": [
+        "AC-29",
+        "AC-28"
+      ],
+      "dod": "Component tests show the editor renders fragments with slot chips, saving calls saveAgendaItemWording, a typed number is highlighted with an offer to make it a slot (not blocked), and its stories pass the a11y check.",
+      "files_hint": [
+        "apps/web/src/features/governance/decision-text-editor.tsx",
+        "apps/web/src/features/governance/decision-text-editor.stories.tsx",
+        "apps/web/src/features/governance/protocol-screen.tsx"
+      ]
+    },
+    {
+      "id": "T39",
+      "title": "Add the помічник протоколу conversation panel with job polling",
+      "layer": "ui",
+      "deps": [
+        "T38"
+      ],
+      "acs": [
+        "AC-26",
+        "AC-03c"
+      ],
+      "dod": "Component tests show sending a request with attached documents calls createAssistantTurn, the panel polls getJob every ~2 s until it settles and then refetches the protocol, a failed job offers retryJob, and stories pass the a11y check.",
+      "files_hint": [
+        "apps/web/src/features/governance/assistant-panel.tsx",
+        "apps/web/src/features/governance/assistant-panel.stories.tsx",
+        "apps/web/src/features/governance/protocol-screen.tsx"
+      ]
+    },
+    {
+      "id": "T40",
+      "title": "Make the попереднє голосування live: start, own vote, tally, informal label, return to draft",
+      "layer": "ui",
+      "deps": [
+        "T39"
+      ],
+      "acs": [
+        "AC-30",
+        "AC-31",
+        "AC-41",
+        "AC-05d",
+        "AC-05e",
+        "AC-32"
+      ],
+      "dod": "Component tests show start poll, cast and change own vote, the tally with members and times, the exact informal label of AC-41 on every poll view, polling of other members' votes, and «повернути в чернетку» closing the round.",
+      "files_hint": [
+        "apps/web/src/features/governance/poll-round-panel.tsx",
+        "apps/web/src/features/governance/transition-actions.tsx",
+        "apps/web/src/features/governance/lifecycle.ts",
+        "apps/web/src/features/governance/protocol-screen.tsx"
+      ]
+    },
+    {
+      "id": "T41",
+      "title": "Wire printing and withdrawal: ready for signing, job polling, void warning, withdraw and copy",
+      "layer": "ui",
+      "deps": [
+        "T40"
+      ],
+      "acs": [
+        "AC-14c",
+        "AC-33",
+        "AC-14b",
+        "AC-04",
+        "AC-21",
+        "AC-35",
+        "AC-36",
+        "AC-37",
+        "AC-39"
+      ],
+      "dod": "Component tests show the print action lists every blocker at once (AC-04, AC-21), otherwise polls the render job and offers the PDF with its number, a return to draft warns that earlier copies must not be signed (AC-14b), withdraw requires a reason, and a withdrawn draft offers «copy as new draft» (AC-39).",
+      "files_hint": [
+        "apps/web/src/features/governance/readiness-card.tsx",
+        "apps/web/src/features/governance/transition-actions.tsx",
+        "apps/web/src/features/governance/withdraw-dialog.tsx",
+        "apps/web/src/features/governance/protocol-screen.tsx"
+      ]
+    },
+    {
+      "id": "T42",
+      "title": "Build the signed-scan upload with the meeting facts form",
+      "layer": "ui",
+      "deps": [
+        "T41"
+      ],
+      "acs": [
+        "AC-14",
+        "AC-34",
+        "AC-15",
+        "AC-40",
+        "AC-41"
+      ],
+      "dod": "Component tests show the form takes the scan, members present, a vote count per agenda item and the corrections flag with a required note, shows every missing fact at once (AC-34), is never pre-filled from the poll (AC-41), and is offered only in готовий до підпису (AC-40).",
+      "files_hint": [
+        "apps/web/src/features/governance/signed-copy-form.tsx",
+        "apps/web/src/features/governance/signed-copy-form.stories.tsx",
+        "apps/web/src/features/governance/protocol-screen.tsx"
+      ]
+    },
+    {
+      "id": "T43",
+      "title": "Build the реєстр протоколів search and the signed protocol view",
+      "layer": "ui",
+      "deps": [
+        "T07"
+      ],
+      "acs": [
+        "AC-18",
+        "AC-41",
+        "AC-15"
+      ],
+      "dod": "Component tests show search by counterparty, amount or range, subject and date period with cursor paging, and the signed view shows the signed copy, meeting facts, cited documents, the correction note beside the frozen text and poll history labelled informal.",
+      "files_hint": [
+        "apps/web/src/routes/registry.index.tsx",
+        "apps/web/src/routes/registry.$protocolId.tsx",
+        "apps/web/src/features/governance/registry/"
+      ]
+    },
+    {
+      "id": "T44",
+      "title": "Prove the flow end to end: draft to registry through the UI with fake Google and Gemini",
+      "layer": "tests",
+      "deps": [
+        "T25",
+        "T28",
+        "T29",
+        "T30",
+        "T31",
+        "T32",
+        "T34",
+        "T35",
+        "T36",
+        "T42",
+        "T43"
+      ],
+      "acs": [
+        "AC-26",
+        "AC-30",
+        "AC-14c",
+        "AC-14",
+        "AC-18",
+        "AC-19",
+        "AC-35"
+      ],
+      "dod": "`mise run e2e` signs in with the dev shim, fills settings, opens a case, gets a proposed draft, confirms slots, polls, prints, uploads the signed scan, finds the protocol in the registry, withdraws a second draft, and a signed-out visit is refused.",
+      "files_hint": [
+        "apps/web/e2e/board-protocol.spec.ts",
+        "services/core/internal/platform/config/",
+        "mprocs.yaml"
+      ]
+    }
+  ]
+}

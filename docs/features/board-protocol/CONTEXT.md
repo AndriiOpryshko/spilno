@@ -1,6 +1,6 @@
 ---
 status: Living
-updated_at: "2026-10-24"
+updated_at: "2026-10-28"
 ---
 
 # Domain Context — board-protocol
@@ -13,7 +13,8 @@ behaviour lives in PRD.md.
 
 Terms get fixed inline, the moment they surface in an interview / PRD / review — never
 batched «I'll consolidate later». Empty H2 → prune before commit; keep only the sections
-that carry real content. ## Glossary is mandatory; the other two are optional.
+that carry real content. Sections: Glossary · Invariants · Sentinel errors · Org-filter invariant ·
+Out of scope (capstone layout, 2026-10-28).
 -->
 
 ## Glossary
@@ -51,3 +52,55 @@ that carry real content. ## Glossary is mandatory; the other two are optional.
 - раунд опитування — one run of попереднє голосування on one frozen version of the wording; a return to чернетка closes it, and only the latest round is shown as current. NOT the meeting's vote.
 - друкована копія — the PDF rendered from the frozen text when a draft becomes готовий до підпису, printed and signed on paper; voided by any later edit. NOT the signed scan (the uploaded photo or scan of the signed paper).
 - підписаний — the final state of a protocol after the signed scan and the meeting facts (attendance, vote counts per item, note of handwritten corrections) are uploaded; the protocol is then immutable and changes only through a new referencing protocol. NOT готовий до підпису.
+
+## Invariants
+
+<!-- Rules above any single AC: «X always must / can never». Each names the decision that owns it. -->
+- A підписаний protocol can never change: its text, meeting facts and signed scan are frozen; a correction is always a new protocol that references it (ADR-0007, AC-17).
+- A protocol can never be deleted, in any state; знятий з розгляду is its terminal record, not a removal (ADR-0007, AC-35).
+- A protocol number, once printed on a друкована копія, is never reused or cleared — not by a return to чернетка, not by withdrawal; the реєстр протоколів may have gaps (ADR-0017, AC-14b, AC-37).
+- A protocol can never become підписаний without meeting facts: members present and a vote count for every agenda item, plus a note when the paper carries handwritten corrections (ADR-0018, AC-34).
+- A друкована копія can never be issued while a value proposed by the помічник протоколу is unconfirmed by a person (AC-21, BR-11 of docs/design/design-spec.md).
+- The попереднє голосування is always informal: it never counts as the meeting's vote and never pre-fills the meeting facts (AC-41).
+- Any edit returns the draft to чернетка: an open раунд опитування closes (its votes stay in history and are not counted) and an issued друкована копія becomes void (AC-05d, AC-14b).
+- Only a current член правління — a person whose term covers today — can read or change anything of the association (ADR-0003, AC-19).
+
+## Sentinel errors
+
+<!-- The domain refusals a caller can meet, one canonical code each (<context>.<error_name>). The code is
+     the contract: the same string in the domain, the problem response and the UI copy. -->
+- `identity.session_required` — nobody is signed in (AC-19).
+- `identity.not_current_member` — the signed-in person is not a current член правління; the same answer for an existing and a missing record (ADR-0003, AC-19).
+- `governance.settings_missing` — association settings (meeting form, signers, register start) are not filled, so no draft can start (AC-42).
+- `governance.settings_invalid` / `governance.roster_entry_invalid` — a settings or roster value breaks a rule (AC-42, AC-02).
+- `governance.register_start_locked` — the register start number changes after a number was issued (ADR-0017).
+- `governance.draft_revision_conflict` — a write against a stale draft revision (ADR-0009, AC-29).
+- `governance.transition_not_allowed` — a lifecycle move the current state does not allow, e.g. withdrawing a signed protocol or copying into a meeting with an open draft (AC-38, AC-39; sad.md §6 Flow 6).
+- `governance.protocol_locked` — any change to a підписаний protocol (AC-17, AC-32; sad.md §6 Flow 6).
+- `governance.poll_not_open` / `governance.vote_on_behalf` — a vote outside готовий до голосування, or for another member (AC-32, AC-05e).
+- `governance.slot_unconfirmed` / `governance.draft_incomplete` — printing with an unconfirmed помічник value or an incomplete draft (AC-21, AC-04; sad.md §6 Flow 4).
+- `governance.not_ready_for_signing` — uploading the signed copy while the protocol is not готовий до підпису or against a voided print copy (AC-40; sad.md §6 Flow 5).
+- `governance.meeting_facts_missing` / `governance.correction_note_required` — a lock without meeting facts, or without the handwritten-corrections note (ADR-0018, AC-34, AC-15).
+- `governance.reason_required` — withdrawal without a reason (AC-35).
+- `governance.file_invalid` / `governance.storage_unavailable` — a file outside type/size limits (PRD §6, 20 MB PDF/JPEG/PNG), or file storage down during an upload (sad.md §6 Flows 5 and 8).
+- `governance.search_invalid` — a registry search the rules reject (AC-18).
+
+## Org-filter invariant
+
+<!-- The tenancy rule every read and write obeys. -->
+- Every record of this feature belongs to exactly one association (ОСББ) and is read and written only within it: each owned record carries its association, and every query filters by the caller's association explicitly — there is no implicit, database-level scoping (ADR-0015).
+- Stage 1 has a single association, but the filter is still mandatory on every new query, so a second association never sees the first one's cases, protocols, files or roster.
+- Records of another association answer as missing (not found), never as forbidden, so their existence is not revealed (ADR-0003, ADR-0015).
+- Records of other bounded contexts (finance contracts, identity accounts) are referenced by id only, never joined across contexts (repo ADR 0002).
+
+## Out of scope
+
+<!-- Placed outside this domain for Stage 1, with the reason — see PRD.md §3 and the Stage 2 list. -->
+- Blocking charter checks and their override (quorum, majority, competence limit, meeting form) · moved to Stage 2 by the product owner on 2026-10-25; Stage 1 shows tier-3 checks as advice only.
+- Reading the signed scan with the помічник · Stage 2; meeting facts are entered by a person from the paper.
+- Export package for the ревізійна комісія · Stage 2.
+- Cross-check of amounts with finance contracts in force, and the джерело коштів link to a finance contract · Stage 2; finance is untouched in Stage 1.
+- Effective-dated charter rules and building shares · Stage 2; Stage 1 keeps only the current settings.
+- More than one association, invitations and row-level security · not needed for one ОСББ; the org filter keeps the door open (ADR-0015).
+- Qualified electronic signature · a later release; Stage 1 signs on paper.
+

@@ -4,9 +4,10 @@ import { expect, within } from 'storybook/test';
 import { protocols } from './mock-data';
 import { ReadinessCard } from './readiness-card';
 
-// Figma: 02 Components / ReadinessCard (Ready=No, Ready=Yes).
+// Figma: 02 Components / ReadinessCard (Ready=No, Ready=Yes). Only unconfirmed AI values block (BR-11).
 const blocked = structuredClone(protocols['c-101']!);
-const ready = { ...structuredClone(blocked), warnings: [], slots: blocked.slots.map((s) => ({ ...s, status: 'verified' as const })) };
+const confirmed = { ...structuredClone(blocked), slots: blocked.slots.map((s) => ({ ...s, status: 'verified' as const })) };
+const ready = { ...confirmed, warnings: [] };
 
 const meta = {
   title: 'Governance/ReadinessCard',
@@ -21,8 +22,20 @@ export const Blocked: Story = {
   args: { draft: blocked },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText('2 / 5')).toBeVisible();
-    await expect(canvas.getByRole('button', { name: 'Надрукувати протокол' })).toBeDisabled();
+    await expect(canvas.getByText('3 / 5')).toBeVisible();
+    await expect(canvas.getByText('Підрядник: уточніть значення')).toBeVisible();
+    await expect(canvas.getByText('Джерело коштів: не вказано')).toBeVisible();
+    await expect(canvas.getByText(/Сума договору: потрібне рішення зборів/)).toBeVisible();
+  },
+};
+
+// A tier-3 charter check alone is advisory: the AI values are confirmed, nothing blocks.
+export const AdvisoryOnly: Story = {
+  args: { draft: confirmed },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText('Усі значення помічника підтверджено')).toBeVisible();
+    await expect(canvas.getByText(/потрібне рішення зборів \(порада\)/)).toBeVisible();
   },
 };
 
@@ -31,6 +44,6 @@ export const Ready: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText('Усі поля перевірено')).toBeVisible();
-    await expect(canvas.getByRole('button', { name: 'Надрукувати протокол' })).toBeEnabled();
+    await expect(canvas.queryByRole('button')).not.toBeInTheDocument();
   },
 };

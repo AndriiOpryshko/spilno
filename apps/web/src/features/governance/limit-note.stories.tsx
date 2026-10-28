@@ -14,7 +14,8 @@ type Story = StoryObj<typeof meta>;
 
 const ruleRef = { title: 'Статут, п. 9.4', fragment: 'Правління ухвалює рішення щодо договорів до 150 000 грн' };
 
-export const Blocking: Story = {
+// Tier 3 is a Stage 2 blocking check; in Stage 1 it renders as advisory like tier 2.
+export const CharterLimit: Story = {
   args: {
     warning: { id: 'w-1', tier: 3, slotId: 's-amount', ruleRef, title: 'Рішення за загальними зборами', message: 'Ліміт правління — 150 000 грн (Статут, п. 9.4). Винесіть питання на збори або зменште суму.' },
   },

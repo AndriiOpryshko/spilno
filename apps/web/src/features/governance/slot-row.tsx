@@ -20,15 +20,19 @@ interface SlotRowProps {
   slot: ProtocolSlot;
   warnings: ProtocolWarning[];
   onSaved: () => void;
+  // Outside чернетка the text is frozen: no field, no hints, no Save (BR-09, BR-10, BR-13).
+  readOnly?: boolean;
 }
 
 // One protocol slot (SlotRow in Figma): label column + value column on desktop, stacked on mobile.
-export function SlotRow({ caseId, slot, warnings, onSaved }: SlotRowProps) {
+export function SlotRow({ caseId, slot, warnings, onSaved, readOnly = false }: SlotRowProps) {
   const queryClient = useQueryClient();
   const fieldId = useId();
-  const [value, setValue] = useState(slot.value);
+  const [draftValue, setValue] = useState(slot.value);
+  const value = readOnly ? slot.value : draftValue;
+  const editable = slot.editable && !readOnly;
   const dirty = value !== slot.value;
-  const hint = slot.editable && (dirty || slot.status !== 'verified') ? validateSlot(slot, value) : null;
+  const hint = editable && (dirty || slot.status !== 'verified') ? validateSlot(slot, value) : null;
 
   const save = useMutation({
     mutationFn: () => updateSlot(caseId, slot.id, value),
@@ -71,7 +75,7 @@ export function SlotRow({ caseId, slot, warnings, onSaved }: SlotRowProps) {
       <div className="min-w-0 space-y-3">
         {slot.amount ? (
           <AmountValue uah={slot.amount.uah} inWords={slot.amount.inWords} />
-        ) : slot.editable ? (
+        ) : editable ? (
           <Textarea
             id={fieldId}
             value={value}
@@ -86,8 +90,8 @@ export function SlotRow({ caseId, slot, warnings, onSaved }: SlotRowProps) {
             )}
           />
         ) : (
-          <p id={fieldId} className="text-[15px] leading-[22px]">
-            {slot.value}
+          <p id={fieldId} className={cn('text-[15px] leading-[22px]', !slot.value.trim() && 'text-muted-foreground')}>
+            {slot.value.trim() ? slot.value : uk.protocol.notSpecified}
           </p>
         )}
 

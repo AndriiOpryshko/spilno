@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { formatDate, formatUah, uk } from '@/i18n/uk';
 
 import { listCases } from './api';
+import { InlineAlert } from './inline-alert';
 import { type GlyphState, StatusGlyph } from './status-glyph';
 import type { CaseStatus, CaseSummary } from './types';
 
@@ -81,16 +82,16 @@ export function CasesScreen() {
 
         {query.isPending && <CasesSkeleton />}
         {query.isError && (
-          <div role="alert" className="flex flex-wrap items-start gap-3 rounded-lg bg-destructive-subtle px-4 py-3">
-            <StatusGlyph state="blocked" className="mt-1" />
-            <div className="min-w-0 flex-1">
-              <p className="font-semibold text-destructive">{uk.cases.loadError}</p>
-              <p className="text-[13px]">{uk.cases.loadErrorHint}</p>
-            </div>
-            <Button variant="outline" onClick={() => query.refetch()}>
-              {uk.cases.retry}
-            </Button>
-          </div>
+          <InlineAlert
+            title={uk.cases.loadError}
+            action={
+              <Button variant="outline" onClick={() => query.refetch()}>
+                {uk.cases.retry}
+              </Button>
+            }
+          >
+            {uk.cases.loadErrorHint}
+          </InlineAlert>
         )}
         {query.isSuccess && visible.length === 0 && (
           <div className="flex flex-col items-center gap-2 rounded-lg border bg-card px-6 py-8 text-center">

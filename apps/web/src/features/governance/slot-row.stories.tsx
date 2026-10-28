@@ -58,3 +58,15 @@ export const LockedWithLimit: Story = {
     await expect(canvas.getByText('Рішення за загальними зборами')).toBeVisible();
   },
 };
+
+// Outside чернетка: frozen text, provenance and origin tag kept, no field and no Save.
+export const ReadOnly: Story = {
+  args: { slot: slot('s-contractor'), readOnly: true },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.queryByRole('textbox')).not.toBeInTheDocument();
+    await expect(canvas.getByText('Дах-Сервіс')).toBeVisible();
+    await expect(canvas.getByText('Комерційна пропозиція ТОВ «Дах-Сервіс»')).toBeVisible();
+    await expect(canvas.queryByRole('button', { name: 'Підставити' })).not.toBeInTheDocument();
+  },
+};

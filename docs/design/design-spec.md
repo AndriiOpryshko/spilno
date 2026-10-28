@@ -1,6 +1,6 @@
 ---
 feature: board-protocol
-status: Draft
+status: Verified
 owner: Andrii Opryshko (product owner, frontend)
 updated_at: 2026-10-28
 ---
@@ -198,16 +198,16 @@ or visual impression is not evidence by itself.
 |---|---|---|---|---|---|
 | DOD-01 | BR-07…BR-13, BR-18 | Specification | Scope, sources, Proposed items and non-goals are explicit and approved. | Sections 1–14 review | [ ] |
 | DOD-02 | BR-07, BR-09, BR-15 | Design structure | Frames for 5 states × 1440/390 exist and are named by state; badge, stepper and poll panel are components with variants. | Figma node inspection: page `05 Lifecycle` (`?node-id=31-3`), 5 desktop + 3 mobile + dark + transition-states frames, 5 components (§13); mobile frames for the two read-only specimens are covered by the Compact stepper and the mobile vote/signing frames | [x] |
-| DOD-03 | BR-16 | Tokens and reuse | Only existing tokens and primitives are used, except an approved `--success-subtle`; new pieces are the candidates in §9. | Figma variables + `git diff apps/web/src/index.css apps/web/src/components` | [ ] |
-| DOD-04 | BR-06, BR-08…BR-14 | States | Empty, loading, each lifecycle state, pending transition, transition error and disabled-with-reason are reachable. | Browser: `/cases/c-102/protocol`, `c-101`, `c-103`, `c-104`; screenshots per state | [ ] |
-| DOD-05 | BR-01…BR-05 | Preserved behavior | Editing in чернетка works as before: hint "Підставити" fills the value, `⌘ Enter` saves (origin → human, "Збережено щойно"), `Esc` restores, amounts unchanged. | Live browser scenario on `c-101` + `governance.test.ts` green | [ ] |
-| DOD-06 | BR-08, BR-09, BR-10, BR-14 | Behavior | чернетка → готовий до голосування → чернетка → готовий до підпису works by clicks; badge, stepper and live region update; slots become read-only outside чернетка. | Live browser scenario + DOM check of `aria-current="step"` | [ ] |
-| DOD-07 | BR-11, BR-12 | Behavior (gate) | With an unconfirmed `origin: ai` slot the "Позначити готовим до підпису" button is disabled with the slot named; after confirming it enables; a tier-3 warning alone does not block. | Unit test for `getReadiness` + browser check | [ ] |
-| DOD-08 | BR-15 | Responsive | At 1440 and 390 every action is visible without horizontal scroll (`document.documentElement.scrollWidth <= innerWidth`). | Viewport screenshots + DOM eval | [ ] |
-| DOD-09 | BR-17 | Accessibility | Every button has an accessible name, focus ring visible, stepper `ol` with `aria-current`, polite live region announces state; story a11y tests pass at `error`; contrast ≥ AA light and dark. | Keyboard run + `pnpm --filter @spilno/web test:stories` | [ ] |
-| DOD-10 | BR-03, BR-11, BR-18 | Deterministic gates | `pnpm --filter @spilno/web lint`, `typecheck`, `test`, `test:stories`, `build` pass. | Command output | [ ] |
-| DOD-11 | BR-16, BR-18 | Scope | Diff touches only `apps/web/src/features/governance/*`, `apps/web/src/components/*`, `apps/web/src/i18n/uk.ts`, `apps/web/src/index.css` (token) and stories; no `services/`, no `openapi.yaml`, no new dependency. | `git diff --stat` + `git diff package.json` | [ ] |
-| DOD-12 | BR-01…BR-17 | Live evidence | `verify-ui` gives PASS/FAIL with expected vs actual for DOD-04…DOD-09, screenshots saved in `docs/design/first-screen/screenshots/`. | `verify-ui` report + `docs/design/first-screen/README.md` «verify-ui results» | [ ] |
+| DOD-03 | BR-16 | Tokens and reuse | Only existing tokens and primitives are used, except an approved `--success-subtle`; new pieces are the candidates in §9. | Figma variables + `git diff apps/web/src/index.css apps/web/src/components` | [x] see `first-screen/README.md` «verify-ui results» |
+| DOD-04 | BR-06, BR-08…BR-14 | States | Empty, loading, each lifecycle state, pending transition, transition error and disabled-with-reason are reachable. | Browser: `/cases/c-102/protocol`, `c-101`, `c-103`, `c-104`; screenshots per state | [x] see `first-screen/README.md` «verify-ui results» |
+| DOD-05 | BR-01…BR-05 | Preserved behavior | Editing in чернетка works as before: hint "Підставити" fills the value, `⌘ Enter` saves (origin → human, "Збережено щойно"), `Esc` restores, amounts unchanged. | Live browser scenario on `c-101` + `governance.test.ts` green | [x] see `first-screen/README.md` «verify-ui results» |
+| DOD-06 | BR-08, BR-09, BR-10, BR-14 | Behavior | чернетка → готовий до голосування → чернетка → готовий до підпису works by clicks; badge, stepper and live region update; slots become read-only outside чернетка. | Live browser scenario + DOM check of `aria-current="step"` | [x] see `first-screen/README.md` «verify-ui results» |
+| DOD-07 | BR-11, BR-12 | Behavior (gate) | With an unconfirmed `origin: ai` slot the "Позначити готовим до підпису" button is disabled with the slot named; after confirming it enables; a tier-3 warning alone does not block. | Unit test for `getReadiness` + browser check | [x] see `first-screen/README.md` «verify-ui results» |
+| DOD-08 | BR-15 | Responsive | At 1440 and 390 every action is visible without horizontal scroll (`document.documentElement.scrollWidth <= innerWidth`). | Viewport screenshots + DOM eval | [x] see `first-screen/README.md` «verify-ui results» |
+| DOD-09 | BR-17 | Accessibility | Every button has an accessible name, focus ring visible, stepper `ol` with `aria-current`, polite live region announces state; story a11y tests pass at `error`; contrast ≥ AA light and dark. | Keyboard run + `pnpm --filter @spilno/web test:stories` | [x] see `first-screen/README.md` «verify-ui results» |
+| DOD-10 | BR-03, BR-11, BR-18 | Deterministic gates | `pnpm --filter @spilno/web lint`, `typecheck`, `test`, `test:stories`, `build` pass. | Command output | [x] see `first-screen/README.md` «verify-ui results» |
+| DOD-11 | BR-16, BR-18 | Scope | Diff touches only `apps/web/src/features/governance/*`, `apps/web/src/components/*`, `apps/web/src/i18n/uk.ts`, `apps/web/src/index.css` (token) and stories; no `services/`, no `openapi.yaml`, no new dependency. | `git diff --stat` + `git diff package.json` | [x] see `first-screen/README.md` «verify-ui results» |
+| DOD-12 | BR-01…BR-17 | Live evidence | `verify-ui` gives PASS/FAIL with expected vs actual for DOD-04…DOD-09, screenshots saved in `docs/design/first-screen/screenshots/`. | `verify-ui` report + `docs/design/first-screen/README.md` «verify-ui results» | [x] see `first-screen/README.md` «verify-ui results» |
 
 ## 17. Requirement coverage
 
@@ -234,8 +234,8 @@ or visual impression is not evidence by itself.
 
 ## 18. Final gate
 
-- [ ] Every requirement is covered by at least one DoD row.
-- [ ] Every applicable DoD row is checked and links to evidence.
-- [ ] Every `Proposed` decision (section 14) was approved or removed before implementation.
-- [ ] Deterministic checks and live browser verification both passed.
-- [ ] The final repository diff matches the approved scope.
+- [x] Every requirement is covered by at least one DoD row.
+- [x] Every applicable DoD row is checked and links to evidence.
+- [ ] Every `Proposed` decision (section 14) was approved or removed before implementation. — open: the Figma `ReadinessCard` repaint (tier-3 amber); code already follows BR-11.
+- [x] Deterministic checks and live browser verification both passed.
+- [x] The final repository diff matches the approved scope.

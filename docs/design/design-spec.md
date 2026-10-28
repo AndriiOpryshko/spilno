@@ -147,16 +147,34 @@ updated_at: 2026-10-28
 ## 13. Design references
 
 - Current UI evidence: `docs/design/screenshots/protocol-after-desktop.png`, `protocol-after-mobile.png`, `protocol-after-edits-*.png`; live route `/cases/c-101/protocol`.
-- Approved frame URLs / node IDs: base direction `https://www.figma.com/design/D06IijJnLn8WEgU85fnD84?node-id=23-137` (desktop), `?node-id=23-420` (mobile), `?node-id=23-650` (states); lifecycle frames — fill after design.
+- Approved frame URLs / node IDs: base direction `https://www.figma.com/design/D06IijJnLn8WEgU85fnD84?node-id=23-137` (desktop), `?node-id=23-420` (mobile), `?node-id=23-650` (states).
+- Lifecycle page `05 Lifecycle` (`?node-id=31-3`), drawn through the Figma MCP on 2026-10-28:
+
+  | Node | Link | Covers |
+  |---|---|---|
+  | Components section | `?node-id=31-208` | — |
+  | `ProtocolStateBadge` (5 variants) | `?node-id=31-19` | BR-07 |
+  | `LifecycleStepper` (Step 1–4, Withdrawn, Compact 1–3) | `?node-id=31-144` | BR-07, BR-17 |
+  | `PollRoundPanel` | `?node-id=31-145` | BR-09 |
+  | `TransitionActions` (Draft, Ready for vote, Ready for signing, Pending, Disabled reason) | `?node-id=31-207` | BR-08…BR-11, BR-14 |
+  | `InlineAlert` | `?node-id=31-161` | BR-14 |
+  | чернетка · desktop / mobile | `?node-id=32-21` / `?node-id=32-1850` | BR-08, BR-11, BR-15 |
+  | готовий до голосування · desktop / mobile / dark | `?node-id=32-295` / `?node-id=32-2069` / `?node-id=32-2577` | BR-09, BR-15, BR-17 |
+  | готовий до підпису · desktop / mobile | `?node-id=32-633` / `?node-id=32-2319` | BR-10, BR-15 |
+  | підписаний · desktop (specimen) | `?node-id=32-938` | BR-13 |
+  | знятий з розгляду · desktop (specimen) | `?node-id=32-1217` | BR-13 |
+  | Transition states (pending, disabled with reason, error) | `?node-id=32-2543` | BR-11, BR-14 |
+  | Token `color/success-subtle` (Light `#E7F6F3`, Dark `#0F2B28`) | Color collection | BR-16 |
 - Repo-local design file: N/A — Figma is the design tool for this project.
 
 ## 14. Open decisions
 
 | Decision | Why it matters | Owner | Due | Status |
 |---|---|---|---|---|
-| Add `--success-subtle` (light/dark) for the підписаний badge | No subtle success tone exists; without it the badge reuses `--success` text on `--card` | Andrii Opryshko | before design | Proposed |
-| `ProtocolStateBadge` as Badge variants vs a separate component | Badge has no status variants and no story | Andrii Opryshko | before design | Proposed |
-| Mobile stepper as "крок N з 4" text vs a compact 4-dot bar | Space at 390 px | Andrii Opryshko | in Figma | Proposed |
+| Add `--success-subtle` (light/dark) for the підписаний badge | No subtle success tone exists; without it the badge reuses `--success` text on `--card` | Andrii Opryshko | before design | Confirmed 2026-10-28 — added to Figma `Color` (Light `#E7F6F3`, Dark `#0F2B28`); mirror in `apps/web/src/index.css` |
+| `ProtocolStateBadge` as Badge variants vs a separate component | Badge has no status variants and no story | Andrii Opryshko | before design | Confirmed 2026-10-28 — separate `ProtocolStateBadge` (pill + dot) composed from `Badge` in code, with a story per state |
+| Mobile stepper as "крок N з 4" text vs a compact 4-dot bar | Space at 390 px | Andrii Opryshko | in Figma | Confirmed 2026-10-28 — both: "Крок N з 4 · <state>" text over a 4-segment bar (`LifecycleStepper` Compact) |
+| `ReadinessCard` in чернетка still lists a tier-3 check as blocking (red) | BR-11 makes tier-3 advisory; the existing Figma component predates the rescope | Andrii Opryshko | implementation | Proposed — code renders tier-3 items as attention (amber), not blocked; update the Figma component after implementation |
 
 ## 15. Spec-ready gate
 
@@ -179,7 +197,7 @@ or visual impression is not evidence by itself.
 | ID | Covers | Layer | Pass condition | Evidence | Done |
 |---|---|---|---|---|---|
 | DOD-01 | BR-07…BR-13, BR-18 | Specification | Scope, sources, Proposed items and non-goals are explicit and approved. | Sections 1–14 review | [ ] |
-| DOD-02 | BR-07, BR-09, BR-15 | Design structure | Frames for 5 states × 1440/390 exist and are named by state; badge, stepper and poll panel are components with variants. | Figma node inspection | [ ] |
+| DOD-02 | BR-07, BR-09, BR-15 | Design structure | Frames for 5 states × 1440/390 exist and are named by state; badge, stepper and poll panel are components with variants. | Figma node inspection: page `05 Lifecycle` (`?node-id=31-3`), 5 desktop + 3 mobile + dark + transition-states frames, 5 components (§13); mobile frames for the two read-only specimens are covered by the Compact stepper and the mobile vote/signing frames | [x] |
 | DOD-03 | BR-16 | Tokens and reuse | Only existing tokens and primitives are used, except an approved `--success-subtle`; new pieces are the candidates in §9. | Figma variables + `git diff apps/web/src/index.css apps/web/src/components` | [ ] |
 | DOD-04 | BR-06, BR-08…BR-14 | States | Empty, loading, each lifecycle state, pending transition, transition error and disabled-with-reason are reachable. | Browser: `/cases/c-102/protocol`, `c-101`, `c-103`, `c-104`; screenshots per state | [ ] |
 | DOD-05 | BR-01…BR-05 | Preserved behavior | Editing in чернетка works as before: hint "Підставити" fills the value, `⌘ Enter` saves (origin → human, "Збережено щойно"), `Esc` restores, amounts unchanged. | Live browser scenario on `c-101` + `governance.test.ts` green | [ ] |

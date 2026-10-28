@@ -55,6 +55,21 @@ From the design iteration (commit `b7a5d21`), 1440px desktop and 390px mobile:
 | After (approved design) | ![](../screenshots/protocol-after-desktop.png) | ![](../screenshots/protocol-after-mobile.png) |
 | After, with edits | ![](../screenshots/protocol-after-edits-desktop.png) | ![](../screenshots/protocol-after-edits-mobile.png) |
 
+## Lifecycle design (Figma, 2026-10-28)
+
+Spec: [`../design-spec.md`](../design-spec.md) (BR-07…BR-14). Drawn on page `05 Lifecycle` of the
+[Figma file](https://www.figma.com/design/D06IijJnLn8WEgU85fnD84?node-id=31-3) through the Figma MCP:
+`ProtocolStateBadge`, `LifecycleStepper`, `PollRoundPanel`, `TransitionActions`, `InlineAlert`, the
+`color/success-subtle` token, and frames per state at 1440 and 390 (node ids in spec §13).
+
+| Frame | Export |
+|---|---|
+| чернетка · desktop | [figma/draft-desktop.png](figma/draft-desktop.png) |
+| готовий до голосування · desktop | [figma/ready-for-vote-desktop.png](figma/ready-for-vote-desktop.png) |
+| готовий до голосування · mobile | [figma/ready-for-vote-mobile.png](figma/ready-for-vote-mobile.png) |
+| готовий до підпису · desktop | [figma/ready-for-signing-desktop.png](figma/ready-for-signing-desktop.png) |
+| Components | [figma/lifecycle-components.png](figma/lifecycle-components.png) |
+
 ## verify-ui results
 
 _To be filled after `/sdlc:verify-ui` runs against http://localhost:5180/cases/c-101/protocol with

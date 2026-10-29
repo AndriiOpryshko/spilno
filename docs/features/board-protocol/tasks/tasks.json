@@ -159,13 +159,17 @@
       "deps": [
         "T01",
         "T06",
-        "T07"
+        "T07",
+        "T02",
+        "T09"
       ],
       "acs": [
         "AC-19",
-        "AC-16"
+        "AC-16",
+        "AC-02",
+        "AC-42"
       ],
-      "dod": "startSignIn / completeSignIn / signOut / getSession work against a fake OIDC provider in integration tests, the session is an HttpOnly cookie backed by a `sessions` row, and a test asserts the dev sign-in shim is off in the production config.",
+      "dod": "startSignIn / completeSignIn / signOut / getSession work against a fake OIDC provider in integration tests, the session is an HttpOnly cookie backed by a `sessions` row, and a test asserts the dev sign-in shim is off in the production config. The first член правління is created by an ops command (`api bootstrap-member --full-name --email --term-start`): it writes a `board_members` row and its first revision with `created_by_member_id` NULL through governance's module API, refuses when the association already has a member, and an integration test signs that member in with a `user-<uuid>@example.test` email (review finding 1); the decision replaces the TBD in data-model.md `board_members`.",
       "files_hint": [
         "services/core/internal/identity/domain/",
         "services/core/internal/identity/app/",
@@ -173,7 +177,11 @@
         "services/core/internal/identity/adapters/postgres/",
         "services/core/internal/identity/adapters/oidc/",
         "services/core/internal/identity/adapters/http/handlers.go",
-        "services/core/internal/platform/config/"
+        "services/core/internal/platform/config/",
+        "services/core/cmd/api/main.go",
+        "services/core/internal/governance/app/bootstrap_member.go",
+        "services/core/internal/governance/module.go",
+        "docs/features/board-protocol/data-model.md"
       ]
     },
     {
@@ -232,13 +240,16 @@
         "AC-19",
         "AC-16"
       ],
-      "dod": "Integration tests show no session → 401 `identity.session_required`, an ended or never-held term → 403 `identity.not_current_member` with the same body for an existing and a missing id, `/system/health` stays public and the existing e2e smoke passes.",
+      "dod": "Integration tests show no session → 401 `identity.session_required`, an ended or never-held term → 403 `identity.not_current_member` with the same body for an existing and a missing id, `/system/health` stays public and the existing e2e smoke passes. Every finance and meetings operation declares `401 SessionRequired` and `403 NotCurrentMember` in the contract (review finding 7), regenerated with `mise run gen` and reconciled with `/sdlc:api-forge board-protocol --reconcile`.",
       "files_hint": [
         "services/core/cmd/api/main.go",
         "services/core/internal/identity/adapters/http/middleware.go",
         "services/core/internal/platform/httpapi/principal.go",
         "services/core/internal/governance/meetings_test.go",
-        "services/core/internal/finance/"
+        "services/core/internal/finance/",
+        "services/core/api/openapi.yaml",
+        "docs/features/board-protocol/contracts/openapi.yaml",
+        "docs/features/board-protocol/contracts/api-sync-report.md"
       ]
     },
     {
@@ -474,13 +485,19 @@
         "AC-42",
         "AC-03",
         "AC-03c",
-        "AC-04"
+        "AC-04",
+        "AC-28",
+        "AC-29"
       ],
-      "dod": "Handler tests show addAgendaItemFromCase opens a draft or adds the справа as a new item to the meeting's existing draft (AC-03c), refuses with 409 `governance.settings_missing` naming every missing setting (AC-42), and getProtocol shows meeting date, roster in force, case documents and items (AC-03).",
+      "dod": "Handler tests show addAgendaItemFromCase opens a draft or adds the справа as a new item to the meeting's existing draft (AC-03c), refuses with 409 `governance.settings_missing` naming every missing setting (AC-42), and getProtocol shows meeting date, roster in force, case documents and items (AC-03). createMeeting stores `chair_board_member_id` and getMeeting / listMeetings / getProtocol return it instead of null (review finding 2); an id that is no board member of the association is refused with 422 naming `/chair_board_member_id`.",
       "files_hint": [
         "services/core/internal/governance/app/drafts.go",
         "services/core/internal/governance/adapters/http/protocols.go",
-        "services/core/internal/governance/adapters/http/agenda_items.go"
+        "services/core/internal/governance/adapters/http/agenda_items.go",
+        "services/core/internal/governance/domain/meeting.go",
+        "services/core/internal/governance/adapters/http/handler.go",
+        "services/core/internal/governance/adapters/postgres/queries/meetings.sql",
+        "services/core/internal/governance/adapters/postgres/meetings.go"
       ]
     },
     {
@@ -545,13 +562,16 @@
         "AC-28b",
         "AC-03c"
       ],
-      "dod": "With the fake TextModel and Files, createAssistantTurn returns a job, the propose_draft handler fills the draft's slots as unconfirmed with fragments and document links (AC-26, AC-21), keeps confirmed slots (AC-28b), is idempotent on retry, and listAssistantTurns returns the conversation.",
+      "dod": "With the fake TextModel and Files, createAssistantTurn returns a job, the propose_draft handler fills the draft's slots as unconfirmed with fragments and document links (AC-26, AC-21), keeps confirmed slots (AC-28b), is idempotent on retry, and listAssistantTurns returns the conversation. A retry of createAssistantTurn with the same `Idempotency-Key` returns the first turn and job without a second turn, upload or job, also under concurrent retries (review finding 3, `uq_assistant_turns_association_idempotency_key`).",
       "files_hint": [
         "services/core/internal/governance/app/assistant.go",
         "services/core/internal/governance/jobs/propose_draft.go",
         "services/core/internal/governance/adapters/postgres/assistant_turns.go",
         "services/core/internal/governance/adapters/postgres/queries/assistant_turns.sql",
-        "services/core/internal/governance/adapters/http/assistant_turns.go"
+        "services/core/internal/governance/adapters/http/assistant_turns.go",
+        "docs/features/board-protocol/migrations/20261029120000_add_idempotency_key_to_assistant_turns.up.sql",
+        "docs/features/board-protocol/migrations/20261029120001_create_uq_assistant_turns_idempotency_key.up.sql",
+        "services/core/migrations/"
       ]
     },
     {
@@ -805,9 +825,11 @@
         "AC-28b",
         "AC-09",
         "AC-29",
-        "AC-04"
+        "AC-04",
+        "AC-22",
+        "AC-28"
       ],
-      "dod": "Component tests show the screen renders meeting date, roster in force, documents and agenda items from getProtocol, confirm/correct slot call the API with `protocol_revision`, a 409 `draft_revision_conflict` reloads with a notice, and a slot with an alternative value shows both (AC-28b).",
+      "dod": "Component tests show the screen renders meeting date, roster in force, documents and agenda items from getProtocol, confirm/correct slot call the API with `protocol_revision`, a 409 `draft_revision_conflict` reloads with a notice, and a slot with an alternative value shows both (AC-28b). The amount slot lists the other values with their documents next to the recommended one (AC-22), and the screen shows the головуючий from `meeting.chair_board_member_id`, «не вказано» when null (review findings 2 and 6).",
       "files_hint": [
         "apps/web/src/features/governance/protocol-screen.tsx",
         "apps/web/src/features/governance/slot-row.tsx",
@@ -815,7 +837,8 @@
         "apps/web/src/features/governance/mock-data.ts",
         "apps/web/src/features/governance/types.ts",
         "apps/web/src/routes/protocols.$protocolId.tsx",
-        "apps/web/src/routes/cases.$caseId.protocol.tsx"
+        "apps/web/src/routes/cases.$caseId.protocol.tsx",
+        "apps/web/src/features/governance/meeting-facts.tsx"
       ]
     },
     {
@@ -893,9 +916,11 @@
         "AC-35",
         "AC-36",
         "AC-37",
-        "AC-39"
+        "AC-39",
+        "AC-38",
+        "AC-17"
       ],
-      "dod": "Component tests show the print action lists every blocker at once (AC-04, AC-21), otherwise polls the render job and offers the PDF with its number, a return to draft warns that earlier copies must not be signed (AC-14b), withdraw requires a reason, and a withdrawn draft offers «copy as new draft» (AC-39).",
+      "dod": "Component tests show the print action lists every blocker at once (AC-04, AC-21), otherwise polls the render job and offers the PDF with its number, a return to draft warns that earlier copies must not be signed (AC-14b), withdraw requires a reason, and a withdrawn draft offers «copy as new draft» (AC-39). On a locked protocol the screen offers no withdraw or edit action; a refused withdraw shows the offer of a new board decision that revokes or corrects it (AC-38), and a refused change shows that a locked protocol changes only through a new referencing decision (AC-17) (review finding 6).",
       "files_hint": [
         "apps/web/src/features/governance/readiness-card.tsx",
         "apps/web/src/features/governance/transition-actions.tsx",
@@ -934,9 +959,10 @@
       "acs": [
         "AC-18",
         "AC-41",
-        "AC-15"
+        "AC-15",
+        "AC-17"
       ],
-      "dod": "Component tests show search by counterparty, amount or range, subject and date period with cursor paging, and the signed view shows the signed copy, meeting facts, cited documents, the correction note beside the frozen text and poll history labelled informal.",
+      "dod": "Component tests show search by counterparty, amount or range, subject and date period with cursor paging, and the signed view shows the signed copy, meeting facts, cited documents, the correction note beside the frozen text and poll history labelled informal. The signed view has no edit action and states that a locked protocol changes only through a new board decision that references it (AC-17, review finding 6).",
       "files_hint": [
         "apps/web/src/routes/registry.index.tsx",
         "apps/web/src/routes/registry.$protocolId.tsx",

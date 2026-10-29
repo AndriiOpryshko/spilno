@@ -244,6 +244,7 @@ erDiagram
         varchar role
         text message
         jsonb proposal
+        uuid idempotency_key
         timestamptz created_at
     }
     assistant_turn_documents {
@@ -573,6 +574,7 @@ Only the columns of the slot's `kind` are set — enforced in `governance/domain
 | `message` | TEXT | NOT NULL | Conversation text — confidential, never logged (§8) |
 | `proposal` | JSONB | NULL | Schema-validated structured answer kept verbatim for audit — opaque payload |
 | `protocol_revision` | INTEGER | NOT NULL | Revision the proposal was built on (ADR-0009 re-base) |
+| `idempotency_key` | UUID | NULL | `Idempotency-Key` header of `createAssistantTurn` (contract: `format: uuid`); NULL for assistant turns. UNIQUE `(association_id, idempotency_key)`: a retry with the same key returns the first turn and job instead of a second turn and upload (AC-26, review finding 3). The contract promises 24 h; the unique index keeps the key for the life of the row — stricter, harmless for random client keys, and no cleanup job |
 
 Job state (pending/failed) is River's (`propose_draft` keyed by turn id), not a column here.
 
@@ -692,6 +694,7 @@ FK columns whose index is already the leading column of a UNIQUE or composite PK
 | `idx_slot_values_source_document` | `slot_values (source_document_id)` | Slots citing a changed document → `needs_review` (AC-09, Flow 3) |
 | `idx_slot_confirmations_slot_created` | `(slot_id, created_at DESC, id DESC)` | Latest confirmation of a slot |
 | `idx_assistant_turns_protocol_created` | `(protocol_id, created_at, id)` | Conversation panel of a draft (Flow 1) |
+| `uq_assistant_turns_association_idempotency_key` | `assistant_turns (association_id, idempotency_key)` | `createAssistantTurn` replay lookup + dedup under concurrent retries (Flow 1, AC-26); `CONCURRENTLY` — the table is live |
 | `uq_poll_rounds_protocol_round` | `poll_rounds (protocol_id, round_number)` | Open round of a draft; next round number (AC-30, AC-05d) |
 | `idx_poll_votes_round_item_member_created` | `(poll_round_id, agenda_item_id, board_member_id, created_at DESC)` | Tally: latest vote per member per item (AC-31, Flow 2) |
 | `uq_print_copies_protocol_revision` | `print_copies (protocol_id, protocol_revision)` | Current copy of a protocol; `render_print_copy` idempotency (Flow 4) |
@@ -735,6 +738,8 @@ All in [`migrations/`](./migrations/), feature-local order; `implement-tasks` re
 | 20 | `20261027120020_create_protocol_snapshots` | + `registry_entries` |
 | 21 | `20261027120021_create_protocol_immutability_triggers` | ADR-0007 exception |
 | 22 | `20261027120022_create_integrity_runs` | + `integrity_findings` |
+| 23 | `20261029120000_add_idempotency_key_to_assistant_turns` | Brownfield delta on live `00019`: nullable column, no backfill (old rows have no key) — review finding 3 |
+| 24 | `20261029120001_create_uq_assistant_turns_idempotency_key` | CONCURRENTLY, own file, `NO TRANSACTION` |
 | — | River schema | **Not staged** — generated at promote time from the pinned River version (`river migrate-get --all --up` / `--down`) into its own goose file (ADR-0006) <!-- TBD: River version is picked in implement-tasks --> |
 
 ## Test fixtures

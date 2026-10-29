@@ -8,6 +8,15 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type Account struct {
+	ID            pgtype.UUID
+	AssociationID pgtype.UUID
+	OidcIssuer    string
+	OidcSubject   string
+	Email         string
+	CreatedAt     pgtype.Timestamptz
+}
+
 type Association struct {
 	ID        pgtype.UUID
 	Name      string
@@ -25,6 +34,19 @@ type Contract struct {
 	UpdatedAt    pgtype.Timestamptz
 }
 
+type GoogleConnection struct {
+	ID                     pgtype.UUID
+	AssociationID          pgtype.UUID
+	GoogleAccountEmail     string
+	RefreshTokenCiphertext []byte
+	RefreshTokenNonce      []byte
+	EncryptionKeyID        string
+	Scopes                 string
+	DriveRootFolderID      pgtype.Text
+	AuthorizedByAccountID  pgtype.UUID
+	CreatedAt              pgtype.Timestamptz
+}
+
 type Meeting struct {
 	ID             pgtype.UUID
 	Title          string
@@ -36,4 +58,13 @@ type Meeting struct {
 	CreatedAt      pgtype.Timestamptz
 	UpdatedAt      pgtype.Timestamptz
 	AssociationID  pgtype.UUID
+}
+
+type Session struct {
+	ID         pgtype.UUID
+	AccountID  pgtype.UUID
+	TokenHash  []byte
+	ExpiresAt  pgtype.Timestamptz
+	LastSeenAt pgtype.Timestamptz
+	CreatedAt  pgtype.Timestamptz
 }

@@ -180,7 +180,7 @@ See [tracker.md](./tracker.md) for status. Total 44 tasks, ~31.25 person-days.
 | [T05](./T05-stage-lock-integrity-migrations.md) | Promote the print-copy, meeting-facts, snapshot, trigger and integrity-run migrations | migration | T04 | AC-14c, AC-14, AC-15, AC-17 | M |
 | [T06](./T06-problem-codes-registry.md) | Add problem `code` and `urn:problem:` types to httpapi with a governance error registry | infra | — | AC-02, AC-42 | M |
 | [T07](./T07-merge-contract-identity-skeleton.md) | Merge the contract delta, add the identity context skeleton and regenerate server and client | wiring | — | — | L |
-| [T08](./T08-identity-oidc-sessions.md) | Sign in with Google OIDC and keep sessions in Postgres | app | T01, T06, T07 | AC-19, AC-16 | L |
+| [T08](./T08-identity-oidc-sessions.md) | Sign in with Google OIDC and keep sessions in Postgres | app | T01, T06, T07, T02, T09 | AC-19, AC-16, AC-02, AC-42 | L |
 | [T09](./T09-settings-roster-domain.md) | Model association settings and roster entries with all-fields validation | domain | — | AC-42, AC-02 | M |
 | [T10](./T10-settings-roster-endpoints.md) | Serve settings and roster: use cases, Postgres repositories, handlers and CurrentMember | ports | T02, T06, T07, T09 | AC-42, AC-02 | L |
 | [T11](./T11-require-session-current-member.md) | Require a session and a current член правління on the governance and finance routes | wiring | T08, T10 | AC-19, AC-16 | M |
@@ -194,7 +194,7 @@ See [tracker.md](./tracker.md) for status. Total 44 tasks, ~31.25 person-days.
 | [T19](./T19-meeting-facts-snapshot-domain.md) | Model meeting facts and the canonical fingerprinted snapshot | domain | T16, T18 | AC-14, AC-34, AC-15, AC-17 | M |
 | [T20](./T20-protocol-repository.md) | Persist the protocol aggregate with a revision guard | infra | T03, T16 | AC-29, AC-05d, AC-03 | L |
 | [T21](./T21-cases-endpoints.md) | Serve cases: create, list, open, add document versions and download files | ports | T03, T11, T13 | AC-19, AC-26, AC-09 | L |
-| [T22](./T22-open-draft-endpoints.md) | Open a draft for a meeting from a case, get and list protocols | ports | T10, T20, T21 | AC-42, AC-03, AC-03c, AC-04 | L |
+| [T22](./T22-open-draft-endpoints.md) | Open a draft for a meeting from a case, get and list protocols | ports | T10, T20, T21 | AC-42, AC-03, AC-03c, AC-04, AC-28, AC-29 | L |
 | [T23](./T23-wording-slot-endpoints.md) | Edit wording and слоти рішення: save wording, add, confirm and correct slots | ports | T17, T22 | AC-29, AC-21, AC-28b, AC-09, AC-05d, AC-14b | L |
 | [T24](./T24-gemini-textmodel-adapter.md) | Implement the Gemini TextModel adapter as the only importer of the SDK | infra | T07, T17 | AC-26, AC-21, AC-22 | M |
 | [T25](./T25-assistant-propose-draft.md) | Take conversation turns and propose a draft in the propose_draft job | app | T04, T14, T23, T24 | AC-26, AC-21, AC-22, AC-28, AC-28b, AC-03c | L |
@@ -209,13 +209,13 @@ See [tracker.md](./tracker.md) for status. Total 44 tasks, ~31.25 person-days.
 | [T34](./T34-ui-sign-in-session.md) | Add the sign-in page, the session guard and 401/403 handling | ui | T07 | AC-19, AC-16 | M |
 | [T35](./T35-ui-settings-roster.md) | Build the association settings and roster screens | ui | T07 | AC-42, AC-02 | L |
 | [T36](./T36-ui-cases-documents.md) | Move the cases list and case screen to generated hooks with document upload | ui | T07 | AC-26, AC-09 | M |
-| [T37](./T37-ui-protocol-on-hooks.md) | Move the protocol screen to generated hooks: agenda, slots and revision conflicts | ui | T07 | AC-03, AC-03c, AC-21, AC-28b, AC-09, AC-29, AC-04 | L |
+| [T37](./T37-ui-protocol-on-hooks.md) | Move the protocol screen to generated hooks: agenda, slots and revision conflicts | ui | T07 | AC-03, AC-03c, AC-21, AC-28b, AC-09, AC-29, AC-04, AC-22, AC-28 | L |
 | [T38](./T38-ui-text-editor-slot-chips.md) | Build the decision text editor with slot chips and highlighted typed facts | ui | T37 | AC-29, AC-28 | L |
 | [T39](./T39-ui-assistant-panel.md) | Add the помічник протоколу conversation panel with job polling | ui | T38 | AC-26, AC-03c | M |
 | [T40](./T40-ui-live-poll.md) | Make the попереднє голосування live: start, own vote, tally, informal label, return to draft | ui | T39 | AC-30, AC-31, AC-41, AC-05d, AC-05e, AC-32 | M |
-| [T41](./T41-ui-print-withdraw.md) | Wire printing and withdrawal: ready for signing, job polling, void warning, withdraw and copy | ui | T40 | AC-14c, AC-33, AC-14b, AC-04, AC-21, AC-35, AC-36, AC-37, AC-39 | L |
+| [T41](./T41-ui-print-withdraw.md) | Wire printing and withdrawal: ready for signing, job polling, void warning, withdraw and copy | ui | T40 | AC-14c, AC-33, AC-14b, AC-04, AC-21, AC-35, AC-36, AC-37, AC-39, AC-38, AC-17 | L |
 | [T42](./T42-ui-signed-copy-form.md) | Build the signed-scan upload with the meeting facts form | ui | T41 | AC-14, AC-34, AC-15, AC-40, AC-41 | M |
-| [T43](./T43-ui-registry.md) | Build the реєстр протоколів search and the signed protocol view | ui | T07 | AC-18, AC-41, AC-15 | M |
+| [T43](./T43-ui-registry.md) | Build the реєстр протоколів search and the signed protocol view | ui | T07 | AC-18, AC-41, AC-15, AC-17 | M |
 | [T44](./T44-e2e-draft-to-registry.md) | Prove the flow end to end: draft to registry through the UI with fake Google and Gemini | tests | T25, T28, T29, T30, T31, T32, T34, T35, T36, T42, T43 | AC-26, AC-30, AC-14c, AC-14, AC-18, AC-19, AC-35 | L |
 
 **AC coverage:** all 34 Stage 1 ACs of PRD §5 are in at least one task's `acs`; the 29 deferred / dropped ACs are Stage 2 by PRD §5 and sad §6 Coverage. T07 and T33 carry no AC (contract merge and the backup NFR).

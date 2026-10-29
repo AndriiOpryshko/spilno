@@ -1,0 +1,1 @@
+DROP INDEX CONCURRENTLY IF EXISTS uq_assistant_turns_association_idempotency_key;

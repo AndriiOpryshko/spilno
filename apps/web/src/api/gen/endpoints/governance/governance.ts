@@ -501,15 +501,15 @@ export type getAssociationSettingsResponse403 = {
   status: 403
 }
 
-export type getAssociationSettingsResponse404 = {
+export type getAssociationSettingsResponse409 = {
   data: Problem
-  status: 404
+  status: 409
 }
 
 export type getAssociationSettingsResponseSuccess = (getAssociationSettingsResponse200) & {
   headers: Headers;
 };
-export type getAssociationSettingsResponseError = (getAssociationSettingsResponse401 | getAssociationSettingsResponse403 | getAssociationSettingsResponse404) & {
+export type getAssociationSettingsResponseError = (getAssociationSettingsResponse401 | getAssociationSettingsResponse403 | getAssociationSettingsResponse409) & {
   headers: Headers;
 };
 

@@ -8,6 +8,9 @@
  */
 import type { MeetingKind } from './meetingKind';
 
+/**
+ * Existing schema; delta adds chair_board_member_id.
+ */
 export interface NewMeeting {
   /**
      * @minLength 1
@@ -24,4 +27,9 @@ export interface NewMeeting {
      */
   location?: string | null;
   quorum_required?: boolean;
+  /**
+     * The головуючий rendered by the {meeting: chair} fragment (AC-28).
+     * @nullable
+     */
+  chair_board_member_id?: string | null;
 }

@@ -17,6 +17,7 @@ import (
 
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/go-chi/chi/v5"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
 // Defines values for DependencyHealthStatus.
@@ -74,6 +75,33 @@ type Health struct {
 
 // HealthStatus defines model for Health.Status.
 type HealthStatus string
+
+// AgendaItemId defines model for AgendaItemId.
+type AgendaItemId = openapi_types.UUID
+
+// BoardMemberId defines model for BoardMemberId.
+type BoardMemberId = openapi_types.UUID
+
+// CaseId defines model for CaseId.
+type CaseId = openapi_types.UUID
+
+// FileId defines model for FileId.
+type FileId = openapi_types.UUID
+
+// JobId defines model for JobId.
+type JobId = int64
+
+// MeetingId defines model for MeetingId.
+type MeetingId = openapi_types.UUID
+
+// ProtocolId defines model for ProtocolId.
+type ProtocolId = openapi_types.UUID
+
+// RoundNumber defines model for RoundNumber.
+type RoundNumber = int32
+
+// SlotId defines model for SlotId.
+type SlotId = openapi_types.UUID
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
@@ -345,17 +373,28 @@ func (sh *strictHandler) GetHealth(w http.ResponseWriter, r *http.Request) {
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"vFRNj9w2DP0rBFugF3c87aLAwj1t0SDZW5AcN3PQSBxbG5tSKHp2BwP/90DyfCU7i+SUk2VKJJ8e39Me",
-	"bRhiYGJN2Owx2Y4GU5b/UyR2xHb3jkyvXY5FCZFEPc2H1ehYVsTjgM0DjhErdOGJcVWh7iJhg0nFc4tT",
-	"hVuS5APnBEfJio9afvEjyZYEDvsgFIMoOVjvQDsCd0JSwVNHDF7BJxjjAl90mSoU+jJ6IZcBHSCe0YT1",
-	"I1nNaF67lTNq1iZRXv8utMEGf6vPLNUHiuoX/EzVFUbC58wItWIcOVz9JN7qjOIl9JzjeROu8Oi57Qls",
-	"YBVjFTZBCoE2CEEi2XpLC3izJdlBvrLJeWCNiKcE9Gys9jsITKCmBTaD5xa8JliHkR25Upme9V8IJvo/",
-	"bXDUEkNLnGvlEsZ2x0N/pNKSBDYShlImPHGuvPjEeXBe+8JE9D2HGePd+3u80AkuF38tlpnYEIlN9Njg",
-	"TQlVGI12hel649mwpfp47Rydqivxeu/ddNhsw5Zk3h+I1HObXt+5TEy7pDTU3Uk9LWn+nPi8d9jgW9KD",
-	"KvJ8UwycZnX9vVzmT+GIS6KJsfe2pNaPabbHrLEfKfCouyyIb4Vw1/dn1+TZGqHil6nCf5Y3vwKBQk8m",
-	"aVHT2cDZt/l9WBTlp3EYjOywwQ/F8keNgmF3mdQdqVSTx/SA8xBwVRrPKsvxPY7SY4Odamzqug/W9F1I",
-	"2twub5c4rU4Frj1Aue/cqLSXkdUPBNlp+Z1hMxS1zp2n6vsSdykF62dHHZSXLvIOoSuJ/wUjDo5SK721",
-	"Iy/gyPrsg8syZ3HitJq+DgA=",
+	"zFhRbxs3Ev4rBO+AuwNWohJfi0BBH9ykbdI2bRA9uoJBkaMVnV2SHc7KWQj73wtyd7WyLSWC5Bh5skUO",
+	"5/s4M9TMpw1XrvTOgqXApxvuJcoSCDB9uszBavmWoHyr42dj+ZR7SSuecStL4FMuk8m1ISivjeYZR/i7",
+	"MgiaTwkryHhQKyhlPL10WEriU15VyZJqHz0EQmNz3jQZ/9FJ1O+gXAAeBFxEm+syGZ2P+EoGOAilZIDz",
+	"IX42xWGIpSkeAeJXtziIcOMWRwMYS9//n2e8NNaUVcmnz7ZoxhLkgAnuHQAZmx+ELNv98+/1Hh055YqD",
+	"SL4zOB/qg6us/qOKVXUAC6PFtW1Njg3nxfMvh3NWODp4w1A4Ovd2TW+cHvVr8GA1WFW/AVnQKq55dB6Q",
+	"DCSLQJKq9B/YSPuKV55nXLtby+cP3Gd8DRiMs/GAhqDQeEof+QxwDci6fYbgHRJotqgZrYDpLZOM3a7A",
+	"MkPMBFb58d4UDQG46ikObNziBhRFNodupSXJhQwQ//83wpJP+b/E8O0nuhCJB/Fpsh5uJyLuY4wI5Cg1",
+	"aD4/km82sHhIPeKAqtBQPYtcWtozCDF4r5z7aOBQiEfBaGChNWX/vXz9YTSZTC7+95K9IfJ/2qLO2Cz6",
+	"hozNZAkzQ/DD7/JTDHQqOtW6H8rOm8K6687jkA7pzW9QtzVl7NLtIWRsXgBTzhJKRWzpMCVbOYwMcW0U",
+	"jNlPa8CaxfTIeI4piWggMPgkFRU1cxYYyZxZWRqbM0OBLeL7A508wyd6yZz0ZqSchhwsy8FGX9GFVKve",
+	"6D8hQQKyJboyuXG3Nnoe/5VuZagYrttyvHz/lu/UNJ+Mn40nsQicByu94VN+kZay9FRTksTSWGkViP7a",
+	"cbXJ9qyLjdFNt5m7NWC7n7raqO1q4QvbYnOvBzb3O/fV/gofTMTdTtvM7+HFzreHRloWm64vngDbtdtm",
+	"/nnHQjtVlftmktMhYqcNYtM13BO4d338geMbtwhi07bZE9y2vfvzXgUCYf1ovrv+vCfB/c6BKh22hxbf",
+	"iHYEHMUR8IR8DcNEMz8OLgQTSFoaUYX2cRH7eWJPaLZbYrMzdZyQ8J2hppkfB3InxGJzd+ZuRJwRwnlE",
+	"si9a39ECj0T81qGO3fLbpH5unZ2SaOV8/TRI3hXFKM204ckBxWZ3mG7E2hF89QLenfCPJo0gdT1aujhh",
+	"5fbsWj0eNtbciNxIo1zS04DGG4IePV0Jpu8tsekkTix+uzRYSurExNeshk50ncx1LYsKwrfG8tbQSqO8",
+	"lcXjZhAhN4GwFhqUCcbZPQ1ya/MknTIA7c4wRoMlQ7XoFcv9ZZPbkTm0LJQsioVUH/fuu4q69VAHglKs",
+	"tgozh7jFtzomynj+C1CnHDOOELyz7TDNn08m8U/SJjYdlN4XRqWj4ia0VT/o+s+p1A4hCbG7AuyyKAZl",
+	"HTWVREiausn4d5OLp2BArAAZKKm4QeRHbR9/Qxjfkbp8ejXPeKjKUsYRl39IPxL0SpFJq3ddrPrAkoy5",
+	"v+JtSvi8uefzgXC+mjcRJ6nBtvoqLPiUr4j8VIjCKVmsXKDpi8mLCW/mW4h9ijsya6kkglhZMiWwqIjH",
+	"OyK65dZk911chuCUaZVvpxDDePdHwbS05+Csrdesl/ohwSd5XSGCJebRWGW8LHb89eW8x2HSgawftHtv",
+	"Btn2oe/4GZ5ffI//DAA=",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

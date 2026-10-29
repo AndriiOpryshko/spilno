@@ -46,14 +46,16 @@ func (e Currency) Valid() bool {
 
 // Contract defines model for Contract.
 type Contract struct {
-	AmountCents  int64               `json:"amount_cents"`
-	Counterparty string              `json:"counterparty"`
-	CreatedAt    time.Time           `json:"created_at"`
-	Currency     Currency            `json:"currency"`
-	EndsAt       *openapi_types.Date `json:"ends_at"`
-	Id           openapi_types.UUID  `json:"id"`
-	SignedAt     openapi_types.Date  `json:"signed_at"`
-	UpdatedAt    time.Time           `json:"updated_at"`
+	AmountCents  int64     `json:"amount_cents"`
+	Counterparty string    `json:"counterparty"`
+	CreatedAt    time.Time `json:"created_at"`
+
+	// Currency Existing repo schema (finance), reused as slot_values.currency / registry_entries.currency.
+	Currency  Currency            `json:"currency"`
+	EndsAt    *openapi_types.Date `json:"ends_at"`
+	Id        openapi_types.UUID  `json:"id"`
+	SignedAt  openapi_types.Date  `json:"signed_at"`
+	UpdatedAt time.Time           `json:"updated_at"`
 }
 
 // ContractPage defines model for ContractPage.
@@ -64,7 +66,7 @@ type ContractPage struct {
 	NextCursor *string `json:"next_cursor"`
 }
 
-// Currency defines model for Currency.
+// Currency Existing repo schema (finance), reused as slot_values.currency / registry_entries.currency.
 type Currency string
 
 // FieldError defines model for FieldError.
@@ -76,17 +78,22 @@ type FieldError struct {
 // NewContract defines model for NewContract.
 type NewContract struct {
 	// AmountCents Contract value in minor units of currency.
-	AmountCents  int64    `json:"amount_cents"`
-	Counterparty string   `json:"counterparty"`
-	Currency     Currency `json:"currency"`
+	AmountCents  int64  `json:"amount_cents"`
+	Counterparty string `json:"counterparty"`
+
+	// Currency Existing repo schema (finance), reused as slot_values.currency / registry_entries.currency.
+	Currency Currency `json:"currency"`
 
 	// EndsAt Last day of the contract; on or after signed_at. Null for open-ended.
 	EndsAt   *openapi_types.Date `json:"ends_at,omitempty"`
 	SignedAt openapi_types.Date  `json:"signed_at"`
 }
 
-// Problem RFC 9457 problem details.
+// Problem RFC 9457 problem details (internal/platform/httpapi). `code` is an extension member
+// `<context>.<error_name>`; it is set by a context and absent on a 422 from the shared request validator.
+// Delta to the repo schema: adds `code`.
 type Problem struct {
+	Code     *string       `json:"code,omitempty"`
 	Detail   *string       `json:"detail,omitempty"`
 	Errors   *[]FieldError `json:"errors,omitempty"`
 	Instance *string       `json:"instance,omitempty"`
@@ -95,10 +102,41 @@ type Problem struct {
 	Type     string        `json:"type"`
 }
 
-// NotFound RFC 9457 problem details.
+// AgendaItemId defines model for AgendaItemId.
+type AgendaItemId = openapi_types.UUID
+
+// BoardMemberId defines model for BoardMemberId.
+type BoardMemberId = openapi_types.UUID
+
+// CaseId defines model for CaseId.
+type CaseId = openapi_types.UUID
+
+// FileId defines model for FileId.
+type FileId = openapi_types.UUID
+
+// JobId defines model for JobId.
+type JobId = int64
+
+// MeetingId defines model for MeetingId.
+type MeetingId = openapi_types.UUID
+
+// ProtocolId defines model for ProtocolId.
+type ProtocolId = openapi_types.UUID
+
+// RoundNumber defines model for RoundNumber.
+type RoundNumber = int32
+
+// SlotId defines model for SlotId.
+type SlotId = openapi_types.UUID
+
+// NotFound RFC 9457 problem details (internal/platform/httpapi). `code` is an extension member
+// `<context>.<error_name>`; it is set by a context and absent on a 422 from the shared request validator.
+// Delta to the repo schema: adds `code`.
 type NotFound = Problem
 
-// UnprocessableEntity RFC 9457 problem details.
+// UnprocessableEntity RFC 9457 problem details (internal/platform/httpapi). `code` is an extension member
+// `<context>.<error_name>`; it is set by a context and absent on a 422 from the shared request validator.
+// Delta to the repo schema: adds `code`.
 type UnprocessableEntity = Problem
 
 // ListContractsParams defines parameters for ListContracts.
@@ -643,28 +681,42 @@ func (sh *strictHandler) GetContract(w http.ResponseWriter, r *http.Request, id 
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"vFddb9s2F/4rBN8X6MVU28myrXOv2iztChRtkC5XXVCciEcyC4lUDo+ceIH++3Aoy5ZsJW6HoHcWyfP5",
-	"POfD9zr1ZeUdOg56fq8JQ+VdwPjxwfMbXzsjv1PvGB3LT6iqwqbA1rtpRf66wPKnr8E7uQvpAkuQX/8n",
-	"zPRc/2+6NTBtb8P0vJXSTdMk2mBIyVaiTs/1BQZfU4rKeVaZWJ/oJtGXriKfYghwXeCZY8urH+vVTY2B",
-	"VQa2QKOWUFgTTU20PF5rEAOn3jFBGl2qyFdIbNtsQulrx1/SLtWZpxJYz7V1/OuJTjSvKmw/MUeSqFOR",
-	"QKqA2nDXLwKTdXl8QAiM5gvwQKMBxudsS9TJiExNhC5dHUrHafeuSTQ6E8aMbPR/7gwk2tVFoa+aRFsz",
-	"eF/X1oz5E2zuxkMYe11X5jsjbhJNeFNbQiN+RicGiU2G0PQy1Hdum4RB2gceXW2M++uvmLI43BHiHHLc",
-	"J4VlLIc/HoVkrUs3G0NABBEih3f8Ja0peBI1Q/6eQwgKgmrvFXuVIyteoBIxVUGOL5UAp7yLxwWE9njy",
-	"CMS7mY0hDD0ZzUiPgOjqUmQvX/2pE312eaETffnpj57cFvo3FgtzRuRpP48GGWwxWiOVl4qikbsd/7uH",
-	"SadtzPkPeNsvcTDGSo6hOO/5k0ERMDlQ/0OEOqXSW2pU1qnSOk+qdpaD8pnqSCmA7LWO0jpbSiaPvqWN",
-	"lHD3Hl3OCz0/ns2idPd99PQNYxjneyGWgZWEJERL13G/FOZ5UpAxktqU3UR9EFZmnpSv0D1HZ9AMUnCw",
-	"DX1Pf9lhxH9oE2Oc6QbLXjIu3pyq309++U2tB5ZqiRcmepc8j/AbpSK+vYf0qmiki1gXGFyKo5YCA9eh",
-	"d9XjGFsuxqXag0PFF287NRtT+9lsopOZ30/mJ+vyYkuoyJmWYYQqIC1tihN1tkRaCZcozm+VApHFoPAO",
-	"Ui5WyjtUDLlyUFqXKym+a9lC0ETNeCdMhco+T73BHJ3K0YkuUQHponv0LESTSCojX0Y1/taJ5snfbhPn",
-	"XIfKFs63Pr46f6cTvUQKbUCzydFkJhkU5kNl9Vz/HI8SXQEvIhDTzDrBa9qFHU9zjGTfRPnOSOXZwKeb",
-	"V6KDoERGCnr+eX9g5KiC/Sf2fysnNzWSUN1BKY4XtrSsk95qZTCDumDpKYm0mHVDWjeYB9tTk+za/ljB",
-	"TY3drIr5A1URLq2vQxxKz4LqDZmXypd2i3dmqTe7xnxvxQbOP9oCm6tkuBgfz2aPbJ/ft3UO9oOR1fOj",
-	"wxhMnAEdfHEnPjk+fkj5xtvp2OIsRkJdlkCrNS+2mhPl8DauupLGRPnOPLAC1W1YkAtp9Jp8sc1WPoyQ",
-	"7jRuSl2Muq15DPzam9WTpbA/k5thY2GqsdlD7+jJ0RtD7q/eeFO3sn21a+NTgneBuQ0yMaFnyvIifg+G",
-	"1z5mTTLSPqb31jQP9pC3yD0sdzpILDXpTNtKi8v2EI1+1R34b/BD6u4Qci1as5PDaG3+Lj8dvG+RYwWm",
-	"26SP45j7JVILZYnI1smj+wduOozlOqwCYzldIBTS/O6j/Ti5WlBrKvRcL5ir+XRa+BSKhQ88fzF7MdPN",
-	"1cadvWHczlvV6lXgjKLaSftQMr0nW4q0Duj9MfAqBJ/adkqvgw09ufXRiOBrD2RUF2y0zQu0pAymVmZr",
-	"X802Pbq5av4dAA==",
+	"zFrdc9s2Ev9XMLjONJlQouL47nry3EPqJG3u0sRjX55snbIiVxISEGCApW1Vw/+9A4CUSInyp+rpmwiA",
+	"+9sv7Be15InOcq1QkeXDJc/BQIaExj+9nqFK4T1h9j51z0LxIc+B5jziCjLkQw7+yFgQZmOR8ogb/F4I",
+	"gykfkikw4jaZYwbu7ak2GRAf8qLwJ2mROwqWjFAzXpYR/1mDSX/DbIJmJ+DEnRln/tDjEY/B4k6oBCw+",
+	"HuKdkLshpkLuAeI/erIT4aue3BlAKPrHIY94JpTIiowPX67QhCKcofFwvyGSULOdkFnYf7xcJ0aTTrTc",
+	"iZRXBx4PdaoLlX4snFftwDLuxFiFI3dV56uD29V5JjXtlNBKTY+VrnQv21wri/5af9T0zgnjfidaESpy",
+	"PyHPpUiAhFZxbvREYvbiq9XK7eE1ZLlE99MSUGH58HBwGHES5FYdSRZoruBhogsaTiSob7xssvuDwSkf",
+	"8r/F69ATh10bnwTcwHSKNjEidwx5CGaLZM4MWl2YBJlQjObIwFqdCM923wF9VrnRCVoLE4lvFQla3EPQ",
+	"R7N5it8LtMSmICSm7BKkSGvmVmrwZjjWigwknqXc6BwNiWAgyHShaJzUUXnrgm56UcQT9waaHEwQd8MH",
+	"Ip4YBMJ0DNSimAJhj0SG234T8aQwBlWyuE0dx/W5MuKoUtsFsqJ/XgNEXBVS8lEZcZHewY8jbsVMdYvQ",
+	"dbrI03tKXDZv2Tn3TLQUG7VN09BQk7m1Elpqb3E0WoHryVdMyDFcO8QJzHDbKVyKbf+40SQVLV6ugMAY",
+	"8CZSeE3jpDBW+1jX9t8TsJaBZWGfkWYzJH/R3GsshxkeMWc4psP9k2DDcv8GE29q1ovQ5qRTIw0HbLP5",
+	"9lpYl2SYwVyzIDV7NhUKVILPI2awsJg6QXwEvQRZoO3X5mIxMzgTlsxijIqMaOz1vf1cuD7nn1//yiP+",
+	"9vMpj/jnszcNHtdu9k6gTN8ao822zVIkELLzPuba3V7Tsbehq/pgVFPrUtRHvGqGE0hT4RQF8qTBzxSk",
+	"xeiWWNNWc02UeQW6kJsJpQ0rlCDL9JQ1tXavOmI7ZGVw/QHVjOZ8eDAY+Lfr55f7D05tOT84J05h4URy",
+	"Tp1Uch85L9eGwZTQsNUV77OP7gZMtWE6R9VDlWLaUsGtIe8+sWzDIx4Qkrp8pk5iW8o4fXfM/nX493+y",
+	"Kjmy4HiWPfOeqEDGuQRyTMdzohxy8bzPviQ6xS9MWAaK4TWhskIrFir1C/XlohgMXiU+DV+Tf8B+WEN3",
+	"ecYKMgzLX46YIEfIIrHJggGr3mKgUgYTi4qcXYAdHhywqdGZt5mdg8GUmSoBV5lXm/6FeoOSwMUyd64R",
+	"MYYM0tRWrPcvFN+8HW4j9EXkJOdD/v9z6P0+enFx0Xc/xqMXP3Tlnhsuvpf27oG8EV46QrlQllzE60Sq",
+	"K7Vlx+WrCreOt8LCbVHJ79ZkVlDbbubYwKQwghZnTqKg1jO0zjmOtf4mcNsBz9BcoulZkSKz4Sh79vrN",
+	"aW8wGLx6fsR+Jco/KbmI2JmjjRE7gwzPBOG/P8C1u4e+kk4C+XUtnQup9LiiuDYb5OK/uAjFnFBT3cGQ",
+	"UDO5jgr+4ocwYRyH5lIk2GdvL9EsXEAwvuBjCRiXWRheQ0JywbRCRjBjCjKXuVwEnbiaGdPawY+Yhlz0",
+	"nNfNULEZKkfLkYBkXh/60XpINMH1HRl9pRzl4MGVaStxA4+vT97ziF+isUGgQf9lf+Cs7cIX5IIP+Su/",
+	"FPn+wxsprrJpXIvtV2foI9ZKSte58A/C0vHqVNQaI5xvVxgzZFb8jitDfS/QLNZ2kiITxJstQ4pTKCS5",
+	"xBC5PFFllSpL3NBcbWJ/yuF7gXVx4/UHLDd4KXRhfRXzo2WNquSI6Uys7T0VplHsdPEeXmsxf2MeK0cb",
+	"zdnBYHBDu3K/NqVVUHb0Kp8UemF8Iq/N55uow4ODXcRX3MZdnZa/8EWWgVlUfrGmHDGFV743cmqMmK7h",
+	"gRiwuiSHmXMaXjmfz5W5th1Od+xL61rGqkNGSz/rdLE3FTYLq7IsN9vwcst6L/duvS7L/a9Ro7ArV66H",
+	"PmOfxjv1FTIaBg0oQXP/3KpAtm1WRh3hI16KtNwZQ35BathyI4J0TEYeORR5int3m+WCtQaHt1trNbLZ",
+	"n3l/QfI3MFkrvduOM32JJpjSD197oaRzWrtpO15ujGrLzQHzebcQ6yNxeyBcjjbwEgjG61qOl9X49gGw",
+	"1VS4HN1MOE51UmRdo/OHQ7iBsI2X1Vz4AbxX4+Ytwl/1xMbLMA1+ANkwYr6ZamyQzGJvtKsxcoeB6506",
+	"oOzcXk+iyzh8qeitiu778bieeZeju8FZKyyBoh4VRu0XsR57d6hmtRUvG8PxBxi8MXsvR3cDaak4XrY/",
+	"DZWxlZrs4xiJbj3d+mS1J8avtEld0vhrsv5YP3uIoROdL54GKddS9vynF/vkgPGy+c2njC814Z/uwM0P",
+	"UXdm2iCki95Uu555ph7tq3eHdT7XI91LDUzpaUDDUKv3dC7o41a8rL7EOedXU2EyCAXdn+sN1bfBB/Ma",
+	"5t5/NS5dF5EauAK5XwvWM/04xURYoVVHglydeZJMaZGaNYxI0ZficT2D2lwWM9UTu5bjBKScQPKtc18X",
+	"VK3bhSXM4jmCdEOHZXMI5wXaGL+dj1w3FGZKQeLCSD7kbrY7jGOpE5BzbWn40+CnAS9Hq0aha24nEmQB",
+	"2U9rTaFcY8/cXK3fGMV5Fvn2gOb1+msuq9oQ22/+X8Ivdbx4FnQU1QND6+H9kM4PxInlRqhE5CD7zSYS",
+	"q95oi6DvPVhd3NXUhGEr52rQWZvc+cAfAwA=",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

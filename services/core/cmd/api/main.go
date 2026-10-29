@@ -16,6 +16,7 @@ import (
 
 	"github.com/AndriiOpryshko/spilno/services/core/internal/finance"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance"
+	"github.com/AndriiOpryshko/spilno/services/core/internal/identity"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/config"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/httpapi"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/observability"
@@ -67,6 +68,7 @@ func run() error {
 		system.New(pool),
 		finance.New(pool),
 		governance.New(pool),
+		identity.New(pool),
 	}
 	for _, m := range modules {
 		if err := m.Routes(r); err != nil {

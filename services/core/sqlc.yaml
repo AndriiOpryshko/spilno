@@ -29,3 +29,12 @@ sql:
         package: sqlcgen
         out: internal/governance/adapters/postgres/sqlcgen
         sql_package: pgx/v5
+  - name: identity
+    engine: postgresql
+    schema: migrations
+    queries: internal/identity/adapters/postgres/queries
+    gen:
+      go:
+        package: sqlcgen
+        out: internal/identity/adapters/postgres/sqlcgen
+        sql_package: pgx/v5

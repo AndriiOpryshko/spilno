@@ -11,6 +11,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"path"
@@ -22,6 +24,108 @@ import (
 	"github.com/oapi-codegen/runtime"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
+
+// Defines values for AssistantTurnRole.
+const (
+	AssistantTurnRoleAssistant AssistantTurnRole = "assistant"
+	AssistantTurnRoleMember    AssistantTurnRole = "member"
+)
+
+// Valid indicates whether the value is a known member of the AssistantTurnRole enum.
+func (e AssistantTurnRole) Valid() bool {
+	switch e {
+	case AssistantTurnRoleAssistant:
+		return true
+	case AssistantTurnRoleMember:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for Currency.
+const (
+	CurrencyEUR Currency = "EUR"
+	CurrencyUAH Currency = "UAH"
+	CurrencyUSD Currency = "USD"
+)
+
+// Valid indicates whether the value is a known member of the Currency enum.
+func (e Currency) Valid() bool {
+	switch e {
+	case CurrencyEUR:
+		return true
+	case CurrencyUAH:
+		return true
+	case CurrencyUSD:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for FileRefMediaType.
+const (
+	FileRefMediaTypeApplicationpdf FileRefMediaType = "application/pdf"
+	FileRefMediaTypeImagejpeg      FileRefMediaType = "image/jpeg"
+	FileRefMediaTypeImagepng       FileRefMediaType = "image/png"
+)
+
+// Valid indicates whether the value is a known member of the FileRefMediaType enum.
+func (e FileRefMediaType) Valid() bool {
+	switch e {
+	case FileRefMediaTypeApplicationpdf:
+		return true
+	case FileRefMediaTypeImagejpeg:
+		return true
+	case FileRefMediaTypeImagepng:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for JobKind.
+const (
+	JobKindGovernanceProposeDraft    JobKind = "governance.propose_draft"
+	JobKindGovernanceRenderPrintCopy JobKind = "governance.render_print_copy"
+)
+
+// Valid indicates whether the value is a known member of the JobKind enum.
+func (e JobKind) Valid() bool {
+	switch e {
+	case JobKindGovernanceProposeDraft:
+		return true
+	case JobKindGovernanceRenderPrintCopy:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for JobState.
+const (
+	JobStateCompleted JobState = "completed"
+	JobStateFailed    JobState = "failed"
+	JobStatePending   JobState = "pending"
+	JobStateRunning   JobState = "running"
+)
+
+// Valid indicates whether the value is a known member of the JobState enum.
+func (e JobState) Valid() bool {
+	switch e {
+	case JobStateCompleted:
+		return true
+	case JobStateFailed:
+		return true
+	case JobStatePending:
+		return true
+	case JobStateRunning:
+		return true
+	default:
+		return false
+	}
+}
 
 // Defines values for MeetingKind.
 const (
@@ -41,26 +145,470 @@ func (e MeetingKind) Valid() bool {
 	}
 }
 
+// Defines values for PollChoice.
+const (
+	PollChoiceAbstain PollChoice = "abstain"
+	PollChoiceAgainst PollChoice = "against"
+	PollChoiceFor     PollChoice = "for"
+)
+
+// Valid indicates whether the value is a known member of the PollChoice enum.
+func (e PollChoice) Valid() bool {
+	switch e {
+	case PollChoiceAbstain:
+		return true
+	case PollChoiceAgainst:
+		return true
+	case PollChoiceFor:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PollRoundLabel.
+const (
+	PollRoundLabelПопереднєВнутрішнєОпитуванняПравлінняНеЄГолосуваннямЗасіданняІНеЗамінюєЙого PollRoundLabel = "Попереднє внутрішнє опитування правління — не є голосуванням засідання і не замінює його"
+)
+
+// Valid indicates whether the value is a known member of the PollRoundLabel enum.
+func (e PollRoundLabel) Valid() bool {
+	switch e {
+	case PollRoundLabelПопереднєВнутрішнєОпитуванняПравлінняНеЄГолосуваннямЗасіданняІНеЗамінюєЙого:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProtocolState.
+const (
+	ProtocolStateDraft           ProtocolState = "draft"
+	ProtocolStateReadyForSigning ProtocolState = "ready_for_signing"
+	ProtocolStateReadyForVote    ProtocolState = "ready_for_vote"
+	ProtocolStateSigned          ProtocolState = "signed"
+	ProtocolStateWithdrawn       ProtocolState = "withdrawn"
+)
+
+// Valid indicates whether the value is a known member of the ProtocolState enum.
+func (e ProtocolState) Valid() bool {
+	switch e {
+	case ProtocolStateDraft:
+		return true
+	case ProtocolStateReadyForSigning:
+		return true
+	case ProtocolStateReadyForVote:
+		return true
+	case ProtocolStateSigned:
+		return true
+	case ProtocolStateWithdrawn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SlotKind.
+const (
+	SlotKindAmount           SlotKind = "amount"
+	SlotKindCounterparty     SlotKind = "counterparty"
+	SlotKindDate             SlotKind = "date"
+	SlotKindDocumentRef      SlotKind = "document_ref"
+	SlotKindFundingSource    SlotKind = "funding_source"
+	SlotKindNonParticipation SlotKind = "non_participation"
+	SlotKindPerson           SlotKind = "person"
+	SlotKindTerm             SlotKind = "term"
+	SlotKindVotes            SlotKind = "votes"
+)
+
+// Valid indicates whether the value is a known member of the SlotKind enum.
+func (e SlotKind) Valid() bool {
+	switch e {
+	case SlotKindAmount:
+		return true
+	case SlotKindCounterparty:
+		return true
+	case SlotKindDate:
+		return true
+	case SlotKindDocumentRef:
+		return true
+	case SlotKindFundingSource:
+		return true
+	case SlotKindNonParticipation:
+		return true
+	case SlotKindPerson:
+		return true
+	case SlotKindTerm:
+		return true
+	case SlotKindVotes:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SlotOrigin.
+const (
+	SlotOriginAi       SlotOrigin = "ai"
+	SlotOriginDocument SlotOrigin = "document"
+	SlotOriginHuman    SlotOrigin = "human"
+)
+
+// Valid indicates whether the value is a known member of the SlotOrigin enum.
+func (e SlotOrigin) Valid() bool {
+	switch e {
+	case SlotOriginAi:
+		return true
+	case SlotOriginDocument:
+		return true
+	case SlotOriginHuman:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SlotStatus.
+const (
+	SlotStatusConfirmed   SlotStatus = "confirmed"
+	SlotStatusNeedsReview SlotStatus = "needs_review"
+	SlotStatusUnconfirmed SlotStatus = "unconfirmed"
+)
+
+// Valid indicates whether the value is a known member of the SlotStatus enum.
+func (e SlotStatus) Valid() bool {
+	switch e {
+	case SlotStatusConfirmed:
+		return true
+	case SlotStatusNeedsReview:
+		return true
+	case SlotStatusUnconfirmed:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TextFragment2Meeting.
+const (
+	TextFragment2MeetingChair   TextFragment2Meeting = "chair"
+	TextFragment2MeetingDate    TextFragment2Meeting = "date"
+	TextFragment2MeetingPresent TextFragment2Meeting = "present"
+)
+
+// Valid indicates whether the value is a known member of the TextFragment2Meeting enum.
+func (e TextFragment2Meeting) Valid() bool {
+	switch e {
+	case TextFragment2MeetingChair:
+		return true
+	case TextFragment2MeetingDate:
+		return true
+	case TextFragment2MeetingPresent:
+		return true
+	default:
+		return false
+	}
+}
+
+// AgendaItem defines model for AgendaItem.
+type AgendaItem struct {
+	CaseId    *openapi_types.UUID `json:"case_id"`
+	Fragments []TextFragment      `json:"fragments"`
+	Id        openapi_types.UUID  `json:"id"`
+	Position  int32               `json:"position"`
+	Slots     []DecisionSlot      `json:"slots"`
+	Subject   *string             `json:"subject"`
+
+	// WordingAuthorMemberId Author of the current wording version; null = помічник протоколу (AC-29).
+	WordingAuthorMemberId *openapi_types.UUID `json:"wording_author_member_id"`
+	WordingRevisedAt      time.Time           `json:"wording_revised_at"`
+}
+
+// AgendaItemFromCaseInput defines model for AgendaItemFromCaseInput.
+type AgendaItemFromCaseInput struct {
+	CaseId openapi_types.UUID `json:"case_id"`
+}
+
+// AgendaItemWordingInput defines model for AgendaItemWordingInput.
+type AgendaItemWordingInput struct {
+	Fragments        []TextFragment `json:"fragments"`
+	ProtocolRevision int32          `json:"protocol_revision"`
+
+	// Subject Null allowed in a draft; refused at готовий до підпису (AC-04).
+	Subject *string `json:"subject"`
+}
+
+// AssistantTurn defines model for AssistantTurn.
+type AssistantTurn struct {
+	// AuthorMemberId Null for an assistant turn.
+	AuthorMemberId   *openapi_types.UUID  `json:"author_member_id"`
+	CaseDocumentIds  []openapi_types.UUID `json:"case_document_ids"`
+	CreatedAt        time.Time            `json:"created_at"`
+	Id               openapi_types.UUID   `json:"id"`
+	Message          string               `json:"message"`
+	ProtocolId       openapi_types.UUID   `json:"protocol_id"`
+	ProtocolRevision int32                `json:"protocol_revision"`
+	Role             AssistantTurnRole    `json:"role"`
+}
+
+// AssistantTurnRole defines model for AssistantTurn.Role.
+type AssistantTurnRole string
+
+// AssistantTurnAccepted defines model for AssistantTurnAccepted.
+type AssistantTurnAccepted struct {
+	// Job A River job (ADR-0006) the SPA polls. `state` folds River's states: available/scheduled/retryable →
+	// pending, running → running, completed → completed, discarded/cancelled → failed.
+	Job        Job                `json:"job"`
+	ProtocolId openapi_types.UUID `json:"protocol_id"`
+	Turn       AssistantTurn      `json:"turn"`
+}
+
+// AssistantTurnInput defines model for AssistantTurnInput.
+type AssistantTurnInput struct {
+	// CaseDocumentIds Existing document versions of the справа attached to this turn.
+	CaseDocumentIds *[]openapi_types.UUID `json:"case_document_ids,omitempty"`
+
+	// CaseId The справа this turn is about; becomes an agenda item if the draft has none for it (AC-03c). Required with files.
+	CaseId *openapi_types.UUID `json:"case_id,omitempty"`
+
+	// Files New documents uploaded into the справа with this turn; each PDF, JPEG or PNG ≤ 20 MB.
+	Files *[]openapi_types.File `json:"files,omitempty"`
+
+	// Message Conversation text — confidential, never logged.
+	Message string `json:"message"`
+}
+
+// AssistantTurnPage defines model for AssistantTurnPage.
+type AssistantTurnPage struct {
+	Items      []AssistantTurn `json:"items"`
+	NextCursor *string         `json:"next_cursor"`
+}
+
+// AssociationSettings defines model for AssociationSettings.
+type AssociationSettings struct {
+	CreatedAt         time.Time          `json:"created_at"`
+	CreatedByMemberId openapi_types.UUID `json:"created_by_member_id"`
+	Id                openapi_types.UUID `json:"id"`
+	MeetingForm       string             `json:"meeting_form"`
+
+	// NextNumber protocol_registers.next_number — the number the next first print takes; differs from register_start_number once a number was issued.
+	NextNumber          int32  `json:"next_number"`
+	RegisterStartNumber int32  `json:"register_start_number"`
+	Signers             string `json:"signers"`
+}
+
+// AssociationSettingsInput defines model for AssociationSettingsInput.
+type AssociationSettingsInput struct {
+	MeetingForm         string `json:"meeting_form"`
+	RegisterStartNumber int32  `json:"register_start_number"`
+	Signers             string `json:"signers"`
+}
+
+// BoardMember board_members + its latest board_member_revisions row.
+type BoardMember struct {
+	FullName          string               `json:"full_name"`
+	Id                openapi_types.UUID   `json:"id"`
+	RevisedAt         time.Time            `json:"revised_at"`
+	RevisedByMemberId *openapi_types.UUID  `json:"revised_by_member_id"`
+	SignInEmail       *openapi_types.Email `json:"sign_in_email"`
+	TermEnd           *openapi_types.Date  `json:"term_end"`
+	TermStart         openapi_types.Date   `json:"term_start"`
+}
+
+// BoardMemberInput defines model for BoardMemberInput.
+type BoardMemberInput struct {
+	FullName string `json:"full_name"`
+
+	// SignInEmail Null for a person who never signs in.
+	SignInEmail *openapi_types.Email `json:"sign_in_email,omitempty"`
+
+	// TermEnd Not before term_start (domain). Null = open term.
+	TermEnd   *openapi_types.Date `json:"term_end,omitempty"`
+	TermStart openapi_types.Date  `json:"term_start"`
+}
+
+// BoardMemberPage defines model for BoardMemberPage.
+type BoardMemberPage struct {
+	Items      []BoardMember `json:"items"`
+	NextCursor *string       `json:"next_cursor"`
+}
+
+// Case defines model for Case.
+type Case struct {
+	CreatedAt         time.Time          `json:"created_at"`
+	CreatedByMemberId openapi_types.UUID `json:"created_by_member_id"`
+	Id                openapi_types.UUID `json:"id"`
+	Title             string             `json:"title"`
+}
+
+// CaseDetail Case with its document versions (a closed shape, so not allOf over Case).
+type CaseDetail struct {
+	CreatedAt         time.Time          `json:"created_at"`
+	CreatedByMemberId openapi_types.UUID `json:"created_by_member_id"`
+	Documents         []CaseDocument     `json:"documents"`
+	Id                openapi_types.UUID `json:"id"`
+	Title             string             `json:"title"`
+}
+
+// CaseDocument defines model for CaseDocument.
+type CaseDocument struct {
+	CaseId            openapi_types.UUID  `json:"case_id"`
+	CreatedAt         time.Time           `json:"created_at"`
+	CreatedByMemberId openapi_types.UUID  `json:"created_by_member_id"`
+	DocumentDate      *openapi_types.Date `json:"document_date"`
+
+	// File files row. Drive file and revision ids are never exposed (ADR-0005).
+	File              FileRef             `json:"file"`
+	Id                openapi_types.UUID  `json:"id"`
+	PreviousVersionId *openapi_types.UUID `json:"previous_version_id"`
+}
+
+// CaseDocumentUpload defines model for CaseDocumentUpload.
+type CaseDocumentUpload struct {
+	// DocumentDate The date written on the document; AC-22 picks the latest by it.
+	DocumentDate *openapi_types.Date `json:"document_date,omitempty"`
+
+	// File PDF, JPEG or PNG by content, ≤ 20 MB.
+	File openapi_types.File `json:"file"`
+
+	// PreviousVersionId The version this one replaces (a revised estimate, an amendment) — AC-09.
+	PreviousVersionId *openapi_types.UUID `json:"previous_version_id,omitempty"`
+}
+
+// CaseInput defines model for CaseInput.
+type CaseInput struct {
+	Title string `json:"title"`
+}
+
+// CasePage defines model for CasePage.
+type CasePage struct {
+	Items      []Case  `json:"items"`
+	NextCursor *string `json:"next_cursor"`
+}
+
+// Currency Existing repo schema (finance), reused as slot_values.currency / registry_entries.currency.
+type Currency string
+
+// DecisionSlot A слот рішення; `confirmation` is the latest one and is absent while the slot was never confirmed.
+type DecisionSlot struct {
+	Confirmation *SlotConfirmation  `json:"confirmation,omitempty"`
+	Id           openapi_types.UUID `json:"id"`
+
+	// Kind decision_slots.kind (AC-28 list).
+	Kind SlotKind `json:"kind"`
+
+	// Status decision_slots.status — the AC-21 print gate reads it.
+	Status SlotStatus `json:"status"`
+
+	// Values Every value, newest first — the proposal, alternatives from other documents (AC-22) and a new value beside a confirmed one (AC-28b, AC-09).
+	Values []SlotValue `json:"values"`
+}
+
+// DecisionSlotInput defines model for DecisionSlotInput.
+type DecisionSlotInput struct {
+	// Kind decision_slots.kind (AC-28 list).
+	Kind             SlotKind `json:"kind"`
+	ProtocolRevision int32    `json:"protocol_revision"`
+
+	// Value Only the fields of the slot's kind are set (checked in governance/domain).
+	Value SlotValueInput `json:"value"`
+}
+
 // FieldError defines model for FieldError.
 type FieldError struct {
 	Detail  string `json:"detail"`
 	Pointer string `json:"pointer"`
 }
 
-// Meeting defines model for Meeting.
-type Meeting struct {
-	CreatedAt      time.Time          `json:"created_at"`
-	EndsAt         *time.Time         `json:"ends_at"`
-	HeldAt         time.Time          `json:"held_at"`
-	Id             openapi_types.UUID `json:"id"`
-	Kind           MeetingKind        `json:"kind"`
-	Location       *string            `json:"location"`
-	QuorumRequired bool               `json:"quorum_required"`
-	Title          string             `json:"title"`
-	UpdatedAt      time.Time          `json:"updated_at"`
+// FileRef files row. Drive file and revision ids are never exposed (ADR-0005).
+type FileRef struct {
+	CreatedAt    time.Time          `json:"created_at"`
+	Id           openapi_types.UUID `json:"id"`
+	MediaType    FileRefMediaType   `json:"media_type"`
+	OriginalName string             `json:"original_name"`
+
+	// Sha256 Hex of the 32-byte SHA-256 computed while streaming.
+	Sha256    string `json:"sha256"`
+	SizeBytes int64  `json:"size_bytes"`
+
+	// UploadedByMemberId Null for a print copy rendered by the worker.
+	UploadedByMemberId *openapi_types.UUID `json:"uploaded_by_member_id"`
 }
 
-// MeetingKind defines model for MeetingKind.
+// FileRefMediaType defines model for FileRef.MediaType.
+type FileRefMediaType string
+
+// Job A River job (ADR-0006) the SPA polls. `state` folds River's states: available/scheduled/retryable →
+// pending, running → running, completed → completed, discarded/cancelled → failed.
+type Job struct {
+	Attempt     int32              `json:"attempt"`
+	CreatedAt   time.Time          `json:"created_at"`
+	FinalizedAt *time.Time         `json:"finalized_at"`
+	Id          int64              `json:"id"`
+	Kind        JobKind            `json:"kind"`
+	MaxAttempts int32              `json:"max_attempts"`
+	ProtocolId  openapi_types.UUID `json:"protocol_id"`
+	State       JobState           `json:"state"`
+}
+
+// JobKind defines model for Job.Kind.
+type JobKind string
+
+// JobState defines model for Job.State.
+type JobState string
+
+// Meeting Existing schema; delta adds chair_board_member_id.
+type Meeting struct {
+	ChairBoardMemberId *openapi_types.UUID `json:"chair_board_member_id"`
+	CreatedAt          time.Time           `json:"created_at"`
+	EndsAt             *time.Time          `json:"ends_at"`
+	HeldAt             time.Time           `json:"held_at"`
+	Id                 openapi_types.UUID  `json:"id"`
+
+	// Kind Existing schema, unchanged.
+	Kind           MeetingKind `json:"kind"`
+	Location       *string     `json:"location"`
+	QuorumRequired bool        `json:"quorum_required"`
+	Title          string      `json:"title"`
+	UpdatedAt      time.Time   `json:"updated_at"`
+}
+
+// MeetingFacts defines model for MeetingFacts.
+type MeetingFacts struct {
+	// CorrectionsNote Shown next to the frozen text; the signed paper prevails (AC-15).
+	CorrectionsNote           *string              `json:"corrections_note"`
+	EnteredAt                 time.Time            `json:"entered_at"`
+	EnteredByMemberId         openapi_types.UUID   `json:"entered_by_member_id"`
+	HasHandwrittenCorrections bool                 `json:"has_handwritten_corrections"`
+	ItemVotes                 []MeetingItemVotes   `json:"item_votes"`
+	PresentMemberIds          []openapi_types.UUID `json:"present_member_ids"`
+
+	// SignedScan files row. Drive file and revision ids are never exposed (ADR-0005).
+	SignedScan FileRef `json:"signed_scan"`
+}
+
+// MeetingFactsInput Facts written on the signed paper; never pre-filled from the poll (AC-41, ADR-0018). Completeness is checked in the domain so every missing fact is named at once (AC-34).
+type MeetingFactsInput struct {
+	// CorrectionsNote Required when has_handwritten_corrections (AC-15).
+	CorrectionsNote           *string `json:"corrections_note,omitempty"`
+	HasHandwrittenCorrections bool    `json:"has_handwritten_corrections"`
+
+	// ItemVotes One entry per agenda item.
+	ItemVotes []MeetingItemVotes `json:"item_votes"`
+
+	// PresentMemberIds Members present — a subset of the roster in force on the meeting date.
+	PresentMemberIds []openapi_types.UUID `json:"present_member_ids"`
+}
+
+// MeetingItemVotes defines model for MeetingItemVotes.
+type MeetingItemVotes struct {
+	AgendaItemId   openapi_types.UUID `json:"agenda_item_id"`
+	VotesAbstained int32              `json:"votes_abstained"`
+	VotesAgainst   int32              `json:"votes_against"`
+	VotesFor       int32              `json:"votes_for"`
+}
+
+// MeetingKind Existing schema, unchanged.
 type MeetingKind string
 
 // MeetingPage defines model for MeetingPage.
@@ -71,18 +619,94 @@ type MeetingPage struct {
 	NextCursor *string `json:"next_cursor"`
 }
 
-// NewMeeting defines model for NewMeeting.
+// NewMeeting Existing schema; delta adds chair_board_member_id.
 type NewMeeting struct {
-	EndsAt         *time.Time   `json:"ends_at,omitempty"`
-	HeldAt         time.Time    `json:"held_at"`
+	// ChairBoardMemberId The головуючий rendered by the {meeting: chair} fragment (AC-28).
+	ChairBoardMemberId *openapi_types.UUID `json:"chair_board_member_id,omitempty"`
+	EndsAt             *time.Time          `json:"ends_at,omitempty"`
+	HeldAt             time.Time           `json:"held_at"`
+
+	// Kind Existing schema, unchanged.
 	Kind           *MeetingKind `json:"kind,omitempty"`
 	Location       *string      `json:"location,omitempty"`
 	QuorumRequired *bool        `json:"quorum_required,omitempty"`
 	Title          string       `json:"title"`
 }
 
-// Problem RFC 9457 problem details.
+// PollChoice defines model for PollChoice.
+type PollChoice string
+
+// PollRound One round of the попереднє голосування; never a verdict on quorum, majority or adoption (AC-31, AC-41).
+type PollRound struct {
+	ClosedAt         *time.Time          `json:"closed_at"`
+	ClosedByMemberId *openapi_types.UUID `json:"closed_by_member_id"`
+	CreatedAt        time.Time           `json:"created_at"`
+
+	// FrozenAgendaItems The wording and slot values the round was opened on (poll_rounds.frozen).
+	FrozenAgendaItems []AgendaItem       `json:"frozen_agenda_items"`
+	Id                openapi_types.UUID `json:"id"`
+	Items             []PollRoundItem    `json:"items"`
+	Label             PollRoundLabel     `json:"label"`
+	OpenedByMemberId  openapi_types.UUID `json:"opened_by_member_id"`
+	ProtocolRevision  int32              `json:"protocol_revision"`
+	RoundNumber       int32              `json:"round_number"`
+}
+
+// PollRoundLabel defines model for PollRound.Label.
+type PollRoundLabel string
+
+// PollRoundItem defines model for PollRoundItem.
+type PollRoundItem struct {
+	AgendaItemId openapi_types.UUID `json:"agenda_item_id"`
+	Tally        PollTally          `json:"tally"`
+
+	// Votes Latest vote of each member in this round.
+	Votes []PollVote `json:"votes"`
+}
+
+// PollTally defines model for PollTally.
+type PollTally struct {
+	Abstain int32 `json:"abstain"`
+	Against int32 `json:"against"`
+	For     int32 `json:"for"`
+}
+
+// PollVote defines model for PollVote.
+type PollVote struct {
+	BoardMemberId openapi_types.UUID `json:"board_member_id"`
+	Choice        PollChoice         `json:"choice"`
+	CreatedAt     time.Time          `json:"created_at"`
+}
+
+// PollVoteInput defines model for PollVoteInput.
+type PollVoteInput struct {
+	AgendaItemId openapi_types.UUID `json:"agenda_item_id"`
+
+	// BoardMemberId Must be the signed-in member (AC-05e).
+	BoardMemberId openapi_types.UUID `json:"board_member_id"`
+	Choice        PollChoice         `json:"choice"`
+}
+
+// PrintCopy defines model for PrintCopy.
+type PrintCopy struct {
+	CreatedAt time.Time `json:"created_at"`
+
+	// File files row. Drive file and revision ids are never exposed (ADR-0005).
+	File                FileRef            `json:"file"`
+	Id                  openapi_types.UUID `json:"id"`
+	Number              int32              `json:"number"`
+	ProtocolRevision    int32              `json:"protocol_revision"`
+	RequestedByMemberId openapi_types.UUID `json:"requested_by_member_id"`
+
+	// VoidedAt Set when an edit voided the copy — it must not be signed (AC-14b).
+	VoidedAt *time.Time `json:"voided_at"`
+}
+
+// Problem RFC 9457 problem details (internal/platform/httpapi). `code` is an extension member
+// `<context>.<error_name>`; it is set by a context and absent on a 422 from the shared request validator.
+// Delta to the repo schema: adds `code`.
 type Problem struct {
+	Code     *string       `json:"code,omitempty"`
 	Detail   *string       `json:"detail,omitempty"`
 	Errors   *[]FieldError `json:"errors,omitempty"`
 	Instance *string       `json:"instance,omitempty"`
@@ -91,11 +715,333 @@ type Problem struct {
 	Type     string        `json:"type"`
 }
 
-// NotFound RFC 9457 problem details.
+// Protocol The protocol aggregate in its current state (draft view).
+type Protocol struct {
+	AgendaItems          []AgendaItem        `json:"agenda_items"`
+	CopiedFromProtocolId *openapi_types.UUID `json:"copied_from_protocol_id"`
+	CreatedAt            time.Time           `json:"created_at"`
+	CreatedByMemberId    openapi_types.UUID  `json:"created_by_member_id"`
+
+	// Documents Document versions of the справи behind the agenda items (AC-03).
+	Documents []CaseDocument     `json:"documents"`
+	Id        openapi_types.UUID `json:"id"`
+	Meeting   ProtocolMeeting    `json:"meeting"`
+
+	// Number Reserved at the first print copy, never cleared (ADR-0017).
+	Number *int32 `json:"number"`
+
+	// PollRounds Every round, newest first; closed rounds are history and not counted (AC-05d).
+	PollRounds []PollRound `json:"poll_rounds"`
+
+	// PrintCopies Every rendered copy, newest first; only a copy with voided_at null may be signed.
+	PrintCopies []PrintCopy `json:"print_copies"`
+	Revision    int32       `json:"revision"`
+
+	// RosterInForce Board members whose term covers the meeting date (AC-03).
+	RosterInForce []BoardMember `json:"roster_in_force"`
+
+	// State protocols.state (ADR-0009); UI labels чернетка · готовий до голосування · готовий до підпису · підписаний · знятий з розгляду.
+	State       ProtocolState        `json:"state"`
+	Transitions []ProtocolTransition `json:"transitions"`
+}
+
+// ProtocolMeeting defines model for ProtocolMeeting.
+type ProtocolMeeting struct {
+	ChairBoardMemberId *openapi_types.UUID `json:"chair_board_member_id"`
+	HeldAt             time.Time           `json:"held_at"`
+	Id                 openapi_types.UUID  `json:"id"`
+
+	// MeetingDate Europe/Kyiv calendar date of held_at (SAD §8 Dates).
+	MeetingDate openapi_types.Date `json:"meeting_date"`
+}
+
+// ProtocolRevisionInput defines model for ProtocolRevisionInput.
+type ProtocolRevisionInput struct {
+	// ProtocolRevision The revision the request was built on (ADR-0009).
+	ProtocolRevision int32 `json:"protocol_revision"`
+}
+
+// ProtocolState protocols.state (ADR-0009); UI labels чернетка · готовий до голосування · готовий до підпису · підписаний · знятий з розгляду.
+type ProtocolState string
+
+// ProtocolSummary defines model for ProtocolSummary.
+type ProtocolSummary struct {
+	CreatedAt   time.Time          `json:"created_at"`
+	Id          openapi_types.UUID `json:"id"`
+	MeetingDate openapi_types.Date `json:"meeting_date"`
+	MeetingId   openapi_types.UUID `json:"meeting_id"`
+	Number      *int32             `json:"number"`
+	Revision    int32              `json:"revision"`
+
+	// State protocols.state (ADR-0009); UI labels чернетка · готовий до голосування · готовий до підпису · підписаний · знятий з розгляду.
+	State ProtocolState `json:"state"`
+}
+
+// ProtocolSummaryPage defines model for ProtocolSummaryPage.
+type ProtocolSummaryPage struct {
+	Items      []ProtocolSummary `json:"items"`
+	NextCursor *string           `json:"next_cursor"`
+}
+
+// ProtocolTransition defines model for ProtocolTransition.
+type ProtocolTransition struct {
+	ActorMemberId *openapi_types.UUID `json:"actor_member_id"`
+	CreatedAt     time.Time           `json:"created_at"`
+	FromState     *ProtocolState      `json:"from_state"`
+	Revision      int32               `json:"revision"`
+
+	// ToState protocols.state (ADR-0009); UI labels чернетка · готовий до голосування · готовий до підпису · підписаний · знятий з розгляду.
+	ToState ProtocolState `json:"to_state"`
+}
+
+// ProtocolWithJob defines model for ProtocolWithJob.
+type ProtocolWithJob struct {
+	// Job A River job (ADR-0006) the SPA polls. `state` folds River's states: available/scheduled/retryable →
+	// pending, running → running, completed → completed, discarded/cancelled → failed.
+	Job Job `json:"job"`
+
+	// Protocol The protocol aggregate in its current state (draft view).
+	Protocol Protocol `json:"protocol"`
+}
+
+// RegistryDecision registry_entries row — one decision (agenda item) of a signed protocol.
+type RegistryDecision struct {
+	AgendaItemId  openapi_types.UUID `json:"agenda_item_id"`
+	AmountKopiyky *int64             `json:"amount_kopiyky"`
+	Counterparty  *string            `json:"counterparty"`
+	Currency      *Currency          `json:"currency"`
+	MeetingDate   openapi_types.Date `json:"meeting_date"`
+	Number        int32              `json:"number"`
+	ProtocolId    openapi_types.UUID `json:"protocol_id"`
+	Subject       string             `json:"subject"`
+}
+
+// RegistryDecisionPage defines model for RegistryDecisionPage.
+type RegistryDecisionPage struct {
+	Items      []RegistryDecision `json:"items"`
+	NextCursor *string            `json:"next_cursor"`
+
+	// WithdrawnNumbers Numbers of знятий з розгляду protocols inside this page's number range — gaps marked «знято з розгляду».
+	WithdrawnNumbers []int32 `json:"withdrawn_numbers"`
+}
+
+// SignedCopyUpload defines model for SignedCopyUpload.
+type SignedCopyUpload struct {
+	// MeetingFacts Facts written on the signed paper; never pre-filled from the poll (AC-41, ADR-0018). Completeness is checked in the domain so every missing fact is named at once (AC-34).
+	MeetingFacts MeetingFactsInput `json:"meeting_facts"`
+
+	// PrintCopyId The current (not voided) print copy that was signed.
+	PrintCopyId openapi_types.UUID `json:"print_copy_id"`
+
+	// Scan PDF, JPEG or PNG by content, ≤ 20 MB.
+	Scan openapi_types.File `json:"scan"`
+}
+
+// SignedProtocol Read from the signed protocol_snapshots row (ADR-0007); nothing here changes after lock.
+type SignedProtocol struct {
+	// AgendaItems Frozen text and slots with the document versions they were confirmed against.
+	AgendaItems []AgendaItem `json:"agenda_items"`
+
+	// Documents Cited case document versions.
+	Documents        []CaseDocument     `json:"documents"`
+	LockedAt         time.Time          `json:"locked_at"`
+	LockedByMemberId openapi_types.UUID `json:"locked_by_member_id"`
+	Meeting          ProtocolMeeting    `json:"meeting"`
+	MeetingDate      openapi_types.Date `json:"meeting_date"`
+	MeetingFacts     MeetingFacts       `json:"meeting_facts"`
+	Number           int32              `json:"number"`
+
+	// PollHistory The drafts' poll rounds as history, each labelled informal (AC-41).
+	PollHistory []PollRound        `json:"poll_history"`
+	PrintCopy   PrintCopy          `json:"print_copy"`
+	ProtocolId  openapi_types.UUID `json:"protocol_id"`
+}
+
+// SlotConfirmation defines model for SlotConfirmation.
+type SlotConfirmation struct {
+	ConfirmedByMemberId openapi_types.UUID `json:"confirmed_by_member_id"`
+	CreatedAt           time.Time          `json:"created_at"`
+	ProtocolRevision    int32              `json:"protocol_revision"`
+	SlotValueId         openapi_types.UUID `json:"slot_value_id"`
+}
+
+// SlotConfirmationInput defines model for SlotConfirmationInput.
+type SlotConfirmationInput struct {
+	ProtocolRevision int32              `json:"protocol_revision"`
+	SlotValueId      openapi_types.UUID `json:"slot_value_id"`
+}
+
+// SlotCorrectionInput defines model for SlotCorrectionInput.
+type SlotCorrectionInput struct {
+	ProtocolRevision int32 `json:"protocol_revision"`
+
+	// Value Only the fields of the slot's kind are set (checked in governance/domain).
+	Value SlotValueInput `json:"value"`
+}
+
+// SlotKind decision_slots.kind (AC-28 list).
+type SlotKind string
+
+// SlotOrigin defines model for SlotOrigin.
+type SlotOrigin string
+
+// SlotStatus decision_slots.status — the AC-21 print gate reads it.
+type SlotStatus string
+
+// SlotValue defines model for SlotValue.
+type SlotValue struct {
+	AmountKopiyky   *int64              `json:"amount_kopiyky"`
+	AssistantTurnId *openapi_types.UUID `json:"assistant_turn_id"`
+	AuthorMemberId  *openapi_types.UUID `json:"author_member_id"`
+	CreatedAt       time.Time           `json:"created_at"`
+	Currency        *Currency           `json:"currency"`
+	DateEndValue    *openapi_types.Date `json:"date_end_value"`
+	DateValue       *openapi_types.Date `json:"date_value"`
+	Id              openapi_types.UUID  `json:"id"`
+	Origin          SlotOrigin          `json:"origin"`
+	PersonMemberId  *openapi_types.UUID `json:"person_member_id"`
+
+	// SourceDocumentId The case document version the value came from (AC-21, AC-09).
+	SourceDocumentId *openapi_types.UUID `json:"source_document_id"`
+
+	// SourceFragment Quoted fragment shown next to the value (AC-21).
+	SourceFragment *string `json:"source_fragment"`
+	TextValue      *string `json:"text_value"`
+}
+
+// SlotValueInput Only the fields of the slot's kind are set (checked in governance/domain).
+type SlotValueInput struct {
+	AmountKopiyky    *int64              `json:"amount_kopiyky,omitempty"`
+	Currency         *Currency           `json:"currency,omitempty"`
+	DateEndValue     *openapi_types.Date `json:"date_end_value,omitempty"`
+	DateValue        *openapi_types.Date `json:"date_value,omitempty"`
+	PersonMemberId   *openapi_types.UUID `json:"person_member_id,omitempty"`
+	SourceDocumentId *openapi_types.UUID `json:"source_document_id,omitempty"`
+	TextValue        *string             `json:"text_value,omitempty"`
+}
+
+// TextFragment ADR-0011 — a plain text fragment, a slot placeholder, or a meeting fact.
+type TextFragment struct {
+	union json.RawMessage
+}
+
+// TextFragment0 defines model for TextFragment.0.
+type TextFragment0 struct {
+	Text string `json:"text"`
+}
+
+// TextFragment1 defines model for TextFragment.1.
+type TextFragment1 struct {
+	Slot openapi_types.UUID `json:"slot"`
+}
+
+// TextFragment2 defines model for TextFragment.2.
+type TextFragment2 struct {
+	Meeting TextFragment2Meeting `json:"meeting"`
+}
+
+// TextFragment2Meeting defines model for TextFragment.2.Meeting.
+type TextFragment2Meeting string
+
+// WithdrawalInput defines model for WithdrawalInput.
+type WithdrawalInput struct {
+	ProtocolRevision int32 `json:"protocol_revision"`
+
+	// Reason Kept in the withdrawn snapshot (ADR-0007).
+	Reason string `json:"reason"`
+}
+
+// AgendaItemId defines model for AgendaItemId.
+type AgendaItemId = openapi_types.UUID
+
+// BoardMemberId defines model for BoardMemberId.
+type BoardMemberId = openapi_types.UUID
+
+// CaseId defines model for CaseId.
+type CaseId = openapi_types.UUID
+
+// Cursor defines model for Cursor.
+type Cursor = string
+
+// FileId defines model for FileId.
+type FileId = openapi_types.UUID
+
+// IdempotencyKey defines model for IdempotencyKey.
+type IdempotencyKey = openapi_types.UUID
+
+// JobId defines model for JobId.
+type JobId = int64
+
+// Limit defines model for Limit.
+type Limit = int
+
+// MeetingId defines model for MeetingId.
+type MeetingId = openapi_types.UUID
+
+// ProtocolId defines model for ProtocolId.
+type ProtocolId = openapi_types.UUID
+
+// RoundNumber defines model for RoundNumber.
+type RoundNumber = int32
+
+// SlotId defines model for SlotId.
+type SlotId = openapi_types.UUID
+
+// NotCurrentMember RFC 9457 problem details (internal/platform/httpapi). `code` is an extension member
+// `<context>.<error_name>`; it is set by a context and absent on a 422 from the shared request validator.
+// Delta to the repo schema: adds `code`.
+type NotCurrentMember = Problem
+
+// NotFound RFC 9457 problem details (internal/platform/httpapi). `code` is an extension member
+// `<context>.<error_name>`; it is set by a context and absent on a 422 from the shared request validator.
+// Delta to the repo schema: adds `code`.
 type NotFound = Problem
 
-// UnprocessableEntity RFC 9457 problem details.
+// ProtocolEditConflict RFC 9457 problem details (internal/platform/httpapi). `code` is an extension member
+// `<context>.<error_name>`; it is set by a context and absent on a 422 from the shared request validator.
+// Delta to the repo schema: adds `code`.
+type ProtocolEditConflict = Problem
+
+// SessionRequired RFC 9457 problem details (internal/platform/httpapi). `code` is an extension member
+// `<context>.<error_name>`; it is set by a context and absent on a 422 from the shared request validator.
+// Delta to the repo schema: adds `code`.
+type SessionRequired = Problem
+
+// StorageUnavailable RFC 9457 problem details (internal/platform/httpapi). `code` is an extension member
+// `<context>.<error_name>`; it is set by a context and absent on a 422 from the shared request validator.
+// Delta to the repo schema: adds `code`.
+type StorageUnavailable = Problem
+
+// UnprocessableEntity RFC 9457 problem details (internal/platform/httpapi). `code` is an extension member
+// `<context>.<error_name>`; it is set by a context and absent on a 422 from the shared request validator.
+// Delta to the repo schema: adds `code`.
 type UnprocessableEntity = Problem
+
+// ValidationFailed RFC 9457 problem details (internal/platform/httpapi). `code` is an extension member
+// `<context>.<error_name>`; it is set by a context and absent on a 422 from the shared request validator.
+// Delta to the repo schema: adds `code`.
+type ValidationFailed = Problem
+
+// ListBoardMembersParams defines parameters for ListBoardMembers.
+type ListBoardMembersParams struct {
+	// On Only members whose term covers this calendar date (roster in force).
+	On *openapi_types.Date `form:"on,omitempty" json:"on,omitempty"`
+
+	// Limit Page size.
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Cursor Opaque cursor from a previous page's next_cursor; omit for the first page.
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
+
+// ListCasesParams defines parameters for ListCases.
+type ListCasesParams struct {
+	// Limit Page size.
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Cursor Opaque cursor from a previous page's next_cursor; omit for the first page.
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
 
 // ListMeetingsParams defines parameters for ListMeetings.
 type ListMeetingsParams struct {
@@ -106,11 +1052,225 @@ type ListMeetingsParams struct {
 	Cursor *string `form:"cursor,omitempty" json:"cursor,omitempty"`
 }
 
+// CreateAssistantTurnParams defines parameters for CreateAssistantTurn.
+type CreateAssistantTurnParams struct {
+	// IdempotencyKey Client-generated key; a retry with the same key within 24 h returns the first result instead of a second turn and upload.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
+}
+
+// ListProtocolsParams defines parameters for ListProtocols.
+type ListProtocolsParams struct {
+	State *ProtocolState `form:"state,omitempty" json:"state,omitempty"`
+
+	// Limit Page size.
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Cursor Opaque cursor from a previous page's next_cursor; omit for the first page.
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
+
+// ListAssistantTurnsParams defines parameters for ListAssistantTurns.
+type ListAssistantTurnsParams struct {
+	// Limit Page size.
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Cursor Opaque cursor from a previous page's next_cursor; omit for the first page.
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
+
+// SearchRegistryParams defines parameters for SearchRegistry.
+type SearchRegistryParams struct {
+	Counterparty *string `form:"counterparty,omitempty" json:"counterparty,omitempty"`
+	Subject      *string `form:"subject,omitempty" json:"subject,omitempty"`
+
+	// AmountKopiyky Exact amount.
+	AmountKopiyky     *int64              `form:"amount_kopiyky,omitempty" json:"amount_kopiyky,omitempty"`
+	AmountFromKopiyky *int64              `form:"amount_from_kopiyky,omitempty" json:"amount_from_kopiyky,omitempty"`
+	AmountToKopiyky   *int64              `form:"amount_to_kopiyky,omitempty" json:"amount_to_kopiyky,omitempty"`
+	DateFrom          *openapi_types.Date `form:"date_from,omitempty" json:"date_from,omitempty"`
+	DateTo            *openapi_types.Date `form:"date_to,omitempty" json:"date_to,omitempty"`
+
+	// Limit Page size.
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Cursor Opaque cursor from a previous page's next_cursor; omit for the first page.
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
+
+// CreateBoardMemberJSONRequestBody defines body for CreateBoardMember for application/json ContentType.
+type CreateBoardMemberJSONRequestBody = BoardMemberInput
+
+// UpdateBoardMemberJSONRequestBody defines body for UpdateBoardMember for application/json ContentType.
+type UpdateBoardMemberJSONRequestBody = BoardMemberInput
+
+// CreateCaseJSONRequestBody defines body for CreateCase for application/json ContentType.
+type CreateCaseJSONRequestBody = CaseInput
+
+// AddCaseDocumentMultipartRequestBody defines body for AddCaseDocument for multipart/form-data ContentType.
+type AddCaseDocumentMultipartRequestBody = CaseDocumentUpload
+
 // CreateMeetingJSONRequestBody defines body for CreateMeeting for application/json ContentType.
 type CreateMeetingJSONRequestBody = NewMeeting
 
+// AddAgendaItemFromCaseJSONRequestBody defines body for AddAgendaItemFromCase for application/json ContentType.
+type AddAgendaItemFromCaseJSONRequestBody = AgendaItemFromCaseInput
+
+// CreateAssistantTurnMultipartRequestBody defines body for CreateAssistantTurn for multipart/form-data ContentType.
+type CreateAssistantTurnMultipartRequestBody = AssistantTurnInput
+
+// AddDecisionSlotJSONRequestBody defines body for AddDecisionSlot for application/json ContentType.
+type AddDecisionSlotJSONRequestBody = DecisionSlotInput
+
+// SaveAgendaItemWordingJSONRequestBody defines body for SaveAgendaItemWording for application/json ContentType.
+type SaveAgendaItemWordingJSONRequestBody = AgendaItemWordingInput
+
+// StartPollRoundJSONRequestBody defines body for StartPollRound for application/json ContentType.
+type StartPollRoundJSONRequestBody = ProtocolRevisionInput
+
+// CastPollVoteJSONRequestBody defines body for CastPollVote for application/json ContentType.
+type CastPollVoteJSONRequestBody = PollVoteInput
+
+// MarkProtocolReadyForSigningJSONRequestBody defines body for MarkProtocolReadyForSigning for application/json ContentType.
+type MarkProtocolReadyForSigningJSONRequestBody = ProtocolRevisionInput
+
+// ReturnProtocolToDraftJSONRequestBody defines body for ReturnProtocolToDraft for application/json ContentType.
+type ReturnProtocolToDraftJSONRequestBody = ProtocolRevisionInput
+
+// LockProtocolWithSignedCopyMultipartRequestBody defines body for LockProtocolWithSignedCopy for multipart/form-data ContentType.
+type LockProtocolWithSignedCopyMultipartRequestBody = SignedCopyUpload
+
+// ConfirmDecisionSlotJSONRequestBody defines body for ConfirmDecisionSlot for application/json ContentType.
+type ConfirmDecisionSlotJSONRequestBody = SlotConfirmationInput
+
+// CorrectDecisionSlotJSONRequestBody defines body for CorrectDecisionSlot for application/json ContentType.
+type CorrectDecisionSlotJSONRequestBody = SlotCorrectionInput
+
+// WithdrawProtocolJSONRequestBody defines body for WithdrawProtocol for application/json ContentType.
+type WithdrawProtocolJSONRequestBody = WithdrawalInput
+
+// SaveAssociationSettingsJSONRequestBody defines body for SaveAssociationSettings for application/json ContentType.
+type SaveAssociationSettingsJSONRequestBody = AssociationSettingsInput
+
+// AsTextFragment0 returns the union data inside the TextFragment as a TextFragment0
+func (t TextFragment) AsTextFragment0() (TextFragment0, error) {
+	var body TextFragment0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromTextFragment0 overwrites any union data inside the TextFragment as the provided TextFragment0
+func (t *TextFragment) FromTextFragment0(v TextFragment0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeTextFragment0 performs a merge with any union data inside the TextFragment, using the provided TextFragment0
+func (t *TextFragment) MergeTextFragment0(v TextFragment0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsTextFragment1 returns the union data inside the TextFragment as a TextFragment1
+func (t TextFragment) AsTextFragment1() (TextFragment1, error) {
+	var body TextFragment1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromTextFragment1 overwrites any union data inside the TextFragment as the provided TextFragment1
+func (t *TextFragment) FromTextFragment1(v TextFragment1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeTextFragment1 performs a merge with any union data inside the TextFragment, using the provided TextFragment1
+func (t *TextFragment) MergeTextFragment1(v TextFragment1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsTextFragment2 returns the union data inside the TextFragment as a TextFragment2
+func (t TextFragment) AsTextFragment2() (TextFragment2, error) {
+	var body TextFragment2
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromTextFragment2 overwrites any union data inside the TextFragment as the provided TextFragment2
+func (t *TextFragment) FromTextFragment2(v TextFragment2) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeTextFragment2 performs a merge with any union data inside the TextFragment, using the provided TextFragment2
+func (t *TextFragment) MergeTextFragment2(v TextFragment2) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t TextFragment) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *TextFragment) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// ListBoardMembers Board roster with terms, newest entry first (US-01)
+	// (GET /governance/board-members)
+	ListBoardMembers(w http.ResponseWriter, r *http.Request, params ListBoardMembersParams)
+	// CreateBoardMember Add a person to the board roster for one term (AC-02, Flow 12)
+	// (POST /governance/board-members)
+	CreateBoardMember(w http.ResponseWriter, r *http.Request)
+	// UpdateBoardMember Save a new revision of a roster entry (e.g. the term ends) (AC-02, Flow 12)
+	// (PUT /governance/board-members/{board_member_id})
+	UpdateBoardMember(w http.ResponseWriter, r *http.Request, boardMemberId BoardMemberId)
+	// ListCases List справи, newest first
+	// (GET /governance/cases)
+	ListCases(w http.ResponseWriter, r *http.Request, params ListCasesParams)
+	// CreateCase Open a справа (US-02)
+	// (POST /governance/cases)
+	CreateCase(w http.ResponseWriter, r *http.Request)
+	// GetCase One справа with all its document versions (AC-03, AC-19)
+	// (GET /governance/cases/{case_id})
+	GetCase(w http.ResponseWriter, r *http.Request, caseId CaseId)
+	// AddCaseDocument Upload a document, or a newer version of one, into a справа (US-04, AC-09, Flow 3, Flow 8)
+	// (POST /governance/cases/{case_id}/documents)
+	AddCaseDocument(w http.ResponseWriter, r *http.Request, caseId CaseId)
+	// DownloadFile Download a stored file — case document, print copy or signed scan (US-07, Flow 13)
+	// (GET /governance/files/{file_id})
+	DownloadFile(w http.ResponseWriter, r *http.Request, fileId FileId)
+	// GetJob Status of a proposal or print-copy job, polled about every 2 s (SAD §4, Flows 1, 4, 8)
+	// (GET /governance/jobs/{job_id})
+	GetJob(w http.ResponseWriter, r *http.Request, jobId JobId)
+	// RetryJob Retry a failed job (Flow 8 "retry offered")
+	// (POST /governance/jobs/{job_id}/retry)
+	RetryJob(w http.ResponseWriter, r *http.Request, jobId JobId)
 	// ListMeetings List meetings, newest first, one page at a time
 	// (GET /governance/meetings)
 	ListMeetings(w http.ResponseWriter, r *http.Request, params ListMeetingsParams)
@@ -120,11 +1280,131 @@ type ServerInterface interface {
 	// GetMeeting Get one meeting
 	// (GET /governance/meetings/{id})
 	GetMeeting(w http.ResponseWriter, r *http.Request, id openapi_types.UUID)
+	// AddAgendaItemFromCase Open the meeting's draft from a справа, or add the справа as an agenda item (US-02, AC-03c)
+	// (POST /governance/meetings/{meeting_id}/agenda-items)
+	AddAgendaItemFromCase(w http.ResponseWriter, r *http.Request, meetingId MeetingId)
+	// CreateAssistantTurn Ask the помічник протоколу for a draft of the meeting's protocol, or refine it (US-12, Flow 1)
+	// (POST /governance/meetings/{meeting_id}/assistant-turns)
+	CreateAssistantTurn(w http.ResponseWriter, r *http.Request, meetingId MeetingId, params CreateAssistantTurnParams)
+	// ListProtocols List protocol drafts and protocols, newest first, optionally by state
+	// (GET /governance/protocols)
+	ListProtocols(w http.ResponseWriter, r *http.Request, params ListProtocolsParams)
+	// GetProtocol Open a draft with its meeting, roster in force, documents, slots, poll rounds and print copies (AC-03)
+	// (GET /governance/protocols/{protocol_id})
+	GetProtocol(w http.ResponseWriter, r *http.Request, protocolId ProtocolId)
+	// AddDecisionSlot Turn a typed fact into a слот рішення by hand (ADR-0011 highlight offer, AC-28)
+	// (POST /governance/protocols/{protocol_id}/agenda-items/{agenda_item_id}/slots)
+	AddDecisionSlot(w http.ResponseWriter, r *http.Request, protocolId ProtocolId, agendaItemId AgendaItemId)
+	// SaveAgendaItemWording Reword an agenda item's subject and text (AC-29, AC-05d, AC-14b, Flows 1, 3)
+	// (PUT /governance/protocols/{protocol_id}/agenda-items/{agenda_item_id}/wording)
+	SaveAgendaItemWording(w http.ResponseWriter, r *http.Request, protocolId ProtocolId, agendaItemId AgendaItemId)
+	// ListAssistantTurns The conversation kept with the draft, newest first (AC-26)
+	// (GET /governance/protocols/{protocol_id}/assistant-turns)
+	ListAssistantTurns(w http.ResponseWriter, r *http.Request, protocolId ProtocolId, params ListAssistantTurnsParams)
+	// CopyWithdrawnProtocol Start a new draft copied from a withdrawn one (AC-39)
+	// (POST /governance/protocols/{protocol_id}/copy)
+	CopyWithdrawnProtocol(w http.ResponseWriter, r *http.Request, protocolId ProtocolId)
+	// StartPollRound Freeze the wording as the next round of the попереднє голосування (чернетка → готовий до голосування) (AC-30, Flow 2)
+	// (POST /governance/protocols/{protocol_id}/poll-rounds)
+	StartPollRound(w http.ResponseWriter, r *http.Request, protocolId ProtocolId)
+	// CastPollVote Cast or change one's own informal vote on an agenda item (AC-31, AC-05e, AC-32, Flow 2)
+	// (PUT /governance/protocols/{protocol_id}/poll-rounds/{round_number}/votes)
+	CastPollVote(w http.ResponseWriter, r *http.Request, protocolId ProtocolId, roundNumber RoundNumber)
+	// MarkProtocolReadyForSigning Mark готовий до підпису — freeze the text, reserve the number, render the print copy (AC-04, AC-21, AC-14c, AC-33, Flow 4)
+	// (POST /governance/protocols/{protocol_id}/ready-for-signing)
+	MarkProtocolReadyForSigning(w http.ResponseWriter, r *http.Request, protocolId ProtocolId)
+	// ReturnProtocolToDraft «Повернути в чернетку» (готовий до голосування / готовий до підпису → чернетка) (AC-05d, AC-14b, Flow 3)
+	// (POST /governance/protocols/{protocol_id}/return-to-draft)
+	ReturnProtocolToDraft(w http.ResponseWriter, r *http.Request, protocolId ProtocolId)
+	// LockProtocolWithSignedCopy Upload the signed scan with the meeting facts and lock (готовий до підпису → підписаний) (AC-14, AC-34, AC-15, AC-40, AC-16, Flow 5)
+	// (POST /governance/protocols/{protocol_id}/signed-copy)
+	LockProtocolWithSignedCopy(w http.ResponseWriter, r *http.Request, protocolId ProtocolId)
+	// ConfirmDecisionSlot Confirm one value of a slot — the proposed one or an alternative beside it (AC-21, AC-22, AC-28b)
+	// (POST /governance/protocols/{protocol_id}/slots/{slot_id}/confirmation)
+	ConfirmDecisionSlot(w http.ResponseWriter, r *http.Request, protocolId ProtocolId, slotId SlotId)
+	// CorrectDecisionSlot Correct a slot by hand; a corrected value counts as confirmed (AC-21)
+	// (POST /governance/protocols/{protocol_id}/slots/{slot_id}/values)
+	CorrectDecisionSlot(w http.ResponseWriter, r *http.Request, protocolId ProtocolId, slotId SlotId)
+	// WithdrawProtocol Close a draft as знятий з розгляду with a reason (AC-35, AC-36, AC-37, AC-38, Flow 9)
+	// (POST /governance/protocols/{protocol_id}/withdrawal)
+	WithdrawProtocol(w http.ResponseWriter, r *http.Request, protocolId ProtocolId)
+	// SearchRegistry Search decisions of signed protocols, newest meeting first (AC-18, Flow 13)
+	// (GET /governance/registry/decisions)
+	SearchRegistry(w http.ResponseWriter, r *http.Request, params SearchRegistryParams)
+	// GetSignedProtocol Open a signed protocol with its signed copy, meeting facts, cited documents and poll history (AC-18, AC-41, AC-15, Flow 13)
+	// (GET /governance/registry/protocols/{protocol_id})
+	GetSignedProtocol(w http.ResponseWriter, r *http.Request, protocolId ProtocolId)
+	// GetAssociationSettings Current association settings (latest saved revision)
+	// (GET /governance/settings)
+	GetAssociationSettings(w http.ResponseWriter, r *http.Request)
+	// SaveAssociationSettings Save a new revision of the association settings (AC-42, Flow 12)
+	// (PUT /governance/settings)
+	SaveAssociationSettings(w http.ResponseWriter, r *http.Request)
 }
 
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
 
 type Unimplemented struct{}
+
+// ListBoardMembers Board roster with terms, newest entry first (US-01)
+// (GET /governance/board-members)
+func (_ Unimplemented) ListBoardMembers(w http.ResponseWriter, r *http.Request, params ListBoardMembersParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// CreateBoardMember Add a person to the board roster for one term (AC-02, Flow 12)
+// (POST /governance/board-members)
+func (_ Unimplemented) CreateBoardMember(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// UpdateBoardMember Save a new revision of a roster entry (e.g. the term ends) (AC-02, Flow 12)
+// (PUT /governance/board-members/{board_member_id})
+func (_ Unimplemented) UpdateBoardMember(w http.ResponseWriter, r *http.Request, boardMemberId BoardMemberId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListCases List справи, newest first
+// (GET /governance/cases)
+func (_ Unimplemented) ListCases(w http.ResponseWriter, r *http.Request, params ListCasesParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// CreateCase Open a справа (US-02)
+// (POST /governance/cases)
+func (_ Unimplemented) CreateCase(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetCase One справа with all its document versions (AC-03, AC-19)
+// (GET /governance/cases/{case_id})
+func (_ Unimplemented) GetCase(w http.ResponseWriter, r *http.Request, caseId CaseId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// AddCaseDocument Upload a document, or a newer version of one, into a справа (US-04, AC-09, Flow 3, Flow 8)
+// (POST /governance/cases/{case_id}/documents)
+func (_ Unimplemented) AddCaseDocument(w http.ResponseWriter, r *http.Request, caseId CaseId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// DownloadFile Download a stored file — case document, print copy or signed scan (US-07, Flow 13)
+// (GET /governance/files/{file_id})
+func (_ Unimplemented) DownloadFile(w http.ResponseWriter, r *http.Request, fileId FileId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetJob Status of a proposal or print-copy job, polled about every 2 s (SAD §4, Flows 1, 4, 8)
+// (GET /governance/jobs/{job_id})
+func (_ Unimplemented) GetJob(w http.ResponseWriter, r *http.Request, jobId JobId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// RetryJob Retry a failed job (Flow 8 "retry offered")
+// (POST /governance/jobs/{job_id}/retry)
+func (_ Unimplemented) RetryJob(w http.ResponseWriter, r *http.Request, jobId JobId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
 
 // ListMeetings List meetings, newest first, one page at a time
 // (GET /governance/meetings)
@@ -144,6 +1424,126 @@ func (_ Unimplemented) GetMeeting(w http.ResponseWriter, r *http.Request, id ope
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// AddAgendaItemFromCase Open the meeting's draft from a справа, or add the справа as an agenda item (US-02, AC-03c)
+// (POST /governance/meetings/{meeting_id}/agenda-items)
+func (_ Unimplemented) AddAgendaItemFromCase(w http.ResponseWriter, r *http.Request, meetingId MeetingId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// CreateAssistantTurn Ask the помічник протоколу for a draft of the meeting's protocol, or refine it (US-12, Flow 1)
+// (POST /governance/meetings/{meeting_id}/assistant-turns)
+func (_ Unimplemented) CreateAssistantTurn(w http.ResponseWriter, r *http.Request, meetingId MeetingId, params CreateAssistantTurnParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListProtocols List protocol drafts and protocols, newest first, optionally by state
+// (GET /governance/protocols)
+func (_ Unimplemented) ListProtocols(w http.ResponseWriter, r *http.Request, params ListProtocolsParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetProtocol Open a draft with its meeting, roster in force, documents, slots, poll rounds and print copies (AC-03)
+// (GET /governance/protocols/{protocol_id})
+func (_ Unimplemented) GetProtocol(w http.ResponseWriter, r *http.Request, protocolId ProtocolId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// AddDecisionSlot Turn a typed fact into a слот рішення by hand (ADR-0011 highlight offer, AC-28)
+// (POST /governance/protocols/{protocol_id}/agenda-items/{agenda_item_id}/slots)
+func (_ Unimplemented) AddDecisionSlot(w http.ResponseWriter, r *http.Request, protocolId ProtocolId, agendaItemId AgendaItemId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// SaveAgendaItemWording Reword an agenda item's subject and text (AC-29, AC-05d, AC-14b, Flows 1, 3)
+// (PUT /governance/protocols/{protocol_id}/agenda-items/{agenda_item_id}/wording)
+func (_ Unimplemented) SaveAgendaItemWording(w http.ResponseWriter, r *http.Request, protocolId ProtocolId, agendaItemId AgendaItemId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListAssistantTurns The conversation kept with the draft, newest first (AC-26)
+// (GET /governance/protocols/{protocol_id}/assistant-turns)
+func (_ Unimplemented) ListAssistantTurns(w http.ResponseWriter, r *http.Request, protocolId ProtocolId, params ListAssistantTurnsParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// CopyWithdrawnProtocol Start a new draft copied from a withdrawn one (AC-39)
+// (POST /governance/protocols/{protocol_id}/copy)
+func (_ Unimplemented) CopyWithdrawnProtocol(w http.ResponseWriter, r *http.Request, protocolId ProtocolId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// StartPollRound Freeze the wording as the next round of the попереднє голосування (чернетка → готовий до голосування) (AC-30, Flow 2)
+// (POST /governance/protocols/{protocol_id}/poll-rounds)
+func (_ Unimplemented) StartPollRound(w http.ResponseWriter, r *http.Request, protocolId ProtocolId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// CastPollVote Cast or change one's own informal vote on an agenda item (AC-31, AC-05e, AC-32, Flow 2)
+// (PUT /governance/protocols/{protocol_id}/poll-rounds/{round_number}/votes)
+func (_ Unimplemented) CastPollVote(w http.ResponseWriter, r *http.Request, protocolId ProtocolId, roundNumber RoundNumber) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// MarkProtocolReadyForSigning Mark готовий до підпису — freeze the text, reserve the number, render the print copy (AC-04, AC-21, AC-14c, AC-33, Flow 4)
+// (POST /governance/protocols/{protocol_id}/ready-for-signing)
+func (_ Unimplemented) MarkProtocolReadyForSigning(w http.ResponseWriter, r *http.Request, protocolId ProtocolId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ReturnProtocolToDraft «Повернути в чернетку» (готовий до голосування / готовий до підпису → чернетка) (AC-05d, AC-14b, Flow 3)
+// (POST /governance/protocols/{protocol_id}/return-to-draft)
+func (_ Unimplemented) ReturnProtocolToDraft(w http.ResponseWriter, r *http.Request, protocolId ProtocolId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// LockProtocolWithSignedCopy Upload the signed scan with the meeting facts and lock (готовий до підпису → підписаний) (AC-14, AC-34, AC-15, AC-40, AC-16, Flow 5)
+// (POST /governance/protocols/{protocol_id}/signed-copy)
+func (_ Unimplemented) LockProtocolWithSignedCopy(w http.ResponseWriter, r *http.Request, protocolId ProtocolId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ConfirmDecisionSlot Confirm one value of a slot — the proposed one or an alternative beside it (AC-21, AC-22, AC-28b)
+// (POST /governance/protocols/{protocol_id}/slots/{slot_id}/confirmation)
+func (_ Unimplemented) ConfirmDecisionSlot(w http.ResponseWriter, r *http.Request, protocolId ProtocolId, slotId SlotId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// CorrectDecisionSlot Correct a slot by hand; a corrected value counts as confirmed (AC-21)
+// (POST /governance/protocols/{protocol_id}/slots/{slot_id}/values)
+func (_ Unimplemented) CorrectDecisionSlot(w http.ResponseWriter, r *http.Request, protocolId ProtocolId, slotId SlotId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// WithdrawProtocol Close a draft as знятий з розгляду with a reason (AC-35, AC-36, AC-37, AC-38, Flow 9)
+// (POST /governance/protocols/{protocol_id}/withdrawal)
+func (_ Unimplemented) WithdrawProtocol(w http.ResponseWriter, r *http.Request, protocolId ProtocolId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// SearchRegistry Search decisions of signed protocols, newest meeting first (AC-18, Flow 13)
+// (GET /governance/registry/decisions)
+func (_ Unimplemented) SearchRegistry(w http.ResponseWriter, r *http.Request, params SearchRegistryParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetSignedProtocol Open a signed protocol with its signed copy, meeting facts, cited documents and poll history (AC-18, AC-41, AC-15, Flow 13)
+// (GET /governance/registry/protocols/{protocol_id})
+func (_ Unimplemented) GetSignedProtocol(w http.ResponseWriter, r *http.Request, protocolId ProtocolId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetAssociationSettings Current association settings (latest saved revision)
+// (GET /governance/settings)
+func (_ Unimplemented) GetAssociationSettings(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// SaveAssociationSettings Save a new revision of the association settings (AC-42, Flow 12)
+// (PUT /governance/settings)
+func (_ Unimplemented) SaveAssociationSettings(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // ServerInterfaceWrapper converts contexts to parameters.
 type ServerInterfaceWrapper struct {
 	Handler            ServerInterface
@@ -152,6 +1552,295 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// ListBoardMembers operation middleware
+func (siw *ServerInterfaceWrapper) ListBoardMembers(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListBoardMembersParams
+
+	// ------------- Optional query parameter "on" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "on", r.URL.Query(), &params.On, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "on"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "on", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListBoardMembers(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateBoardMember operation middleware
+func (siw *ServerInterfaceWrapper) CreateBoardMember(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateBoardMember(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateBoardMember operation middleware
+func (siw *ServerInterfaceWrapper) UpdateBoardMember(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "board_member_id" -------------
+	var boardMemberId BoardMemberId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "board_member_id", chi.URLParam(r, "board_member_id"), &boardMemberId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "board_member_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateBoardMember(w, r, boardMemberId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListCases operation middleware
+func (siw *ServerInterfaceWrapper) ListCases(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListCasesParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListCases(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateCase operation middleware
+func (siw *ServerInterfaceWrapper) CreateCase(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateCase(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetCase operation middleware
+func (siw *ServerInterfaceWrapper) GetCase(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "case_id" -------------
+	var caseId CaseId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "case_id", chi.URLParam(r, "case_id"), &caseId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "case_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetCase(w, r, caseId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AddCaseDocument operation middleware
+func (siw *ServerInterfaceWrapper) AddCaseDocument(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "case_id" -------------
+	var caseId CaseId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "case_id", chi.URLParam(r, "case_id"), &caseId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "case_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AddCaseDocument(w, r, caseId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DownloadFile operation middleware
+func (siw *ServerInterfaceWrapper) DownloadFile(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "file_id" -------------
+	var fileId FileId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "file_id", chi.URLParam(r, "file_id"), &fileId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "file_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DownloadFile(w, r, fileId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetJob operation middleware
+func (siw *ServerInterfaceWrapper) GetJob(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "job_id" -------------
+	var jobId JobId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "job_id", chi.URLParam(r, "job_id"), &jobId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "job_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetJob(w, r, jobId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RetryJob operation middleware
+func (siw *ServerInterfaceWrapper) RetryJob(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "job_id" -------------
+	var jobId JobId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "job_id", chi.URLParam(r, "job_id"), &jobId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "job_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RetryJob(w, r, jobId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // ListMeetings operation middleware
 func (siw *ServerInterfaceWrapper) ListMeetings(w http.ResponseWriter, r *http.Request) {
@@ -230,6 +1919,748 @@ func (siw *ServerInterfaceWrapper) GetMeeting(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetMeeting(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AddAgendaItemFromCase operation middleware
+func (siw *ServerInterfaceWrapper) AddAgendaItemFromCase(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "meeting_id" -------------
+	var meetingId MeetingId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "meeting_id", chi.URLParam(r, "meeting_id"), &meetingId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "meeting_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AddAgendaItemFromCase(w, r, meetingId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateAssistantTurn operation middleware
+func (siw *ServerInterfaceWrapper) CreateAssistantTurn(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "meeting_id" -------------
+	var meetingId MeetingId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "meeting_id", chi.URLParam(r, "meeting_id"), &meetingId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "meeting_id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateAssistantTurnParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = IdempotencyKey
+
+	} else {
+		err := fmt.Errorf("Header parameter Idempotency-Key is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "Idempotency-Key", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateAssistantTurn(w, r, meetingId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListProtocols operation middleware
+func (siw *ServerInterfaceWrapper) ListProtocols(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListProtocolsParams
+
+	// ------------- Optional query parameter "state" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "state", r.URL.Query(), &params.State, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "state"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "state", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListProtocols(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetProtocol operation middleware
+func (siw *ServerInterfaceWrapper) GetProtocol(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "protocol_id" -------------
+	var protocolId ProtocolId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "protocol_id", chi.URLParam(r, "protocol_id"), &protocolId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "protocol_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetProtocol(w, r, protocolId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AddDecisionSlot operation middleware
+func (siw *ServerInterfaceWrapper) AddDecisionSlot(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "protocol_id" -------------
+	var protocolId ProtocolId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "protocol_id", chi.URLParam(r, "protocol_id"), &protocolId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "protocol_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "agenda_item_id" -------------
+	var agendaItemId AgendaItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "agenda_item_id", chi.URLParam(r, "agenda_item_id"), &agendaItemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "agenda_item_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AddDecisionSlot(w, r, protocolId, agendaItemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SaveAgendaItemWording operation middleware
+func (siw *ServerInterfaceWrapper) SaveAgendaItemWording(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "protocol_id" -------------
+	var protocolId ProtocolId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "protocol_id", chi.URLParam(r, "protocol_id"), &protocolId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "protocol_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "agenda_item_id" -------------
+	var agendaItemId AgendaItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "agenda_item_id", chi.URLParam(r, "agenda_item_id"), &agendaItemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "agenda_item_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SaveAgendaItemWording(w, r, protocolId, agendaItemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAssistantTurns operation middleware
+func (siw *ServerInterfaceWrapper) ListAssistantTurns(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "protocol_id" -------------
+	var protocolId ProtocolId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "protocol_id", chi.URLParam(r, "protocol_id"), &protocolId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "protocol_id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListAssistantTurnsParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAssistantTurns(w, r, protocolId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CopyWithdrawnProtocol operation middleware
+func (siw *ServerInterfaceWrapper) CopyWithdrawnProtocol(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "protocol_id" -------------
+	var protocolId ProtocolId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "protocol_id", chi.URLParam(r, "protocol_id"), &protocolId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "protocol_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CopyWithdrawnProtocol(w, r, protocolId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// StartPollRound operation middleware
+func (siw *ServerInterfaceWrapper) StartPollRound(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "protocol_id" -------------
+	var protocolId ProtocolId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "protocol_id", chi.URLParam(r, "protocol_id"), &protocolId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "protocol_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StartPollRound(w, r, protocolId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CastPollVote operation middleware
+func (siw *ServerInterfaceWrapper) CastPollVote(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "protocol_id" -------------
+	var protocolId ProtocolId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "protocol_id", chi.URLParam(r, "protocol_id"), &protocolId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "protocol_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "round_number" -------------
+	var roundNumber RoundNumber
+
+	err = runtime.BindStyledParameterWithOptions("simple", "round_number", chi.URLParam(r, "round_number"), &roundNumber, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "round_number", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CastPollVote(w, r, protocolId, roundNumber)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// MarkProtocolReadyForSigning operation middleware
+func (siw *ServerInterfaceWrapper) MarkProtocolReadyForSigning(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "protocol_id" -------------
+	var protocolId ProtocolId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "protocol_id", chi.URLParam(r, "protocol_id"), &protocolId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "protocol_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.MarkProtocolReadyForSigning(w, r, protocolId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReturnProtocolToDraft operation middleware
+func (siw *ServerInterfaceWrapper) ReturnProtocolToDraft(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "protocol_id" -------------
+	var protocolId ProtocolId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "protocol_id", chi.URLParam(r, "protocol_id"), &protocolId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "protocol_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReturnProtocolToDraft(w, r, protocolId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// LockProtocolWithSignedCopy operation middleware
+func (siw *ServerInterfaceWrapper) LockProtocolWithSignedCopy(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "protocol_id" -------------
+	var protocolId ProtocolId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "protocol_id", chi.URLParam(r, "protocol_id"), &protocolId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "protocol_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.LockProtocolWithSignedCopy(w, r, protocolId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ConfirmDecisionSlot operation middleware
+func (siw *ServerInterfaceWrapper) ConfirmDecisionSlot(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "protocol_id" -------------
+	var protocolId ProtocolId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "protocol_id", chi.URLParam(r, "protocol_id"), &protocolId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "protocol_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "slot_id" -------------
+	var slotId SlotId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "slot_id", chi.URLParam(r, "slot_id"), &slotId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "slot_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConfirmDecisionSlot(w, r, protocolId, slotId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CorrectDecisionSlot operation middleware
+func (siw *ServerInterfaceWrapper) CorrectDecisionSlot(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "protocol_id" -------------
+	var protocolId ProtocolId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "protocol_id", chi.URLParam(r, "protocol_id"), &protocolId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "protocol_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "slot_id" -------------
+	var slotId SlotId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "slot_id", chi.URLParam(r, "slot_id"), &slotId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "slot_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CorrectDecisionSlot(w, r, protocolId, slotId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// WithdrawProtocol operation middleware
+func (siw *ServerInterfaceWrapper) WithdrawProtocol(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "protocol_id" -------------
+	var protocolId ProtocolId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "protocol_id", chi.URLParam(r, "protocol_id"), &protocolId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "protocol_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.WithdrawProtocol(w, r, protocolId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SearchRegistry operation middleware
+func (siw *ServerInterfaceWrapper) SearchRegistry(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SearchRegistryParams
+
+	// ------------- Optional query parameter "counterparty" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "counterparty", r.URL.Query(), &params.Counterparty, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "counterparty"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "counterparty", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "subject" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "subject", r.URL.Query(), &params.Subject, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "subject"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "subject", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "amount_kopiyky" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "amount_kopiyky", r.URL.Query(), &params.AmountKopiyky, runtime.BindQueryParameterOptions{Type: "integer", Format: "int64"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "amount_kopiyky"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "amount_kopiyky", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "amount_from_kopiyky" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "amount_from_kopiyky", r.URL.Query(), &params.AmountFromKopiyky, runtime.BindQueryParameterOptions{Type: "integer", Format: "int64"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "amount_from_kopiyky"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "amount_from_kopiyky", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "amount_to_kopiyky" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "amount_to_kopiyky", r.URL.Query(), &params.AmountToKopiyky, runtime.BindQueryParameterOptions{Type: "integer", Format: "int64"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "amount_to_kopiyky"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "amount_to_kopiyky", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "date_from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "date_from", r.URL.Query(), &params.DateFrom, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "date_from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "date_from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "date_to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "date_to", r.URL.Query(), &params.DateTo, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "date_to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "date_to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SearchRegistry(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetSignedProtocol operation middleware
+func (siw *ServerInterfaceWrapper) GetSignedProtocol(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "protocol_id" -------------
+	var protocolId ProtocolId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "protocol_id", chi.URLParam(r, "protocol_id"), &protocolId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "protocol_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSignedProtocol(w, r, protocolId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAssociationSettings operation middleware
+func (siw *ServerInterfaceWrapper) GetAssociationSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAssociationSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SaveAssociationSettings operation middleware
+func (siw *ServerInterfaceWrapper) SaveAssociationSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SaveAssociationSettings(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -361,13 +2792,959 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/governance/meetings/{id}", wrapper.GetMeeting)
 	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/governance/settings", wrapper.GetAssociationSettings)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/governance/settings", wrapper.SaveAssociationSettings)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/governance/board-members", wrapper.ListBoardMembers)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/governance/board-members", wrapper.CreateBoardMember)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/governance/board-members/{board_member_id}", wrapper.UpdateBoardMember)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/governance/cases", wrapper.ListCases)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/governance/cases", wrapper.CreateCase)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/governance/cases/{case_id}", wrapper.GetCase)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/governance/cases/{case_id}/documents", wrapper.AddCaseDocument)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/governance/files/{file_id}", wrapper.DownloadFile)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/governance/meetings/{meeting_id}/assistant-turns", wrapper.CreateAssistantTurn)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/governance/meetings/{meeting_id}/agenda-items", wrapper.AddAgendaItemFromCase)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/governance/jobs/{job_id}", wrapper.GetJob)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/governance/jobs/{job_id}/retry", wrapper.RetryJob)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/governance/protocols", wrapper.ListProtocols)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/governance/protocols/{protocol_id}", wrapper.GetProtocol)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/governance/protocols/{protocol_id}/assistant-turns", wrapper.ListAssistantTurns)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/governance/protocols/{protocol_id}/agenda-items/{agenda_item_id}/wording", wrapper.SaveAgendaItemWording)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/governance/protocols/{protocol_id}/agenda-items/{agenda_item_id}/slots", wrapper.AddDecisionSlot)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/governance/protocols/{protocol_id}/slots/{slot_id}/confirmation", wrapper.ConfirmDecisionSlot)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/governance/protocols/{protocol_id}/slots/{slot_id}/values", wrapper.CorrectDecisionSlot)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/governance/protocols/{protocol_id}/poll-rounds", wrapper.StartPollRound)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/governance/protocols/{protocol_id}/poll-rounds/{round_number}/votes", wrapper.CastPollVote)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/governance/protocols/{protocol_id}/return-to-draft", wrapper.ReturnProtocolToDraft)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/governance/protocols/{protocol_id}/ready-for-signing", wrapper.MarkProtocolReadyForSigning)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/governance/protocols/{protocol_id}/signed-copy", wrapper.LockProtocolWithSignedCopy)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/governance/protocols/{protocol_id}/withdrawal", wrapper.WithdrawProtocol)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/governance/protocols/{protocol_id}/copy", wrapper.CopyWithdrawnProtocol)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/governance/registry/decisions", wrapper.SearchRegistry)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/governance/registry/protocols/{protocol_id}", wrapper.GetSignedProtocol)
+	})
 
 	return r
 }
 
+type NotCurrentMemberApplicationProblemPlusJSONResponse Problem
+
 type NotFoundApplicationProblemPlusJSONResponse Problem
 
+type ProtocolEditConflictApplicationProblemPlusJSONResponse Problem
+
+type SessionRequiredApplicationProblemPlusJSONResponse Problem
+
+type StorageUnavailableApplicationProblemPlusJSONResponse Problem
+
 type UnprocessableEntityApplicationProblemPlusJSONResponse Problem
+
+type ValidationFailedApplicationProblemPlusJSONResponse Problem
+
+type ListBoardMembersRequestObject struct {
+	Params ListBoardMembersParams
+}
+
+type ListBoardMembersResponseObject interface {
+	VisitListBoardMembersResponse(w http.ResponseWriter) error
+}
+
+type ListBoardMembers200JSONResponse BoardMemberPage
+
+func (response ListBoardMembers200JSONResponse) VisitListBoardMembersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListBoardMembers401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response ListBoardMembers401ApplicationProblemPlusJSONResponse) VisitListBoardMembersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListBoardMembers403ApplicationProblemPlusJSONResponse struct {
+	NotCurrentMemberApplicationProblemPlusJSONResponse
+}
+
+func (response ListBoardMembers403ApplicationProblemPlusJSONResponse) VisitListBoardMembersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListBoardMembers422ApplicationProblemPlusJSONResponse struct {
+	ValidationFailedApplicationProblemPlusJSONResponse
+}
+
+func (response ListBoardMembers422ApplicationProblemPlusJSONResponse) VisitListBoardMembersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateBoardMemberRequestObject struct {
+	Body *CreateBoardMemberJSONRequestBody
+}
+
+type CreateBoardMemberResponseObject interface {
+	VisitCreateBoardMemberResponse(w http.ResponseWriter) error
+}
+
+type CreateBoardMember201JSONResponse BoardMember
+
+func (response CreateBoardMember201JSONResponse) VisitCreateBoardMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateBoardMember401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response CreateBoardMember401ApplicationProblemPlusJSONResponse) VisitCreateBoardMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateBoardMember403ApplicationProblemPlusJSONResponse struct {
+	NotCurrentMemberApplicationProblemPlusJSONResponse
+}
+
+func (response CreateBoardMember403ApplicationProblemPlusJSONResponse) VisitCreateBoardMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateBoardMember422ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateBoardMember422ApplicationProblemPlusJSONResponse) VisitCreateBoardMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateBoardMemberRequestObject struct {
+	BoardMemberId BoardMemberId `json:"board_member_id"`
+	Body          *UpdateBoardMemberJSONRequestBody
+}
+
+type UpdateBoardMemberResponseObject interface {
+	VisitUpdateBoardMemberResponse(w http.ResponseWriter) error
+}
+
+type UpdateBoardMember200JSONResponse BoardMember
+
+func (response UpdateBoardMember200JSONResponse) VisitUpdateBoardMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateBoardMember401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response UpdateBoardMember401ApplicationProblemPlusJSONResponse) VisitUpdateBoardMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateBoardMember403ApplicationProblemPlusJSONResponse struct {
+	NotCurrentMemberApplicationProblemPlusJSONResponse
+}
+
+func (response UpdateBoardMember403ApplicationProblemPlusJSONResponse) VisitUpdateBoardMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateBoardMember404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
+}
+
+func (response UpdateBoardMember404ApplicationProblemPlusJSONResponse) VisitUpdateBoardMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateBoardMember422ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdateBoardMember422ApplicationProblemPlusJSONResponse) VisitUpdateBoardMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListCasesRequestObject struct {
+	Params ListCasesParams
+}
+
+type ListCasesResponseObject interface {
+	VisitListCasesResponse(w http.ResponseWriter) error
+}
+
+type ListCases200JSONResponse CasePage
+
+func (response ListCases200JSONResponse) VisitListCasesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListCases401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response ListCases401ApplicationProblemPlusJSONResponse) VisitListCasesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListCases403ApplicationProblemPlusJSONResponse struct {
+	NotCurrentMemberApplicationProblemPlusJSONResponse
+}
+
+func (response ListCases403ApplicationProblemPlusJSONResponse) VisitListCasesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListCases422ApplicationProblemPlusJSONResponse struct {
+	ValidationFailedApplicationProblemPlusJSONResponse
+}
+
+func (response ListCases422ApplicationProblemPlusJSONResponse) VisitListCasesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateCaseRequestObject struct {
+	Body *CreateCaseJSONRequestBody
+}
+
+type CreateCaseResponseObject interface {
+	VisitCreateCaseResponse(w http.ResponseWriter) error
+}
+
+type CreateCase201JSONResponse Case
+
+func (response CreateCase201JSONResponse) VisitCreateCaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateCase401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response CreateCase401ApplicationProblemPlusJSONResponse) VisitCreateCaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateCase403ApplicationProblemPlusJSONResponse struct {
+	NotCurrentMemberApplicationProblemPlusJSONResponse
+}
+
+func (response CreateCase403ApplicationProblemPlusJSONResponse) VisitCreateCaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateCase422ApplicationProblemPlusJSONResponse struct {
+	ValidationFailedApplicationProblemPlusJSONResponse
+}
+
+func (response CreateCase422ApplicationProblemPlusJSONResponse) VisitCreateCaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetCaseRequestObject struct {
+	CaseId CaseId `json:"case_id"`
+}
+
+type GetCaseResponseObject interface {
+	VisitGetCaseResponse(w http.ResponseWriter) error
+}
+
+type GetCase200JSONResponse CaseDetail
+
+func (response GetCase200JSONResponse) VisitGetCaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetCase401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response GetCase401ApplicationProblemPlusJSONResponse) VisitGetCaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetCase403ApplicationProblemPlusJSONResponse struct {
+	NotCurrentMemberApplicationProblemPlusJSONResponse
+}
+
+func (response GetCase403ApplicationProblemPlusJSONResponse) VisitGetCaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetCase404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
+}
+
+func (response GetCase404ApplicationProblemPlusJSONResponse) VisitGetCaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddCaseDocumentRequestObject struct {
+	CaseId CaseId `json:"case_id"`
+	Body   *multipart.Reader
+}
+
+type AddCaseDocumentResponseObject interface {
+	VisitAddCaseDocumentResponse(w http.ResponseWriter) error
+}
+
+type AddCaseDocument201JSONResponse CaseDocument
+
+func (response AddCaseDocument201JSONResponse) VisitAddCaseDocumentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddCaseDocument401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response AddCaseDocument401ApplicationProblemPlusJSONResponse) VisitAddCaseDocumentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddCaseDocument403ApplicationProblemPlusJSONResponse struct {
+	NotCurrentMemberApplicationProblemPlusJSONResponse
+}
+
+func (response AddCaseDocument403ApplicationProblemPlusJSONResponse) VisitAddCaseDocumentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddCaseDocument404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
+}
+
+func (response AddCaseDocument404ApplicationProblemPlusJSONResponse) VisitAddCaseDocumentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddCaseDocument422ApplicationProblemPlusJSONResponse Problem
+
+func (response AddCaseDocument422ApplicationProblemPlusJSONResponse) VisitAddCaseDocumentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddCaseDocument503ApplicationProblemPlusJSONResponse struct {
+	StorageUnavailableApplicationProblemPlusJSONResponse
+}
+
+func (response AddCaseDocument503ApplicationProblemPlusJSONResponse) VisitAddCaseDocumentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DownloadFileRequestObject struct {
+	FileId FileId `json:"file_id"`
+}
+
+type DownloadFileResponseObject interface {
+	VisitDownloadFileResponse(w http.ResponseWriter) error
+}
+
+type DownloadFile200ResponseHeaders struct {
+	ContentDisposition  *string
+	XContentTypeOptions *string
+}
+
+type DownloadFile200ApplicationpdfResponse struct {
+	Body          io.Reader
+	Headers       DownloadFile200ResponseHeaders
+	ContentLength int64
+}
+
+func (response DownloadFile200ApplicationpdfResponse) VisitDownloadFileResponse(w http.ResponseWriter) error {
+
+	w.Header().Set("Content-Type", "application/pdf")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	if response.Headers.ContentDisposition != nil {
+		w.Header().Set("Content-Disposition", fmt.Sprint(*response.Headers.ContentDisposition))
+	}
+	if response.Headers.XContentTypeOptions != nil {
+		w.Header().Set("X-Content-Type-Options", fmt.Sprint(*response.Headers.XContentTypeOptions))
+	}
+	w.WriteHeader(200)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
+}
+
+type DownloadFile200ImagejpegResponse struct {
+	Body          io.Reader
+	Headers       DownloadFile200ResponseHeaders
+	ContentLength int64
+}
+
+func (response DownloadFile200ImagejpegResponse) VisitDownloadFileResponse(w http.ResponseWriter) error {
+
+	w.Header().Set("Content-Type", "image/jpeg")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	if response.Headers.ContentDisposition != nil {
+		w.Header().Set("Content-Disposition", fmt.Sprint(*response.Headers.ContentDisposition))
+	}
+	if response.Headers.XContentTypeOptions != nil {
+		w.Header().Set("X-Content-Type-Options", fmt.Sprint(*response.Headers.XContentTypeOptions))
+	}
+	w.WriteHeader(200)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
+}
+
+type DownloadFile200ImagepngResponse struct {
+	Body          io.Reader
+	Headers       DownloadFile200ResponseHeaders
+	ContentLength int64
+}
+
+func (response DownloadFile200ImagepngResponse) VisitDownloadFileResponse(w http.ResponseWriter) error {
+
+	w.Header().Set("Content-Type", "image/png")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	if response.Headers.ContentDisposition != nil {
+		w.Header().Set("Content-Disposition", fmt.Sprint(*response.Headers.ContentDisposition))
+	}
+	if response.Headers.XContentTypeOptions != nil {
+		w.Header().Set("X-Content-Type-Options", fmt.Sprint(*response.Headers.XContentTypeOptions))
+	}
+	w.WriteHeader(200)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
+}
+
+type DownloadFile401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response DownloadFile401ApplicationProblemPlusJSONResponse) VisitDownloadFileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DownloadFile403ApplicationProblemPlusJSONResponse struct {
+	NotCurrentMemberApplicationProblemPlusJSONResponse
+}
+
+func (response DownloadFile403ApplicationProblemPlusJSONResponse) VisitDownloadFileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DownloadFile404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
+}
+
+func (response DownloadFile404ApplicationProblemPlusJSONResponse) VisitDownloadFileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DownloadFile503ApplicationProblemPlusJSONResponse struct {
+	StorageUnavailableApplicationProblemPlusJSONResponse
+}
+
+func (response DownloadFile503ApplicationProblemPlusJSONResponse) VisitDownloadFileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetJobRequestObject struct {
+	JobId JobId `json:"job_id"`
+}
+
+type GetJobResponseObject interface {
+	VisitGetJobResponse(w http.ResponseWriter) error
+}
+
+type GetJob200JSONResponse Job
+
+func (response GetJob200JSONResponse) VisitGetJobResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetJob401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response GetJob401ApplicationProblemPlusJSONResponse) VisitGetJobResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetJob403ApplicationProblemPlusJSONResponse struct {
+	NotCurrentMemberApplicationProblemPlusJSONResponse
+}
+
+func (response GetJob403ApplicationProblemPlusJSONResponse) VisitGetJobResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetJob404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
+}
+
+func (response GetJob404ApplicationProblemPlusJSONResponse) VisitGetJobResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RetryJobRequestObject struct {
+	JobId JobId `json:"job_id"`
+}
+
+type RetryJobResponseObject interface {
+	VisitRetryJobResponse(w http.ResponseWriter) error
+}
+
+type RetryJob202JSONResponse Job
+
+func (response RetryJob202JSONResponse) VisitRetryJobResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(202)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RetryJob401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response RetryJob401ApplicationProblemPlusJSONResponse) VisitRetryJobResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RetryJob403ApplicationProblemPlusJSONResponse struct {
+	NotCurrentMemberApplicationProblemPlusJSONResponse
+}
+
+func (response RetryJob403ApplicationProblemPlusJSONResponse) VisitRetryJobResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RetryJob404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
+}
+
+func (response RetryJob404ApplicationProblemPlusJSONResponse) VisitRetryJobResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RetryJob409ApplicationProblemPlusJSONResponse Problem
+
+func (response RetryJob409ApplicationProblemPlusJSONResponse) VisitRetryJobResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
 
 type ListMeetingsRequestObject struct {
 	Params ListMeetingsParams
@@ -499,8 +3876,1842 @@ func (response GetMeeting422ApplicationProblemPlusJSONResponse) VisitGetMeetingR
 	return err
 }
 
+type AddAgendaItemFromCaseRequestObject struct {
+	MeetingId MeetingId `json:"meeting_id"`
+	Body      *AddAgendaItemFromCaseJSONRequestBody
+}
+
+type AddAgendaItemFromCaseResponseObject interface {
+	VisitAddAgendaItemFromCaseResponse(w http.ResponseWriter) error
+}
+
+type AddAgendaItemFromCase201JSONResponse Protocol
+
+func (response AddAgendaItemFromCase201JSONResponse) VisitAddAgendaItemFromCaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddAgendaItemFromCase401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response AddAgendaItemFromCase401ApplicationProblemPlusJSONResponse) VisitAddAgendaItemFromCaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddAgendaItemFromCase403ApplicationProblemPlusJSONResponse struct {
+	NotCurrentMemberApplicationProblemPlusJSONResponse
+}
+
+func (response AddAgendaItemFromCase403ApplicationProblemPlusJSONResponse) VisitAddAgendaItemFromCaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddAgendaItemFromCase404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
+}
+
+func (response AddAgendaItemFromCase404ApplicationProblemPlusJSONResponse) VisitAddAgendaItemFromCaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddAgendaItemFromCase409ApplicationProblemPlusJSONResponse Problem
+
+func (response AddAgendaItemFromCase409ApplicationProblemPlusJSONResponse) VisitAddAgendaItemFromCaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddAgendaItemFromCase422ApplicationProblemPlusJSONResponse struct {
+	ValidationFailedApplicationProblemPlusJSONResponse
+}
+
+func (response AddAgendaItemFromCase422ApplicationProblemPlusJSONResponse) VisitAddAgendaItemFromCaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAssistantTurnRequestObject struct {
+	MeetingId MeetingId `json:"meeting_id"`
+	Params    CreateAssistantTurnParams
+	Body      *multipart.Reader
+}
+
+type CreateAssistantTurnResponseObject interface {
+	VisitCreateAssistantTurnResponse(w http.ResponseWriter) error
+}
+
+type CreateAssistantTurn202JSONResponse AssistantTurnAccepted
+
+func (response CreateAssistantTurn202JSONResponse) VisitCreateAssistantTurnResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(202)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAssistantTurn401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response CreateAssistantTurn401ApplicationProblemPlusJSONResponse) VisitCreateAssistantTurnResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAssistantTurn403ApplicationProblemPlusJSONResponse struct {
+	NotCurrentMemberApplicationProblemPlusJSONResponse
+}
+
+func (response CreateAssistantTurn403ApplicationProblemPlusJSONResponse) VisitCreateAssistantTurnResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAssistantTurn404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
+}
+
+func (response CreateAssistantTurn404ApplicationProblemPlusJSONResponse) VisitCreateAssistantTurnResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAssistantTurn409ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateAssistantTurn409ApplicationProblemPlusJSONResponse) VisitCreateAssistantTurnResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAssistantTurn422ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateAssistantTurn422ApplicationProblemPlusJSONResponse) VisitCreateAssistantTurnResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAssistantTurn503ApplicationProblemPlusJSONResponse struct {
+	StorageUnavailableApplicationProblemPlusJSONResponse
+}
+
+func (response CreateAssistantTurn503ApplicationProblemPlusJSONResponse) VisitCreateAssistantTurnResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListProtocolsRequestObject struct {
+	Params ListProtocolsParams
+}
+
+type ListProtocolsResponseObject interface {
+	VisitListProtocolsResponse(w http.ResponseWriter) error
+}
+
+type ListProtocols200JSONResponse ProtocolSummaryPage
+
+func (response ListProtocols200JSONResponse) VisitListProtocolsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListProtocols401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response ListProtocols401ApplicationProblemPlusJSONResponse) VisitListProtocolsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListProtocols403ApplicationProblemPlusJSONResponse struct {
+	NotCurrentMemberApplicationProblemPlusJSONResponse
+}
+
+func (response ListProtocols403ApplicationProblemPlusJSONResponse) VisitListProtocolsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListProtocols422ApplicationProblemPlusJSONResponse struct {
+	ValidationFailedApplicationProblemPlusJSONResponse
+}
+
+func (response ListProtocols422ApplicationProblemPlusJSONResponse) VisitListProtocolsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetProtocolRequestObject struct {
+	ProtocolId ProtocolId `json:"protocol_id"`
+}
+
+type GetProtocolResponseObject interface {
+	VisitGetProtocolResponse(w http.ResponseWriter) error
+}
+
+type GetProtocol200JSONResponse Protocol
+
+func (response GetProtocol200JSONResponse) VisitGetProtocolResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetProtocol401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response GetProtocol401ApplicationProblemPlusJSONResponse) VisitGetProtocolResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetProtocol403ApplicationProblemPlusJSONResponse struct {
+	NotCurrentMemberApplicationProblemPlusJSONResponse
+}
+
+func (response GetProtocol403ApplicationProblemPlusJSONResponse) VisitGetProtocolResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetProtocol404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
+}
+
+func (response GetProtocol404ApplicationProblemPlusJSONResponse) VisitGetProtocolResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddDecisionSlotRequestObject struct {
+	ProtocolId   ProtocolId   `json:"protocol_id"`
+	AgendaItemId AgendaItemId `json:"agenda_item_id"`
+	Body         *AddDecisionSlotJSONRequestBody
+}
+
+type AddDecisionSlotResponseObject interface {
+	VisitAddDecisionSlotResponse(w http.ResponseWriter) error
+}
+
+type AddDecisionSlot201JSONResponse Protocol
+
+func (response AddDecisionSlot201JSONResponse) VisitAddDecisionSlotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddDecisionSlot401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response AddDecisionSlot401ApplicationProblemPlusJSONResponse) VisitAddDecisionSlotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddDecisionSlot403ApplicationProblemPlusJSONResponse struct {
+	NotCurrentMemberApplicationProblemPlusJSONResponse
+}
+
+func (response AddDecisionSlot403ApplicationProblemPlusJSONResponse) VisitAddDecisionSlotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddDecisionSlot404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
+}
+
+func (response AddDecisionSlot404ApplicationProblemPlusJSONResponse) VisitAddDecisionSlotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddDecisionSlot409ApplicationProblemPlusJSONResponse struct {
+	ProtocolEditConflictApplicationProblemPlusJSONResponse
+}
+
+func (response AddDecisionSlot409ApplicationProblemPlusJSONResponse) VisitAddDecisionSlotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddDecisionSlot422ApplicationProblemPlusJSONResponse struct {
+	ValidationFailedApplicationProblemPlusJSONResponse
+}
+
+func (response AddDecisionSlot422ApplicationProblemPlusJSONResponse) VisitAddDecisionSlotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SaveAgendaItemWordingRequestObject struct {
+	ProtocolId   ProtocolId   `json:"protocol_id"`
+	AgendaItemId AgendaItemId `json:"agenda_item_id"`
+	Body         *SaveAgendaItemWordingJSONRequestBody
+}
+
+type SaveAgendaItemWordingResponseObject interface {
+	VisitSaveAgendaItemWordingResponse(w http.ResponseWriter) error
+}
+
+type SaveAgendaItemWording200JSONResponse Protocol
+
+func (response SaveAgendaItemWording200JSONResponse) VisitSaveAgendaItemWordingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SaveAgendaItemWording401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response SaveAgendaItemWording401ApplicationProblemPlusJSONResponse) VisitSaveAgendaItemWordingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SaveAgendaItemWording403ApplicationProblemPlusJSONResponse struct {
+	NotCurrentMemberApplicationProblemPlusJSONResponse
+}
+
+func (response SaveAgendaItemWording403ApplicationProblemPlusJSONResponse) VisitSaveAgendaItemWordingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SaveAgendaItemWording404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
+}
+
+func (response SaveAgendaItemWording404ApplicationProblemPlusJSONResponse) VisitSaveAgendaItemWordingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SaveAgendaItemWording409ApplicationProblemPlusJSONResponse struct {
+	ProtocolEditConflictApplicationProblemPlusJSONResponse
+}
+
+func (response SaveAgendaItemWording409ApplicationProblemPlusJSONResponse) VisitSaveAgendaItemWordingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SaveAgendaItemWording422ApplicationProblemPlusJSONResponse struct {
+	ValidationFailedApplicationProblemPlusJSONResponse
+}
+
+func (response SaveAgendaItemWording422ApplicationProblemPlusJSONResponse) VisitSaveAgendaItemWordingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAssistantTurnsRequestObject struct {
+	ProtocolId ProtocolId `json:"protocol_id"`
+	Params     ListAssistantTurnsParams
+}
+
+type ListAssistantTurnsResponseObject interface {
+	VisitListAssistantTurnsResponse(w http.ResponseWriter) error
+}
+
+type ListAssistantTurns200JSONResponse AssistantTurnPage
+
+func (response ListAssistantTurns200JSONResponse) VisitListAssistantTurnsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAssistantTurns401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response ListAssistantTurns401ApplicationProblemPlusJSONResponse) VisitListAssistantTurnsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAssistantTurns403ApplicationProblemPlusJSONResponse struct {
+	NotCurrentMemberApplicationProblemPlusJSONResponse
+}
+
+func (response ListAssistantTurns403ApplicationProblemPlusJSONResponse) VisitListAssistantTurnsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAssistantTurns404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
+}
+
+func (response ListAssistantTurns404ApplicationProblemPlusJSONResponse) VisitListAssistantTurnsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAssistantTurns422ApplicationProblemPlusJSONResponse struct {
+	ValidationFailedApplicationProblemPlusJSONResponse
+}
+
+func (response ListAssistantTurns422ApplicationProblemPlusJSONResponse) VisitListAssistantTurnsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CopyWithdrawnProtocolRequestObject struct {
+	ProtocolId ProtocolId `json:"protocol_id"`
+}
+
+type CopyWithdrawnProtocolResponseObject interface {
+	VisitCopyWithdrawnProtocolResponse(w http.ResponseWriter) error
+}
+
+type CopyWithdrawnProtocol201JSONResponse Protocol
+
+func (response CopyWithdrawnProtocol201JSONResponse) VisitCopyWithdrawnProtocolResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CopyWithdrawnProtocol401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response CopyWithdrawnProtocol401ApplicationProblemPlusJSONResponse) VisitCopyWithdrawnProtocolResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CopyWithdrawnProtocol403ApplicationProblemPlusJSONResponse struct {
+	NotCurrentMemberApplicationProblemPlusJSONResponse
+}
+
+func (response CopyWithdrawnProtocol403ApplicationProblemPlusJSONResponse) VisitCopyWithdrawnProtocolResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CopyWithdrawnProtocol404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
+}
+
+func (response CopyWithdrawnProtocol404ApplicationProblemPlusJSONResponse) VisitCopyWithdrawnProtocolResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CopyWithdrawnProtocol409ApplicationProblemPlusJSONResponse Problem
+
+func (response CopyWithdrawnProtocol409ApplicationProblemPlusJSONResponse) VisitCopyWithdrawnProtocolResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartPollRoundRequestObject struct {
+	ProtocolId ProtocolId `json:"protocol_id"`
+	Body       *StartPollRoundJSONRequestBody
+}
+
+type StartPollRoundResponseObject interface {
+	VisitStartPollRoundResponse(w http.ResponseWriter) error
+}
+
+type StartPollRound201JSONResponse PollRound
+
+func (response StartPollRound201JSONResponse) VisitStartPollRoundResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartPollRound401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response StartPollRound401ApplicationProblemPlusJSONResponse) VisitStartPollRoundResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartPollRound403ApplicationProblemPlusJSONResponse struct {
+	NotCurrentMemberApplicationProblemPlusJSONResponse
+}
+
+func (response StartPollRound403ApplicationProblemPlusJSONResponse) VisitStartPollRoundResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartPollRound404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
+}
+
+func (response StartPollRound404ApplicationProblemPlusJSONResponse) VisitStartPollRoundResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartPollRound409ApplicationProblemPlusJSONResponse struct {
+	ProtocolEditConflictApplicationProblemPlusJSONResponse
+}
+
+func (response StartPollRound409ApplicationProblemPlusJSONResponse) VisitStartPollRoundResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CastPollVoteRequestObject struct {
+	ProtocolId  ProtocolId  `json:"protocol_id"`
+	RoundNumber RoundNumber `json:"round_number"`
+	Body        *CastPollVoteJSONRequestBody
+}
+
+type CastPollVoteResponseObject interface {
+	VisitCastPollVoteResponse(w http.ResponseWriter) error
+}
+
+type CastPollVote200JSONResponse PollRound
+
+func (response CastPollVote200JSONResponse) VisitCastPollVoteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CastPollVote401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response CastPollVote401ApplicationProblemPlusJSONResponse) VisitCastPollVoteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CastPollVote403ApplicationProblemPlusJSONResponse Problem
+
+func (response CastPollVote403ApplicationProblemPlusJSONResponse) VisitCastPollVoteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CastPollVote404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
+}
+
+func (response CastPollVote404ApplicationProblemPlusJSONResponse) VisitCastPollVoteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CastPollVote409ApplicationProblemPlusJSONResponse Problem
+
+func (response CastPollVote409ApplicationProblemPlusJSONResponse) VisitCastPollVoteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CastPollVote422ApplicationProblemPlusJSONResponse struct {
+	ValidationFailedApplicationProblemPlusJSONResponse
+}
+
+func (response CastPollVote422ApplicationProblemPlusJSONResponse) VisitCastPollVoteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type MarkProtocolReadyForSigningRequestObject struct {
+	ProtocolId ProtocolId `json:"protocol_id"`
+	Body       *MarkProtocolReadyForSigningJSONRequestBody
+}
+
+type MarkProtocolReadyForSigningResponseObject interface {
+	VisitMarkProtocolReadyForSigningResponse(w http.ResponseWriter) error
+}
+
+type MarkProtocolReadyForSigning202JSONResponse ProtocolWithJob
+
+func (response MarkProtocolReadyForSigning202JSONResponse) VisitMarkProtocolReadyForSigningResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(202)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type MarkProtocolReadyForSigning401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response MarkProtocolReadyForSigning401ApplicationProblemPlusJSONResponse) VisitMarkProtocolReadyForSigningResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type MarkProtocolReadyForSigning403ApplicationProblemPlusJSONResponse struct {
+	NotCurrentMemberApplicationProblemPlusJSONResponse
+}
+
+func (response MarkProtocolReadyForSigning403ApplicationProblemPlusJSONResponse) VisitMarkProtocolReadyForSigningResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type MarkProtocolReadyForSigning404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
+}
+
+func (response MarkProtocolReadyForSigning404ApplicationProblemPlusJSONResponse) VisitMarkProtocolReadyForSigningResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type MarkProtocolReadyForSigning409ApplicationProblemPlusJSONResponse Problem
+
+func (response MarkProtocolReadyForSigning409ApplicationProblemPlusJSONResponse) VisitMarkProtocolReadyForSigningResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ReturnProtocolToDraftRequestObject struct {
+	ProtocolId ProtocolId `json:"protocol_id"`
+	Body       *ReturnProtocolToDraftJSONRequestBody
+}
+
+type ReturnProtocolToDraftResponseObject interface {
+	VisitReturnProtocolToDraftResponse(w http.ResponseWriter) error
+}
+
+type ReturnProtocolToDraft200JSONResponse Protocol
+
+func (response ReturnProtocolToDraft200JSONResponse) VisitReturnProtocolToDraftResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ReturnProtocolToDraft401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response ReturnProtocolToDraft401ApplicationProblemPlusJSONResponse) VisitReturnProtocolToDraftResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ReturnProtocolToDraft403ApplicationProblemPlusJSONResponse struct {
+	NotCurrentMemberApplicationProblemPlusJSONResponse
+}
+
+func (response ReturnProtocolToDraft403ApplicationProblemPlusJSONResponse) VisitReturnProtocolToDraftResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ReturnProtocolToDraft404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
+}
+
+func (response ReturnProtocolToDraft404ApplicationProblemPlusJSONResponse) VisitReturnProtocolToDraftResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ReturnProtocolToDraft409ApplicationProblemPlusJSONResponse struct {
+	ProtocolEditConflictApplicationProblemPlusJSONResponse
+}
+
+func (response ReturnProtocolToDraft409ApplicationProblemPlusJSONResponse) VisitReturnProtocolToDraftResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LockProtocolWithSignedCopyRequestObject struct {
+	ProtocolId ProtocolId `json:"protocol_id"`
+	Body       *multipart.Reader
+}
+
+type LockProtocolWithSignedCopyResponseObject interface {
+	VisitLockProtocolWithSignedCopyResponse(w http.ResponseWriter) error
+}
+
+type LockProtocolWithSignedCopy201JSONResponse SignedProtocol
+
+func (response LockProtocolWithSignedCopy201JSONResponse) VisitLockProtocolWithSignedCopyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LockProtocolWithSignedCopy401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response LockProtocolWithSignedCopy401ApplicationProblemPlusJSONResponse) VisitLockProtocolWithSignedCopyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LockProtocolWithSignedCopy403ApplicationProblemPlusJSONResponse struct {
+	NotCurrentMemberApplicationProblemPlusJSONResponse
+}
+
+func (response LockProtocolWithSignedCopy403ApplicationProblemPlusJSONResponse) VisitLockProtocolWithSignedCopyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LockProtocolWithSignedCopy404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
+}
+
+func (response LockProtocolWithSignedCopy404ApplicationProblemPlusJSONResponse) VisitLockProtocolWithSignedCopyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LockProtocolWithSignedCopy409ApplicationProblemPlusJSONResponse Problem
+
+func (response LockProtocolWithSignedCopy409ApplicationProblemPlusJSONResponse) VisitLockProtocolWithSignedCopyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LockProtocolWithSignedCopy422ApplicationProblemPlusJSONResponse Problem
+
+func (response LockProtocolWithSignedCopy422ApplicationProblemPlusJSONResponse) VisitLockProtocolWithSignedCopyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LockProtocolWithSignedCopy503ApplicationProblemPlusJSONResponse struct {
+	StorageUnavailableApplicationProblemPlusJSONResponse
+}
+
+func (response LockProtocolWithSignedCopy503ApplicationProblemPlusJSONResponse) VisitLockProtocolWithSignedCopyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ConfirmDecisionSlotRequestObject struct {
+	ProtocolId ProtocolId `json:"protocol_id"`
+	SlotId     SlotId     `json:"slot_id"`
+	Body       *ConfirmDecisionSlotJSONRequestBody
+}
+
+type ConfirmDecisionSlotResponseObject interface {
+	VisitConfirmDecisionSlotResponse(w http.ResponseWriter) error
+}
+
+type ConfirmDecisionSlot200JSONResponse Protocol
+
+func (response ConfirmDecisionSlot200JSONResponse) VisitConfirmDecisionSlotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ConfirmDecisionSlot401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response ConfirmDecisionSlot401ApplicationProblemPlusJSONResponse) VisitConfirmDecisionSlotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ConfirmDecisionSlot403ApplicationProblemPlusJSONResponse struct {
+	NotCurrentMemberApplicationProblemPlusJSONResponse
+}
+
+func (response ConfirmDecisionSlot403ApplicationProblemPlusJSONResponse) VisitConfirmDecisionSlotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ConfirmDecisionSlot404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
+}
+
+func (response ConfirmDecisionSlot404ApplicationProblemPlusJSONResponse) VisitConfirmDecisionSlotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ConfirmDecisionSlot409ApplicationProblemPlusJSONResponse struct {
+	ProtocolEditConflictApplicationProblemPlusJSONResponse
+}
+
+func (response ConfirmDecisionSlot409ApplicationProblemPlusJSONResponse) VisitConfirmDecisionSlotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ConfirmDecisionSlot422ApplicationProblemPlusJSONResponse struct {
+	ValidationFailedApplicationProblemPlusJSONResponse
+}
+
+func (response ConfirmDecisionSlot422ApplicationProblemPlusJSONResponse) VisitConfirmDecisionSlotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CorrectDecisionSlotRequestObject struct {
+	ProtocolId ProtocolId `json:"protocol_id"`
+	SlotId     SlotId     `json:"slot_id"`
+	Body       *CorrectDecisionSlotJSONRequestBody
+}
+
+type CorrectDecisionSlotResponseObject interface {
+	VisitCorrectDecisionSlotResponse(w http.ResponseWriter) error
+}
+
+type CorrectDecisionSlot201JSONResponse Protocol
+
+func (response CorrectDecisionSlot201JSONResponse) VisitCorrectDecisionSlotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CorrectDecisionSlot401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response CorrectDecisionSlot401ApplicationProblemPlusJSONResponse) VisitCorrectDecisionSlotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CorrectDecisionSlot403ApplicationProblemPlusJSONResponse struct {
+	NotCurrentMemberApplicationProblemPlusJSONResponse
+}
+
+func (response CorrectDecisionSlot403ApplicationProblemPlusJSONResponse) VisitCorrectDecisionSlotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CorrectDecisionSlot404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
+}
+
+func (response CorrectDecisionSlot404ApplicationProblemPlusJSONResponse) VisitCorrectDecisionSlotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CorrectDecisionSlot409ApplicationProblemPlusJSONResponse struct {
+	ProtocolEditConflictApplicationProblemPlusJSONResponse
+}
+
+func (response CorrectDecisionSlot409ApplicationProblemPlusJSONResponse) VisitCorrectDecisionSlotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CorrectDecisionSlot422ApplicationProblemPlusJSONResponse struct {
+	ValidationFailedApplicationProblemPlusJSONResponse
+}
+
+func (response CorrectDecisionSlot422ApplicationProblemPlusJSONResponse) VisitCorrectDecisionSlotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type WithdrawProtocolRequestObject struct {
+	ProtocolId ProtocolId `json:"protocol_id"`
+	Body       *WithdrawProtocolJSONRequestBody
+}
+
+type WithdrawProtocolResponseObject interface {
+	VisitWithdrawProtocolResponse(w http.ResponseWriter) error
+}
+
+type WithdrawProtocol200JSONResponse Protocol
+
+func (response WithdrawProtocol200JSONResponse) VisitWithdrawProtocolResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type WithdrawProtocol401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response WithdrawProtocol401ApplicationProblemPlusJSONResponse) VisitWithdrawProtocolResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type WithdrawProtocol403ApplicationProblemPlusJSONResponse struct {
+	NotCurrentMemberApplicationProblemPlusJSONResponse
+}
+
+func (response WithdrawProtocol403ApplicationProblemPlusJSONResponse) VisitWithdrawProtocolResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type WithdrawProtocol404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
+}
+
+func (response WithdrawProtocol404ApplicationProblemPlusJSONResponse) VisitWithdrawProtocolResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type WithdrawProtocol409ApplicationProblemPlusJSONResponse Problem
+
+func (response WithdrawProtocol409ApplicationProblemPlusJSONResponse) VisitWithdrawProtocolResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type WithdrawProtocol422ApplicationProblemPlusJSONResponse Problem
+
+func (response WithdrawProtocol422ApplicationProblemPlusJSONResponse) VisitWithdrawProtocolResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SearchRegistryRequestObject struct {
+	Params SearchRegistryParams
+}
+
+type SearchRegistryResponseObject interface {
+	VisitSearchRegistryResponse(w http.ResponseWriter) error
+}
+
+type SearchRegistry200JSONResponse RegistryDecisionPage
+
+func (response SearchRegistry200JSONResponse) VisitSearchRegistryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SearchRegistry401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response SearchRegistry401ApplicationProblemPlusJSONResponse) VisitSearchRegistryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SearchRegistry403ApplicationProblemPlusJSONResponse struct {
+	NotCurrentMemberApplicationProblemPlusJSONResponse
+}
+
+func (response SearchRegistry403ApplicationProblemPlusJSONResponse) VisitSearchRegistryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SearchRegistry422ApplicationProblemPlusJSONResponse Problem
+
+func (response SearchRegistry422ApplicationProblemPlusJSONResponse) VisitSearchRegistryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetSignedProtocolRequestObject struct {
+	ProtocolId ProtocolId `json:"protocol_id"`
+}
+
+type GetSignedProtocolResponseObject interface {
+	VisitGetSignedProtocolResponse(w http.ResponseWriter) error
+}
+
+type GetSignedProtocol200JSONResponse SignedProtocol
+
+func (response GetSignedProtocol200JSONResponse) VisitGetSignedProtocolResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetSignedProtocol401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response GetSignedProtocol401ApplicationProblemPlusJSONResponse) VisitGetSignedProtocolResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetSignedProtocol403ApplicationProblemPlusJSONResponse struct {
+	NotCurrentMemberApplicationProblemPlusJSONResponse
+}
+
+func (response GetSignedProtocol403ApplicationProblemPlusJSONResponse) VisitGetSignedProtocolResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetSignedProtocol404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
+}
+
+func (response GetSignedProtocol404ApplicationProblemPlusJSONResponse) VisitGetSignedProtocolResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAssociationSettingsRequestObject struct {
+}
+
+type GetAssociationSettingsResponseObject interface {
+	VisitGetAssociationSettingsResponse(w http.ResponseWriter) error
+}
+
+type GetAssociationSettings200JSONResponse AssociationSettings
+
+func (response GetAssociationSettings200JSONResponse) VisitGetAssociationSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAssociationSettings401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response GetAssociationSettings401ApplicationProblemPlusJSONResponse) VisitGetAssociationSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAssociationSettings403ApplicationProblemPlusJSONResponse struct {
+	NotCurrentMemberApplicationProblemPlusJSONResponse
+}
+
+func (response GetAssociationSettings403ApplicationProblemPlusJSONResponse) VisitGetAssociationSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAssociationSettings404ApplicationProblemPlusJSONResponse Problem
+
+func (response GetAssociationSettings404ApplicationProblemPlusJSONResponse) VisitGetAssociationSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SaveAssociationSettingsRequestObject struct {
+	Body *SaveAssociationSettingsJSONRequestBody
+}
+
+type SaveAssociationSettingsResponseObject interface {
+	VisitSaveAssociationSettingsResponse(w http.ResponseWriter) error
+}
+
+type SaveAssociationSettings200JSONResponse AssociationSettings
+
+func (response SaveAssociationSettings200JSONResponse) VisitSaveAssociationSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SaveAssociationSettings401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response SaveAssociationSettings401ApplicationProblemPlusJSONResponse) VisitSaveAssociationSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SaveAssociationSettings403ApplicationProblemPlusJSONResponse struct {
+	NotCurrentMemberApplicationProblemPlusJSONResponse
+}
+
+func (response SaveAssociationSettings403ApplicationProblemPlusJSONResponse) VisitSaveAssociationSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SaveAssociationSettings409ApplicationProblemPlusJSONResponse Problem
+
+func (response SaveAssociationSettings409ApplicationProblemPlusJSONResponse) VisitSaveAssociationSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SaveAssociationSettings422ApplicationProblemPlusJSONResponse Problem
+
+func (response SaveAssociationSettings422ApplicationProblemPlusJSONResponse) VisitSaveAssociationSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
+	// ListBoardMembers Board roster with terms, newest entry first (US-01)
+	// (GET /governance/board-members)
+	ListBoardMembers(ctx context.Context, request ListBoardMembersRequestObject) (ListBoardMembersResponseObject, error)
+	// CreateBoardMember Add a person to the board roster for one term (AC-02, Flow 12)
+	// (POST /governance/board-members)
+	CreateBoardMember(ctx context.Context, request CreateBoardMemberRequestObject) (CreateBoardMemberResponseObject, error)
+	// UpdateBoardMember Save a new revision of a roster entry (e.g. the term ends) (AC-02, Flow 12)
+	// (PUT /governance/board-members/{board_member_id})
+	UpdateBoardMember(ctx context.Context, request UpdateBoardMemberRequestObject) (UpdateBoardMemberResponseObject, error)
+	// ListCases List справи, newest first
+	// (GET /governance/cases)
+	ListCases(ctx context.Context, request ListCasesRequestObject) (ListCasesResponseObject, error)
+	// CreateCase Open a справа (US-02)
+	// (POST /governance/cases)
+	CreateCase(ctx context.Context, request CreateCaseRequestObject) (CreateCaseResponseObject, error)
+	// GetCase One справа with all its document versions (AC-03, AC-19)
+	// (GET /governance/cases/{case_id})
+	GetCase(ctx context.Context, request GetCaseRequestObject) (GetCaseResponseObject, error)
+	// AddCaseDocument Upload a document, or a newer version of one, into a справа (US-04, AC-09, Flow 3, Flow 8)
+	// (POST /governance/cases/{case_id}/documents)
+	AddCaseDocument(ctx context.Context, request AddCaseDocumentRequestObject) (AddCaseDocumentResponseObject, error)
+	// DownloadFile Download a stored file — case document, print copy or signed scan (US-07, Flow 13)
+	// (GET /governance/files/{file_id})
+	DownloadFile(ctx context.Context, request DownloadFileRequestObject) (DownloadFileResponseObject, error)
+	// GetJob Status of a proposal or print-copy job, polled about every 2 s (SAD §4, Flows 1, 4, 8)
+	// (GET /governance/jobs/{job_id})
+	GetJob(ctx context.Context, request GetJobRequestObject) (GetJobResponseObject, error)
+	// RetryJob Retry a failed job (Flow 8 "retry offered")
+	// (POST /governance/jobs/{job_id}/retry)
+	RetryJob(ctx context.Context, request RetryJobRequestObject) (RetryJobResponseObject, error)
 	// ListMeetings List meetings, newest first, one page at a time
 	// (GET /governance/meetings)
 	ListMeetings(ctx context.Context, request ListMeetingsRequestObject) (ListMeetingsResponseObject, error)
@@ -510,6 +5721,66 @@ type StrictServerInterface interface {
 	// GetMeeting Get one meeting
 	// (GET /governance/meetings/{id})
 	GetMeeting(ctx context.Context, request GetMeetingRequestObject) (GetMeetingResponseObject, error)
+	// AddAgendaItemFromCase Open the meeting's draft from a справа, or add the справа as an agenda item (US-02, AC-03c)
+	// (POST /governance/meetings/{meeting_id}/agenda-items)
+	AddAgendaItemFromCase(ctx context.Context, request AddAgendaItemFromCaseRequestObject) (AddAgendaItemFromCaseResponseObject, error)
+	// CreateAssistantTurn Ask the помічник протоколу for a draft of the meeting's protocol, or refine it (US-12, Flow 1)
+	// (POST /governance/meetings/{meeting_id}/assistant-turns)
+	CreateAssistantTurn(ctx context.Context, request CreateAssistantTurnRequestObject) (CreateAssistantTurnResponseObject, error)
+	// ListProtocols List protocol drafts and protocols, newest first, optionally by state
+	// (GET /governance/protocols)
+	ListProtocols(ctx context.Context, request ListProtocolsRequestObject) (ListProtocolsResponseObject, error)
+	// GetProtocol Open a draft with its meeting, roster in force, documents, slots, poll rounds and print copies (AC-03)
+	// (GET /governance/protocols/{protocol_id})
+	GetProtocol(ctx context.Context, request GetProtocolRequestObject) (GetProtocolResponseObject, error)
+	// AddDecisionSlot Turn a typed fact into a слот рішення by hand (ADR-0011 highlight offer, AC-28)
+	// (POST /governance/protocols/{protocol_id}/agenda-items/{agenda_item_id}/slots)
+	AddDecisionSlot(ctx context.Context, request AddDecisionSlotRequestObject) (AddDecisionSlotResponseObject, error)
+	// SaveAgendaItemWording Reword an agenda item's subject and text (AC-29, AC-05d, AC-14b, Flows 1, 3)
+	// (PUT /governance/protocols/{protocol_id}/agenda-items/{agenda_item_id}/wording)
+	SaveAgendaItemWording(ctx context.Context, request SaveAgendaItemWordingRequestObject) (SaveAgendaItemWordingResponseObject, error)
+	// ListAssistantTurns The conversation kept with the draft, newest first (AC-26)
+	// (GET /governance/protocols/{protocol_id}/assistant-turns)
+	ListAssistantTurns(ctx context.Context, request ListAssistantTurnsRequestObject) (ListAssistantTurnsResponseObject, error)
+	// CopyWithdrawnProtocol Start a new draft copied from a withdrawn one (AC-39)
+	// (POST /governance/protocols/{protocol_id}/copy)
+	CopyWithdrawnProtocol(ctx context.Context, request CopyWithdrawnProtocolRequestObject) (CopyWithdrawnProtocolResponseObject, error)
+	// StartPollRound Freeze the wording as the next round of the попереднє голосування (чернетка → готовий до голосування) (AC-30, Flow 2)
+	// (POST /governance/protocols/{protocol_id}/poll-rounds)
+	StartPollRound(ctx context.Context, request StartPollRoundRequestObject) (StartPollRoundResponseObject, error)
+	// CastPollVote Cast or change one's own informal vote on an agenda item (AC-31, AC-05e, AC-32, Flow 2)
+	// (PUT /governance/protocols/{protocol_id}/poll-rounds/{round_number}/votes)
+	CastPollVote(ctx context.Context, request CastPollVoteRequestObject) (CastPollVoteResponseObject, error)
+	// MarkProtocolReadyForSigning Mark готовий до підпису — freeze the text, reserve the number, render the print copy (AC-04, AC-21, AC-14c, AC-33, Flow 4)
+	// (POST /governance/protocols/{protocol_id}/ready-for-signing)
+	MarkProtocolReadyForSigning(ctx context.Context, request MarkProtocolReadyForSigningRequestObject) (MarkProtocolReadyForSigningResponseObject, error)
+	// ReturnProtocolToDraft «Повернути в чернетку» (готовий до голосування / готовий до підпису → чернетка) (AC-05d, AC-14b, Flow 3)
+	// (POST /governance/protocols/{protocol_id}/return-to-draft)
+	ReturnProtocolToDraft(ctx context.Context, request ReturnProtocolToDraftRequestObject) (ReturnProtocolToDraftResponseObject, error)
+	// LockProtocolWithSignedCopy Upload the signed scan with the meeting facts and lock (готовий до підпису → підписаний) (AC-14, AC-34, AC-15, AC-40, AC-16, Flow 5)
+	// (POST /governance/protocols/{protocol_id}/signed-copy)
+	LockProtocolWithSignedCopy(ctx context.Context, request LockProtocolWithSignedCopyRequestObject) (LockProtocolWithSignedCopyResponseObject, error)
+	// ConfirmDecisionSlot Confirm one value of a slot — the proposed one or an alternative beside it (AC-21, AC-22, AC-28b)
+	// (POST /governance/protocols/{protocol_id}/slots/{slot_id}/confirmation)
+	ConfirmDecisionSlot(ctx context.Context, request ConfirmDecisionSlotRequestObject) (ConfirmDecisionSlotResponseObject, error)
+	// CorrectDecisionSlot Correct a slot by hand; a corrected value counts as confirmed (AC-21)
+	// (POST /governance/protocols/{protocol_id}/slots/{slot_id}/values)
+	CorrectDecisionSlot(ctx context.Context, request CorrectDecisionSlotRequestObject) (CorrectDecisionSlotResponseObject, error)
+	// WithdrawProtocol Close a draft as знятий з розгляду with a reason (AC-35, AC-36, AC-37, AC-38, Flow 9)
+	// (POST /governance/protocols/{protocol_id}/withdrawal)
+	WithdrawProtocol(ctx context.Context, request WithdrawProtocolRequestObject) (WithdrawProtocolResponseObject, error)
+	// SearchRegistry Search decisions of signed protocols, newest meeting first (AC-18, Flow 13)
+	// (GET /governance/registry/decisions)
+	SearchRegistry(ctx context.Context, request SearchRegistryRequestObject) (SearchRegistryResponseObject, error)
+	// GetSignedProtocol Open a signed protocol with its signed copy, meeting facts, cited documents and poll history (AC-18, AC-41, AC-15, Flow 13)
+	// (GET /governance/registry/protocols/{protocol_id})
+	GetSignedProtocol(ctx context.Context, request GetSignedProtocolRequestObject) (GetSignedProtocolResponseObject, error)
+	// GetAssociationSettings Current association settings (latest saved revision)
+	// (GET /governance/settings)
+	GetAssociationSettings(ctx context.Context, request GetAssociationSettingsRequestObject) (GetAssociationSettingsResponseObject, error)
+	// SaveAssociationSettings Save a new revision of the association settings (AC-42, Flow 12)
+	// (PUT /governance/settings)
+	SaveAssociationSettings(ctx context.Context, request SaveAssociationSettingsRequestObject) (SaveAssociationSettingsResponseObject, error)
 }
 
 type StrictHandlerFunc func(ctx context.Context, w http.ResponseWriter, r *http.Request, request any) (any, error)
@@ -549,6 +5820,290 @@ type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
 	options     StrictHTTPServerOptions
+}
+
+// ListBoardMembers operation middleware
+func (sh *strictHandler) ListBoardMembers(w http.ResponseWriter, r *http.Request, params ListBoardMembersParams) {
+	var request ListBoardMembersRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListBoardMembers(ctx, request.(ListBoardMembersRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListBoardMembers")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListBoardMembersResponseObject); ok {
+		if err := validResponse.VisitListBoardMembersResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateBoardMember operation middleware
+func (sh *strictHandler) CreateBoardMember(w http.ResponseWriter, r *http.Request) {
+	var request CreateBoardMemberRequestObject
+
+	var body CreateBoardMemberJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateBoardMember(ctx, request.(CreateBoardMemberRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateBoardMember")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateBoardMemberResponseObject); ok {
+		if err := validResponse.VisitCreateBoardMemberResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateBoardMember operation middleware
+func (sh *strictHandler) UpdateBoardMember(w http.ResponseWriter, r *http.Request, boardMemberId BoardMemberId) {
+	var request UpdateBoardMemberRequestObject
+
+	request.BoardMemberId = boardMemberId
+
+	var body UpdateBoardMemberJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateBoardMember(ctx, request.(UpdateBoardMemberRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateBoardMember")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateBoardMemberResponseObject); ok {
+		if err := validResponse.VisitUpdateBoardMemberResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListCases operation middleware
+func (sh *strictHandler) ListCases(w http.ResponseWriter, r *http.Request, params ListCasesParams) {
+	var request ListCasesRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListCases(ctx, request.(ListCasesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListCases")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListCasesResponseObject); ok {
+		if err := validResponse.VisitListCasesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateCase operation middleware
+func (sh *strictHandler) CreateCase(w http.ResponseWriter, r *http.Request) {
+	var request CreateCaseRequestObject
+
+	var body CreateCaseJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateCase(ctx, request.(CreateCaseRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateCase")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateCaseResponseObject); ok {
+		if err := validResponse.VisitCreateCaseResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetCase operation middleware
+func (sh *strictHandler) GetCase(w http.ResponseWriter, r *http.Request, caseId CaseId) {
+	var request GetCaseRequestObject
+
+	request.CaseId = caseId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetCase(ctx, request.(GetCaseRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetCase")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetCaseResponseObject); ok {
+		if err := validResponse.VisitGetCaseResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AddCaseDocument operation middleware
+func (sh *strictHandler) AddCaseDocument(w http.ResponseWriter, r *http.Request, caseId CaseId) {
+	var request AddCaseDocumentRequestObject
+
+	request.CaseId = caseId
+
+	if reader, err := r.MultipartReader(); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode multipart body: %w", err))
+		return
+	} else {
+		request.Body = reader
+	}
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AddCaseDocument(ctx, request.(AddCaseDocumentRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AddCaseDocument")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AddCaseDocumentResponseObject); ok {
+		if err := validResponse.VisitAddCaseDocumentResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DownloadFile operation middleware
+func (sh *strictHandler) DownloadFile(w http.ResponseWriter, r *http.Request, fileId FileId) {
+	var request DownloadFileRequestObject
+
+	request.FileId = fileId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DownloadFile(ctx, request.(DownloadFileRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DownloadFile")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DownloadFileResponseObject); ok {
+		if err := validResponse.VisitDownloadFileResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetJob operation middleware
+func (sh *strictHandler) GetJob(w http.ResponseWriter, r *http.Request, jobId JobId) {
+	var request GetJobRequestObject
+
+	request.JobId = jobId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetJob(ctx, request.(GetJobRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetJob")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetJobResponseObject); ok {
+		if err := validResponse.VisitGetJobResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RetryJob operation middleware
+func (sh *strictHandler) RetryJob(w http.ResponseWriter, r *http.Request, jobId JobId) {
+	var request RetryJobRequestObject
+
+	request.JobId = jobId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RetryJob(ctx, request.(RetryJobRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RetryJob")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RetryJobResponseObject); ok {
+		if err := validResponse.VisitRetryJobResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
 }
 
 // ListMeetings operation middleware
@@ -634,32 +6189,892 @@ func (sh *strictHandler) GetMeeting(w http.ResponseWriter, r *http.Request, id o
 	}
 }
 
+// AddAgendaItemFromCase operation middleware
+func (sh *strictHandler) AddAgendaItemFromCase(w http.ResponseWriter, r *http.Request, meetingId MeetingId) {
+	var request AddAgendaItemFromCaseRequestObject
+
+	request.MeetingId = meetingId
+
+	var body AddAgendaItemFromCaseJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AddAgendaItemFromCase(ctx, request.(AddAgendaItemFromCaseRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AddAgendaItemFromCase")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AddAgendaItemFromCaseResponseObject); ok {
+		if err := validResponse.VisitAddAgendaItemFromCaseResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateAssistantTurn operation middleware
+func (sh *strictHandler) CreateAssistantTurn(w http.ResponseWriter, r *http.Request, meetingId MeetingId, params CreateAssistantTurnParams) {
+	var request CreateAssistantTurnRequestObject
+
+	request.MeetingId = meetingId
+	request.Params = params
+
+	if reader, err := r.MultipartReader(); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode multipart body: %w", err))
+		return
+	} else {
+		request.Body = reader
+	}
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateAssistantTurn(ctx, request.(CreateAssistantTurnRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateAssistantTurn")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateAssistantTurnResponseObject); ok {
+		if err := validResponse.VisitCreateAssistantTurnResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListProtocols operation middleware
+func (sh *strictHandler) ListProtocols(w http.ResponseWriter, r *http.Request, params ListProtocolsParams) {
+	var request ListProtocolsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListProtocols(ctx, request.(ListProtocolsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListProtocols")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListProtocolsResponseObject); ok {
+		if err := validResponse.VisitListProtocolsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetProtocol operation middleware
+func (sh *strictHandler) GetProtocol(w http.ResponseWriter, r *http.Request, protocolId ProtocolId) {
+	var request GetProtocolRequestObject
+
+	request.ProtocolId = protocolId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetProtocol(ctx, request.(GetProtocolRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetProtocol")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetProtocolResponseObject); ok {
+		if err := validResponse.VisitGetProtocolResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AddDecisionSlot operation middleware
+func (sh *strictHandler) AddDecisionSlot(w http.ResponseWriter, r *http.Request, protocolId ProtocolId, agendaItemId AgendaItemId) {
+	var request AddDecisionSlotRequestObject
+
+	request.ProtocolId = protocolId
+	request.AgendaItemId = agendaItemId
+
+	var body AddDecisionSlotJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AddDecisionSlot(ctx, request.(AddDecisionSlotRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AddDecisionSlot")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AddDecisionSlotResponseObject); ok {
+		if err := validResponse.VisitAddDecisionSlotResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SaveAgendaItemWording operation middleware
+func (sh *strictHandler) SaveAgendaItemWording(w http.ResponseWriter, r *http.Request, protocolId ProtocolId, agendaItemId AgendaItemId) {
+	var request SaveAgendaItemWordingRequestObject
+
+	request.ProtocolId = protocolId
+	request.AgendaItemId = agendaItemId
+
+	var body SaveAgendaItemWordingJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SaveAgendaItemWording(ctx, request.(SaveAgendaItemWordingRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SaveAgendaItemWording")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SaveAgendaItemWordingResponseObject); ok {
+		if err := validResponse.VisitSaveAgendaItemWordingResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListAssistantTurns operation middleware
+func (sh *strictHandler) ListAssistantTurns(w http.ResponseWriter, r *http.Request, protocolId ProtocolId, params ListAssistantTurnsParams) {
+	var request ListAssistantTurnsRequestObject
+
+	request.ProtocolId = protocolId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListAssistantTurns(ctx, request.(ListAssistantTurnsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListAssistantTurns")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListAssistantTurnsResponseObject); ok {
+		if err := validResponse.VisitListAssistantTurnsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CopyWithdrawnProtocol operation middleware
+func (sh *strictHandler) CopyWithdrawnProtocol(w http.ResponseWriter, r *http.Request, protocolId ProtocolId) {
+	var request CopyWithdrawnProtocolRequestObject
+
+	request.ProtocolId = protocolId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CopyWithdrawnProtocol(ctx, request.(CopyWithdrawnProtocolRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CopyWithdrawnProtocol")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CopyWithdrawnProtocolResponseObject); ok {
+		if err := validResponse.VisitCopyWithdrawnProtocolResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// StartPollRound operation middleware
+func (sh *strictHandler) StartPollRound(w http.ResponseWriter, r *http.Request, protocolId ProtocolId) {
+	var request StartPollRoundRequestObject
+
+	request.ProtocolId = protocolId
+
+	var body StartPollRoundJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.StartPollRound(ctx, request.(StartPollRoundRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "StartPollRound")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(StartPollRoundResponseObject); ok {
+		if err := validResponse.VisitStartPollRoundResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CastPollVote operation middleware
+func (sh *strictHandler) CastPollVote(w http.ResponseWriter, r *http.Request, protocolId ProtocolId, roundNumber RoundNumber) {
+	var request CastPollVoteRequestObject
+
+	request.ProtocolId = protocolId
+	request.RoundNumber = roundNumber
+
+	var body CastPollVoteJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CastPollVote(ctx, request.(CastPollVoteRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CastPollVote")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CastPollVoteResponseObject); ok {
+		if err := validResponse.VisitCastPollVoteResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// MarkProtocolReadyForSigning operation middleware
+func (sh *strictHandler) MarkProtocolReadyForSigning(w http.ResponseWriter, r *http.Request, protocolId ProtocolId) {
+	var request MarkProtocolReadyForSigningRequestObject
+
+	request.ProtocolId = protocolId
+
+	var body MarkProtocolReadyForSigningJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.MarkProtocolReadyForSigning(ctx, request.(MarkProtocolReadyForSigningRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "MarkProtocolReadyForSigning")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(MarkProtocolReadyForSigningResponseObject); ok {
+		if err := validResponse.VisitMarkProtocolReadyForSigningResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ReturnProtocolToDraft operation middleware
+func (sh *strictHandler) ReturnProtocolToDraft(w http.ResponseWriter, r *http.Request, protocolId ProtocolId) {
+	var request ReturnProtocolToDraftRequestObject
+
+	request.ProtocolId = protocolId
+
+	var body ReturnProtocolToDraftJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ReturnProtocolToDraft(ctx, request.(ReturnProtocolToDraftRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ReturnProtocolToDraft")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ReturnProtocolToDraftResponseObject); ok {
+		if err := validResponse.VisitReturnProtocolToDraftResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// LockProtocolWithSignedCopy operation middleware
+func (sh *strictHandler) LockProtocolWithSignedCopy(w http.ResponseWriter, r *http.Request, protocolId ProtocolId) {
+	var request LockProtocolWithSignedCopyRequestObject
+
+	request.ProtocolId = protocolId
+
+	if reader, err := r.MultipartReader(); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode multipart body: %w", err))
+		return
+	} else {
+		request.Body = reader
+	}
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.LockProtocolWithSignedCopy(ctx, request.(LockProtocolWithSignedCopyRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "LockProtocolWithSignedCopy")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(LockProtocolWithSignedCopyResponseObject); ok {
+		if err := validResponse.VisitLockProtocolWithSignedCopyResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ConfirmDecisionSlot operation middleware
+func (sh *strictHandler) ConfirmDecisionSlot(w http.ResponseWriter, r *http.Request, protocolId ProtocolId, slotId SlotId) {
+	var request ConfirmDecisionSlotRequestObject
+
+	request.ProtocolId = protocolId
+	request.SlotId = slotId
+
+	var body ConfirmDecisionSlotJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ConfirmDecisionSlot(ctx, request.(ConfirmDecisionSlotRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ConfirmDecisionSlot")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ConfirmDecisionSlotResponseObject); ok {
+		if err := validResponse.VisitConfirmDecisionSlotResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CorrectDecisionSlot operation middleware
+func (sh *strictHandler) CorrectDecisionSlot(w http.ResponseWriter, r *http.Request, protocolId ProtocolId, slotId SlotId) {
+	var request CorrectDecisionSlotRequestObject
+
+	request.ProtocolId = protocolId
+	request.SlotId = slotId
+
+	var body CorrectDecisionSlotJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CorrectDecisionSlot(ctx, request.(CorrectDecisionSlotRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CorrectDecisionSlot")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CorrectDecisionSlotResponseObject); ok {
+		if err := validResponse.VisitCorrectDecisionSlotResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// WithdrawProtocol operation middleware
+func (sh *strictHandler) WithdrawProtocol(w http.ResponseWriter, r *http.Request, protocolId ProtocolId) {
+	var request WithdrawProtocolRequestObject
+
+	request.ProtocolId = protocolId
+
+	var body WithdrawProtocolJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.WithdrawProtocol(ctx, request.(WithdrawProtocolRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "WithdrawProtocol")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(WithdrawProtocolResponseObject); ok {
+		if err := validResponse.VisitWithdrawProtocolResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SearchRegistry operation middleware
+func (sh *strictHandler) SearchRegistry(w http.ResponseWriter, r *http.Request, params SearchRegistryParams) {
+	var request SearchRegistryRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SearchRegistry(ctx, request.(SearchRegistryRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SearchRegistry")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SearchRegistryResponseObject); ok {
+		if err := validResponse.VisitSearchRegistryResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetSignedProtocol operation middleware
+func (sh *strictHandler) GetSignedProtocol(w http.ResponseWriter, r *http.Request, protocolId ProtocolId) {
+	var request GetSignedProtocolRequestObject
+
+	request.ProtocolId = protocolId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetSignedProtocol(ctx, request.(GetSignedProtocolRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetSignedProtocol")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetSignedProtocolResponseObject); ok {
+		if err := validResponse.VisitGetSignedProtocolResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetAssociationSettings operation middleware
+func (sh *strictHandler) GetAssociationSettings(w http.ResponseWriter, r *http.Request) {
+	var request GetAssociationSettingsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAssociationSettings(ctx, request.(GetAssociationSettingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAssociationSettings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetAssociationSettingsResponseObject); ok {
+		if err := validResponse.VisitGetAssociationSettingsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SaveAssociationSettings operation middleware
+func (sh *strictHandler) SaveAssociationSettings(w http.ResponseWriter, r *http.Request) {
+	var request SaveAssociationSettingsRequestObject
+
+	var body SaveAssociationSettingsJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SaveAssociationSettings(ctx, request.(SaveAssociationSettingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SaveAssociationSettings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SaveAssociationSettingsResponseObject); ok {
+		if err := validResponse.VisitSaveAssociationSettingsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // Base64 encoded, compressed with deflate, json marshaled OpenAPI spec.
 // Stored as a slice of fixed-width chunks rather than one concatenated
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"vFdtb9u2E/8qxP3/QF9MtZ2swzr1VdqlRdGnwG2BDVlQMOJZZkeRCnlK4gX67sNRki1bqt1gQd9RfLin",
-	"393vTneQuaJ0Fi0FSO/AYyidDRg/3jt66SqreJ05S2iJl7Isjc4kaWenpXeXBoufvgZn+SxkSywkr/7v",
-	"cQEp/G+6UTBtTsP0rHkFdV0noDBkXpcsDlKYY3CVz1BYR2LB2idQJ/DZlt5lGIK8NHhqSdPqx1p1VWEg",
-	"sZDaoBLX0mgVVU2AL7cSWMFLjUadeu88f5XelehJN/FUSFIbXtGqREghkNc2Z/9Kpy2hHzmrE/B4VWmP",
-	"CtLz9cWkk3aRdC/c5VfMiKW9QyR+PLAg8ygJ1RcZQ7ZwvuAVKEn4mHSBkAxNQ6vC4Qfn3YsEbGUMXNQJ",
-	"LNHcT5VWW3erSquxa39rqw6B2YbgDV+tEzCuSY1NgMcMvqqcr4ovm3h3l+HSOYPSsijSZHAUxKpU94zu",
-	"DriNu1F+6+UmiBsget4MTU76GG+ZtCdR3rQBRVsVbMf89NXntydzSOD0j0/zkw/z31+/P5n/CRcDB9Yi",
-	"zmSOw3zThMX24jswg3qtRnovV/xt8Za+ZJUPTV1tV+eZDEHIIJpzQU7kSIKWKPiZKGWOzwSDLJyN20aG",
-	"ZnuyJ393sYkebFsyFtL3eNMrP6mUZiulOesFZiFNwGQnVj+wzv5jARXy9i3anJaQHs9myf0KSuFCVoYg",
-	"JV9hsq++dtUU2nbfR4cqqSuiLjRjSHV8P8in+csX4rcnv/wq2j4iGqoNE9jFbA+jI/eA78/9Xt8YSX9t",
-	"A0mbjdNOIElV6B1pS5ij309WzcahdhNPN5zUqhpGs45GLtwwmB+1zQ0K7tReZtzTfazBzHkUAf21znAi",
-	"Tq/RrwSHNmaZyKT3GoPAW5mRWQlnUZDMhZWFtrnQFMQlDweoomS8pWfCyVI/zpzCHK3I0bIsFiGzZXfp",
-	"UYgq0YuFd0UU424sS578Zdd+phBKbaxrbDw5ew0JXKMPjUOzydFkxhF0JVpZakjh57iVQClpGYGYLrRl",
-	"vKad27xbJyP70zut6vYwd9fom/Oiqb4oLMdY2uvgvFaQwlsd6F13iTV7WSAhZ9z5kB9zFEH/E+lO885V",
-	"hX4FCVhZIKRgdKEJkt6ctK7SYy48easL7gxHbRm2X8kg4epkV/eHUl5V2FFzjLoUpcdr7aoQOfhRED1O",
-	"fSZcoTdZstC+R9VjtjfPtozfTxQXyfaUezyb7Rkl7zdC9pvhyBj5wWL0RbiF6BCO4+2T4+NviV7bOh2b",
-	"gVlHqIpC+lWbFGvBibB4E4dWjmEiXKdckpCiaw2Sc+wcNqkXebt0YSTnXsTJovURGqLAQM+dWj1YBHvt",
-	"s94mI+4X9QC7o4fGbgy3T0vswipueNBoRqyHhO5jtkRVGRRSXDrpVafvWxh9gy86OhknjVdIG/R2KCPW",
-	"FhPYprTiOLoNQL/MDszpP6LQDoDVADR7chig9a/uwyH6CinW3HcAGVaBsJguURomrbsoKPapBpvKG0hh",
-	"SVSm0ylPYmbpAqVPZ09nUF+sBQ9ab9NdRSNXSKuEryxXvuBePdkg3RgAQ/o+CcFluunJbe8KvXft1sjD",
-	"5/0kDlE3LVF7oTDT3En7YnoBqS/qfwcA",
+	"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",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

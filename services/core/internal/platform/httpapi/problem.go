@@ -123,8 +123,16 @@ func StrictRequestError(w http.ResponseWriter, _ *http.Request, err error) {
 	WriteProblem(w, Problem{Title: "Bad Request", Status: http.StatusBadRequest, Detail: err.Error()})
 }
 
+// ErrNotImplemented is returned by handler stubs for operations whose contract
+// is merged but whose behaviour is not built yet; it is answered as 501.
+var ErrNotImplemented = errors.New("not implemented")
+
 // StrictResponseError is for StrictHTTPServerOptions.ResponseErrorHandlerFunc.
-func StrictResponseError(w http.ResponseWriter, _ *http.Request, _ error) {
+func StrictResponseError(w http.ResponseWriter, _ *http.Request, err error) {
+	if errors.Is(err, ErrNotImplemented) {
+		WriteProblem(w, Problem{Title: "Not Implemented", Status: http.StatusNotImplemented})
+		return
+	}
 	WriteProblem(w, Problem{Title: "Internal Server Error", Status: http.StatusInternalServerError})
 }
 

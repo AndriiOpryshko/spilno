@@ -13,7 +13,7 @@
 | [T06](./T06-problem-codes-registry.md) | Add problem `code` and `urn:problem:` types to httpapi with a governance error registry | infra | Andrii Opryshko | M | — | done |
 | [T07](./T07-merge-contract-identity-skeleton.md) | Merge the contract delta, add the identity context skeleton and regenerate server and client | wiring | Andrii Opryshko | L | — | todo |
 | [T08](./T08-identity-oidc-sessions.md) | Sign in with Google OIDC and keep sessions in Postgres | app | Andrii Opryshko | L | T01, T06, T07 | todo |
-| [T09](./T09-settings-roster-domain.md) | Model association settings and roster entries with all-fields validation | domain | Andrii Opryshko | M | — | todo |
+| [T09](./T09-settings-roster-domain.md) | Model association settings and roster entries with all-fields validation | domain | Andrii Opryshko | M | — | done |
 | [T10](./T10-settings-roster-endpoints.md) | Serve settings and roster: use cases, Postgres repositories, handlers and CurrentMember | ports | Andrii Opryshko | L | T02, T06, T07, T09 | todo |
 | [T11](./T11-require-session-current-member.md) | Require a session and a current член правління on the governance and finance routes | wiring | Andrii Opryshko | M | T08, T10 | todo |
 | [T12](./T12-google-connection-token-source.md) | Store the association's Google connection and expose GoogleTokenSource | infra | Andrii Opryshko | M | T01, T07 | todo |

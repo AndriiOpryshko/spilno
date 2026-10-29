@@ -28,7 +28,7 @@ The protocol aggregate and its case sources ([data-model.md](../data-model.md) Â
 
 ## What
 
-- Promote staged pairs 12, 13, 14, 16 in that order (15 depends on nothing here and goes with T04).
+- Promote staged pairs 12â€“16 in ordinal order (16 `slot_values.assistant_turn_id` references 15 `assistant_turns`, so 15 cannot wait for T04).
 
 ## Definition of Done
 

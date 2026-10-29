@@ -17,6 +17,46 @@ type Account struct {
 	CreatedAt     pgtype.Timestamptz
 }
 
+type AgendaItem struct {
+	ID                pgtype.UUID
+	AssociationID     pgtype.UUID
+	ProtocolID        pgtype.UUID
+	CaseID            pgtype.UUID
+	Position          int16
+	CreatedByMemberID pgtype.UUID
+	CreatedAt         pgtype.Timestamptz
+}
+
+type AgendaItemVersion struct {
+	ID               pgtype.UUID
+	AssociationID    pgtype.UUID
+	AgendaItemID     pgtype.UUID
+	ProtocolRevision int32
+	Subject          pgtype.Text
+	Fragments        []byte
+	AuthorMemberID   pgtype.UUID
+	CreatedAt        pgtype.Timestamptz
+}
+
+type AssistantTurn struct {
+	ID               pgtype.UUID
+	AssociationID    pgtype.UUID
+	ProtocolID       pgtype.UUID
+	Role             string
+	AuthorMemberID   pgtype.UUID
+	Message          string
+	Proposal         []byte
+	ProtocolRevision int32
+	CreatedAt        pgtype.Timestamptz
+}
+
+type AssistantTurnDocument struct {
+	AssistantTurnID pgtype.UUID
+	CaseDocumentID  pgtype.UUID
+	AssociationID   pgtype.UUID
+	CreatedAt       pgtype.Timestamptz
+}
+
 type Association struct {
 	ID        pgtype.UUID
 	Name      string
@@ -52,6 +92,26 @@ type BoardMemberRevision struct {
 	CreatedAt         pgtype.Timestamptz
 }
 
+type Case struct {
+	ID                pgtype.UUID
+	AssociationID     pgtype.UUID
+	Title             string
+	DriveFolderID     pgtype.Text
+	CreatedByMemberID pgtype.UUID
+	CreatedAt         pgtype.Timestamptz
+}
+
+type CaseDocument struct {
+	ID                pgtype.UUID
+	AssociationID     pgtype.UUID
+	CaseID            pgtype.UUID
+	FileID            pgtype.UUID
+	PreviousVersionID pgtype.UUID
+	DocumentDate      pgtype.Date
+	CreatedByMemberID pgtype.UUID
+	CreatedAt         pgtype.Timestamptz
+}
+
 type Contract struct {
 	ID           pgtype.UUID
 	Counterparty string
@@ -61,6 +121,28 @@ type Contract struct {
 	EndsAt       pgtype.Date
 	CreatedAt    pgtype.Timestamptz
 	UpdatedAt    pgtype.Timestamptz
+}
+
+type DecisionSlot struct {
+	ID            pgtype.UUID
+	AssociationID pgtype.UUID
+	AgendaItemID  pgtype.UUID
+	Kind          string
+	Status        string
+	CreatedAt     pgtype.Timestamptz
+}
+
+type File struct {
+	ID                 pgtype.UUID
+	AssociationID      pgtype.UUID
+	DriveFileID        string
+	DriveRevisionID    string
+	Sha256             []byte
+	SizeBytes          int64
+	MediaType          string
+	OriginalName       string
+	UploadedByMemberID pgtype.UUID
+	CreatedAt          pgtype.Timestamptz
 }
 
 type GoogleConnection struct {
@@ -90,10 +172,34 @@ type Meeting struct {
 	ChairBoardMemberID pgtype.UUID
 }
 
+type Protocol struct {
+	ID                   pgtype.UUID
+	AssociationID        pgtype.UUID
+	MeetingID            pgtype.UUID
+	State                string
+	Revision             int32
+	Number               pgtype.Int4
+	CopiedFromProtocolID pgtype.UUID
+	DriveFolderID        pgtype.Text
+	CreatedByMemberID    pgtype.UUID
+	CreatedAt            pgtype.Timestamptz
+}
+
 type ProtocolRegister struct {
 	ID            pgtype.UUID
 	AssociationID pgtype.UUID
 	NextNumber    int32
+	CreatedAt     pgtype.Timestamptz
+}
+
+type ProtocolTransition struct {
+	ID            pgtype.UUID
+	AssociationID pgtype.UUID
+	ProtocolID    pgtype.UUID
+	FromState     pgtype.Text
+	ToState       string
+	Revision      int32
+	ActorMemberID pgtype.UUID
 	CreatedAt     pgtype.Timestamptz
 }
 
@@ -104,4 +210,32 @@ type Session struct {
 	ExpiresAt  pgtype.Timestamptz
 	LastSeenAt pgtype.Timestamptz
 	CreatedAt  pgtype.Timestamptz
+}
+
+type SlotConfirmation struct {
+	ID                  pgtype.UUID
+	AssociationID       pgtype.UUID
+	SlotID              pgtype.UUID
+	SlotValueID         pgtype.UUID
+	ProtocolRevision    int32
+	ConfirmedByMemberID pgtype.UUID
+	CreatedAt           pgtype.Timestamptz
+}
+
+type SlotValue struct {
+	ID               pgtype.UUID
+	AssociationID    pgtype.UUID
+	SlotID           pgtype.UUID
+	Origin           string
+	AmountKopiyky    pgtype.Int8
+	Currency         pgtype.Text
+	TextValue        pgtype.Text
+	DateValue        pgtype.Date
+	DateEndValue     pgtype.Date
+	PersonMemberID   pgtype.UUID
+	SourceDocumentID pgtype.UUID
+	SourceFragment   pgtype.Text
+	AssistantTurnID  pgtype.UUID
+	AuthorMemberID   pgtype.UUID
+	CreatedAt        pgtype.Timestamptz
 }

@@ -25,7 +25,7 @@ Conversations and proposals (AC-26) and informal poll rounds (AC-30, AC-31). Riv
 
 ## What
 
-- Promote staged pairs 15 and 17.
+- Promote staged pair 17 (15 went with T03: 16 depends on it).
 - Pin the River version in `go.mod`; generate its schema with `river migrate-get --all --up` / `--down` into one goose file.
 
 ## Definition of Done

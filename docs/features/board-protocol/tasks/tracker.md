@@ -8,7 +8,7 @@
 | [T01](./T01-stage-identity-migrations.md) | Promote the identity migrations: accounts, sessions, google_connections | migration | Andrii Opryshko | S | — | done |
 | [T02](./T02-stage-roster-settings-migrations.md) | Promote the roster, settings and meetings-chair migrations | migration | Andrii Opryshko | S | T01 | done |
 | [T03](./T03-stage-case-protocol-migrations.md) | Promote the case, protocol, agenda-item and decision-slot migrations | migration | Andrii Opryshko | S | T02 | done |
-| [T04](./T04-stage-assistant-poll-river-migrations.md) | Promote the assistant-turn and poll migrations and add the River schema | migration | Andrii Opryshko | M | T03 | todo |
+| [T04](./T04-stage-assistant-poll-river-migrations.md) | Promote the assistant-turn and poll migrations and add the River schema | migration | Andrii Opryshko | M | T03 | done |
 | [T05](./T05-stage-lock-integrity-migrations.md) | Promote the print-copy, meeting-facts, snapshot, trigger and integrity-run migrations | migration | Andrii Opryshko | M | T04 | todo |
 | [T06](./T06-problem-codes-registry.md) | Add problem `code` and `urn:problem:` types to httpapi with a governance error registry | infra | Andrii Opryshko | M | — | todo |
 | [T07](./T07-merge-contract-identity-skeleton.md) | Merge the contract delta, add the identity context skeleton and regenerate server and client | wiring | Andrii Opryshko | L | — | todo |

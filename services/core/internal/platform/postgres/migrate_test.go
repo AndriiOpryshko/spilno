@@ -7,6 +7,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
+	"github.com/riverqueue/river/riverdriver/riverpgxv5"
+	"github.com/riverqueue/river/rivermigrate"
 
 	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/testdb"
 	"github.com/AndriiOpryshko/spilno/services/core/migrations"
@@ -22,6 +24,7 @@ var liveRelations = []string{
 	"files", "cases", "case_documents", "protocols", "protocol_transitions",
 	"agenda_items", "agenda_item_versions", "assistant_turns", "assistant_turn_documents",
 	"decision_slots", "slot_values", "slot_confirmations",
+	"poll_rounds", "poll_votes",
 }
 
 // liveColumns are columns the migrations add to tables that existed before them.
@@ -69,6 +72,17 @@ func TestMigrationsRoundtrip(t *testing.T) {
 
 func assertSchema(t *testing.T, pool *pgxpool.Pool) {
 	t.Helper()
+	migrator, err := rivermigrate.New(riverpgxv5.New(pool), nil)
+	if err != nil {
+		t.Fatalf("river migrator: %v", err)
+	}
+	res, err := migrator.Validate(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("river validate: %v", err)
+	}
+	if !res.OK {
+		t.Errorf("river schema is not current: %v", res.Messages)
+	}
 	for _, name := range liveRelations {
 		var found *string
 		if err := pool.QueryRow(context.Background(), `SELECT to_regclass($1)::text`, "public."+name).Scan(&found); err != nil {

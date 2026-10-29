@@ -46,6 +46,34 @@ All tasks run from the repo root through mise (`mise tasks` lists them):
   `r.Group` pattern from `internal/system/module.go`.
 - The web dev server runs on :5180 and proxies `/api/*` to the core API on :8080.
 
+## Git
+
+- Trunk-based: short-lived branches off a fresh `main` (`git fetch` first), merged through a PR.
+  Never commit to `main` directly. The user merges; do not merge, close or retarget PRs yourself.
+- Branch names: `<type>/<kebab-topic>` with `feat/`, `fix/`, `docs/`, `chore/`, `ci/`, `refactor/`
+  (e.g. `fix/web-favicon`, `docs/board-protocol-sad`). `feature-1/*` and `feature-2/*` are
+  reserved for the capstone runs measured in `LOG.md`; never create them for ordinary work.
+- Commits follow Conventional Commits: `type(scope): imperative summary`, at most ~72 chars,
+  English, no trailing period. Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `ci`,
+  `build`, `perf`. Scope is the bounded context (`board-protocol`, `governance`, `system`) or the
+  area (`web`, `core`, `api`, `db`, `design`, `claude`, `infra`). Pick the type from the diff, not
+  from the task wording. The body says why; end it with the trailer
+  `Co-Authored-By: Claude <model> <noreply@anthropic.com>`.
+- Atomic commits: one logical change each, every commit builds and passes its tests (so
+  `git bisect` lands on the real culprit). Split unrelated hunks with `git add -p`; a contract
+  change and its generated code land together.
+- Before every commit read `git diff --cached` (or `/diff`) and check that only the intended
+  files are staged: no secrets, no stray generated or local files. Never `git add -A` blindly.
+- Commit only when the user asks. Open the PR early: the first commit on a branch is followed in
+  the same step by `git push -u` and `gh pr create --draft` (a request to commit covers this);
+  later commits are pushed to the same PR. Mark it ready only when green and the user agrees.
+- Never `git reset --hard`, never force-push (`--force`, `-f`, `--force-with-lease`), never
+  rewrite pushed history. Undo with `git revert` or a new commit; a session slip with `/rewind`.
+  Both are denied in `.claude/settings.json`.
+- Secrets never enter git: `.env`, `.env.*` (except `.env.example`), `*.pem`, `*.key`, `id_rsa*`
+  are ignored and `.claude/hooks/block-secrets.sh` blocks staging or committing them. On a block,
+  unstage the file; do not retry with `-f` or another path.
+
 ## Metrics log
 
 This repo is a capstone measured in `LOG.md` (raw) and `CAPSTONE_LOG.md` (summary).

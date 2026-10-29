@@ -12,10 +12,18 @@ import (
 	"github.com/AndriiOpryshko/spilno/services/core/migrations"
 )
 
-// liveTables are the tables the migrations must create; every Down must drop them again.
-var liveTables = []string{
+// liveRelations are the tables and indexes the migrations must create; every Down must drop
+// them again.
+var liveRelations = []string{
 	"contracts", "meetings", "associations",
 	"accounts", "sessions", "google_connections",
+	"board_members", "board_member_revisions", "association_settings", "protocol_registers",
+	"idx_meetings_chair_board_member_id",
+}
+
+// liveColumns are columns the migrations add to tables that existed before them.
+var liveColumns = [][2]string{
+	{"meetings", "chair_board_member_id"},
 }
 
 func TestMigrationsRoundtrip(t *testing.T) {
@@ -28,7 +36,7 @@ func TestMigrationsRoundtrip(t *testing.T) {
 		t.Fatalf("goose provider: %v", err)
 	}
 
-	assertTables(t, pool, liveTables)
+	assertSchema(t, pool)
 
 	if _, err := provider.DownTo(ctx, 0); err != nil {
 		t.Fatalf("down to 0: %v", err)
@@ -53,18 +61,28 @@ func TestMigrationsRoundtrip(t *testing.T) {
 	if _, err := provider.Up(ctx); err != nil {
 		t.Fatalf("re-apply: %v", err)
 	}
-	assertTables(t, pool, liveTables)
+	assertSchema(t, pool)
 }
 
-func assertTables(t *testing.T, pool *pgxpool.Pool, names []string) {
+func assertSchema(t *testing.T, pool *pgxpool.Pool) {
 	t.Helper()
-	for _, name := range names {
+	for _, name := range liveRelations {
 		var found *string
 		if err := pool.QueryRow(context.Background(), `SELECT to_regclass($1)::text`, "public."+name).Scan(&found); err != nil {
 			t.Fatalf("to_regclass %s: %v", name, err)
 		}
 		if found == nil {
-			t.Errorf("table %s does not exist", name)
+			t.Errorf("relation %s does not exist", name)
+		}
+	}
+	for _, c := range liveColumns {
+		var n int
+		if err := pool.QueryRow(context.Background(), `SELECT count(*) FROM information_schema.columns
+			WHERE table_schema = 'public' AND table_name = $1 AND column_name = $2`, c[0], c[1]).Scan(&n); err != nil {
+			t.Fatalf("column %s.%s: %v", c[0], c[1], err)
+		}
+		if n != 1 {
+			t.Errorf("column %s.%s does not exist", c[0], c[1])
 		}
 	}
 }

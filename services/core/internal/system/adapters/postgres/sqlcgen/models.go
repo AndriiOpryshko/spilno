@@ -23,6 +23,35 @@ type Association struct {
 	CreatedAt pgtype.Timestamptz
 }
 
+type AssociationSetting struct {
+	ID                  pgtype.UUID
+	AssociationID       pgtype.UUID
+	MeetingForm         string
+	Signers             string
+	RegisterStartNumber int32
+	CreatedByMemberID   pgtype.UUID
+	CreatedAt           pgtype.Timestamptz
+}
+
+type BoardMember struct {
+	ID                pgtype.UUID
+	AssociationID     pgtype.UUID
+	CreatedByMemberID pgtype.UUID
+	CreatedAt         pgtype.Timestamptz
+}
+
+type BoardMemberRevision struct {
+	ID                pgtype.UUID
+	AssociationID     pgtype.UUID
+	BoardMemberID     pgtype.UUID
+	FullName          string
+	SignInEmail       pgtype.Text
+	TermStart         pgtype.Date
+	TermEnd           pgtype.Date
+	CreatedByMemberID pgtype.UUID
+	CreatedAt         pgtype.Timestamptz
+}
+
 type Contract struct {
 	ID           pgtype.UUID
 	Counterparty string
@@ -48,16 +77,24 @@ type GoogleConnection struct {
 }
 
 type Meeting struct {
-	ID             pgtype.UUID
-	Title          string
-	Kind           string
-	HeldAt         pgtype.Timestamptz
-	EndsAt         pgtype.Timestamptz
-	Location       pgtype.Text
-	QuorumRequired bool
-	CreatedAt      pgtype.Timestamptz
-	UpdatedAt      pgtype.Timestamptz
-	AssociationID  pgtype.UUID
+	ID                 pgtype.UUID
+	Title              string
+	Kind               string
+	HeldAt             pgtype.Timestamptz
+	EndsAt             pgtype.Timestamptz
+	Location           pgtype.Text
+	QuorumRequired     bool
+	CreatedAt          pgtype.Timestamptz
+	UpdatedAt          pgtype.Timestamptz
+	AssociationID      pgtype.UUID
+	ChairBoardMemberID pgtype.UUID
+}
+
+type ProtocolRegister struct {
+	ID            pgtype.UUID
+	AssociationID pgtype.UUID
+	NextNumber    int32
+	CreatedAt     pgtype.Timestamptz
 }
 
 type Session struct {

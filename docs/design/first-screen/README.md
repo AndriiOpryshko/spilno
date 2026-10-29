@@ -90,6 +90,7 @@ verdict is read from the live DOM (`snapshot` / `eval`), not from the screenshot
 | DOD-10 Gates | PASS | `pnpm --filter @spilno/web lint`, `typecheck`, `test` (43), `test:stories` (11 files, 43 tests, a11y `error`), `build` — all exit 0 | command output |
 | DOD-11 Scope | PASS | `git diff main..HEAD` touches `apps/web/src/**` and `docs/design/**` only; no `services/`, `openapi.yaml`, `package.json` | `git diff --name-only` |
 
-Summary: **PASS (11/11)**. Notes outside the DoD: `favicon.ico` answers 404 (the only console error);
+Summary: **PASS (11/11)**. Notes outside the DoD: `favicon.ico` answers 404 (the only console error;
+fixed after the run: `apps/web/public/favicon.svg`, guarded by `apps/web/e2e/favicon.spec.ts`);
 the Figma `ReadinessCard` component still paints tier-3 red — update it to the amber advisory used in
 code (spec §14). Screenshots: `docs/design/first-screen/screenshots/vui-*.png`.

@@ -10,7 +10,7 @@
 | [T03](./T03-stage-case-protocol-migrations.md) | Promote the case, protocol, agenda-item and decision-slot migrations | migration | Andrii Opryshko | S | T02 | done |
 | [T04](./T04-stage-assistant-poll-river-migrations.md) | Promote the assistant-turn and poll migrations and add the River schema | migration | Andrii Opryshko | M | T03 | done |
 | [T05](./T05-stage-lock-integrity-migrations.md) | Promote the print-copy, meeting-facts, snapshot, trigger and integrity-run migrations | migration | Andrii Opryshko | M | T04 | done |
-| [T06](./T06-problem-codes-registry.md) | Add problem `code` and `urn:problem:` types to httpapi with a governance error registry | infra | Andrii Opryshko | M | — | todo |
+| [T06](./T06-problem-codes-registry.md) | Add problem `code` and `urn:problem:` types to httpapi with a governance error registry | infra | Andrii Opryshko | M | — | done |
 | [T07](./T07-merge-contract-identity-skeleton.md) | Merge the contract delta, add the identity context skeleton and regenerate server and client | wiring | Andrii Opryshko | L | — | todo |
 | [T08](./T08-identity-oidc-sessions.md) | Sign in with Google OIDC and keep sessions in Postgres | app | Andrii Opryshko | L | T01, T06, T07 | todo |
 | [T09](./T09-settings-roster-domain.md) | Model association settings and roster entries with all-fields validation | domain | Andrii Opryshko | M | — | todo |

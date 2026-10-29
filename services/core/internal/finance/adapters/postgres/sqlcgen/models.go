@@ -209,6 +209,27 @@ type GoogleConnection struct {
 	CreatedAt              pgtype.Timestamptz
 }
 
+type IntegrityFinding struct {
+	ID             pgtype.UUID
+	AssociationID  pgtype.UUID
+	IntegrityRunID pgtype.UUID
+	ProtocolID     pgtype.UUID
+	FileID         pgtype.UUID
+	Kind           string
+	Detail         pgtype.Text
+	CreatedAt      pgtype.Timestamptz
+}
+
+type IntegrityRun struct {
+	ID              pgtype.UUID
+	AssociationID   pgtype.UUID
+	StartedAt       pgtype.Timestamptz
+	VerifiedCount   int32
+	MismatchedCount int32
+	RestoredCount   int32
+	CreatedAt       pgtype.Timestamptz
+}
+
 type Meeting struct {
 	ID                 pgtype.UUID
 	Title              string
@@ -221,6 +242,35 @@ type Meeting struct {
 	UpdatedAt          pgtype.Timestamptz
 	AssociationID      pgtype.UUID
 	ChairBoardMemberID pgtype.UUID
+}
+
+type MeetingAttendee struct {
+	MeetingFactsID pgtype.UUID
+	BoardMemberID  pgtype.UUID
+	AssociationID  pgtype.UUID
+	CreatedAt      pgtype.Timestamptz
+}
+
+type MeetingFact struct {
+	ID                        pgtype.UUID
+	AssociationID             pgtype.UUID
+	ProtocolID                pgtype.UUID
+	PrintCopyID               pgtype.UUID
+	SignedScanFileID          pgtype.UUID
+	HasHandwrittenCorrections bool
+	CorrectionsNote           pgtype.Text
+	EnteredByMemberID         pgtype.UUID
+	CreatedAt                 pgtype.Timestamptz
+}
+
+type MeetingItemVote struct {
+	MeetingFactsID pgtype.UUID
+	AgendaItemID   pgtype.UUID
+	AssociationID  pgtype.UUID
+	VotesFor       int16
+	VotesAgainst   int16
+	VotesAbstained int16
+	CreatedAt      pgtype.Timestamptz
 }
 
 type PollRound struct {
@@ -246,6 +296,18 @@ type PollVote struct {
 	CreatedAt     pgtype.Timestamptz
 }
 
+type PrintCopy struct {
+	ID                  pgtype.UUID
+	AssociationID       pgtype.UUID
+	ProtocolID          pgtype.UUID
+	ProtocolRevision    int32
+	Number              int32
+	FileID              pgtype.UUID
+	RequestedByMemberID pgtype.UUID
+	VoidedAt            pgtype.Timestamptz
+	CreatedAt           pgtype.Timestamptz
+}
+
 type Protocol struct {
 	ID                   pgtype.UUID
 	AssociationID        pgtype.UUID
@@ -266,6 +328,20 @@ type ProtocolRegister struct {
 	CreatedAt     pgtype.Timestamptz
 }
 
+type ProtocolSnapshot struct {
+	ID                pgtype.UUID
+	AssociationID     pgtype.UUID
+	ProtocolID        pgtype.UUID
+	Kind              string
+	Number            pgtype.Int4
+	MeetingDate       pgtype.Date
+	SchemaVersion     int16
+	Snapshot          []byte
+	Fingerprint       []byte
+	CreatedByMemberID pgtype.UUID
+	CreatedAt         pgtype.Timestamptz
+}
+
 type ProtocolTransition struct {
 	ID            pgtype.UUID
 	AssociationID pgtype.UUID
@@ -274,6 +350,20 @@ type ProtocolTransition struct {
 	ToState       string
 	Revision      int32
 	ActorMemberID pgtype.UUID
+	CreatedAt     pgtype.Timestamptz
+}
+
+type RegistryEntry struct {
+	ID            pgtype.UUID
+	AssociationID pgtype.UUID
+	SnapshotID    pgtype.UUID
+	AgendaItemID  pgtype.UUID
+	Number        int32
+	MeetingDate   pgtype.Date
+	Subject       string
+	Counterparty  pgtype.Text
+	AmountKopiyky pgtype.Int8
+	Currency      pgtype.Text
 	CreatedAt     pgtype.Timestamptz
 }
 

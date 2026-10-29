@@ -25,6 +25,8 @@ var liveRelations = []string{
 	"agenda_items", "agenda_item_versions", "assistant_turns", "assistant_turn_documents",
 	"decision_slots", "slot_values", "slot_confirmations",
 	"poll_rounds", "poll_votes",
+	"print_copies", "meeting_facts", "meeting_attendees", "meeting_item_votes",
+	"protocol_snapshots", "registry_entries", "integrity_runs", "integrity_findings",
 }
 
 // liveColumns are columns the migrations add to tables that existed before them.

@@ -19,6 +19,24 @@ const (
 	CodeSettingsMissing    = "governance.settings_missing"
 )
 
+// Problem codes raised by the protocol lifecycle; each is listed in ErrorRegistry.
+const (
+	CodeDraftIncomplete    = "governance.draft_incomplete"
+	CodeRevisionConflict   = "governance.draft_revision_conflict"
+	CodeProtocolLocked     = "governance.protocol_locked"
+	CodeTransitionDenied   = "governance.transition_not_allowed"
+	CodeNotReadyForSigning = "governance.not_ready_for_signing"
+	CodeReasonRequired     = "governance.reason_required"
+	CodePollNotOpen        = "governance.poll_not_open"
+)
+
+// DomainError is a rule violation identified only by its problem code.
+type DomainError struct {
+	Code string
+}
+
+func (e *DomainError) Error() string { return e.Code }
+
 // FieldIssue names one broken field by JSON pointer.
 type FieldIssue struct {
 	Pointer string
@@ -51,18 +69,18 @@ var ErrorRegistry = []ErrorDef{
 	{CodeSettingsInvalid, http.StatusUnprocessableEntity},
 	{CodeRosterEntryInvalid, http.StatusUnprocessableEntity},
 	{"governance.file_invalid", http.StatusUnprocessableEntity},
-	{"governance.draft_incomplete", http.StatusConflict},
+	{CodeDraftIncomplete, http.StatusConflict},
 	{"governance.slot_unconfirmed", http.StatusConflict},
 	{"governance.meeting_facts_missing", http.StatusUnprocessableEntity},
 	{"governance.correction_note_required", http.StatusUnprocessableEntity},
-	{"governance.reason_required", http.StatusUnprocessableEntity},
+	{CodeReasonRequired, http.StatusUnprocessableEntity},
 	{"governance.search_invalid", http.StatusUnprocessableEntity},
 	{"governance.vote_on_behalf", http.StatusForbidden},
-	{"governance.draft_revision_conflict", http.StatusConflict},
-	{"governance.not_ready_for_signing", http.StatusConflict},
-	{"governance.poll_not_open", http.StatusConflict},
-	{"governance.protocol_locked", http.StatusConflict},
+	{CodeRevisionConflict, http.StatusConflict},
+	{CodeNotReadyForSigning, http.StatusConflict},
+	{CodePollNotOpen, http.StatusConflict},
+	{CodeProtocolLocked, http.StatusConflict},
 	{"governance.register_start_locked", http.StatusConflict},
-	{"governance.transition_not_allowed", http.StatusConflict},
+	{CodeTransitionDenied, http.StatusConflict},
 	{"governance.storage_unavailable", http.StatusServiceUnavailable},
 }

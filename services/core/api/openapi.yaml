@@ -249,7 +249,7 @@ paths:
               examples: { association_settings: { $ref: "#/components/examples/AssociationSettings" } }
         "401": { $ref: "#/components/responses/SessionRequired" }
         "403": { $ref: "#/components/responses/NotCurrentMember" }
-        "404":
+        "409":
           description: Nothing saved yet (`governance.settings_missing`, every setting named in `errors`).
           content:
             application/problem+json:

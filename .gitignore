@@ -6,3 +6,6 @@ node_modules/
 mprocs.log
 .claude/*.local.md
 .worktrees/
+*.pem
+*.key
+id_rsa*

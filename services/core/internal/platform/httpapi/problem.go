@@ -5,6 +5,7 @@ package httpapi
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -28,6 +29,7 @@ type Problem struct {
 	Detail   string       `json:"detail,omitempty"`
 	Instance string       `json:"instance,omitempty"`
 	Errors   []FieldError `json:"errors,omitempty"`
+	Code     string       `json:"code,omitempty"`
 }
 
 // WriteProblem writes p as application/problem+json.
@@ -121,8 +123,16 @@ func StrictRequestError(w http.ResponseWriter, _ *http.Request, err error) {
 	WriteProblem(w, Problem{Title: "Bad Request", Status: http.StatusBadRequest, Detail: err.Error()})
 }
 
+// ErrNotImplemented is returned by handler stubs for operations whose contract
+// is merged but whose behaviour is not built yet; it is answered as 501.
+var ErrNotImplemented = errors.New("not implemented")
+
 // StrictResponseError is for StrictHTTPServerOptions.ResponseErrorHandlerFunc.
-func StrictResponseError(w http.ResponseWriter, _ *http.Request, _ error) {
+func StrictResponseError(w http.ResponseWriter, _ *http.Request, err error) {
+	if errors.Is(err, ErrNotImplemented) {
+		WriteProblem(w, Problem{Title: "Not Implemented", Status: http.StatusNotImplemented})
+		return
+	}
 	WriteProblem(w, Problem{Title: "Internal Server Error", Status: http.StatusInternalServerError})
 }
 
@@ -130,4 +140,32 @@ func StrictResponseError(w http.ResponseWriter, _ *http.Request, _ error) {
 // failing to bind a path/query param the validator let through).
 func ParamBindError(w http.ResponseWriter, _ *http.Request, err error) {
 	WriteProblem(w, Problem{Title: "Validation failed", Status: http.StatusUnprocessableEntity, Detail: err.Error()})
+}
+
+// DomainError is a business error carrying its contract problem code.
+type DomainError struct {
+	Code   string
+	Status int
+	Detail string
+	Errors []FieldError
+}
+
+func (e *DomainError) Error() string { return e.Code + ": " + e.Detail }
+
+// WriteDomainError writes err as problem+json if it wraps a *DomainError and
+// reports whether it did; otherwise it writes nothing.
+func WriteDomainError(w http.ResponseWriter, r *http.Request, err error) bool {
+	var de *DomainError
+	if !errors.As(err, &de) {
+		return false
+	}
+	WriteProblem(w, Problem{
+		Title:    http.StatusText(de.Status),
+		Status:   de.Status,
+		Detail:   de.Detail,
+		Instance: r.URL.Path,
+		Errors:   de.Errors,
+		Code:     de.Code,
+	})
+	return true
 }

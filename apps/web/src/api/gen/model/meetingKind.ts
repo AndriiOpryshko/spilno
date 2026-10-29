@@ -7,6 +7,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Existing schema, unchanged.
+ */
 export type MeetingKind = typeof MeetingKind[keyof typeof MeetingKind];
 
 

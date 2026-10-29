@@ -8,6 +8,9 @@
  */
 import type { MeetingKind } from './meetingKind';
 
+/**
+ * Existing schema; delta adds chair_board_member_id.
+ */
 export interface Meeting {
   id: string;
   title: string;
@@ -18,6 +21,8 @@ export interface Meeting {
   /** @nullable */
   location: string | null;
   quorum_required: boolean;
+  /** @nullable */
+  chair_board_member_id: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -47,12 +47,19 @@ linters:
           deny:
             - pkg: github.com/AndriiOpryshko/spilno/services/core/internal/governance/
               desc: import the governance context only through its module package (internal/governance)
+        identity-private:
+          files:
+            - $all
+            - "!**/internal/identity/**"
+          deny:
+            - pkg: github.com/AndriiOpryshko/spilno/services/core/internal/identity/
+              desc: import the identity context only through its module package (internal/identity)
   exclusions:
     generated: strict
     rules:
       - path: _test\.go
         linters: [depguard]
-        text: (system|finance|governance)-private
+        text: (system|finance|governance|identity)-private
 
 formatters:
   enable:

@@ -9,6 +9,6 @@
 import type { Problem } from './problem';
 
 /**
- * Resource not found.
+ * No such resource in the association.
  */
 export type NotFoundResponse = Problem;

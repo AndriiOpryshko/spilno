@@ -9,7 +9,9 @@
 import type { FieldError } from './fieldError';
 
 /**
- * RFC 9457 problem details.
+ * RFC 9457 problem details (internal/platform/httpapi). `code` is an extension member
+ * `<context>.<error_name>`; it is set by a context and absent on a 422 from the shared request validator.
+ * Delta to the repo schema: adds `code`.
  */
 export interface Problem {
   type: string;
@@ -17,5 +19,7 @@ export interface Problem {
   status: number;
   detail?: string;
   instance?: string;
+  /** @pattern ^[a-z]+\.[a-z_]+$ */
+  code?: string;
   errors?: FieldError[];
 }

@@ -14,7 +14,7 @@ import (
 const createMeeting = `-- name: CreateMeeting :one
 INSERT INTO meetings (title, kind, held_at, ends_at, location, quorum_required, association_id)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, title, kind, held_at, ends_at, location, quorum_required, created_at, updated_at, association_id
+RETURNING id, title, kind, held_at, ends_at, location, quorum_required, created_at, updated_at, association_id, chair_board_member_id
 `
 
 type CreateMeetingParams struct {
@@ -49,12 +49,13 @@ func (q *Queries) CreateMeeting(ctx context.Context, arg CreateMeetingParams) (M
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.AssociationID,
+		&i.ChairBoardMemberID,
 	)
 	return i, err
 }
 
 const getMeeting = `-- name: GetMeeting :one
-SELECT id, title, kind, held_at, ends_at, location, quorum_required, created_at, updated_at, association_id FROM meetings WHERE id = $1
+SELECT id, title, kind, held_at, ends_at, location, quorum_required, created_at, updated_at, association_id, chair_board_member_id FROM meetings WHERE id = $1
 `
 
 func (q *Queries) GetMeeting(ctx context.Context, id pgtype.UUID) (Meeting, error) {
@@ -71,12 +72,13 @@ func (q *Queries) GetMeeting(ctx context.Context, id pgtype.UUID) (Meeting, erro
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.AssociationID,
+		&i.ChairBoardMemberID,
 	)
 	return i, err
 }
 
 const listMeetings = `-- name: ListMeetings :many
-SELECT id, title, kind, held_at, ends_at, location, quorum_required, created_at, updated_at, association_id FROM meetings
+SELECT id, title, kind, held_at, ends_at, location, quorum_required, created_at, updated_at, association_id, chair_board_member_id FROM meetings
 WHERE association_id = $1
   AND ($2::timestamptz IS NULL
    OR (created_at, id) < ($2::timestamptz, $3::uuid))
@@ -118,6 +120,7 @@ func (q *Queries) ListMeetings(ctx context.Context, arg ListMeetingsParams) ([]M
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.AssociationID,
+			&i.ChairBoardMemberID,
 		); err != nil {
 			return nil, err
 		}

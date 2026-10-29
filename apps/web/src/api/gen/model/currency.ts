@@ -7,6 +7,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Existing repo schema (finance), reused as slot_values.currency / registry_entries.currency.
+ */
 export type Currency = typeof Currency[keyof typeof Currency];
 
 

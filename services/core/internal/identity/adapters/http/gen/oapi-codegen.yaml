@@ -1,0 +1,14 @@
+# Paths are relative to services/core; run through scripts/gen.sh.
+package: gen
+output: internal/identity/adapters/http/gen/identity.gen.go
+generate:
+  models: true
+  chi-server: true
+  strict-server: true
+  embedded-spec: true
+output-options:
+  include-tags: [identity]
+compatibility:
+  # Enum constants become <Type><Value> so two enums in one context never
+  # collide on a shared value.
+  always-prefix-enum-values: true

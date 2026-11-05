@@ -8,36 +8,35 @@ feature_size: "M"
 stage: "04-05"
 depth: "easy"
 ticket: ""
-target_surfaces: []  # filled by the first §4 decision: backend-service | web-frontend | worker | cli | ...
-contexts: []         # bounded contexts this feature touches, new ones marked (new) — filled in §5
+target_surfaces: []
+contexts: []
 ---
 
 # Software Architecture Document — association-onboarding
 
-<!-- ao-architecture: Arc42 12 sections, C4 L1 in §3, C4 L2 in §5. N/A sections carry
-     <!-- N/A: <reason> -->. Numbers in §10 come verbatim from PRD §6.
-     Inputs: PRD.md (§5.1 / §9 / §10 when written by ao-prd), CONTEXT.md, docs/adr/, CLAUDE.md,
-     references/repo-practice.md. -->
-
-> **Inputs:** [PRD](./PRD.md) · [CONTEXT](./CONTEXT.md) · repo ADRs [`docs/adr/`](../../adr/) · reference context `<services/core/internal/...>`
+> **Inputs:** [PRD](./PRD.md) (Approved 2026-11-05, ao-prd, amended at this pass: manual extract check) · [CONTEXT](./CONTEXT.md) · [board-protocol CONTEXT](../board-protocol/CONTEXT.md) · repo ADRs [`docs/adr/`](../../adr/) · board-protocol [SAD](../board-protocol/sad.md) and [ADRs](../board-protocol/adr/) · reference contexts `services/core/internal/identity`, `services/core/internal/governance`
 
 ## 1. Introduction and goals
 
-**Intent.** <one paragraph from PRD §1-§2: which document or decision the board gets, and for whom>
+**Intent.** A голова правління connects their association to Спільно, or takes it over after an election, without the developer: they sign in, file a заявка на підключення or a запит на передачу with a КЕП-signed витяг з ЄДР, and the оператор checks the extract outside Спільно and decides with a reason. The оператор can disable and enable an association; the board connects its own document storage. With a second association the data of each association becomes visible only to the people on its roster, and one person may sit on several rosters (PRD §1, §2).
 
 **Top-3 quality goals** (full scenarios in §10):
 
-1. <e.g. Integrity of signed records — a locked protocol never changes>
-2. <e.g. Traceability — every number shows its source document>
-3. <e.g. Latency of drafting — p95 from PRD §6>
+1. **Isolation** — 0 records of association B readable by a person not on B's roster, enforced by the database and by a release-blocking check (PRD §6 Isolation).
+2. **Immediate effect of access decisions** — a disabling or a transfer is in force from the next request (PRD §6).
+3. **Traceability of office** — every голова in Спільно links to the stored extract and the оператор's recorded check and decision, kept ≥ 5 years (PRD §6 Retention, AC-29).
 
 **Stakeholders.**
 
 | Role (glossary) | Interest | Sign-off? |
 |---|---|---|
-| <головуючий> | <prepares and signs> | No |
-| <ревізійна комісія> | <reads exports> | No |
+| голова правління | files, follows and refiles a заявка or a запит; becomes the first член правління | No |
+| оператор | checks extracts, decides, disables and enables associations | Yes (product owner) |
+| член правління | works in one or several associations; connects the storage; reads the registry of a вимкнене ОСББ | No |
+| ревізійна комісія | later reads the chain from Спільно to ЄДР (no access in this feature) | No |
 | Tech lead | SAD approval | Yes |
+
+Product-owner decisions at this pass (2026-11-05): the extract and the КЕП are checked by hand outside Спільно («вся перевірка — ручна і за кадром», PRD amended); the association id is part of the path («хоч рут різний з айді осбб»); row-level security now.
 
 <!-- Decision overrides from the critic: «- Decision override: <headline> — rationale: <reason>» -->
 

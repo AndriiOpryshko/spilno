@@ -213,8 +213,8 @@ GitHub notifications already tell me about a merge, and the loop lost nine cycle
 - Forgotten sessions: `09d732b4` (blocked since 7.4, `spilno-wf-audit`) and `6a5cf57e` (main folder); stop or
   `Ctrl+X` after a look.
 - The PR loop `b8463640` still runs; stop it (`CronDelete` or close the session) once the homework is handed in.
-- Fix `drill-session.settings.json`: drop the bare `Edit` deny, deny `Edit(//Users/andriio/course/learning/**)`
-  instead, so the state-dir write works.
+- Done after the run: `drill-session.settings.json` now denies `Edit(//Users/andriio/course/learning/**)` instead of a
+  bare `Edit`, so the state-dir `Write` is reachable. The run above used the bare `Edit` deny.
 
 ## Dashboard (`claude agents`, 21:24)
 

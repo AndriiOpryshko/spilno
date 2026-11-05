@@ -1,0 +1,46 @@
+{
+  "$comment": "Homework 7.5 hard level: least-privilege settings for the background T33 restore-drill session. Launch with --permission-mode dontAsk from ../spilno-wf-wave; anything not allowed here is refused without a prompt.",
+  "env": {
+    "CLAUDE_CODE_DISABLE_CRON": "1"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(infra/backup/drill.sh)",
+      "Bash(docker ps:*)",
+      "Bash(docker images:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(date:*)",
+      "Bash(mkdir -p /home/andriio/.local/state/spilno-drill)",
+      "Read(//Users/andriio/course/learning/spilno-wf-wave/**)",
+      "Read(//home/andriio/.local/state/spilno-drill/**)",
+      "Write(//home/andriio/.local/state/spilno-drill/**)"
+    ],
+    "deny": [
+      "Edit",
+      "NotebookEdit",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git checkout:*)",
+      "Bash(git switch:*)",
+      "Bash(git stash:*)",
+      "Bash(git restore:*)",
+      "Bash(git clean:*)",
+      "Bash(git reset:*)",
+      "Bash(docker rm:*)",
+      "Bash(docker stop:*)",
+      "Bash(docker kill:*)",
+      "Bash(docker exec:*)",
+      "Bash(docker compose:*)",
+      "Bash(docker volume:*)",
+      "Bash(docker system:*)",
+      "Bash(psql:*)",
+      "Bash(rm:*)",
+      "Bash(gh:*)",
+      "Bash(curl:*)",
+      "WebFetch",
+      "WebSearch"
+    ]
+  }
+}

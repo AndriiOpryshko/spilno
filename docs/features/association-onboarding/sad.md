@@ -329,14 +329,25 @@ ADR files: `docs/features/association-onboarding/adr/NNNN-<decision>.md`. Repo-l
 
 ## 10. Quality requirements
 
-**QG-1. <quality>**
-- **When:** <trigger>
-- **Then:** <PRD §6 number verbatim>
-- **How verify:** <testdb integration test / Playwright e2e / k6 / OTel metric name>
+**QG-1. Isolation**
+- **When:** a person on the roster of association A only, and a person on the rosters of A and B, call every read operation of the contract with B's id in the path, and the same queries run with A set for row-level security.
+- **Then:** 0 records of association B readable by a person not on B's roster, for every kind of record, in a release-blocking check run against two seeded associations and one person on both rosters.
+- **How verify:** `services/core/internal/platform/isolation_test.go` on `testdb.New(t)` (two associations seeded), iterating the operations of `openapi.yaml` with an `{association_id}` parameter; part of `mise run test`, which gates the release.
 
-**QG-2. <quality>** — <...>
+**QG-2. Effect of disabling and of a transfer**
+- **When:** the оператор disables an association, or approves a запит на передачу, while an affected member has an open session.
+- **Then:** 0 requests of an affected member served with the old rights after the decision is recorded.
+- **How verify:** integration test in `identity/adapters/http` — decision recorded, then the old session's next write answers `identity.association_disabled` / `identity.not_current_member`.
 
-**QG-3. <quality>** — <...>
+**QG-3. Latency**
+- **When:** filing with a 5 MB extract; reading the application page, operator queue or association card; deciding.
+- **Then:** filing with the extract upload ≤ 5 s for a 5 MB file; read or list ≤ 200 ms; write without file ≤ 500 ms (p95).
+- **How verify:** `http.server.request.duration` p95 per route (§7 alerts); a 5 MB fixture in the filing integration test.
+
+**QG-4. Retention and integrity of proof**
+- **When:** any time after filing.
+- **Then:** заявки, запити на передачу, extracts and decisions kept ≥ 5 years, never hard-deleted; a decided заявка or запит changes only through a new filing or a new decision.
+- **How verify:** privilege test — `spilno_app` cannot update or delete extract, check, decision rows; the extract's sha256 compared with the stored one on every download.
 
 ## 11. Risks and technical debt
 

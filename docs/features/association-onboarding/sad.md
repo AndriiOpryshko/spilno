@@ -42,21 +42,22 @@ Product-owner decisions at this pass (2026-11-05): the extract and the КЕП ar
 
 ## 2. Constraints
 
-**Technical** (versions from `mise.toml`, `go.mod`, `package.json`, `infra/compose.yaml`):
-- <Go x.y, chi, oapi-codegen strict server, sqlc + pgx, goose>
-- <Postgres x>
-- <React x, TanStack Router, shadcn/ui, generated TS client>
+**Technical** (versions from `mise.toml`, `infra/compose.yaml`, board-protocol SAD §2):
+- Go 1.27.3, chi v5, oapi-codegen strict server over one OpenAPI 3.1 contract `services/core/api/openapi.yaml`; every operation has one context tag and a `/<context>/` path (repo [ADR 0001](../../adr/0001-stack.md), [ADR 0003](../../adr/0003-spec-first-codegen.md)).
+- Postgres 18.6 (`postgres:18.6-alpine`), pgx/v5 + sqlc, goose migrations in `services/core/migrations/` applied on start (repo [ADR 0004](../../adr/0004-migrations-and-queries.md)); next migration `00028`. Today one database role owns the schema and serves the app.
+- Web: React 19.3, TypeScript 6.0, Vite 8, TanStack Router + Query, orval hooks per tag, shadcn/ui, Storybook 10; routes today `index`, `cases.index`, `cases.$caseId.protocol`.
+- Existing contexts: `identity` (stub handler: session, sign-in, callback, sign-out; tables `associations` with one seeded row, `accounts` with `association_id NOT NULL`, `sessions`, `google_connections`), `governance` (roster `board_members` + `board_member_revisions` with term and no position; ~30 operations under `/governance/...`; `association_id` + explicit filter per board-protocol ADR-0015), `finance` (`contracts` **without** `association_id`), `system`, `platform` (`httpapi`, `testdb`).
+- Background work is River (board-protocol ADR-0006); this feature adds no job.
 
-**Repo ADRs that bind this feature:**
-- <0001 stack> · <0002 bounded contexts> · <0003 spec-first codegen> · <0004 migrations and queries>
+**Repo ADRs that bind this feature:** 0001 stack · 0002 bounded contexts · 0003 spec-first codegen · 0004 migrations and queries.
 
-**Conventions** (`CLAUDE.md`): one OpenAPI contract, one tag per context, paths `/<context>/`;
-contexts import each other only through `module.go`; problem+json errors; `r.Group`, never
-`r.Mount`; generated files are never edited.
+**Feature ADRs of board-protocol it changes:** [ADR-0003](../board-protocol/adr/0003-sign-in-with-oidc-and-postgres-sessions.md) (sign-in refuses a person off the roster → superseded in part by ADR-0004), [ADR-0005](../board-protocol/adr/0005-store-files-in-association-owned-google-drive-folder.md) (storage authorized once by a developer command → ADR-0008), [ADR-0015](../board-protocol/adr/0015-scope-owned-rows-to-one-association-with-explicit-query-filters.md) (RLS deferred until a second association → ADR-0003), tasks T08 and T12 (replaced).
 
-**Organisational:** <effort, deadline, team — from PRD or TBD with a §11 row>
+**Conventions** (`CLAUDE.md`, `.claude/rules/openapi.md`, `.claude/rules/migrations.md`): one OpenAPI contract, one tag per context, paths `/<context>/`; contexts import each other only through `module.go`; RFC 9457 problem+json with `code`; `r.Group`, never `r.Mount`; generated files never edited; new tables without business `CHECK`, triggers or stored procedures; zero-downtime 3-step for a new NOT NULL column and for a dropped column.
 
-**Regulatory / legal:** <personal data of co-owners, record retention, signature law — from PRD §6.1 and brief §18>
+**Organisational:** one developer with coding agents; effort ~3 person-weeks, Dec 2026 – Jan 2027, after board-protocol Stage 1 (brief §12). The path change of ADR-0002 touches operations that board-protocol Stage 1 tasks are building (§11).
+
+**Regulatory / legal:** Law «On personal data protection» — the applicant's name, address, position and term; the РНОКПП inside the КЕП certificate of the stored extract (shown to nobody, kept only in the file); classification Confidential (PRD §6.1). The оператор decides access to Спільно, never who heads an association (brief §18, AC-12). Security review required before release (PRD §6.1).
 
 ## 3. Context and scope
 

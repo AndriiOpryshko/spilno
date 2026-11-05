@@ -173,28 +173,105 @@ Dropped recommended containers: `files` (case files stay in the association's Dr
 
 ## 6. Runtime view
 
-<!-- Seed the primary flows here; complete-sequence-diagrams adds the rest. Participants are §5
-     container aliases. Messages are semantic — no HTTP verbs, paths or status codes.
-     With an ao-prd PRD: one flow per critical §10 transition (e.g. mark ready, sign and lock,
-     refused edit after lock) and name the PRD AC each flow covers. -->
+Primary flows per critical PRD §10 transition; `complete-sequence-diagrams` adds the rest.
 
-**Flow 1: <happy path> — covers AC-<NN>**
+**Flow 1: filing a заявка на підключення (— → Очікує) — covers AC-01, AC-02, AC-04, AC-04b, AC-04c, AC-30**
 
 ```mermaid
 sequenceDiagram
-    actor M as <glossary role>
+    actor H as голова правління
     participant W as web
-    participant P as <new context>
-    participant G as <existing context>
+    participant I as identity
     participant D as db
-    M->>W: <action>
-    W->>P: <command>
-    P->>G: <read through module.go>
-    P->>D: <write in one transaction>
-    P-->>W: <result>
+    H->>W: fill the form and attach the signed extract
+    W->>I: file application with the extract file
+    I->>I: validate every field at once and the term end
+    alt invalid fields or term ended
+        I-->>W: refused with every broken field named
+    else valid
+        I->>D: is the code connected, or pending by this person
+        alt code connected
+            I-->>W: refused, already connected, offer a transfer request
+        else free or pending by someone else
+            I->>D: insert application, filing and extract in one transaction
+            I-->>W: filed, waiting for the operator
+        end
+    end
 ```
 
-**Flow 2: <refused transition / failure mode> — covers AC-<NN>**
+**Flow 2: the оператор records the check and approves a заявка (Очікує → Схвалена, — → Підключене) — covers AC-03, AC-03b, AC-08, AC-09, AC-12, AC-04c**
+
+```mermaid
+sequenceDiagram
+    actor O as оператор
+    participant W as web
+    participant I as identity
+    participant G as governance
+    participant D as db
+    O->>O: check the КЕП and the extract outside Спільно
+    O->>W: record signer, керівник, code and date of the extract
+    W->>I: record check
+    I->>D: insert the check, compute name mismatch and age warnings
+    O->>W: approve, naming a document if a mismatch is open
+    W->>I: approve
+    I->>I: check recorded, codes equal, document named if needed
+    I->>D: begin, code still free, insert the association
+    I->>G: seat the applicant as голова in the new association
+    G->>D: insert roster entry with position and decision reference
+    I->>D: record the decision and commit
+    I-->>W: approved, association connected
+```
+
+**Flow 3: approving a запит на передачу (Очікує → Схвалена, roster change) — covers AC-19, AC-19b, AC-19c, AC-24b**
+
+```mermaid
+sequenceDiagram
+    actor O as оператор
+    participant W as web
+    participant I as identity
+    participant G as governance
+    participant D as db
+    O->>W: approve the transfer request
+    W->>I: approve
+    I->>I: check recorded, codes equal, document named if needed
+    I->>D: begin with the association set
+    I->>G: end the term of the recorded голова on the day before the new term start
+    G->>D: insert a roster revision with term end and decision reference
+    I->>G: seat the new голова from the typed term start
+    G->>D: insert roster entry with position and decision reference
+    I->>D: record the decision and commit
+    Note over I,G: the ended term is before today, so the next membership check refuses the previous голова
+    I-->>W: approved, competing requests stay waiting
+```
+
+**Flow 4: an association-scoped request through the middleware (access, disabled, not a member) — covers AC-07, AC-16b, AC-21, AC-25, AC-26**
+
+```mermaid
+sequenceDiagram
+    actor M as член правління
+    participant W as web
+    participant I as identity
+    participant G as governance
+    participant D as db
+    M->>W: open a page of the association
+    W->>I: request with the association id in the path
+    I->>D: resolve the session
+    I->>D: begin, set the association for row-level security
+    I->>G: is this person a current member today
+    alt not a member, the operator, or unknown association
+        I-->>W: denied, same answer as a missing record
+    else member and association disabled
+        alt registry read or signed copy download
+            I->>G: serve read only
+            G-->>W: registry or signed copy
+        else any change
+            I-->>W: access suspended with the reason
+        end
+    else member and association connected
+        I->>G: handle the request inside the same transaction
+        G-->>W: result
+    end
+```
 
 ## 7. Deployment view
 

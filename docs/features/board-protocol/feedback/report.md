@@ -130,6 +130,24 @@ after signing, so it pays for two independent signals (a machine one that sees t
 that does not share the author's assumptions), while a misplaced 2px only needs proof that it compiles and that the
 render changed where intended and nowhere else.
 
+### The self-check's blind spot and the honest price
+
+The self-check knows the codebase and the intent, so it saw the most substantive problem: the bypass T-B leaves
+open. It still answered `Ready: yes`. It judged against the AC it was given, and the AC did not ask for the bypass
+to be closed. The blind spot is not ignorance but scope plus a stake in finishing: the author checks the task as
+framed and reads its own fixtures as correct. The clean reviewer removes the stake but also the knowledge. It added
+one real finding (the snapshot gap), produced one false positive, and spent half its findings on "not in the diff".
+Neither mode could see the one defect that mattered, the cross-task break, because each looked at one diff. Only
+the deterministic gate on the integrated branch saw the whole system.
+
+The price: a review costs ~3-4k output tokens, ~100k input (62k cache read + 36-41k cache create) and 34-47 s per
+diff, against ~10k output, 550-720k cache read and 100-125 s for implementation plus self-check. That is cheap
+next to a print that ignores unconfirmed amounts. But in this run the reviewer's marginal yield over the
+self-check was one minor finding. The course's warning applies: the diffs were small, domain-only and already
+test-heavy, so the expensive failure was in integration, not inside a diff. Next time the reviewer should get a
+path where a diff alone can do damage (the SQL/adapter side of the revision check or the lock of a signed
+protocol) and read access to the files the diff calls into, so "not in the diff" stops eating its findings.
+
 ## Verification
 
 - `mise run lint`: exit 0. `mise run test`: exit 0 (Go unit + integration with testcontainers, Vitest `43 passed`,

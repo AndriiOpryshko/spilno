@@ -296,15 +296,21 @@ Same VM and compose topology as board-protocol SAD §7 (`caddy`, `core-api`, `wo
 
 | Concept | Convention for this feature | Where defined |
 |---|---|---|
-| Errors | problem+json; codes from PRD §5.1 (`<context>.<error_name>`) | `internal/platform/httpapi`, PRD §5.1 |
-| Authorization | <roles × actions from PRD §10, checked in `app/`> | PRD §10 |
-| Validation | OpenAPI validator (422) + domain `Validate()` | CLAUDE.md |
-| IDs | UUID | repo convention |
-| Migrations | goose; <what this feature migrates, link ADR> | ADR 0004 |
-| Audit / immutability | <how locked records are protected> | ADR <NNNN> |
-| Files | <where scans live, size limit from PRD §6> | ADR <NNNN> |
-| Observability | OTel spans + request-duration histogram | repo convention |
-| i18n | UI in Ukrainian | — |
+| Errors | problem+json; codes from PRD §5.1: `identity.application_invalid`, `identity.signature_not_checked`, `identity.extract_code_mismatch`, `identity.association_already_connected`, `identity.application_already_open`, `identity.mismatch_needs_document`, `identity.reason_required`, `identity.application_not_pending`, `identity.not_operator`, `identity.association_not_connected`, `identity.association_state_unchanged`, `identity.association_disabled`, `identity.term_ended`, `identity.storage_account_personal`, `governance.drive_not_connected` (planned); `identity.not_current_member` (existing) also answers another association's object and another person's application, so existence is not revealed | `internal/platform/httpapi`, PRD §5.1 |
+| Authentication | OIDC sign-in for any verified address; server-side session; no session → `identity.session_required` | board-protocol ADR-0003, ADR-0004 |
+| Authorization | PRD §10 matrix. Association-scoped paths: middleware → session → association state → `governance.CurrentMember(association, email, today Europe/Kyiv)` → actor. Applicant paths (`/identity/applications`): own records by account. Operator paths (`/identity/operator/...`): session address equals `SPILNO_OPERATOR_EMAIL`, else `identity.not_operator`; the оператор is refused on every association path (AC-16b) | ADR-0001, ADR-0002, ADR-0004 |
+| Association scope | path parameter `association_id`, never the body; RLS on every association-owned table; explicit filters kept | ADR-0002, ADR-0003 |
+| Disabled association | actor carries `read_only`; only the registry read and signed-copy download operations pass; everything else `identity.association_disabled` with the reason | ADR-0007 |
+| Validation | OpenAPI validator (422) + `domain.Validate()` naming every broken field (ЄДРПОУ 8 digits, name, address, term start, extract attached) | CLAUDE.md |
+| IDs | UUID v7 generated app-side for new tables; cross-context references by id only | `.claude/rules/migrations.md`, repo ADR 0002 |
+| Migrations | goose; new identity tables; `associations` + ЄДРПОУ (unique, nullable), address, state; `board_member_revisions` + position, decision reference; `finance.contracts` + `association_id` in 3 steps; `accounts.association_id` dropped in 3 steps; RLS policies and roles | ADR-0003, ADR-0004, ADR-0005, ADR-0006 |
+| Audit / immutability | filings, checks, decisions and state changes are insert-only rows with author and time; the extract table is insert-only by privilege (no trigger); a decided application changes only by a new filing or decision | ADR-0005, PRD §6 Integrity |
+| Files | extract: PDF or signed container ≤ 5 MB, content-sniffed, stored as uploaded with sha256, downloaded only by the оператор and the applicant as attachment; case files unchanged (board-protocol ADR-0005) | ADR-0005, PRD §6 |
+| Storage connection | in-app OAuth consent by a current член правління; refused when the Google address is a member's sign-in address | ADR-0008 |
+| Dates | terms are calendar dates in Europe/Kyiv; previous голова's term ends the day before the new term start, no later than the day before approval (AC-19) | PRD AC-19 |
+| Observability | OTel spans; metrics in §7; logs never carry the extract, the РНОКПП or the reason text | repo convention |
+| i18n | UI in Ukrainian; messages of PRD §5.1 verbatim | CONTEXT.md |
+| Rate limiting | <!-- N/A: ~6 filings a year; probing is watched through identity.access.denied --> N/A | — |
 
 ## 9. Architecture decisions
 

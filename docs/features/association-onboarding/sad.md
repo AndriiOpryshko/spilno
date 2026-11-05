@@ -9,7 +9,7 @@ stage: "04-05"
 depth: "easy"
 ticket: ""
 target_surfaces: [backend-service, web-frontend]
-contexts: []
+contexts: [identity, governance, finance, platform]
 ---
 
 # Software Architecture Document — association-onboarding
@@ -106,55 +106,70 @@ C4Context
 
 ## 5. Building block view
 
-<one paragraph: hexagonal per context, why the feature extends or adds a context>
+Hexagonal per context, as the repo already does. The feature extends `identity` (it owns associations, accounts, sessions and the storage connection — board-protocol ADR-0014) with applications, the оператор's queue and the association state; `governance` gains positions on the roster and two facade functions; `finance` gains the association column; `platform` gains the transaction-with-association helper. No new context.
 
 **Context ownership** (fills frontmatter `contexts`):
 
 | Context | New? | Owns (aggregates, tables) | Provides to others via module.go | Uses from others |
 |---|---|---|---|---|
-| <protocols> | new | <protocol, agenda item, vote> | <...> | <governance: meetings, roster> |
-| <governance> | existing | <meeting, board term> | <meeting by id, roster on date> | — |
+| identity | existing, extended | association (+ ЄДРПОУ, address, state, state changes); account (no association); session; заявка на підключення / запит на передачу with filings, stored extract, оператор's check and decision; storage connection | `ActorFrom(ctx)` (account, email, association, member, read-only flag); storage token source | governance: memberships by email, current member in an association, seat a голова, end a term, members' sign-in addresses |
+| governance | existing, extended | roster entry + revisions (+ position голова правління / член правління, + decision reference); everything of board-protocol | `CurrentMember(ctx, association, email, date)`, `MembershipsOf(ctx, email, date)`, `SeatHead(ctx, association, person, term, decision)`, `EndTerm(ctx, association, member, date, decision)`, `MemberSignInAddresses(ctx, association)` | identity: actor, storage token source |
+| finance | existing | contracts (+ `association_id`) | — | identity: actor |
+| platform | existing | `platform/db`: `InAssociation(ctx, id, fn)` transaction helper; `testdb` seeds two associations | helpers only | — |
 
-**Layout of the new context:**
+**Layout inside identity** (no new context, so no CLAUDE.md wiring checklist; new operations stay under the `identity` tag):
 
 ```
-services/core/internal/<bc>/
-├── domain/              <entities, sentinel errors; stdlib only>
-├── app/                 <use cases; authorization against the board term on the action date>
-├── ports/               <repositories, other contexts' ports>
-├── adapters/http/       <StrictServerInterface; problem+json>
-├── adapters/postgres/   <queries/ → sqlcgen/>
-└── module.go            <wiring>
+services/core/internal/identity/
+├── domain/              association state, application and filing, extract check, decision; sentinels for PRD §5.1 identity.* codes
+├── app/                 file, refile, record check, approve, reject, disable, enable, connect storage; operator check
+├── ports/               Membership (governance), Applications, Associations, Extracts repositories
+├── adapters/http/       StrictServerInterface; session + association middleware
+├── adapters/postgres/   queries/ → sqlcgen/
+└── module.go            wiring; ActorFrom; token source
 ```
-
-New-context wiring (CLAUDE.md): spec tag · `adapters/http/gen/oapi-codegen.yaml` · `sqlc.yaml` entry ·
-`<bc>-private` depguard rule · `cmd/api/main.go`.
 
 ```mermaid
 C4Container
-    title <slug> — Containers
+    title association-onboarding — Containers
 
-    Person(member, "<glossary role>")
+    Person(head, "голова правління")
+    Person(member, "член правління")
+    Person(operator, "оператор")
 
-    System_Boundary(sys, "<product>") {
-        Container(web, "Web client", "React", "<screens>")
+    System_Boundary(sys, "Спільно") {
+        Container(web, "Web client", "React, TanStack Router", "association space /o/id, applications, operator back office")
         Container_Boundary(core, "Core API — Go modular monolith") {
-            Container(ctx_new, "<new context>", "Go bounded context", "<owns>")
-            Container(ctx_ref, "<existing context>", "Go bounded context", "<provides>")
+            Container(identity, "identity", "Go bounded context", "sessions, associations, applications, extracts, operator decisions, storage connection")
+            Container(governance, "governance", "Go bounded context", "roster with positions, protocols, registry")
+            Container(finance, "finance", "Go bounded context", "contracts per association")
         }
-        ContainerDb(db, "Database", "Postgres", "<tables per context>")
-        ContainerDb(files, "File storage", "<per ADR>", "<signed scans>")
+        ContainerDb(db, "Database", "Postgres 18.6, goose + sqlc, row-level security", "tables per context, stored extracts")
     }
 
-    System_Ext(otel, "Observability", "OpenTelemetry → Grafana LGTM")
+    System_Ext(google, "Google sign-in", "OIDC")
+    System_Ext(drive, "Google Drive of the association", "case files")
+    System_Ext(otel, "Observability", "OpenTelemetry to Grafana LGTM")
 
+    Rel(head, web, "uses", "HTTPS")
     Rel(member, web, "uses", "HTTPS")
-    Rel(web, ctx_new, "calls", "OpenAPI, JSON")
-    Rel(ctx_new, ctx_ref, "reads", "through module.go")
-    Rel(ctx_new, db, "reads/writes own tables", "SQL")
-    Rel(ctx_new, files, "stores files")
-    Rel(ctx_new, otel, "traces, metrics", "OTLP")
+    Rel(operator, web, "uses", "HTTPS")
+    Rel(web, identity, "calls", "OpenAPI, JSON")
+    Rel(web, governance, "calls", "OpenAPI, JSON")
+    Rel(web, finance, "calls", "OpenAPI, JSON")
+    Rel(identity, governance, "memberships, seat head, end term", "through module.go")
+    Rel(governance, identity, "actor, storage token", "through module.go")
+    Rel(identity, db, "reads/writes own tables", "SQL")
+    Rel(governance, db, "reads/writes own tables", "SQL")
+    Rel(finance, db, "reads/writes own tables", "SQL")
+    Rel(identity, google, "signs in, storage consent", "OIDC, OAuth")
+    Rel(governance, drive, "stores files", "Drive API")
+    Rel(identity, otel, "traces, metrics", "OTLP")
 ```
+
+Dropped recommended containers: `files` (case files stay in the association's Drive, board-protocol ADR-0005; extracts live in `db`, ADR-0005), `ai` and `qes` (no AI; the КЕП is checked by hand).
+
+**Roster change on approval** → [ADR-0006](./adr/0006-apply-approvals-to-the-roster-through-a-governance-facade-in-one-transaction.md): identity's approval use case calls `governance.SeatHead` / `EndTerm` inside one transaction carried in `ctx`.
 
 ## 6. Runtime view
 

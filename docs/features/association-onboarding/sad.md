@@ -353,10 +353,17 @@ ADR files: `docs/features/association-onboarding/adr/NNNN-<decision>.md`. Repo-l
 
 | Risk / debt | Severity | Mitigation | Owner |
 |---|---|---|---|
-| <migration of existing records (PRD §9)> | <Low/Medium/High> | <...> | <...> |
-| Open architectural decision: <headline> | Open question | Resolve before <stage or date>; <reason> | <owner> |
+| Moving ~30 governance operations under `/governance/associations/{association_id}/` collides with board-protocol Stage 1 tasks in flight (T34–T44, T18 blocked) and their web routes | High | Do the path move as the first task of this feature in one PR (contract + `mise run gen` + routes under `/o/$associationId`), or before Stage 1 UI tasks start; agree the order before `/sdlc:break-tasks` | Andrii Opryshko |
+| A request or job that forgets the association transaction reads nothing (row-level security fails closed) and looks like an empty list | Medium | `platform/db.InAssociation` is the only way handlers get a query runner on scoped tables; `platform.db.association_unset` metric; isolation test | Andrii Opryshko |
+| The manual check is the only proof: an оператор mistake approves an impostor | Medium | approval refused without a recorded check (AC-03); розбіжність імен needs a named document (AC-12); every decision recorded with the extract | Andrii Opryshko (оператор) |
+| A personal storage account with an address unknown to the roster is not detected | Low | the оператор sees the account on every transfer (AC-28b) | Andrii Opryshko |
+| Dropping `accounts.association_id` and adding `finance.contracts.association_id` on live rows | Medium | 3-step migrations per `.claude/rules/migrations.md`; backfill to the one existing association | Andrii Opryshko |
+| A single оператор is unavailable | Low | applicant sees the filing date and contact (AC-05); `identity.applications.pending_age_days` alert | Andrii Opryshko |
+| Brownfield: sign-in itself (T08) is not built; this feature builds it on the changed rules | Medium | T08 is replaced by this feature's sign-in task; board-protocol ADR-0003 kept for the flow | Andrii Opryshko |
+| Open architectural decision: how many associations actually wait to join (Reach) | Open question | Resolve before 2026-12-01; sizing only, no design change below ~20 associations | Andrii Opryshko |
+| Open architectural decision: how long rejected заявки and their extracts are kept | Open question | Resolve before implementation; default ≥ 5 years like all decisions (PRD §8) | Andrii Opryshko |
 
-**Accepted debt:** <...>
+**Accepted debt:** no automatic КЕП verification or extract parsing (ADR-0005); one оператор configured by environment, no operator roles (ADR-0001).
 
 ## 12. Glossary
 

@@ -28,6 +28,7 @@ const (
 	CodeNotReadyForSigning = "governance.not_ready_for_signing"
 	CodeReasonRequired     = "governance.reason_required"
 	CodePollNotOpen        = "governance.poll_not_open"
+	CodeVoteOnBehalf       = "governance.vote_on_behalf"
 )
 
 // DomainError is a rule violation identified only by its problem code.
@@ -75,7 +76,7 @@ var ErrorRegistry = []ErrorDef{
 	{"governance.correction_note_required", http.StatusUnprocessableEntity},
 	{CodeReasonRequired, http.StatusUnprocessableEntity},
 	{"governance.search_invalid", http.StatusUnprocessableEntity},
-	{"governance.vote_on_behalf", http.StatusForbidden},
+	{CodeVoteOnBehalf, http.StatusForbidden},
 	{CodeRevisionConflict, http.StatusConflict},
 	{CodeNotReadyForSigning, http.StatusConflict},
 	{CodePollNotOpen, http.StatusConflict},

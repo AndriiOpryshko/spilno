@@ -1,5 +1,5 @@
 {
-  "$comment": "Homework 7.5 hard level: least-privilege settings for the background T33 restore-drill session. Launch with --permission-mode dontAsk from ../spilno-wf-wave; anything not allowed here is refused without a prompt.",
+  "$comment": "Homework 7.5 hard level: least-privilege settings for the background T33 restore-drill session. Launch with --permission-mode dontAsk from ../spilno-wf-wave; anything not allowed here is refused without a prompt. Fixed after the 2026-11-05 run: a bare \"Edit\" deny also blocked Write to the state dir, so it is scoped to the shared tree.",
   "env": {
     "CLAUDE_CODE_DISABLE_CRON": "1"
   },
@@ -17,7 +17,7 @@
       "Write(//home/andriio/.local/state/spilno-drill/**)"
     ],
     "deny": [
-      "Edit",
+      "Edit(//Users/andriio/course/learning/**)",
       "NotebookEdit",
       "Bash(git add:*)",
       "Bash(git commit:*)",

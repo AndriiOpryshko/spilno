@@ -316,9 +316,16 @@ Same VM and compose topology as board-protocol SAD §7 (`caddy`, `core-api`, `wo
 
 | # | Decision | Status | Section | Blast radius (I / C / A / D) |
 |---|---|---|---|---|
-| <NNNN> | <decision as a sentence> | accepted | §<N> | <✓ / – / ✓ / ✓> |
+| [0001](./adr/0001-serve-the-operator-back-office-as-an-operator-only-section-of-the-web-app.md) | Serve the operator back office as an operator-only section of the web app | accepted | §4 | ✓ / ✓ / ✓ / – |
+| [0002](./adr/0002-put-the-association-id-in-every-association-scoped-path.md) | Put the association id in every association-scoped path | accepted | §4 | ✓ / ✓ / ✓ / – |
+| [0003](./adr/0003-enforce-association-isolation-with-postgres-row-level-security.md) | Enforce association isolation with Postgres row-level security | accepted | §4 | ✓ / ✓ / ✓ / ✓ |
+| [0004](./adr/0004-let-any-verified-person-sign-in-and-derive-memberships-from-rosters.md) | Let any verified person sign in and derive memberships from rosters | accepted | §4 | ✓ / ✓ / ✓ / ✓ |
+| [0005](./adr/0005-check-the-signed-extract-manually-and-keep-the-uploaded-file-in-identity.md) | Check the signed extract manually and keep the uploaded file in identity | accepted | §4 | ✓ / – / ✓ / ✓ |
+| [0006](./adr/0006-apply-approvals-to-the-roster-through-a-governance-facade-in-one-transaction.md) | Apply approvals to the roster through a governance facade in one transaction | accepted | §5 | ✓ / ✓ / ✓ / ✓ |
+| [0007](./adr/0007-enforce-a-disabled-association-as-read-only-in-the-identity-middleware.md) | Enforce a disabled association as read-only in the identity middleware | accepted | §8 | – / ✓ / ✓ / ✓ |
+| [0008](./adr/0008-let-a-board-member-connect-the-association-storage-in-the-web-app.md) | Let a board member connect the association storage in the web app | accepted | §8 | – / ✓ / ✓ / ✓ |
 
-ADR files: `docs/features/<slug>/adr/NNNN-<decision>.md`. Repo-level ADRs stay in `docs/adr/`.
+ADR files: `docs/features/association-onboarding/adr/NNNN-<decision>.md`. Repo-level ADRs stay in `docs/adr/`.
 
 ## 10. Quality requirements
 

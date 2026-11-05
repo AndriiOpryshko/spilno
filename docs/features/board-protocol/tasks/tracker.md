@@ -22,7 +22,7 @@
 | [T15](./T15-protocol-lifecycle-domain.md) | Model the protocol lifecycle: states, revision, transitions and refusals | domain | Andrii Opryshko | L | — | done |
 | [T16](./T16-agenda-slots-domain.md) | Model agenda items and слоти рішення: confirm, correct, needs review and readiness | domain | Andrii Opryshko | M | T15 | todo |
 | [T17](./T17-text-fragments-proposal-rules.md) | Add text fragments, the fact validator and the amount recommendation rule | domain | Andrii Opryshko | L | T16 | todo |
-| [T18](./T18-poll-domain.md) | Model poll rounds and the own-vote rule | domain | Andrii Opryshko | M | T15 | todo |
+| [T18](./T18-poll-domain.md) | Model poll rounds and the own-vote rule | domain | Andrii Opryshko | M | T15 | done |
 | [T19](./T19-meeting-facts-snapshot-domain.md) | Model meeting facts and the canonical fingerprinted snapshot | domain | Andrii Opryshko | M | T16, T18 | todo |
 | [T20](./T20-protocol-repository.md) | Persist the protocol aggregate with a revision guard | infra | Andrii Opryshko | L | T03, T16 | todo |
 | [T21](./T21-cases-endpoints.md) | Serve cases: create, list, open, add document versions and download files | ports | Andrii Opryshko | L | T03, T11, T13 | todo |

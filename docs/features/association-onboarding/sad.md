@@ -367,9 +367,17 @@ ADR files: `docs/features/association-onboarding/adr/NNNN-<decision>.md`. Repo-l
 
 ## 12. Glossary
 
-<!-- Terms from CONTEXT.md used in this SAD + technical terms of this feature. New domain terms go
-     to CONTEXT.md first. -->
-
 | Term | Meaning |
 |---|---|
-| <term> | <meaning> |
+| заявка на підключення | a голова правління's request to connect an association, with the КЕП-signed витяг з ЄДР (CONTEXT.md) |
+| запит на передачу | a newly elected голова's request to take over a connected association (CONTEXT.md) |
+| витяг з ЄДР | the register extract naming the керівник, signed with the голова's КЕП (CONTEXT.md) |
+| КЕП | qualified electronic signature (CONTEXT.md) |
+| оператор | the person who runs Спільно and decides access (CONTEXT.md) |
+| підключене ОСББ / вимкнене ОСББ | association states (CONTEXT.md) |
+| розбіжність імен | advisory notice when typed name, signer and керівник differ (CONTEXT.md) |
+| член правління / голова правління | roster roles (board-protocol CONTEXT.md) |
+| check of the extract | what the оператор records after checking the extract outside Спільно: signer, signing date, керівник, the extract's ЄДРПОУ and date |
+| association-scoped path | an operation path `/<context>/associations/{association_id}/...` |
+| row-level security (RLS) | Postgres policies that hide rows of other associations from the app role |
+| `spilno_app` / `spilno_owner` | the database role that serves requests / the role that owns the schema and runs migrations |

@@ -19,8 +19,9 @@ package for its helpers and style.
 ## Hard gates
 
 1. **No behaviour in production code.** You may create `stub` with the types, constants and function signatures
-   from the story's Interface block, each function body returning zero values (`return nil`, `return T{}, false`,
-   `return Effects{}, nil`) or `panic("not implemented")`. Nothing else. Do not touch any other non-test file.
+   from the story's Interface block. A function that returns an `error` returns `errors.New("not implemented")`
+   (so an AC that expects `nil` still fails); other results are zero values (`return T{}, false`). Never `panic`:
+   a panic aborts the whole package run and hides the other failures. Nothing else; no other non-test file.
 2. **RED means failing assertions, not a broken build.** Run `test_cmd`. It must exit non-zero, show `--- FAIL`
    for every new test, and show no `[build failed]`, `undefined:` or `[setup failed]`. A build error is not RED:
    fix the stub's signatures, not the tests.

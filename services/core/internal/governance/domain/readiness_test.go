@@ -131,3 +131,151 @@ func TestProtocol_AC09_UncitedDocumentRevisionIsNoChange(t *testing.T) {
 		t.Fatalf("changed %v revision %d, want no change at %d", changed, p.Revision(), rev)
 	}
 }
+
+// unreadyDraft holds one agenda item whose amount slot is only proposed.
+func unreadyDraft(t *testing.T) (*Protocol, *Slot) {
+	t.Helper()
+	a := NewAgendaItem("case-1", "Ремонт покрівлі")
+	s := ProposeSlot(slotAmount, originAI, uah1500, contrV1)
+	a.SetSlot("amount", s)
+	return draftWith(t, a), s
+}
+
+// AC-21, AC-04, AC-14c: marking готовий до підпису is refused with exactly the
+// readiness error while any blocker is left, and the refusal changes nothing.
+func TestProtocol_AC21_MarkReadyForSigningRefusesUnreadyDraft(t *testing.T) {
+	cases := map[string]struct {
+		build    func(t *testing.T) *Protocol
+		wantCode string
+	}{
+		"draft with an unconfirmed slot": {func(t *testing.T) *Protocol { p, _ := unreadyDraft(t); return p }, CodeSlotUnconfirmed},
+		"draft without an agenda item":   {func(t *testing.T) *Protocol { return NewProtocol(actor, t0) }, CodeDraftIncomplete},
+		"draft with an empty subject":    {func(t *testing.T) *Protocol { return draftWith(t, NewAgendaItem("case-1", " ")) }, CodeDraftIncomplete},
+		"ready_for_vote with an unconfirmed slot": {func(t *testing.T) *Protocol {
+			p, _ := unreadyDraft(t)
+			if _, err := p.MarkReadyForVote(p.Revision(), actor, t0); err != nil {
+				t.Fatal(err)
+			}
+			return p
+		}, CodeSlotUnconfirmed},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			p := tc.build(t)
+			want := p.EnsureReadyForSigning()
+			state, rev, transitions := p.State(), p.Revision(), p.Transitions()
+
+			eff, err := p.MarkReadyForSigning(p.Revision(), actor, t1, 14)
+
+			var ce *CodedFieldsError
+			if !errors.As(err, &ce) || ce.Code != tc.wantCode {
+				t.Fatalf("err = %v (%T), want *CodedFieldsError %s", err, err, tc.wantCode)
+			}
+			if !reflect.DeepEqual(err, want) {
+				t.Errorf("err = %+v, want exactly EnsureReadyForSigning() = %+v", err, want)
+			}
+			if eff != (Effects{}) {
+				t.Errorf("effects = %+v, want none on a refusal", eff)
+			}
+			if p.State() != state || p.Revision() != rev || p.Number() != 0 || !reflect.DeepEqual(p.Transitions(), transitions) {
+				t.Errorf("refused print changed the protocol: state=%s rev=%d number=%d transitions=%d",
+					p.State(), p.Revision(), p.Number(), len(p.Transitions()))
+			}
+		})
+	}
+}
+
+// ADR-0009: the revision and lock guards and the already-printed check answer
+// before the readiness gate; the readiness gate answers before the number check.
+func TestProtocol_MarkReadyForSigningRefusalOrder(t *testing.T) {
+	t.Run("stale revision on an unready draft is a conflict", func(t *testing.T) {
+		p, _ := unreadyDraft(t)
+		_, err := p.MarkReadyForSigning(p.Revision()-1, actor, t1, 14)
+		if got := domainCode(t, err); got != codeConflict {
+			t.Fatalf("code = %q, want %q", got, codeConflict)
+		}
+	})
+	t.Run("withdrawn unready draft is not allowed", func(t *testing.T) {
+		p, _ := unreadyDraft(t)
+		if _, err := p.Withdraw(p.Revision(), actor, t0, "причина"); err != nil {
+			t.Fatal(err)
+		}
+		_, err := p.MarkReadyForSigning(p.Revision(), actor, t1, 14)
+		if got := domainCode(t, err); got != codeNotAllowed {
+			t.Fatalf("code = %q, want %q", got, codeNotAllowed)
+		}
+	})
+	printedThenUnready := func(t *testing.T) *Protocol {
+		t.Helper()
+		a := NewAgendaItem("case-1", "Ремонт покрівлі")
+		s := confirmedAmount(t)
+		a.SetSlot("amount", s)
+		p := draftWith(t, a)
+		if _, err := p.MarkReadyForSigning(p.Revision(), actor, t0, 14); err != nil {
+			t.Fatal(err)
+		}
+		s.Offer(uah1800, originAI, SlotSource{}) // needs review, protocol not reopened
+		if len(p.Readiness()) == 0 {
+			t.Fatal("setup: want a blocker after the offer")
+		}
+		return p
+	}
+	t.Run("already printed protocol is not allowed before readiness", func(t *testing.T) {
+		p := printedThenUnready(t)
+		_, err := p.MarkReadyForSigning(p.Revision(), actor, t1, 15)
+		if got := domainCode(t, err); got != codeNotAllowed {
+			t.Fatalf("code = %q, want %q", got, codeNotAllowed)
+		}
+	})
+	t.Run("signed protocol is locked before readiness", func(t *testing.T) {
+		p := printedThenUnready(t)
+		if _, err := p.Sign(p.Revision(), actor, t1); err != nil {
+			t.Fatal(err)
+		}
+		_, err := p.MarkReadyForSigning(p.Revision(), actor, t1, 15)
+		if got := domainCode(t, err); got != codeLocked {
+			t.Fatalf("code = %q, want %q", got, codeLocked)
+		}
+	})
+	t.Run("readiness before a missing number", func(t *testing.T) {
+		p, _ := unreadyDraft(t)
+		_, err := p.MarkReadyForSigning(p.Revision(), actor, t1, 0)
+		var ce *CodedFieldsError
+		if !errors.As(err, &ce) || ce.Code != CodeSlotUnconfirmed {
+			t.Fatalf("err = %v (%T), want *CodedFieldsError %s", err, err, CodeSlotUnconfirmed)
+		}
+	})
+}
+
+// AC-21 + AC-33: once every slot is confirmed the draft prints as before, from
+// чернетка and from готовий до голосування (closing the round); the number is
+// taken on the first print only.
+func TestProtocol_AC21_ConfirmedDraftPrints(t *testing.T) {
+	for _, from := range []ProtocolState{stDraft, stVote} {
+		t.Run(string(from), func(t *testing.T) {
+			p, s := unreadyDraft(t)
+			s.Confirm(reviewer, t0)
+			if from == stVote {
+				if _, err := p.MarkReadyForVote(p.Revision(), actor, t0); err != nil {
+					t.Fatal(err)
+				}
+			}
+			eff, err := p.MarkReadyForSigning(p.Revision(), actor, t1, 14)
+			if err != nil {
+				t.Fatalf("err = %v, want nil", err)
+			}
+			if want := (Effects{ClosePollRound: from == stVote}); eff != want {
+				t.Errorf("effects = %+v, want %+v", eff, want)
+			}
+			if p.State() != stSigning || p.Number() != 14 {
+				t.Fatalf("state %s number %d, want ready_for_signing 14", p.State(), p.Number())
+			}
+			if _, err := p.ReturnToDraft(p.Revision(), actor, t1); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := p.MarkReadyForSigning(p.Revision(), actor, t1, 99); err != nil || p.Number() != 14 {
+				t.Fatalf("re-print err %v number %d, want nil and 14", err, p.Number())
+			}
+		})
+	}
+}

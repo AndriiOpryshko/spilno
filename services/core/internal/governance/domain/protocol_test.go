@@ -55,11 +55,22 @@ func domainCode(t *testing.T, err error) string {
 	return de.Code
 }
 
-// protocolIn builds a protocol in the given state through the public API.
-// ready_for_signing and later states carry number 14.
-func protocolIn(t *testing.T, s ProtocolState) *Protocol {
+// readyDraft builds a draft that passes Readiness through the public API: one
+// agenda item with a subject and no slot. Adding the item bumps it to revision 2.
+func readyDraft(t *testing.T) *Protocol {
 	t.Helper()
 	p := NewProtocol(actor, t0)
+	if _, err := p.AddAgendaItem(p.Revision(), NewAgendaItem("case-1", "Ремонт покрівлі"), actor, t0); err != nil {
+		t.Fatalf("ready draft: %v", err)
+	}
+	return p
+}
+
+// protocolIn builds a protocol in the given state through the public API,
+// starting from a ready draft. ready_for_signing and later states carry number 14.
+func protocolIn(t *testing.T, s ProtocolState) *Protocol {
+	t.Helper()
+	p := readyDraft(t)
 	must := func(_ Effects, err error) {
 		t.Helper()
 		if err != nil {
@@ -249,9 +260,9 @@ func TestProtocol_StaleRevisionIsAConflict(t *testing.T) {
 	for name, m := range mutations {
 		t.Run(name, func(t *testing.T) {
 			// build at revision 2 so that revision-1 is a real earlier revision
-			p := NewProtocol(actor, t0)
-			if _, err := p.Edit(p.Revision(), actor, t0); err != nil {
-				t.Fatal(err)
+			p := readyDraft(t)
+			if p.Revision() != 2 {
+				t.Fatalf("setup revision = %d, want 2", p.Revision())
 			}
 			switch m.from {
 			case stVote:
@@ -389,29 +400,35 @@ func TestProtocol_NumberIsReservedOnceAndSurvives(t *testing.T) {
 		}
 	})
 	t.Run("signing without a number is refused", func(t *testing.T) {
-		p := NewProtocol(actor, t0)
+		p := readyDraft(t)
 		_, err := p.MarkReadyForSigning(p.Revision(), actor, t0, 0)
 		if err == nil {
-			t.Error("err = nil, want an error for number 0 on first print")
+			t.Fatal("err = nil, want an error for number 0 on first print")
+		}
+		if got := domainCode(t, err); got != CodeDraftIncomplete {
+			t.Errorf("code = %q, want %q", got, CodeDraftIncomplete)
+		}
+		if p.State() != stDraft || p.Number() != 0 {
+			t.Errorf("refused print changed the protocol: state=%s number=%d", p.State(), p.Number())
 		}
 	})
 }
 
 func TestProtocol_TransitionsRecordActorTimeAndRevision(t *testing.T) {
 	other := "member-2"
-	p := NewProtocol(actor, t0)
+	p := readyDraft(t) // revision 2, no transition yet
 	steps := []struct {
 		do   func() error
 		want ProtocolTransition
 	}{
-		{func() error { _, e := p.MarkReadyForVote(1, actor, t0); return e },
-			ProtocolTransition{From: stDraft, To: stVote, Revision: 1, ActorID: actor, At: t0}},
-		{func() error { _, e := p.Edit(1, other, t1); return e },
-			ProtocolTransition{From: stVote, To: stDraft, Revision: 2, ActorID: other, At: t1}},
-		{func() error { _, e := p.MarkReadyForSigning(2, actor, t1, 14); return e },
-			ProtocolTransition{From: stDraft, To: stSigning, Revision: 2, ActorID: actor, At: t1}},
-		{func() error { _, e := p.Sign(2, other, t1.Add(time.Hour)); return e },
-			ProtocolTransition{From: stSigning, To: stSigned, Revision: 2, ActorID: other, At: t1.Add(time.Hour)}},
+		{func() error { _, e := p.MarkReadyForVote(2, actor, t0); return e },
+			ProtocolTransition{From: stDraft, To: stVote, Revision: 2, ActorID: actor, At: t0}},
+		{func() error { _, e := p.Edit(2, other, t1); return e },
+			ProtocolTransition{From: stVote, To: stDraft, Revision: 3, ActorID: other, At: t1}},
+		{func() error { _, e := p.MarkReadyForSigning(3, actor, t1, 14); return e },
+			ProtocolTransition{From: stDraft, To: stSigning, Revision: 3, ActorID: actor, At: t1}},
+		{func() error { _, e := p.Sign(3, other, t1.Add(time.Hour)); return e },
+			ProtocolTransition{From: stSigning, To: stSigned, Revision: 3, ActorID: other, At: t1.Add(time.Hour)}},
 	}
 	for i, s := range steps {
 		if err := s.do(); err != nil {

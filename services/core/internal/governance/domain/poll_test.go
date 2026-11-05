@@ -75,14 +75,15 @@ func TestPollRound_FreezesTheRevisionAtOpen(t *testing.T) {
 	if _, err := p.Edit(p.Revision(), actor, t0); err != nil {
 		t.Fatal(err)
 	}
+	frozen := p.Revision()
 	r := openRound(t, p, 1)
-	if r.Number() != 1 || r.Revision() != 2 || r.Closed() {
-		t.Fatalf("round = (%d, rev %d, closed %v), want (1, rev 2, open)", r.Number(), r.Revision(), r.Closed())
+	if r.Number() != 1 || r.Revision() != frozen || r.Closed() {
+		t.Fatalf("round = (%d, rev %d, closed %v), want (1, rev %d, open)", r.Number(), r.Revision(), r.Closed(), frozen)
 	}
 	if _, err := p.Edit(p.Revision(), actor, t1); err != nil {
 		t.Fatal(err)
 	}
-	if r.Revision() != 2 {
+	if r.Revision() != frozen {
 		t.Fatalf("frozen revision moved to %d after an edit", r.Revision())
 	}
 }

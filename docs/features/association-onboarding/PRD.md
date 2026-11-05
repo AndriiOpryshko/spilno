@@ -24,14 +24,14 @@ ticket: ""
 
 Why now: the approved board-protocol tasks T08 and T12 would make this setup a developer command; this feature replaces both before they are built, so the first association connected after Stage 1 needs no developer at all. Growing to many associations is not the goal (brief §4).
 
-Committed approach (brief §13, Approach C): anyone signs in with their own sign-in account and, as голова правління, files a заявка на підключення with the ЄДРПОУ, name, address, their position and term, and a витяг з ЄДР signed with their КЕП. Спільно checks the signature itself; the оператор approves or rejects with a reason. A newly elected голова files a запит на передачу into the same queue; its approval adds them to the roster and ends the previous голова's term. The оператор can disable an association (its members keep read and download access to the signed protocols only) and enable it again. The board connects the association's document storage itself, with the association's own account. AI boundary: no AI anywhere in this feature. The applicant types the association data; the signer comes from the КЕП and the керівник from the signed extract; the only checks of the extract's content are the advisory розбіжність імен and the extract's age; the оператор decides.
+Committed approach (brief §13, Approach C): anyone signs in with their own sign-in account and, as голова правління, files a заявка на підключення with the ЄДРПОУ, name, address, their position and term, and a витяг з ЄДР signed with their КЕП. The оператор checks the КЕП signature and the extract outside Спільно, records the signer, the керівник, the extract's ЄДРПОУ and date, and approves or rejects with a reason. A newly elected голова files a запит на передачу into the same queue; its approval adds them to the roster and ends the previous голова's term. The оператор can disable an association (its members keep read and download access to the signed protocols only) and enable it again. The board connects the association's document storage itself, with the association's own account. AI boundary: no AI anywhere in this feature. The applicant types the association data; the оператор enters the signer, the керівник, the extract's ЄДРПОУ and date after checking the signed extract outside Спільно; Спільно checks nothing in the file automatically; its only checks are deterministic comparisons of what the people entered (розбіжність імен, the extract's age, the ЄДРПОУ match); the оператор decides.
 
 Traceability and deviations:
 - Read: the reference contexts in the Inputs block; board-protocol ADR-0003 (sign-in refuses a person whose address matches no roster entry — this feature reverses that rule for the application flow, ADR needed), ADR-0005 (storage on the association's account), ADR-0015 (association isolation by explicit filter, the cross-association guard deferred until a second association — this feature is that moment, ADR needed).
 - Amends board-protocol PRD §3 (the non-goal «onboarding other associations») and AC-19 (a signed-in person off the roster now sees their own заявка, still nothing of any association). Replaces tasks T08 and T12.
-- Brief §15 «who checks the КЕП signature» closed 2026-11-05: Спільно checks it at filing; an invalid signature blocks filing.
+- Brief §15 «who checks the КЕП signature» closed 2026-11-05 and amended the same day at the SAD pass (product owner: «вся перевірка — ручна і за кадром»): the оператор checks the signature and the extract outside Спільно (a public verification service) and records the result; approval is refused until it is recorded (AC-03). Deviation from brief §16, where the signer and the керівник were «data»: they are entered by the оператор from the checked extract.
 - Brief §15 «what the applicant sees while the оператор is away more than a week» closed: the filing date and the оператор's contact address (AC-05); the risk «single operator unavailable» (brief §10) is measured by the decision-time KPI (§7).
-- Deviation: a витяг з ЄДР for a different ЄДРПОУ than the one typed blocks filing (brief §16 names only the advisory name check) — reason: an extract of another association is never a proof of office, so no operator judgement is needed.
+- Deviation: an extract whose ЄДРПОУ, as recorded by the оператор, differs from the one typed blocks approval (brief §16 names only the advisory name check) — reason: an extract of another association is never a proof of office.
 - Deviation: an extract older than 30 days raises an advisory warning to the оператор (AC-11b) — reason: brief §9 «ЄДР lags after an election» works the other way too; a stale extract may name a голова already replaced. It never blocks and needs no named document.
 - Deviation: approving over an open розбіжність імен requires the оператор to name the document relied on (brief §9 «nothing is decided without a document»).
 - Deviation: a second заявка на підключення for a code that already has one pending is accepted and shown to the оператор as competing (brief §9 refused it) — reason: otherwise an impostor who files first locks the real голова out, the top risk of brief §10.
@@ -53,6 +53,7 @@ Traceability and deviations:
 - Several operators and operator roles — one product owner runs Спільно (brief §5).
 - Co-owners' accounts and the ревізійна комісія's own access — a separate feature (brief §5, board-protocol §3).
 - Notifications about a decision by mail or messenger — Спільно has no delivery channel (board-protocol ADR-0003); the applicant sees the decision after signing in.
+- Automatic checking of the КЕП signature or reading of the extract inside Спільно — product owner 2026-11-05 at the SAD pass: the оператор checks manually outside Спільно; revisit if manual checks become the bottleneck of the decision-time KPI (§7).
 - Filing without a КЕП, or with only an election protocol — proof of office is the КЕП-signed extract; the form explains how to get a КЕП (brief §9).
 
 ## 4. User stories
@@ -107,22 +108,22 @@ Traceability and deviations:
 ### AC-01 (US-01) — happy path
 **Given** a person signed in with their sign-in account, whether or not they are a член правління of another association, with a витяг з ЄДР for ЄДРПОУ 12345678 signed with their valid КЕП
 **When** they file a заявка на підключення with that ЄДРПОУ, the association's name and address, their position «голова правління» and their term start
-**Then** the system records the заявка as очікує with the filing date, keeps the signed extract with it, shows the signer and the керівник read from the extract, and shows «Заявку подано, очікує розгляду оператором»
+**Then** the system records the заявка as очікує with the filing date, keeps the signed extract file with it unchanged, and shows «Заявку подано, очікує розгляду оператором»
 
 ### AC-02 (US-01) — error
 **Given** a голова правління filling a заявка на підключення
 **When** they file it with the ЄДРПОУ not of 8 digits, the name or address empty, the term start missing, or no extract attached
 **Then** the system refuses and names every missing or wrong field at once, and nothing is recorded
 
-### AC-03 (US-01) — domain invariant
-**Given** a голова правління attaching a витяг з ЄДР whose signature is broken, made with a certificate that is not qualified, or revoked or expired on the signing date
-**When** they file the заявка на підключення
-**Then** the system refuses, says «Підпис КЕП на витягу недійсний» with the reason, and nothing is recorded
+### AC-03 (US-03) — domain invariant (signature checked by the оператор)
+**Given** an оператор reviewing a заявка на підключення or a запит на передачу that очікує, who has not yet recorded the check of the extract (the signer, the signing date, the керівник, the extract's ЄДРПОУ and date)
+**When** the оператор approves it
+**Then** the system refuses with «Спершу перевірте підпис КЕП і внесіть підписанта, керівника, код і дату витягу»; a signature the оператор found invalid is a rejection with that reason (AC-14)
 
-### AC-03b (US-01) — domain invariant (edge case: extract of another association)
-**Given** a голова правління who typed ЄДРПОУ 12345678 and attached a validly signed витяг з ЄДР for ЄДРПОУ 87654321
-**When** they file the заявка на підключення
-**Then** the system refuses with «Витяг стосується іншого ОСББ — перевірте код ЄДРПОУ або витяг», and nothing is recorded
+### AC-03b (US-03) — domain invariant (edge case: extract of another association)
+**Given** a заявка на підключення with the typed ЄДРПОУ 12345678, for which the оператор recorded that the extract names ЄДРПОУ 87654321
+**When** the оператор approves it
+**Then** the system refuses with «Витяг стосується іншого ОСББ — відхиліть заявку або перевірте внесений код», and the заявка stays очікує
 
 ### AC-04 (US-01) — domain invariant (code already connected)
 **Given** an association with ЄДРПОУ 12345678 that is підключене ОСББ
@@ -172,16 +173,16 @@ Traceability and deviations:
 ### AC-10 (US-03) — traceability
 **Given** an оператор opening a заявка на підключення
 **When** the review page shows the association's data and the applicant
-**Then** every value names its source: ЄДРПОУ, name, address, position and term «введено заявником»; the керівник «з витягу з ЄДР від <дата витягу>»; the signer and the signing date «з КЕП»; and a value the system could not read from the extract is marked «не прочитано — перевірте вручну»
+**Then** every value names its source: ЄДРПОУ, name, address, position and term «введено заявником»; the керівник, the extract's ЄДРПОУ and date «з витягу з ЄДР, внесено оператором <дата перевірки>»; the signer and the signing date «з КЕП, перевірено оператором <дата перевірки>»; until the check is recorded these values show «не перевірено»
 
 ### AC-11 (US-03) — traceability (advisory розбіжність імен)
-**Given** a заявка на підключення or a запит на передачу where the applicant's typed name, the signer of the КЕП and the керівник in the extract are not all the same person
-**When** the оператор opens it
+**Given** a заявка на підключення or a запит на передачу where the applicant's typed name and the signer and the керівник recorded by the оператор are not all the same person
+**When** the оператор records the check or opens it again
 **Then** the system shows a розбіжність імен warning naming which values differ, and does not block approval or rejection by itself
 
 ### AC-11b (US-03) — traceability (advisory: extract age)
-**Given** a заявка на підключення or a запит на передачу whose витяг з ЄДР is older than 30 days on the filing date
-**When** the оператор opens it
+**Given** a заявка на підключення or a запит на передачу whose витяг з ЄДР is dated, as recorded by the оператор, more than 30 days before the filing date
+**When** the оператор records the check or opens it again
 **Then** the system shows «Витяг сформовано <дата> — старший за 30 днів», and approval needs nothing more than without the warning
 
 ### AC-12 (US-03) — legal competence
@@ -224,10 +225,10 @@ Traceability and deviations:
 **When** a голова правління files a запит на передачу for it
 **Then** the system refuses with «Це ОСББ ще не підключене — подайте заявку на підключення» and offers the заявка form
 
-### AC-18b (US-04) — domain invariant (edge case: signature on a transfer)
-**Given** a голова правління filing a запит на передачу with an extract whose КЕП signature is invalid, or that is for another ЄДРПОУ
-**When** they file it
-**Then** the system refuses the same way as for a заявка на підключення (AC-03, AC-03b), and nothing is recorded
+### AC-18b (US-05) — domain invariant (edge case: signature on a transfer)
+**Given** a запит на передачу that очікує, with no recorded check of its extract, or with an extract recorded for another ЄДРПОУ
+**When** the оператор approves it
+**Then** the system refuses the same way as for a заявка на підключення (AC-03, AC-03b), and the запит stays очікує
 
 ### AC-19 (US-05) — happy path + cross-context
 **Given** a запит на передачу that очікує for a підключене ОСББ whose current голова was recorded by an earlier approval, with the new голова's term start 2026-11-20 typed in the запит
@@ -314,8 +315,8 @@ Traceability and deviations:
 | Code | Kind | Message to the actor | AC |
 |---|---|---|---|
 | `identity.application_invalid` | validation | Перевірте поля заявки: <поля> | AC-02 |
-| `identity.signature_invalid` | invariant | Підпис КЕП на витягу недійсний: <причина> | AC-03, AC-18b |
-| `identity.extract_code_mismatch` | invariant | Витяг стосується іншого ОСББ — перевірте код ЄДРПОУ або витяг | AC-03b, AC-18b |
+| `identity.signature_not_checked` | invariant | Спершу перевірте підпис КЕП і внесіть підписанта, керівника, код і дату витягу | AC-03, AC-18b |
+| `identity.extract_code_mismatch` | invariant | Витяг стосується іншого ОСББ — відхиліть заявку або перевірте внесений код | AC-03b, AC-18b |
 | `identity.association_already_connected` | conflict | Це ОСББ вже підключене — зверніться до голови вашого ОСББ або подайте запит на передачу | AC-04, AC-04c |
 | `identity.application_already_open` | conflict | У вас уже є заявка на це ОСББ | AC-04b |
 | `identity.not_current_member` | authorization | Немає доступу (existing, board-protocol ADR-0003) | AC-07, AC-16b |
@@ -338,7 +339,7 @@ Objects of another association, and another person's заявка, answer as not
 |---|---|---|
 | Latency p95, read or list (application page, operator queue, association card) | ≤ 200 ms (default) | request-duration histogram per route |
 | Latency p95, write without file (decide, disable, enable) | ≤ 500 ms (default) | same histogram |
-| Latency p95, filing with the extract and the signature check | ≤ 5 s for a 5 MB file | same histogram, filing routes |
+| Latency p95, filing with the extract upload | ≤ 5 s for a 5 MB file | same histogram, filing routes |
 | Throughput | ≥ 50 req/s per instance on the read path (default) | load smoke test in CI |
 | Availability | 99.5 % monthly (default) | uptime check on the health endpoint |
 | Durability | RPO ≤ 24 h, RTO ≤ 4 h (default) | daily backup + quarterly restore drill |
@@ -354,13 +355,13 @@ Objects of another association, and another person's заявка, answer as not
 - **Personal data touched:** the applicant's full name, sign-in address, position and term; the signer's name and the certificate data inside the КЕП (it contains the РНОКПП — shown to nobody, kept only inside the signed file); the керівник's name from the extract; the storage account address. Medium sensitivity; the РНОКПП is high.
 - **Authorization impact:** a new role оператор with access to the application queue only; a signed-in person sees an association's records only while on its roster, and may be on several rosters; a member of a вимкнене ОСББ is limited to reading the registry; a transfer ends the previous голова's access at the moment of approval.
 - **Abuse cases:**
-  - Impostor with the public name of the голова and a matching account name: no signed extract, no filing (AC-03); a stranger's КЕП on a real extract raises розбіжність імен, and approving over it requires a document (AC-11, AC-12); filing first does not lock the real голова out (AC-04c).
-  - Forged or edited extract: the signature check fails on any change of the file (AC-03).
+  - Impostor with the public name of the голова and a matching account name: no approval without the оператор's recorded check of a signed extract (AC-03); a stranger's КЕП on a real extract raises розбіжність імен, and approving over it requires a document (AC-11, AC-12); filing first does not lock the real голова out (AC-04c).
+  - Forged or edited extract: the оператор's check outside Спільно fails on any change of the file and the заявка is rejected; the stored file is kept unchanged as evidence (AC-03, AC-14).
   - Probing ЄДРПОУ codes to learn who heads which association: no refusal names the голова or another applicant, and a pending заявка is not revealed (AC-04, AC-04c, AC-17); only «already connected» is revealed (brief §9).
   - Cross-association read, including by a person on two rosters: denied with the same answer as a missing record, guarded by the release-blocking isolation check (AC-04d, AC-07, §6 Isolation).
   - Ex-голова keeps the document storage under a personal account: refused when the address is a member's sign-in address (AC-28b); a personal account with another address is not detectable — the оператор sees the account on every transfer.
   - Takeover of the оператор's account: the оператор sees no association's records (AC-16b); every decision records who made it and when.
-- **Security review:** Required — a new sign-in path for people off the roster, a new role, signature checking, membership in several associations and the first real second association.
+- **Security review:** Required — a new sign-in path for people off the roster, a new role, a manual signature check, membership in several associations and the first real second association.
 
 ## 7. Metrics / KPIs
 
@@ -372,14 +373,12 @@ Objects of another association, and another person's заявка, answer as not
 ## 8. Open questions
 
 - [ ] How many associations actually wait to join (RICE Reach)? Default now: 6 filings a year. — owner: Andrii Opryshko, due: 2026-12-01
-- [ ] How Спільно checks the КЕП signature (own library for the Ukrainian algorithms or a public verification service) and which signature formats it accepts? Default now: Спільно checks itself at filing; formats per SAD. — owner: Andrii Opryshko, due: SAD (ao-architecture)
 - [ ] Where the operator's back office lives (inside Спільно behind the оператор role or a separate surface)? Default now: inside Спільно, a separate section shown only to the оператор. — owner: Andrii Opryshko, due: SAD
 - [ ] How long rejected заявки and their extracts are kept (personal data of a person who never got access)? Default now: ≥ 5 years like all decisions. — owner: Andrii Opryshko, due: before implementation
-- [ ] How the system reads the керівник from the extract (the extract's layout from the register)? Default now: read from the extract's text; unreadable → «не прочитано — перевірте вручну» (AC-10). — owner: Andrii Opryshko, due: SAD
 
 ## 9. Migration plan
 
-- **New records:** заявки на підключення and запити на передачу, each with its signed extract file, the signature check result (signer, signing date, certificate validity), the керівник and the extract date read from the extract, every filing and the оператор's decision with its reason and the document relied on; disable and enable records with reason; the association gets its ЄДРПОУ, address, state (підключене / вимкнене) and a link to the decision that confirmed its current голова.
+- **New records:** заявки на підключення and запити на передачу, each with its signed extract file kept as uploaded, the оператор's check of it (signer, signing date, керівник, the extract's ЄДРПОУ and date, who checked and when), every filing and the оператор's decision with its reason and the document relied on; disable and enable records with reason; the association gets its ЄДРПОУ, address, state (підключене / вимкнене) and a link to the decision that confirmed its current голова.
 - **Changed records:** a signed-in account no longer carries one association: it may have none (an applicant before approval) or several (a person on several rosters); which associations a person may open comes from the rosters. A roster entry gains a position (голова правління or член правління) and, for a голова, a link to the decision that put them there or ended their term.
 - **The signed extract is kept by Спільно itself**, not in the association's document storage: at filing time no storage is connected, and the proof must survive a change of the storage account.
 - **Existing records:** the one association set up by hand becomes підключене ОСББ with no заявка, no ЄДРПОУ, marked «підключено вручну, без витягу»; its address is entered by the board in the settings, its ЄДРПОУ and голова come from its голова's запит на передачу (AC-19c). Existing roster entries get the position член правління; nobody is marked голова until AC-19c. Its accounts keep their association as a roster-derived membership; sessions, protocols and the storage connection stay untouched.
@@ -420,12 +419,12 @@ Scope is one association at a time: a person on several rosters has these rights
 
 | From → To | Who | Condition | AC |
 |---|---|---|---|
-| — → Очікує (заявка) | голова правління | all fields valid, signature valid, extract for the typed ЄДРПОУ, code not connected, no open заявка of the same person for that code, term not ended; another person's pending заявка does not block | AC-01, AC-04c |
-| — → Очікує (запит) | голова правління | the association is підключене or вимкнене, signature valid, extract for the ЄДРПОУ, term not ended | AC-17, AC-19c, AC-24b |
-| Очікує → Схвалена (заявка) | оператор | code not connected by then; a document named when розбіжність імен is open | AC-08, AC-12 |
-| Очікує → Схвалена (запит) | оператор | a document named when розбіжність імен is open | AC-19, AC-19c, AC-12 |
+| — → Очікує (заявка) | голова правління | all fields valid, extract attached, code not connected, no open заявка of the same person for that code, term not ended; another person's pending заявка does not block | AC-01, AC-04c |
+| — → Очікує (запит) | голова правління | the association is підключене or вимкнене, extract attached, term not ended | AC-17, AC-19c, AC-24b |
+| Очікує → Схвалена (заявка) | оператор | signature check recorded, extract's ЄДРПОУ equals the typed one, code not connected by then; a document named when розбіжність імен is open | AC-08, AC-03, AC-12 |
+| Очікує → Схвалена (запит) | оператор | signature check recorded, extract's ЄДРПОУ equals the association's; a document named when розбіжність імен is open | AC-19, AC-19c, AC-12 |
 | Очікує → Відхилена | оператор | a reason given | AC-14 |
-| Відхилена → Очікує | голова правління (the same applicant) | refiled with the same checks as filing | AC-06 |
+| Відхилена → Очікує | голова правління (the same applicant) | refiled with the same checks as filing; the оператор checks the new extract again | AC-06 |
 | — → Підключене | system, on approval of a заявка | — | AC-08 |
 | Підключене → Вимкнене | оператор | a reason given | AC-21 |
 | Вимкнене → Підключене | оператор | — | AC-23 |
@@ -435,7 +434,7 @@ Scope is one association at a time: a person on several rosters has these rights
 | From → To | Why refused | AC |
 |---|---|---|
 | — → Очікує with missing or wrong fields | the заявка must be complete to be checked | AC-02 |
-| — → Очікує with an invalid signature or an extract of another code | no proof of office | AC-03, AC-03b, AC-18b |
+| Очікує → Схвалена without a recorded signature check, or with an extract of another code | no proof of office | AC-03, AC-03b, AC-18b |
 | — → Очікує (заявка) for a connected code | one association, one record | AC-04 |
 | — → Очікує (заявка) by the same person for a code they already have pending | duplicate | AC-04b |
 | — → Очікує with an applicant's term already ended | a person whose term ended does not head the association | AC-30 |

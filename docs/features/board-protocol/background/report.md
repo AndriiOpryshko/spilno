@@ -213,5 +213,16 @@ GitHub notifications already tell me about a merge, and the loop lost nine cycle
 - Forgotten sessions: `09d732b4` (blocked since 7.4, `spilno-wf-audit`) and `6a5cf57e` (main folder); stop or
   `Ctrl+X` after a look.
 - The PR loop `b8463640` still runs; stop it (`CronDelete` or close the session) once the homework is handed in.
-- Fix `drill-session.settings.json`: drop the bare `Edit` deny, deny `Edit(//Users/andriio/course/learning/**)`
-  instead, so the state-dir write works.
+- Done after the run: `drill-session.settings.json` now denies `Edit(//Users/andriio/course/learning/**)` instead of a
+  bare `Edit`, so the state-dir `Write` is reachable. The run above used the bare `Edit` deny.
+
+## Dashboard (`claude agents`, 21:24)
+
+![claude agents: all sessions](claude-agents.png)
+
+![claude agents filtered with s:needs](claude-agents-filter-needs.png)
+
+The dashboard lists **background** sessions only. `T33 drill` and the loop session became interactive once
+attached (`claude agents --json`: `kind: interactive`), so they are absent here and `s:idle`, `Ctrl+X`, `Ctrl+T`
+and `claude stop` have nothing to act on. The filter is `Ctrl+F`, then erase the default `n:` prefix and type
+`s:needs`. What it surfaces is the forgotten 7.4 session `Контракт openapi.yaml spilno` waiting 2 h for a prompt.

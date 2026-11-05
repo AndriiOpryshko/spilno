@@ -61,12 +61,12 @@ export function TransitionActions({ state, number, blocking, pending, error, onT
     <div ref={ref} role="group" aria-label={t.label} className={cn('space-y-2', className)}>
       <div className="flex flex-col gap-2 md:flex-row md:flex-wrap md:items-center">{buttons}</div>
       {state !== 'ready_for_signing' && blocked && (
-        <p id={reasonId} className="flex items-center gap-2 text-[13px]">
+        <p id={reasonId} className="flex items-center gap-1.5 text-xs/[17px]">
           <StatusGlyph state="attention" /> {t.confirmFirst(blocking)}
         </p>
       )}
       {state === 'ready_for_signing' && (
-        <p id={reasonId} className="flex items-center gap-2 text-xs text-muted-foreground">
+        <p id={reasonId} className="flex items-center gap-1.5 text-xs/[17px] text-muted-foreground">
           <StatusGlyph state="neutral" /> {t.voidCopy(number)}
         </p>
       )}

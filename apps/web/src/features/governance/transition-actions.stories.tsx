@@ -5,6 +5,12 @@ import { TransitionActions } from './transition-actions';
 
 // Figma: 05 Lifecycle / TransitionActions (node 31-207): Draft, Ready for vote, Ready for signing,
 // Pending, Disabled reason; plus the transition error (node 32-2543).
+
+// The note under the buttons in Figma: 14px glyph, 6px gap, 12/17 text (nodes 31-186, 31-202).
+const expectFigmaNote = async (note: HTMLElement) => {
+  const style = getComputedStyle(note);
+  await expect([style.columnGap, style.fontSize, style.lineHeight]).toEqual(['6px', '12px', '17px']);
+};
 const meta = {
   title: 'Governance/TransitionActions',
   component: TransitionActions,
@@ -33,6 +39,7 @@ export const DisabledReason: Story = {
     await expect(mark).toBeDisabled();
     await expect(mark).toHaveAccessibleDescription('Підтвердіть: Сума за договором');
     await expect(canvas.getByText('Підтвердіть: Сума за договором')).toBeVisible();
+    await expectFigmaNote(canvas.getByText('Підтвердіть: Сума за договором'));
   },
 };
 
@@ -53,6 +60,7 @@ export const ReadyForSigning: Story = {
     await expect(canvas.getByRole('button', { name: 'Повернути в чернетку' })).toHaveAccessibleDescription(
       'Надрукована копія стане недійсною. Номер № 17/2026 залишиться за протоколом.',
     );
+    await expectFigmaNote(canvas.getByText(/Надрукована копія стане недійсною/));
   },
 };
 

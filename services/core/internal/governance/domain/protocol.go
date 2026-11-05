@@ -128,12 +128,17 @@ func (p *Protocol) MarkReadyForVote(expectedRevision int, actorID string, at tim
 }
 
 // MarkReadyForSigning prints the protocol; number is taken only on the first print.
+// It is refused, changing nothing, while Readiness lists any blocker (AC-04,
+// AC-21); the revision guard and an already printed protocol are checked first.
 func (p *Protocol) MarkReadyForSigning(expectedRevision int, actorID string, at time.Time, number int) (Effects, error) {
 	if err := p.guard(expectedRevision); err != nil {
 		return Effects{}, err
 	}
 	if p.state == ProtocolReadyForSigning {
 		return Effects{}, &DomainError{Code: CodeTransitionDenied}
+	}
+	if err := p.EnsureReadyForSigning(); err != nil {
+		return Effects{}, err
 	}
 	if p.number == 0 && number <= 0 {
 		return Effects{}, &DomainError{Code: CodeDraftIncomplete}

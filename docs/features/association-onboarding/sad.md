@@ -61,23 +61,35 @@ Product-owner decisions at this pass (2026-11-05): the extract and the КЕП ar
 
 ## 3. Context and scope
 
-<2-3 sentences: what the system does for the association and where its trust boundary is>
+Спільно is one web application in which each association works in its own space. People reach it with their sign-in account; the trust boundary is the session plus the association's roster: nothing of an association is served to a person who is not on its roster in force today. The КЕП and the ЄДР extract are checked by the оператор with public services outside Спільно; Спільно only stores the file and what the оператор recorded.
 
 | Actor or system | Type | Interaction |
 |---|---|---|
-| <glossary role> | Person | <...> |
-| <text generation service> | System (external) | <wording only> |
+| голова правління | Person | signs in, files a заявка на підключення or a запит на передачу with the signed extract, follows it |
+| член правління | Person | works in each association whose roster they are on; connects the storage |
+| оператор | Person | checks extracts outside Спільно, records the check, decides, disables and enables |
+| Google sign-in | System (external) | proves the person's sign-in address (OIDC) |
+| Google Drive of the association | System (external) | the association's document storage, connected by the board |
+| Public signature verification service (ЦЗО) | System (external) | used by the оператор by hand to check the КЕП; Спільно does not call it |
 
 ```mermaid
 C4Context
-    title <slug> — System Context
+    title association-onboarding — System Context
 
-    Person(role1, "<glossary role>", "<intent>")
-    System(sys, "<product>", "<one sentence>")
-    System_Ext(ext, "<external>", "<one sentence>")
+    Person(head, "голова правління", "files a заявка or a запит with a signed extract")
+    Person(member, "член правління", "works in the associations whose roster they are on")
+    Person(operator, "оператор", "checks extracts and decides access")
+    System(spilno, "Спільно", "board records of each association, isolated per association")
+    System_Ext(google, "Google sign-in", "proves the sign-in address")
+    System_Ext(drive, "Google Drive of the association", "document storage connected by the board")
+    System_Ext(czo, "Signature verification service", "used by the оператор by hand")
 
-    Rel(role1, sys, "<interaction>", "HTTPS")
-    Rel(sys, ext, "<interaction>", "<protocol>")
+    Rel(head, spilno, "files and follows applications", "HTTPS")
+    Rel(member, spilno, "works in an association", "HTTPS")
+    Rel(operator, spilno, "records checks and decisions", "HTTPS")
+    Rel(spilno, google, "signs people in", "OIDC")
+    Rel(spilno, drive, "stores case files", "Drive API")
+    Rel(operator, czo, "checks the КЕП of the extract", "HTTPS")
 ```
 
 ## 4. Solution strategy

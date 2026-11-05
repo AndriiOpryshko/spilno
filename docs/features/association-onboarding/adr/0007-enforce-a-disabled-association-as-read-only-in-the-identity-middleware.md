@@ -26,7 +26,7 @@ A вимкнене ОСББ lets its members only read and download the signed p
 
 ## Considered options
 
-1. **The association-scoped middleware reads the association state; a disabled association passes only an allow-list of operation ids (registry reads, signed-copy download); everything else gets `identity.association_disabled` with the reason; the actor carries `read_only`.**
+1. **The association-scoped middleware, after the membership check (a non-member gets `identity.not_current_member` whatever the state), reads the association state; a disabled association passes only an allow-list of operation ids (registry reads, signed-copy download); everything else gets `identity.association_disabled` with the reason; the actor carries `read_only`.**
 2. **Every context checks the state in `app/`.**
 
 ## Decision outcome

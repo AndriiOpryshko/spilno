@@ -36,10 +36,10 @@ Board-protocol [ADR-0015](../../board-protocol/adr/0015-scope-owned-rows-to-one-
 **Chosen:** Option 1. The database refuses another association's rows even when a query forgets its filter; the explicit filters of ADR-0015 remain as a second line and the isolation test (SAD §10 QG-1) as the third.
 
 Shape:
-- `platform/db.InAssociation(ctx, associationID, fn)` begins a transaction, runs `set_config('app.association_id', $1, true)` and passes the transaction to `fn` through `ctx`; the identity middleware opens it for every association-scoped request after the membership check. River jobs do the same from their payload.
+- `platform/db.InAssociation(ctx, associationID, actorEmail, fn)` begins a transaction, runs `set_config('app.association_id', $1, true)` and `set_config('app.actor_email', $2, true)` and passes the transaction to `fn` through `ctx`; the identity middleware opens it for every association-scoped request (the membership check runs inside it). The оператор's approval opens it with the id of the association it is creating (or transferring), so the roster insert passes the policy. River jobs do the same from their payload.
 - An unset association yields no rows (fail closed); `platform.db.association_unset` counts it.
 - The roster is readable across associations only for the person's own entries: the policy on `board_member_revisions` adds `OR sign_in_email = current_setting('app.actor_email', true)`, so `governance.MembershipsOf` works without bypassing the policy.
-- Tables without an association (`accounts`, `sessions`, applications and extracts before approval) carry no policy and are reached only by account or by the оператор in `identity/app`.
+- Tables without an association (`accounts`, `sessions`, applications and extracts before approval) carry no policy and are reached only by account or by the оператор in `identity/app`. When the оператор reviews a запит на передачу, `identity/app` reads only the storage account address from `google_connections` inside `InAssociation` for that association (AC-28b); the оператор never gets a general bypass.
 
 ### Consequences
 
@@ -49,7 +49,7 @@ Shape:
 
 ### Migration and rollback
 
-- Migration: (1) create `spilno_app` and grant it data privileges; (2) `finance.contracts` + `association_id` nullable → backfill to the one existing association → `SET NOT NULL` + index, three migrations; (3) one migration per context enabling and forcing RLS with its policies; `DATABASE_URL` switches to `spilno_app` in the same release.
+- Migration: (1) a goose migration creates `spilno_app` and grants it data privileges (`SELECT, INSERT` only on insert-only tables); (2) `finance.contracts` + `association_id` nullable → backfill to the one existing association → `SET NOT NULL`, three migrations, then `CREATE INDEX CONCURRENTLY` in its own `-- +goose NO TRANSACTION` migration; (3) one migration per context enabling and forcing RLS with its policies; `DATABASE_URL` switches to `spilno_app` in the same release.
 - Rollback: down migrations drop the policies and disable RLS; the column on `finance.contracts` stays (data kept); the app can return to the owner role.
 
 ## Links

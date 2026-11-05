@@ -55,7 +55,7 @@ Product-owner decisions at this pass (2026-11-05): the extract and the КЕП ar
 
 **Conventions** (`CLAUDE.md`, `.claude/rules/openapi.md`, `.claude/rules/migrations.md`): one OpenAPI contract, one tag per context, paths `/<context>/`; contexts import each other only through `module.go`; RFC 9457 problem+json with `code`; `r.Group`, never `r.Mount`; generated files never edited; new tables without business `CHECK`, triggers or stored procedures; zero-downtime 3-step for a new NOT NULL column and for a dropped column.
 
-**Organisational:** one developer with coding agents; effort ~3 person-weeks, Dec 2026 – Jan 2027, after board-protocol Stage 1 (brief §12). The path change of ADR-0002 touches operations that board-protocol Stage 1 tasks are building (§11).
+**Organisational:** one developer with coding agents; effort ~4.5 person-weeks — 3 from the brief (§11 RICE) + ~1 for row-level security (ADR-0003) + ~0.5 for the path move (ADR-0002) — Dec 2026 – Feb 2027, after board-protocol Stage 1; size class stays M (no new context). The path change of ADR-0002 touches operations that board-protocol Stage 1 tasks are building (§11).
 
 **Regulatory / legal:** Law «On personal data protection» — the applicant's name, address, position and term; the РНОКПП inside the КЕП certificate of the stored extract (shown to nobody, kept only in the file); classification Confidential (PRD §6.1). The оператор decides access to Спільно, never who heads an association (brief §18, AC-12). Security review required before release (PRD §6.1).
 
@@ -216,6 +216,7 @@ sequenceDiagram
     W->>I: approve
     I->>I: check recorded, codes equal, document named if needed
     I->>D: begin, code still free, insert the association
+    I->>D: set the new association and the actor for row-level security
     I->>G: seat the applicant as голова in the new association
     G->>D: insert roster entry with position and decision reference
     I->>D: record the decision and commit
@@ -277,7 +278,7 @@ sequenceDiagram
 
 Same VM and compose topology as board-protocol SAD §7 (`caddy`, `core-api`, `worker`, `postgres`, `backup`, `otel-lgtm`); no new process. Changes:
 
-- **Two database roles** (ADR-0003): `spilno_owner` owns the schema and runs goose on start (`MIGRATIONS_DATABASE_URL`); `spilno_app` (no `BYPASSRLS`, not the owner) serves requests and River jobs (`DATABASE_URL`); `spilno_app` has no `UPDATE` or `DELETE` on the extract table (ADR-0005). Local `infra/compose.yaml` creates both roles in an init script; `testdb.New(t)` does the same.
+- **Two database roles** (ADR-0003): `spilno_owner` owns the schema and runs goose on start (`MIGRATIONS_DATABASE_URL`); `spilno_app` (no `BYPASSRLS`, not the owner) serves requests and River jobs (`DATABASE_URL`). A goose migration creates `spilno_app` and its grants, so `infra/compose.yaml`, `testdb.New(t)` and production get it the same way. `spilno_app` has `SELECT, INSERT` only on the insert-only tables: extracts, checks, filings, decisions, association state changes (ADR-0005, ADR-0007).
 - **Configuration:** `SPILNO_OPERATOR_EMAIL` (the one оператор, ADR-0001); the OAuth redirect URI for the storage connection registered with Google (ADR-0008).
 - **Backups:** extracts are inside Postgres, covered by the nightly dump (board-protocol ADR-0016); at ~6 filings a year of ≤ 5 MB the dump grows by ≤ 30 MB a year.
 
@@ -298,7 +299,7 @@ Same VM and compose topology as board-protocol SAD §7 (`caddy`, `core-api`, `wo
 |---|---|---|
 | Errors | problem+json; codes from PRD §5.1: `identity.application_invalid`, `identity.signature_not_checked`, `identity.extract_code_mismatch`, `identity.association_already_connected`, `identity.application_already_open`, `identity.mismatch_needs_document`, `identity.reason_required`, `identity.application_not_pending`, `identity.not_operator`, `identity.association_not_connected`, `identity.association_state_unchanged`, `identity.association_disabled`, `identity.term_ended`, `identity.storage_account_personal`, `governance.drive_not_connected` (planned); `identity.not_current_member` (existing) also answers another association's object and another person's application, so existence is not revealed | `internal/platform/httpapi`, PRD §5.1 |
 | Authentication | OIDC sign-in for any verified address; server-side session; no session → `identity.session_required` | board-protocol ADR-0003, ADR-0004 |
-| Authorization | PRD §10 matrix. Association-scoped paths: middleware → session → association state → `governance.CurrentMember(association, email, today Europe/Kyiv)` → actor. Applicant paths (`/identity/applications`): own records by account. Operator paths (`/identity/operator/...`): session address equals `SPILNO_OPERATOR_EMAIL`, else `identity.not_operator`; the оператор is refused on every association path (AC-16b) | ADR-0001, ADR-0002, ADR-0004 |
+| Authorization | PRD §10 matrix. Association-scoped paths: middleware → session → `governance.CurrentMember(association, email, today Europe/Kyiv)` (a non-member gets `identity.not_current_member` whatever the state, AC-07) → association state → actor. Applicant paths (`/identity/applications`): own records by account. Operator paths (`/identity/operator/...`): session address equals `SPILNO_OPERATOR_EMAIL`, else `identity.not_operator`; the оператор is refused on every association path (AC-16b) | ADR-0001, ADR-0002, ADR-0004 |
 | Association scope | path parameter `association_id`, never the body; RLS on every association-owned table; explicit filters kept | ADR-0002, ADR-0003 |
 | Disabled association | actor carries `read_only`; only the registry read and signed-copy download operations pass; everything else `identity.association_disabled` with the reason | ADR-0007 |
 | Validation | OpenAPI validator (422) + `domain.Validate()` naming every broken field (ЄДРПОУ 8 digits, name, address, term start, extract attached) | CLAUDE.md |
@@ -310,6 +311,7 @@ Same VM and compose topology as board-protocol SAD §7 (`caddy`, `core-api`, `wo
 | Dates | terms are calendar dates in Europe/Kyiv; previous голова's term ends the day before the new term start, no later than the day before approval (AC-19) | PRD AC-19 |
 | Observability | OTel spans; metrics in §7; logs never carry the extract, the РНОКПП or the reason text | repo convention |
 | i18n | UI in Ukrainian; messages of PRD §5.1 verbatim | CONTEXT.md |
+| Lifecycle | PRD §10 states in `identity/domain`: заявка / запит Очікує → Схвалена (Flows 2, 3; AC-08, AC-19), Очікує → Відхилена with a reason (AC-14), Відхилена → Очікує by the same applicant with a new filing (AC-06); ОСББ — → Підключене (Flow 2), Підключене ↔ Вимкнене by the оператор with a reason, an insert-only state change (AC-21, AC-23); a запит for the hand-made association has no term to end (AC-19c); refused transitions answer the PRD §5.1 codes. Full sequences come from `/sdlc:complete-sequence-diagrams` | PRD §10; ADR-0006, ADR-0007 |
 | Rate limiting | <!-- N/A: ~6 filings a year; probing is watched through identity.access.denied --> N/A | — |
 
 ## 9. Architecture decisions
@@ -358,6 +360,7 @@ ADR files: `docs/features/association-onboarding/adr/NNNN-<decision>.md`. Repo-l
 | The manual check is the only proof: an оператор mistake approves an impostor | Medium | approval refused without a recorded check (AC-03); розбіжність імен needs a named document (AC-12); every decision recorded with the extract | Andrii Opryshko (оператор) |
 | A personal storage account with an address unknown to the roster is not detected | Low | the оператор sees the account on every transfer (AC-28b) | Andrii Opryshko |
 | Dropping `accounts.association_id` and adding `finance.contracts.association_id` on live rows | Medium | 3-step migrations per `.claude/rules/migrations.md`; backfill to the one existing association | Andrii Opryshko |
+| Effort grew from 3 to ~4.5 person-weeks (RLS, path move): delivery slips into Feb 2027 and the brief's RICE drops from 2 to ~1.3 | Medium | rollout steps of PRD §9 stay shippable one by one; the brief is not rewritten, this row records it | Andrii Opryshko |
 | A single оператор is unavailable | Low | applicant sees the filing date and contact (AC-05); `identity.applications.pending_age_days` alert | Andrii Opryshko |
 | Brownfield: sign-in itself (T08) is not built; this feature builds it on the changed rules | Medium | T08 is replaced by this feature's sign-in task; board-protocol ADR-0003 kept for the flow | Andrii Opryshko |
 | Open architectural decision: how many associations actually wait to join (Reach) | Open question | Resolve before 2026-12-01; sizing only, no design change below ~20 associations | Andrii Opryshko |

@@ -16,6 +16,10 @@ Stage 1, design-only: frames and components in Figma now, implementation later t
 > поки в мене є підписка на фігму, хотів би домалювати всі екрани що можна.
 >
 > (2026-11-05, on the Sidebar question) доречі ще треба типу бекофічу щоб можна було заводити самі осбб
+>
+> (2026-11-05) умовно флоу такий. будь хто може через гмейл зробити логі. на початку його просять там щось по
+> осбб ввести і він типу подає заявку щоб користуватися. в бекофісі його апрувят і він тоді може користуватися.
+> також може бути дізейбл через бекофіс. підключають до гугл драйву самі осбб
 
 ## 2. Why now
 
@@ -88,8 +92,12 @@ Stage 1, design-only: frames and components in Figma now, implementation later t
 10. **Find:** `/registry` searches by counterparty, subject, amount or range and period; withdrawn numbers
     show as gaps; a decision opens with scan, facts, cited documents, correction note and informal poll
     history; changing it is only possible through a new decision (AC-18, AC-17, AC-38).
-11. **Back office (Proposed):** an operator creates an ОСББ, connects its Google Drive and adds its first
-    член правління (§14).
+11. **Onboarding and back office (Proposed, §14):** anyone signs in with Google. A person who is not on the
+    roster of an active ОСББ fills an application (ОСББ name, address, ЄДРПОУ, their name, position and term)
+    and waits. An operator approves or rejects it with a reason in the back office; on approval the applicant
+    becomes the first член правління of the new ОСББ and lands on its settings. A board member connects the
+    ОСББ's Google Drive in the settings. The operator can disable an ОСББ (data kept, members locked out) and
+    enable it again.
 
 ## 6. Requirements
 
@@ -115,7 +123,11 @@ Stage 1, design-only: frames and components in Figma now, implementation later t
 | BR-18 | Confirmed | `/registry/$protocolId`: number, date, meeting; frozen text with the correction note beside it; signed scan download; meeting facts with who entered them and when; cited documents with versions; poll history under the AC-41 label; the locked explanation of BR-16 | AC-18, AC-15, AC-41, AC-17, T43 |
 | BR-19 | Observed | Shell: Sidebar + TopBar crumbs as in `app-shell.tsx`; tokens and Onest from the design system; one `h1` per screen; Button variants as in `02 Components` | `app-shell.tsx`, design-system.md |
 | BR-20 | Proposed | Sidebar nav = Справи · Збори · Реєстр протоколів · Налаштування; «Документи» removed (no Stage 1 screen); the current member and «Вийти» at the bottom | User answer 2026-11-05 |
-| BR-21 | Proposed | Back office (operator, outside the board UI): ОСББ list; «Нове ОСББ» (name, address); Google Drive connection state with «Підключити Google Drive» (consent, creates the `spilno/` folder); first член правління (full name, sign-in email, term start); refusal when the roster already has a member | User answer 2026-11-05; replaces T08 `bootstrap-member` and T12 `cmd/google-connect`; conflicts with PRD §3 (§14) |
+| BR-21 | Proposed | Back office (operator role, outside the board UI): applications tabbed Очікують / Схвалені / Відхилені; an application shows ОСББ data, the ЄДР lookup by ЄДРПОУ, the applicant and the election protocol, with «Схвалити» and «Відхилити» (required reason the applicant sees); associations list with state активне / вимкнене and Drive state (read-only); «Вимкнути» with a required reason, «Увімкнути» | User answers 2026-11-05; replaces T08 `bootstrap-member`; conflicts with PRD §3 (§14) |
+| BR-26 | Proposed | Any Google account may sign in. A signed-in person who is not on the roster of an active ОСББ sees the application form instead of the no-access screen: ОСББ name, address, ЄДРПОУ (8 digits), applicant's name, position, term start and end, optional election protocol; all broken fields named at once; a hint that a member of an ОСББ already in Спільно should ask its голова to add their email | User answer 2026-11-05; changes AC-19 and the ADR-0003 callback rule (§14) |
+| BR-27 | Proposed | Application states seen by the applicant: очікує розгляду (submitted data, «Змінити заявку»), відхилено (reason, «Виправити й надіслати знову»), схвалено (opens the association settings as the first член правління) | User answer 2026-11-05 |
+| BR-28 | Proposed | A disabled ОСББ: every member sees «Доступ призупинено» with the reason and a contact; data is kept and nothing can be read or changed until the operator enables it | User answer 2026-11-05 |
+| BR-29 | Proposed | Google Drive is connected by a член правління in Налаштування → Google Drive (third tab): not connected (alert: uploads of case documents and signed scans are blocked) / connected (account, `spilno/` folder, who and when, «Відключити») | User answer 2026-11-05; replaces the operator CLI `cmd/google-connect` of T12 |
 | BR-22 | Proposed | The existing Figma `PollRoundPanel` label «Неформальне опитування — не голосування засідання» is replaced with the exact AC-41 text | AC-41 vs page `05 Lifecycle` |
 | BR-23 | Confirmed | Every screen has 1440 and 390 frames; at 390 the Sidebar collapses to a top bar with a menu button, tables become cards, dialogs become full-width bottom sheets, side panels move below the main content | User answer 2026-11-05, design-system.md breakpoints |
 | BR-24 | Confirmed | New parts are Figma components with state variants on page `06 Stage 1 · components`: Field, Checkbox, VoteChoice, Dialog, Toast, Tabs, FileDrop, DocumentRow, ChatMessage, RegistryRow, MemberRow, MeetingRow | User answer 2026-11-05 |
@@ -137,7 +149,9 @@ Stage 1, design-only: frames and components in Figma now, implementation later t
 | Print / return / withdraw | dialogs on `/protocols/$protocolId` · 1440, 390 | Blockers, rendering, PDF ready; return confirm; withdraw with reason; withdrawn → copy |
 | Signed copy | `/protocols/$protocolId` (готовий до підпису) · 1440, 390 | Form; specimens: missing facts, corrections, file error |
 | Registry | `/registry`, `/registry/$protocolId` · 1440, 390 | Search with results and gaps; empty; decision view |
-| Back office (Proposed) | route not decided (§14) · 1440, 390 | ОСББ list, new ОСББ, Google connection, first member |
+| Onboarding (Proposed) | route not decided (§14) · 1440, 390 | Application form, errors, pending, rejected, ОСББ disabled |
+| Settings · Google Drive (Proposed) | `/settings/…` third tab · 1440, 390 | Not connected / connected |
+| Back office (Proposed) | separate app or route, not decided (§14) · 1440, 390 | Applications, application detail, reject, associations, disable |
 
 ## 8. State inventory
 
@@ -231,7 +245,7 @@ Page `06 Stage 1 · components` (`?node-id=35-2`):
 | `MeetingRow` | `38:117` | None / Draft / Signed protocol × Desktop / Mobile | BR-05 |
 | `Sidebar` (page `02`, `20:433`) | changed | nav Справи · Збори · Реєстр протоколів · Налаштування | BR-20 (Proposed) |
 
-Page `07 Stage 1 · screens` (`?node-id=35-3`), 84 frames; desktop / mobile node ids:
+Page `07 Stage 1 · screens` (`?node-id=35-3`), 98 frames; desktop / mobile node ids:
 
 | Surface · state | Desktop | Mobile | Covers |
 |---|---|---|---|
@@ -258,7 +272,9 @@ Page `07 Stage 1 · screens` (`?node-id=35-3`), 84 frames; desktop / mobile node
 | Протокол · підписаний, зміни заборонено | `43:4417` | `53:6641` | BR-16 |
 | Реєстр · результати / нічого не знайдено / помилки фільтрів | `49:5844` / `49:5953` / `49:6036` | `49:6232` / `49:6317` / `49:6382` | BR-17 |
 | Реєстр · рішення № 17/2026 | `49:6119` | `49:6447` | BR-18 |
-| Бекофіс (section `51:6511` «Proposed — outside PRD Stage 1») · список / Drive не підключено / Drive підключено / перший член уже є | `51:6223` / `51:6256` / `51:6299` / `51:6340` | `51:6399` / `51:6429` / `51:6465` | BR-21 |
+| Заявка ОСББ · форма / помилки / очікує / відхилено / ОСББ вимкнено | `61:6918` / `61:6990` / `61:7063` / `61:7087` / `61:7104` | `61:7119` / `61:7190` / `61:7262` / `61:7285` / `61:7301` | BR-26…BR-28 |
+| Налаштування · Google Drive · не підключено / підключено | `63:7130` / `63:7225` | `63:7313` / `63:7364` | BR-29 |
+| Бекофіс (section `51:6511` «Proposed — outside PRD Stage 1») · заявки / заявка / відхилити / об'єднання / вимкнути | `62:7090` / `62:7135` / `62:7182` / `62:7246` / `62:7295` | `62:7360` / `62:7397` / `62:7438` / `62:7498` / `62:7535` | BR-21 |
 
 Protocol frames are clones of the approved page `05` frames with the new parts added; in their draft
 copies the title reads «Чернетка · …» because a draft has no number until the first print (ADR-0017).
@@ -267,7 +283,8 @@ copies the title reads «Чернетка · …» because a draft has no number
 
 | Decision | Why it matters | Owner | Due | Status |
 |---|---|---|---|---|
-| Back office for setting up an ОСББ | PRD §3 and idea-brief §5 reject onboarding other associations in the first release; ADR-0015 serves one association and defers RLS; T08 and T12 make setup an operator CLI. A UI needs a PRD amendment, an operator role, operations in the contract and possibly an ADR | Andrii Opryshko | before implementation | Proposed — drawn as exploration only |
+| Self-service onboarding with operator approval (BR-21, BR-26…BR-29) | Contradicts: PRD §3 and idea-brief §5 (one association, no onboarding); AC-19 and the ADR-0003 callback rule (no session for a person off the roster); ADR-0015 (one `associations` row, RLS deferred until a second association); T08 `bootstrap-member` and T12 `cmd/google-connect` (operator CLI). Needs a PRD amendment with ACs, an ADR for multi-association scoping and sessions without a roster person, an operator role, contract operations (applications, approve/reject, disable/enable, Drive connect) | Andrii Opryshko | before implementation | Proposed — flow from the user 2026-11-05; frames drawn |
+| Assumptions in the onboarding flow | Not stated by the user: the applicant becomes the first член правління; a whole ОСББ is disabled, not a single account; a rejection carries a reason and allows resubmitting; a member of an existing ОСББ who signs in before being added is told to ask the голова (no duplicate ОСББ); the ЄДРПОУ is checked against ЄДР | Andrii Opryshko | before the PRD amendment | Proposed |
 | Sidebar nav (BR-20) | Changes the shared Figma `Sidebar` and `app-shell.tsx`; «Документи» disappears | Andrii Opryshko | in Figma | Proposed per user answer |
 | Poll label text (BR-22) | Page `05` shows a shorter label than AC-41 requires verbatim | Andrii Opryshko | in Figma | Proposed |
 | Meeting screens are not in T34–T43 | Starting from the meeting needs a task for `/meetings` | Andrii Opryshko | before implementation | Proposed — add a UI task |
@@ -301,11 +318,11 @@ DOD-08…DOD-10 close when T34–T43 are implemented.
 |---|---|---|---|---|---|
 | DOD-01 | BR-20…BR-22, §14 | Specification | Proposed items are approved, changed or dropped by the product owner | §14 statuses updated | [ ] |
 | DOD-02 | BR-24, BR-25 | Components | Page `06 Stage 1 · components` holds the 12 components of §9 with state variants (default, error, disabled, focus where interactive) bound to the Color, Spacing and Radius variables | Figma node inspection: component sets, variant names, bound variables | [ ] 12 sets with state variants and bound variables (§13); no separate focus variants yet |
-| DOD-03 | BR-01…BR-18, BR-23 | Design structure | Page `07 Stage 1 · screens` holds a 1440 and a 390 frame for every surface of §7, named `<surface> · <state> · desktop|mobile`, built from component instances | Figma node inspection; node ids in §13 | [x] 84 frames; one state without a mobile frame (signed copy with corrections) |
+| DOD-03 | BR-01…BR-18, BR-23 | Design structure | Page `07 Stage 1 · screens` holds a 1440 and a 390 frame for every surface of §7, named `<surface> · <state> · desktop|mobile`, built from component instances | Figma node inspection; node ids in §13 | [x] 98 frames; one state without a mobile frame (signed copy with corrections) |
 | DOD-04 | BR-03, BR-04, BR-06, BR-07, BR-10…BR-15, BR-17 | States | Each state of §8 that applies to a surface has a specimen frame: empty, pending job, validation error with every field marked, conflict, refused transition, service down, no access | Frame list against §8 | [x] see §13 |
 | DOD-05 | BR-11, BR-15, BR-18, BR-22 | Content | The AC-41 label appears verbatim on every poll view and on the decision view; the signed-copy form shows no poll numbers | Figma text search for the AC-41 string | [ ] verbatim on page `07` (4 frames); the `PollRoundPanel` component on page `05` still has the short label (BR-22) |
 | DOD-06 | BR-19, BR-25 | Tokens and a11y | No hard-coded colors on new nodes; text on its background ≥ 4.5:1 in light and dark; one dark-mode frame per new component set | Figma variable inspection + contrast check | [ ] |
-| DOD-07 | BR-21 | Proposal | Back-office frames sit in a section labelled «Proposed — outside PRD Stage 1» | Figma section name | [x] section `51:6511` |
+| DOD-07 | BR-21, BR-26…BR-29 | Proposal | Back-office frames sit in a section labelled «Proposed — outside PRD Stage 1»; onboarding and Drive frames are listed in §13 as Proposed | Figma section name; §13 | [x] section `51:6511`, rows in §13 |
 | DOD-08 | BR-01…BR-18 | Implementation | T34–T43 build against these frames; stories mirror the Figma variants and pass `test:stories` | `pnpm --filter @spilno/web test:stories` | [ ] |
 | DOD-09 | BR-23, BR-25 | Live evidence | `verify-ui` at 1440 and 390 per route: no horizontal scroll, focus visible, errors announced | `verify-ui` report + screenshots | [ ] |
 | DOD-10 | BR-01…BR-18 | Deterministic gates | `mise run lint`, `mise run test`, `mise run e2e` green | Command output | [ ] |
@@ -339,6 +356,10 @@ DOD-08…DOD-10 close when T34–T43 are implemented.
 | BR-23 | DOD-03, DOD-09 | none |
 | BR-24 | DOD-02 | none |
 | BR-25 | DOD-02, DOD-06, DOD-09 | none |
+| BR-26 | DOD-01, DOD-07 | PRD amendment (§14) |
+| BR-27 | DOD-01, DOD-07 | PRD amendment (§14) |
+| BR-28 | DOD-01, DOD-07 | PRD amendment (§14) |
+| BR-29 | DOD-01, DOD-07 | PRD amendment (§14) |
 
 ## 18. Final gate
 

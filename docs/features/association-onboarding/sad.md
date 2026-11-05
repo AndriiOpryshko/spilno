@@ -275,10 +275,22 @@ sequenceDiagram
 
 ## 7. Deployment view
 
-<!-- Usually N/A for a feature inside the core process: <!-- N/A: reuses the core deployment unit -->
-     plus one line of scaling numbers. Fill when the feature adds a process, a queue or storage. -->
+Same VM and compose topology as board-protocol SAD §7 (`caddy`, `core-api`, `worker`, `postgres`, `backup`, `otel-lgtm`); no new process. Changes:
 
-<topology; storage for files; backup and restore numbers from PRD §6>
+- **Two database roles** (ADR-0003): `spilno_owner` owns the schema and runs goose on start (`MIGRATIONS_DATABASE_URL`); `spilno_app` (no `BYPASSRLS`, not the owner) serves requests and River jobs (`DATABASE_URL`); `spilno_app` has no `UPDATE` or `DELETE` on the extract table (ADR-0005). Local `infra/compose.yaml` creates both roles in an init script; `testdb.New(t)` does the same.
+- **Configuration:** `SPILNO_OPERATOR_EMAIL` (the one оператор, ADR-0001); the OAuth redirect URI for the storage connection registered with Google (ADR-0008).
+- **Backups:** extracts are inside Postgres, covered by the nightly dump (board-protocol ADR-0016); at ~6 filings a year of ≤ 5 MB the dump grows by ≤ 30 MB a year.
+
+**Monitoring additions:**
+
+| Signal | Source | Alert |
+|---|---|---|
+| Request duration p95 per route | `http.server.request.duration` | read > 200 ms, write > 500 ms, filing > 5 s for 15 min |
+| Isolation denials | `identity.access.denied` by reason (not_member, disabled_write, operator_on_association) | sudden rise > 10× weekly mean (probing) |
+| Applications waiting | `identity.applications.pending_age_days` (oldest) | oldest > 5 working days |
+| Row-level-security misses | `platform.db.association_unset` (a query on a scoped table without the association set returns nothing) | any |
+
+**Scaling:** ~6 filings a year; tens of associations at most before brief §14's revisit trigger; one API replica.
 
 ## 8. Crosscutting concepts
 

@@ -71,7 +71,7 @@ var ErrorRegistry = []ErrorDef{
 	{CodeRosterEntryInvalid, http.StatusUnprocessableEntity},
 	{"governance.file_invalid", http.StatusUnprocessableEntity},
 	{CodeDraftIncomplete, http.StatusConflict},
-	{"governance.slot_unconfirmed", http.StatusConflict},
+	{CodeSlotUnconfirmed, http.StatusConflict},
 	{"governance.meeting_facts_missing", http.StatusUnprocessableEntity},
 	{"governance.correction_note_required", http.StatusUnprocessableEntity},
 	{CodeReasonRequired, http.StatusUnprocessableEntity},

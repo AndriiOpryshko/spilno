@@ -1,4 +1,4 @@
-// Package domain holds the governance context's model. It imports only the standard library and uuid.
+// Package domain holds the governance context's model. It imports only the standard library.
 package domain
 
 import (
@@ -7,8 +7,6 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
-
-	"github.com/google/uuid"
 )
 
 // ErrMeetingNotFound is returned when no meeting has the requested ID.
@@ -78,7 +76,8 @@ func (t MeetingFields) Validate() error {
 
 // Meeting is a stored meeting: its fields plus the identity and timestamps the store assigns.
 type Meeting struct {
-	ID uuid.UUID
+	// ID is the meeting's UUID bytes; a uuid.UUID assigns to and from it.
+	ID [16]byte
 	MeetingFields
 	CreatedAt time.Time
 	UpdatedAt time.Time

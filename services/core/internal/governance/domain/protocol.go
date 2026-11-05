@@ -37,6 +37,7 @@ type Protocol struct {
 	revision    int
 	number      int
 	transitions []ProtocolTransition
+	agenda      []*AgendaItem
 }
 
 // NewProtocol starts a protocol as a draft at revision 1 without a number.

@@ -39,6 +39,8 @@ ALLOWED_TOOLS=(
   "Bash(git status:*)" "Bash(git diff:*)" "Bash(git log:*)" "Bash(git show:*)"
   "Bash(git add:*)" "Bash(git commit:*)"
   "Bash(touch $DONE)" "Bash(ls:*)" "Bash(cat:*)"
+  # `check.sh; echo "exit=$?"` is a habit of the model; without echo the whole call is denied.
+  "Bash(echo:*)"
 )
 DISALLOWED_TOOLS=("Bash(git push:*)" "Bash(git reset:*)" "Bash(git rebase:*)" "Bash(gh:*)" WebFetch WebSearch)
 
@@ -52,8 +54,11 @@ on_interrupt() {
 }
 trap on_interrupt INT TERM
 
+# Number the run so a re-run never overwrites an earlier run's iteration logs.
+RUN=$(( $(grep -c '=== run start' "$LOG" 2>/dev/null || true) + 1 ))
+
 rm -f "$DONE"
-log "=== run start story=$STORY_DIR max_iter=$MAX_ITER max_usd=$MAX_USD head=$(git rev-parse --short HEAD)"
+log "=== run start run=$RUN story=$STORY_DIR max_iter=$MAX_ITER max_usd=$MAX_USD head=$(git rev-parse --short HEAD)"
 
 while :; do
   if [ -f "$BLOCKED" ]; then
@@ -67,14 +72,14 @@ while :; do
   fi
 
   log "--- iter=$ITER start"
-  out="$STORY_DIR/iter-$ITER.json"
+  out="$STORY_DIR/run$RUN-iter-$ITER.json"
   # Cold start: a fresh session each turn, nothing carried over but the disk.
   set +e
   timeout --foreground "$ITER_TIMEOUT" "$CLAUDE_BIN" -p "$(cat "$PROMPT")" \
     --output-format json --no-session-persistence \
     --permission-mode acceptEdits --max-budget-usd "$ITER_USD" \
     --allowedTools "${ALLOWED_TOOLS[@]}" --disallowedTools "${DISALLOWED_TOOLS[@]}" \
-    >"$out" 2>"$STORY_DIR/iter-$ITER.err"
+    >"$out" 2>"$STORY_DIR/run$RUN-iter-$ITER.err"
   rc=$?
   set -e
   # timeout (and claude) catch SIGINT and exit 130 instead of dying from it, so

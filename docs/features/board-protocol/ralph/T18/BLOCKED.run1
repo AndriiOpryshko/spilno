@@ -1,0 +1,10 @@
+The petforge PreToolUse hook (petforge/hooks/guard.sh) gives a false positive: it treats any dotted string literal written into a domain/ file, e.g. `const CodeVoteOnBehalf = "governance.vote_on_behalf"`, as an import of a non-stdlib package and blocks the edit. T18 needs that constant in domain/errors.go (PROMPT.md: add a Code constant for governance.vote_on_behalf and use it in ErrorRegistry). It also blocked restoring the literal.
+
+Current state:
+- domain/poll.go is written and complete; it uses CodeVoteOnBehalf.
+- domain/errors.go: the ErrorRegistry line already reads {CodeVoteOnBehalf, http.StatusForbidden}, but the constant is missing, so the package does not compile.
+
+To unblock: fix guard.sh so it checks only import specs, or allow this edit. Then add, next to the other Code* constants in errors.go:
+  // CodeVoteOnBehalf is raised when a member casts a poll vote for someone else; it is listed in ErrorRegistry.
+  const CodeVoteOnBehalf = "governance.vote_on_behalf"
+then run check.sh, mark T18 done in tracker.md and commit.

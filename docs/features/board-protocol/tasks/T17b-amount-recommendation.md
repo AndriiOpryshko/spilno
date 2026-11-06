@@ -10,7 +10,7 @@ test_cmd: "cd services/core && go test -count=1 ./internal/governance/domain/"
 stub: services/core/internal/governance/domain/amount_recommendation.go
 test_file: services/core/internal/governance/domain/amount_recommendation_test.go
 estimate: "60-90 min"
-status: "todo"
+status: "done"
 ---
 
 # T17b — Recommend the amount slot value from the case documents

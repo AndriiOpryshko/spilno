@@ -12,7 +12,7 @@ files_hint:
   - "services/core/internal/governance/domain/proposal_test.go"
 owner: "Andrii Opryshko"
 estimate: "L"
-status: "todo"
+status: "in_progress"
 ---
 
 # T17 — Add text fragments, the fact validator and the amount recommendation rule

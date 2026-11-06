@@ -12,7 +12,7 @@ files_hint:
   - "services/core/internal/governance/domain/readiness_test.go"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T16 — Model agenda items and слоти рішення: confirm, correct, needs review and readiness

@@ -38,38 +38,44 @@ type AmountRecommendation struct {
 // RecommendAmount picks the amount to propose; ok is false when no candidate can be recommended.
 func RecommendAmount(candidates []AmountCandidate) (rec AmountRecommendation, ok bool) {
 	sorted := slices.Clone(candidates)
-	slices.SortStableFunc(sorted, func(a, b AmountCandidate) int {
-		if c := b.DocumentDate.Compare(a.DocumentDate); c != 0 {
-			return c
-		}
-		return strings.Compare(a.DocumentID, b.DocumentID)
-	})
+	slices.SortStableFunc(sorted, newestDocumentFirst)
 
-	best := -1
-	for i, c := range sorted {
-		if !c.FullCost {
-			continue
-		}
-		if c.Kind == AmountDocInvoice {
-			best = i
-			break
-		}
-		if best < 0 {
-			best = i
-		}
-	}
+	best := recommendedIndex(sorted)
 	if best < 0 {
 		return AmountRecommendation{}, false
 	}
-
 	winner := sorted[best]
-	amount := winner.Kopiyky
-	if !winner.VATIncluded && winner.ContractorVATPayer {
-		amount += winner.VATKopiyky
-	}
 	return AmountRecommendation{
 		Recommended:  winner,
-		Amount:       amount,
+		Amount:       winner.amountWithVAT(),
 		Alternatives: slices.Delete(sorted, best, best+1),
 	}, true
+}
+
+// newestDocumentFirst orders candidates by the date printed on the document, newest first, ties by
+// document id; the upload time plays no part.
+func newestDocumentFirst(a, b AmountCandidate) int {
+	if c := b.DocumentDate.Compare(a.DocumentDate); c != 0 {
+		return c
+	}
+	return strings.Compare(a.DocumentID, b.DocumentID)
+}
+
+// recommendedIndex returns the index in sorted (newest first) of the first full-cost invoice, or,
+// with none, of the first full-cost estimate or contract; -1 when no candidate states the full cost.
+func recommendedIndex(sorted []AmountCandidate) int {
+	if i := slices.IndexFunc(sorted, func(c AmountCandidate) bool {
+		return c.FullCost && c.Kind == AmountDocInvoice
+	}); i >= 0 {
+		return i
+	}
+	return slices.IndexFunc(sorted, func(c AmountCandidate) bool { return c.FullCost })
+}
+
+// amountWithVAT is the amount in kopiyky with VAT included where the contractor pays it.
+func (c AmountCandidate) amountWithVAT() int64 {
+	if c.VATIncluded || !c.ContractorVATPayer {
+		return c.Kopiyky
+	}
+	return c.Kopiyky + c.VATKopiyky
 }

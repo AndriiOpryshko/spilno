@@ -101,6 +101,7 @@ with an integration test and a real conflict between the AC and the existing cod
 
 - easy: `feat/governance-meeting-facts`
 - agents and coordinator: `chore/claude-tdd-agents`
-- `/tdd`: `feat/governance-amount-recommendation-tdd` (draft PR #36, opened by that session on request),
-  `feat/governance-snapshot-fingerprint-tdd`
-- one session: `feat/governance-amount-recommendation-solo`, `feat/governance-snapshot-fingerprint-solo`
+- `/tdd`: `feat/governance-amount-recommendation-tdd` (PR #36), `feat/governance-snapshot-fingerprint-tdd`
+  (PR #37); both merged, so T17b, T19b, the agents and the coordinator are on `main`
+- one session: `feat/governance-amount-recommendation-solo`, `feat/governance-snapshot-fingerprint-solo`; kept as
+  evidence, not merged (they duplicate T17b and T19b)

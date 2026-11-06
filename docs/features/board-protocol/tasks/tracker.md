@@ -18,7 +18,7 @@
 | [T11](./T11-require-session-current-member.md) | Require a session and a current член правління on the governance and finance routes | wiring | Andrii Opryshko | M | T08, T10 | todo |
 | [T12](./T12-google-connection-token-source.md) | Store the association's Google connection and expose GoogleTokenSource | infra | Andrii Opryshko | M | T01, T07 | todo |
 | [T13](./T13-drive-files-adapter.md) | Implement the Drive Files adapter with sha256 checks and an in-memory fake | infra | Andrii Opryshko | M | T12 | todo |
-| [T13a](./T13a-files-port-fake.md) | Declare the Files port and an in-memory fake that passes a shared contract test | infra | Andrii Opryshko | M | — | todo |
+| [T13a](./T13a-files-port-fake.md) | Declare the Files port and an in-memory fake that passes a shared contract test | infra | Andrii Opryshko | M | — | done |
 | [T14](./T14-river-worker-jobs.md) | Wire the River client, the cmd/worker binary and the job status endpoints | wiring | Andrii Opryshko | L | T04, T07, T11 | todo |
 | [T15](./T15-protocol-lifecycle-domain.md) | Model the protocol lifecycle: states, revision, transitions and refusals | domain | Andrii Opryshko | L | — | done |
 | [T16](./T16-agenda-slots-domain.md) | Model agenda items and слоти рішення: confirm, correct, needs review and readiness | domain | Andrii Opryshko | M | T15 | todo |

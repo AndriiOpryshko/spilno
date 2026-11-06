@@ -1,6 +1,10 @@
 package domain
 
-import "time"
+import (
+	"slices"
+	"strings"
+	"time"
+)
 
 // AmountDocKind is the kind of case document an amount is stated in.
 type AmountDocKind string
@@ -33,5 +37,39 @@ type AmountRecommendation struct {
 
 // RecommendAmount picks the amount to propose; ok is false when no candidate can be recommended.
 func RecommendAmount(candidates []AmountCandidate) (rec AmountRecommendation, ok bool) {
-	return AmountRecommendation{}, true // RED stub: not implemented
+	sorted := slices.Clone(candidates)
+	slices.SortStableFunc(sorted, func(a, b AmountCandidate) int {
+		if c := b.DocumentDate.Compare(a.DocumentDate); c != 0 {
+			return c
+		}
+		return strings.Compare(a.DocumentID, b.DocumentID)
+	})
+
+	best := -1
+	for i, c := range sorted {
+		if !c.FullCost {
+			continue
+		}
+		if c.Kind == AmountDocInvoice {
+			best = i
+			break
+		}
+		if best < 0 {
+			best = i
+		}
+	}
+	if best < 0 {
+		return AmountRecommendation{}, false
+	}
+
+	winner := sorted[best]
+	amount := winner.Kopiyky
+	if !winner.VATIncluded && winner.ContractorVATPayer {
+		amount += winner.VATKopiyky
+	}
+	return AmountRecommendation{
+		Recommended:  winner,
+		Amount:       amount,
+		Alternatives: slices.Delete(sorted, best, best+1),
+	}, true
 }

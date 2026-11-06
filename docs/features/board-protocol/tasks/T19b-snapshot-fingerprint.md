@@ -10,7 +10,7 @@ test_cmd: "cd services/core && go test -count=1 ./internal/governance/domain/"
 stub: services/core/internal/governance/domain/snapshot.go
 test_file: services/core/internal/governance/domain/snapshot_test.go
 estimate: "60-90 min"
-status: "todo"
+status: "done"
 ---
 
 # T19b — Serialize the protocol snapshot canonically and fingerprint it

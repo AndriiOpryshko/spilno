@@ -32,14 +32,8 @@ type Snapshot struct {
 
 // Canonical returns the canonical serialization.
 func (s Snapshot) Canonical() ([]byte, error) {
-	if s.SchemaVersion < 1 {
-		return nil, fmt.Errorf("snapshot: schema version %d < 1", s.SchemaVersion)
-	}
-	if s.Kind != SnapshotSigned && s.Kind != SnapshotWithdrawn {
-		return nil, fmt.Errorf("snapshot: unknown kind %q", s.Kind)
-	}
-	if s.ProtocolID == "" {
-		return nil, errors.New("snapshot: empty protocol id")
+	if err := s.validate(); err != nil {
+		return nil, err
 	}
 	var number any
 	if s.Number != 0 {
@@ -60,6 +54,20 @@ func (s Snapshot) Canonical() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// validate checks the snapshot header; payload types are checked while writing.
+func (s Snapshot) validate() error {
+	if s.SchemaVersion < 1 {
+		return fmt.Errorf("snapshot: schema version %d < 1", s.SchemaVersion)
+	}
+	if s.Kind != SnapshotSigned && s.Kind != SnapshotWithdrawn {
+		return fmt.Errorf("snapshot: unknown kind %q", s.Kind)
+	}
+	if s.ProtocolID == "" {
+		return errors.New("snapshot: empty protocol id")
+	}
+	return nil
+}
+
 // Fingerprint returns the lowercase hex SHA-256 of Canonical.
 func (s Snapshot) Fingerprint() (string, error) {
 	b, err := s.Canonical()
@@ -70,6 +78,9 @@ func (s Snapshot) Fingerprint() (string, error) {
 	return hex.EncodeToString(sum[:]), nil
 }
 
+// writeCanonical appends v to buf as compact JSON with sorted object keys. Only
+// the payload types the snapshot allows are accepted; float64 is rejected so an
+// amount can never be written as a float.
 func writeCanonical(buf *bytes.Buffer, v any) error {
 	switch x := v.(type) {
 	case nil:
@@ -85,42 +96,55 @@ func writeCanonical(buf *bytes.Buffer, v any) error {
 	case time.Time:
 		return writeString(buf, x.UTC().Format(time.RFC3339))
 	case []any:
-		buf.WriteByte('[')
-		for i, e := range x {
-			if i > 0 {
-				buf.WriteByte(',')
-			}
-			if err := writeCanonical(buf, e); err != nil {
-				return err
-			}
-		}
-		buf.WriteByte(']')
+		return writeArray(buf, x)
 	case map[string]any:
-		keys := make([]string, 0, len(x))
-		for k := range x {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-		buf.WriteByte('{')
-		for i, k := range keys {
-			if i > 0 {
-				buf.WriteByte(',')
-			}
-			if err := writeString(buf, k); err != nil {
-				return err
-			}
-			buf.WriteByte(':')
-			if err := writeCanonical(buf, x[k]); err != nil {
-				return err
-			}
-		}
-		buf.WriteByte('}')
+		return writeObject(buf, x)
 	default:
 		return fmt.Errorf("snapshot: unsupported payload type %T", v)
 	}
 	return nil
 }
 
+// writeArray appends a JSON array, keeping the element order.
+func writeArray(buf *bytes.Buffer, items []any) error {
+	buf.WriteByte('[')
+	for i, e := range items {
+		if i > 0 {
+			buf.WriteByte(',')
+		}
+		if err := writeCanonical(buf, e); err != nil {
+			return err
+		}
+	}
+	buf.WriteByte(']')
+	return nil
+}
+
+// writeObject appends a JSON object with its keys in sorted order.
+func writeObject(buf *bytes.Buffer, obj map[string]any) error {
+	keys := make([]string, 0, len(obj))
+	for k := range obj {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	buf.WriteByte('{')
+	for i, k := range keys {
+		if i > 0 {
+			buf.WriteByte(',')
+		}
+		if err := writeString(buf, k); err != nil {
+			return err
+		}
+		buf.WriteByte(':')
+		if err := writeCanonical(buf, obj[k]); err != nil {
+			return err
+		}
+	}
+	buf.WriteByte('}')
+	return nil
+}
+
+// writeString appends s as a JSON string without HTML escaping.
 func writeString(buf *bytes.Buffer, s string) error {
 	var tmp bytes.Buffer
 	enc := json.NewEncoder(&tmp)

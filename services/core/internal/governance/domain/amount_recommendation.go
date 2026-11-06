@@ -1,7 +1,9 @@
 package domain
 
 import (
+	"cmp"
 	"slices"
+	"strings"
 	"time"
 )
 
@@ -37,18 +39,7 @@ type AmountRecommendation struct {
 // RecommendAmount picks the amount to propose; ok is false when no candidate can be recommended.
 func RecommendAmount(candidates []AmountCandidate) (rec AmountRecommendation, ok bool) {
 	sorted := slices.Clone(candidates)
-	slices.SortStableFunc(sorted, func(a, b AmountCandidate) int {
-		if c := b.DocumentDate.Compare(a.DocumentDate); c != 0 {
-			return c
-		}
-		if a.DocumentID < b.DocumentID {
-			return -1
-		}
-		if a.DocumentID > b.DocumentID {
-			return 1
-		}
-		return 0
-	})
+	slices.SortStableFunc(sorted, latestDocumentFirst)
 
 	best := -1
 	for i, c := range sorted {
@@ -64,12 +55,24 @@ func RecommendAmount(candidates []AmountCandidate) (rec AmountRecommendation, ok
 	}
 
 	r := sorted[best]
-	amount := r.Kopiyky
-	if !r.VATIncluded && r.ContractorVATPayer {
-		amount += r.VATKopiyky
-	}
 	alternatives := make([]AmountCandidate, 0, len(sorted)-1)
 	alternatives = append(alternatives, sorted[:best]...)
 	alternatives = append(alternatives, sorted[best+1:]...)
-	return AmountRecommendation{Recommended: r, Amount: amount, Alternatives: alternatives}, true
+	return AmountRecommendation{Recommended: r, Amount: amountWithVAT(r), Alternatives: alternatives}, true
+}
+
+// latestDocumentFirst orders candidates by DocumentDate, latest first, then by DocumentID.
+func latestDocumentFirst(a, b AmountCandidate) int {
+	return cmp.Or(
+		b.DocumentDate.Compare(a.DocumentDate),
+		strings.Compare(a.DocumentID, b.DocumentID),
+	)
+}
+
+// amountWithVAT is the stated amount plus the separately stated VAT when the contractor is a VAT payer.
+func amountWithVAT(c AmountCandidate) int64 {
+	if c.VATIncluded || !c.ContractorVATPayer {
+		return c.Kopiyky
+	}
+	return c.Kopiyky + c.VATKopiyky
 }

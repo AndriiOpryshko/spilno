@@ -31,14 +31,8 @@ type Snapshot struct {
 
 // Canonical returns the canonical serialization.
 func (s Snapshot) Canonical() ([]byte, error) {
-	if s.SchemaVersion < 1 {
-		return nil, errors.New("snapshot: schema version must be at least 1")
-	}
-	if s.Kind != SnapshotSigned && s.Kind != SnapshotWithdrawn {
-		return nil, fmt.Errorf("snapshot: unknown kind %q", s.Kind)
-	}
-	if s.ProtocolID == "" {
-		return nil, errors.New("snapshot: empty protocol id")
+	if err := s.validate(); err != nil {
+		return nil, err
 	}
 	payload, err := canonicalValue(s.Payload, "payload")
 	if err != nil {
@@ -73,6 +67,19 @@ func (s Snapshot) Fingerprint() (string, error) {
 	}
 	sum := sha256.Sum256(b)
 	return hex.EncodeToString(sum[:]), nil
+}
+
+// validate checks the header fields; the payload is checked while it is normalized.
+func (s Snapshot) validate() error {
+	switch {
+	case s.SchemaVersion < 1:
+		return errors.New("snapshot: schema version must be at least 1")
+	case s.Kind != SnapshotSigned && s.Kind != SnapshotWithdrawn:
+		return fmt.Errorf("snapshot: unknown kind %q", s.Kind)
+	case s.ProtocolID == "":
+		return errors.New("snapshot: empty protocol id")
+	}
+	return nil
 }
 
 // canonicalValue checks v against the allowed payload types and turns every

@@ -45,7 +45,7 @@ needs a new module). The body gives the Go interface, the rules and the AC (AC-1
 5. `gofmt -l` on your files prints nothing.
 6. `git add <test files> <stub files>` (never `git add -A`), `git diff --cached --stat`, then commit:
    `test(<scope>): add failing tests per AC for <story-id>` with a one-line body naming the story and the trailer
-   `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
+   `Co-Authored-By: Claude <model> <noreply@anthropic.com>`, with the model you run on (`CLAUDE.md`).
 7. Print `RED phase commit: <SHA>` and stop.
 
 ## Anti-patterns

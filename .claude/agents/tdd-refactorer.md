@@ -36,7 +36,7 @@ edit.
 3. Apply one, run `test_cmd`, keep or restore. Repeat.
 4. `go vet` on the package and `gofmt -l` clean; `git status --short` shows only non-test files of the package.
 5. Commit `refactor(<scope>): <what moved>` with body `test runs: <n>, all green` and the trailer
-   `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
+   `Co-Authored-By: Claude <model> <noreply@anthropic.com>`, with the model you run on (`CLAUDE.md`).
 6. Print `REFACTOR phase commit: <SHA>` and stop.
 
 ## Anti-patterns

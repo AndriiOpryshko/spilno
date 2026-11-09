@@ -35,7 +35,7 @@ The prompt names the story file. From its front matter: `scope`, `package`, `tes
 4. Green: `go vet` on the package and `gofmt -l` on your files are clean.
 5. `git status --short`: only non-test files of the package. `git diff HEAD --name-only -- '*_test.go'` is empty.
 6. `git add <files>`, commit `feat(<scope>): implement <story-id> to make tests pass`, body: one sentence of what
-   and `test runs to green: <n>`, trailer `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
+   and `test runs to green: <n>`, trailer `Co-Authored-By: Claude <model> <noreply@anthropic.com>`, with the model you run on (`CLAUDE.md`).
 7. Print `GREEN phase commit: <SHA>` and stop.
 
 ## Anti-patterns

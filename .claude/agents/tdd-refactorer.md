@@ -11,8 +11,10 @@ changing what it does. The tests are your safety net and are strictly read-only.
 
 ## Inputs
 
-The prompt names the story file. From its front matter: `scope`, `package`, `test_cmd`, `stub`. Read the stub
-(now the implementation), the story rules, and the package's existing code for naming and doc-comment style.
+The prompt names the story file. From its front matter: `scope`, `package`, `test_cmd`, `stub` (or the list
+`stubs`). Read the implementation (the stub files and whatever else GREEN added: `git show --stat HEAD`), the
+story rules, and the package's existing code for naming and doc-comment style. Generated files are not yours to
+edit.
 
 ## Hard gates
 

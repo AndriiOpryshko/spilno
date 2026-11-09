@@ -1,5 +1,5 @@
 # ao-api-forge delta for services/core/api/openapi.yaml — association-onboarding.
-# Derived from PRD.md (§4, §5, §5.1, §10), sad.md (§6 flows 1-4, §8, ADR-0001..0008) and data-model.md
+# Derived from PRD.md (§4, §5, §5.1, §10), sad.md (§6 flows 1-12, §8, ADR-0001..0008) and data-model.md
 # (+ staged migrations). New operations only; the move of governance and finance operations under
 # /<context>/associations/{association_id}/ (ADR-0002) and the changed repo components are merge
 # notes in api-sync-report.md §E. Errors follow the team rule in .claude/rules/openapi.md:
@@ -517,10 +517,12 @@ paths:
       operationId: getAssociationCard
       tags: [identity]
       summary: The association card — state, current голова and the chain of confirmation (US-09, AC-29, AC-21)
-      description: Readable in a вимкнене ОСББ (shows the reason). A non-member gets the same 403 whether the association exists or not (AC-07).
+      description: |
+        A non-member gets the same 403 whether the association exists or not (AC-07). Not on the allow-list of a
+        вимкнене ОСББ (ADR-0007, PRD §10): its members get `identity.association_disabled` with the reason (AC-21).
       x-problem-types:
         "401": [identity.session_required]
-        "403": [identity.not_current_member]
+        "403": [identity.not_current_member, identity.association_disabled]
       responses:
         "200":
           description: The card.
@@ -529,7 +531,7 @@ paths:
               schema: { $ref: "#/components/schemas/AssociationCard" }
               examples: { card: { $ref: "#/components/examples/AssociationCard" } }
         "401": { $ref: "#/components/responses/SessionRequired" }
-        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "403": { $ref: "#/components/responses/MemberOrDisabled" }
 
   /identity/associations/{association_id}/extracts/{extract_id}:
     parameters:
@@ -541,12 +543,12 @@ paths:
       summary: Download an extract an approved decision of this association relied on (AC-20, AC-29)
       x-problem-types:
         "401": [identity.session_required]
-        "403": [identity.not_current_member]
+        "403": [identity.not_current_member, identity.association_disabled]
         "404": [about:blank]
       responses:
         "200": { $ref: "#/components/responses/ExtractFile" }
         "401": { $ref: "#/components/responses/SessionRequired" }
-        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "403": { $ref: "#/components/responses/MemberOrDisabled" }
         "404": { $ref: "#/components/responses/NotFound" }
 
   /identity/associations/{association_id}/storage-connection:
@@ -558,7 +560,7 @@ paths:
       summary: Whether the document storage is connected and which account holds the files (AC-27, AC-09)
       x-problem-types:
         "401": [identity.session_required]
-        "403": [identity.not_current_member]
+        "403": [identity.not_current_member, identity.association_disabled]
       responses:
         "200":
           description: The connection status.
@@ -567,10 +569,12 @@ paths:
               schema: { $ref: "#/components/schemas/StorageConnection" }
               examples: { connected: { $ref: "#/components/examples/StorageConnection" } }
         "401": { $ref: "#/components/responses/SessionRequired" }
-        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "403": { $ref: "#/components/responses/MemberOrDisabled" }
     post:
       operationId: completeStorageConnection
       tags: [identity]
+      # unresolved: no response is named for an unknown, expired or replayed `state`, or for a code the
+      # provider refuses — PRD §5.1 has no code for it (api-sync-report.md §D, /sdlc:clarify-prd).
       summary: Finish the storage consent the SPA received back from Google (ADR-0008, AC-27, AC-28b)
       description: The SPA's callback route posts the authorization code and state; the state is bound to the session and the association.
       x-problem-types:
@@ -677,14 +681,6 @@ components:
         application/problem+json:
           schema: { $ref: "#/components/schemas/Problem" }
           examples: { session_required: { $ref: "#/components/examples/SessionRequired" } }
-    NotCurrentMember:
-      description: |
-        The signed-in person's board term does not cover today (`identity.not_current_member`); the same body
-        whether the requested id exists or not (AC-19, AC-16).
-      content:
-        application/problem+json:
-          schema: { $ref: "#/components/schemas/Problem" }
-          examples: { not_current_member: { $ref: "#/components/examples/NotCurrentMember" } }
     NotFound:
       description: No such resource in the association.
       content:
@@ -711,8 +707,8 @@ components:
     MemberOrDisabled:
       description: |
         `identity.not_current_member` — not on this association's roster today (same body for a missing
-        association, AC-07); `identity.association_disabled` — a member of a вимкнене ОСББ trying to change
-        something (AC-25). Membership is checked first.
+        association, AC-07); `identity.association_disabled` — a member of a вимкнене ОСББ on any operation
+        outside the registry reads and the signed-copy download (ADR-0007; AC-21, AC-25). Membership is checked first.
       content:
         application/problem+json:
           schema: { $ref: "#/components/schemas/Problem" }
@@ -799,7 +795,7 @@ components:
         next_cursor: null
     ApplicationDetailRejected:
       value:
-        application: { id: 00000000-0000-7000-8000-00000000c001, kind: connection, edrpou: "12345678", association_id: null, association_name: ОСББ «Тестовий Будинок», state: rejected, filed_at: "2026-11-10T09:00:00Z", rejection_reason: у витягу інший керівник, документа про обрання не надано, created_at: "2026-11-10T09:00:00Z" }
+        application: { id: 00000000-0000-7000-8000-00000000c001, kind: connection, edrpou: "12345678", association_id: null, association_name: ОСББ «Тестовий Будинок», state: rejected, filed_at: "2026-11-10T09:00:00Z", rejection_reason: "у витягу інший керівник, документа про обрання не надано", created_at: "2026-11-10T09:00:00Z" }
         filings:
           - id: 00000000-0000-7000-8000-00000000d001
             association_name: ОСББ «Тестовий Будинок»
@@ -808,10 +804,10 @@ components:
             position: head
             term_start: "2026-03-01"
             term_end: null
-            extract: { id: 00000000-0000-7000-8000-00000000e001, original_name: vytyah.pdf.p7s, media_type: application/pkcs7-signature, size_bytes: 184320, sha256: 0000000000000000000000000000000000000000000000000000000000000000 }
+            extract: { id: 00000000-0000-7000-8000-00000000e001, original_name: vytyah.pdf.p7s, media_type: application/pkcs7-signature, size_bytes: 184320, sha256: "0000000000000000000000000000000000000000000000000000000000000000" }
             created_at: "2026-11-10T09:00:00Z"
         decisions:
-          - { id: 00000000-0000-7000-8000-00000000f001, filing_id: 00000000-0000-7000-8000-00000000d001, outcome: rejected, reason: у витягу інший керівник, документа про обрання не надано, relied_on_document: null, association_id: null, decided_at: "2026-11-12T10:00:00Z" }
+          - { id: 00000000-0000-7000-8000-00000000f001, filing_id: 00000000-0000-7000-8000-00000000d001, outcome: rejected, reason: "у витягу інший керівник, документа про обрання не надано", relied_on_document: null, association_id: null, decided_at: "2026-11-12T10:00:00Z" }
     ApplicationReview:
       value:
         application: { id: 00000000-0000-7000-8000-00000000c001, kind: connection, edrpou: "12345678", association_id: null, association_name: ОСББ «Тестовий Будинок», state: pending, filed_at: "2026-11-10T09:00:00Z", rejection_reason: null, created_at: "2026-11-10T09:00:00Z" }
@@ -824,7 +820,7 @@ components:
             position: head
             term_start: "2026-03-01"
             term_end: null
-            extract: { id: 00000000-0000-7000-8000-00000000e001, original_name: vytyah.pdf.p7s, media_type: application/pkcs7-signature, size_bytes: 184320, sha256: 0000000000000000000000000000000000000000000000000000000000000000 }
+            extract: { id: 00000000-0000-7000-8000-00000000e001, original_name: vytyah.pdf.p7s, media_type: application/pkcs7-signature, size_bytes: 184320, sha256: "0000000000000000000000000000000000000000000000000000000000000000" }
             created_at: "2026-11-10T09:00:00Z"
         checks: []
         decisions: []
@@ -838,11 +834,11 @@ components:
     ApproveApplicationRequest:
       value: { filing_id: 00000000-0000-7000-8000-00000000d001, relied_on_document: протокол загальних зборів № 3 від 01.03.2026 }
     RejectApplicationRequest:
-      value: { filing_id: 00000000-0000-7000-8000-00000000d001, reason: у витягу інший керівник, документа про обрання не надано }
+      value: { filing_id: 00000000-0000-7000-8000-00000000d001, reason: "у витягу інший керівник, документа про обрання не надано" }
     DecisionApproved:
       value: { id: 00000000-0000-7000-8000-00000000f002, filing_id: 00000000-0000-7000-8000-00000000d001, outcome: approved, reason: null, relied_on_document: null, association_id: 00000000-0000-7000-8000-000000000002, decided_at: "2026-11-11T08:05:00Z" }
     DecisionRejected:
-      value: { id: 00000000-0000-7000-8000-00000000f001, filing_id: 00000000-0000-7000-8000-00000000d001, outcome: rejected, reason: у витягу інший керівник, документа про обрання не надано, relied_on_document: null, association_id: null, decided_at: "2026-11-12T10:00:00Z" }
+      value: { id: 00000000-0000-7000-8000-00000000f001, filing_id: 00000000-0000-7000-8000-00000000d001, outcome: rejected, reason: "у витягу інший керівник, документа про обрання не надано", relied_on_document: null, association_id: null, decided_at: "2026-11-12T10:00:00Z" }
     OperatorAssociationPage:
       value:
         items:
@@ -859,11 +855,10 @@ components:
         edrpou: "12345678"
         address: м. Київ, вул. Тестова, 1
         state: connected
-        disabled_reason: null
         head_full_name: Тестовий Голова Правління
         connected_by_hand: false
         history:
-          - { kind: connected, occurred_at: "2026-11-11T08:05:00Z", reason: null, head_full_name: Тестовий Голова Правління, signer_full_name: Тестовий Голова Правління, extract_id: 00000000-0000-7000-8000-00000000e001, extract_dated_on: "2026-11-08" }
+          - { kind: connected, occurred_at: "2026-11-11T08:05:00Z", decision_id: 00000000-0000-7000-8000-00000000f002, filed_at: "2026-11-10T09:00:00Z", reason: null, head_full_name: Тестовий Голова Правління, signer_full_name: Тестовий Голова Правління, extract_id: 00000000-0000-7000-8000-00000000e001, extract_dated_on: "2026-11-08" }
     StorageConnection:
       value: { connected: true, google_account_email: osbb-1@example.test, connected_by_member_id: 00000000-0000-7000-8000-00000000b001, connected_at: "2026-11-11T09:00:00Z" }
 
@@ -1202,13 +1197,24 @@ components:
         reason: { type: [string, "null"], maxLength: 1000 }
         changed_at: { type: string, format: date-time }
     AssociationEvent:
-      description: One step of the chain on the card — an approval (with the extract it relied on) or a state change.
+      description: |
+        One step of the chain on the card — an approval (with the extract it relied on) or a state change.
+        A roster entry's `decision_id` (`BoardMember`, governance) matches `decision_id` here, which gives the
+        «за запитом на передачу від <filed_at>, схвалено оператором <occurred_at>» mark and the extract of AC-20.
       type: object
       additionalProperties: false
-      required: [kind, occurred_at, reason, head_full_name, signer_full_name, extract_id, extract_dated_on]
+      required: [kind, occurred_at, decision_id, filed_at, reason, head_full_name, signer_full_name, extract_id, extract_dated_on]
       properties:
         kind: { $ref: "#/components/schemas/AssociationEventKind" }
         occurred_at: { type: string, format: date-time }
+        decision_id:
+          description: application_decisions.id of an approval; null for a state change.
+          type: [string, "null"]
+          format: uuid
+        filed_at:
+          description: created_at of the filing the approval decided; null for a state change.
+          type: [string, "null"]
+          format: date-time
         reason: { type: [string, "null"], maxLength: 1000 }
         head_full_name: { type: [string, "null"], maxLength: 200 }
         signer_full_name: { type: [string, "null"], maxLength: 200 }
@@ -1217,14 +1223,13 @@ components:
     AssociationCard:
       type: object
       additionalProperties: false
-      required: [id, name, edrpou, address, state, disabled_reason, head_full_name, connected_by_hand, history]
+      required: [id, name, edrpou, address, state, head_full_name, connected_by_hand, history]
       properties:
         id: { type: string, format: uuid }
         name: { type: string, maxLength: 200 }
         edrpou: { type: [string, "null"], maxLength: 8 }
         address: { type: [string, "null"], maxLength: 500 }
         state: { $ref: "#/components/schemas/AssociationState" }
-        disabled_reason: { type: [string, "null"], maxLength: 1000 }
         head_full_name:
           description: The roster entry with position head, if any (null for the association set up by hand until AC-19c).
           type: [string, "null"]

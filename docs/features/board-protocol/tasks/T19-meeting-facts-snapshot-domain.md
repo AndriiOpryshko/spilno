@@ -10,7 +10,7 @@ files_hint:
   - "services/core/internal/governance/domain/snapshot_test.go"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "in_progress"
+status: "done"
 ---
 
 # T19 — Model meeting facts and the canonical fingerprinted snapshot

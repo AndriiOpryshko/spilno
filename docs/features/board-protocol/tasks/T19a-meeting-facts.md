@@ -10,7 +10,7 @@ test_cmd: "cd services/core && go test -count=1 ./internal/governance/domain/"
 stub: services/core/internal/governance/domain/meeting_facts.go
 test_file: services/core/internal/governance/domain/meeting_facts_test.go
 estimate: "60-90 min"
-status: "review"
+status: "done"
 ---
 
 # T19a — Validate the meeting facts entered with the signed scan

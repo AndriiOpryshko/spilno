@@ -29,6 +29,8 @@ const (
 	CodeReasonRequired     = "governance.reason_required"
 	CodePollNotOpen        = "governance.poll_not_open"
 	CodeVoteOnBehalf       = "governance.vote_on_behalf"
+	CodeFactsMissing       = "governance.meeting_facts_missing"
+	CodeNoteRequired       = "governance.correction_note_required"
 )
 
 // DomainError is a rule violation identified only by its problem code.
@@ -72,8 +74,8 @@ var ErrorRegistry = []ErrorDef{
 	{"governance.file_invalid", http.StatusUnprocessableEntity},
 	{CodeDraftIncomplete, http.StatusConflict},
 	{CodeSlotUnconfirmed, http.StatusConflict},
-	{"governance.meeting_facts_missing", http.StatusUnprocessableEntity},
-	{"governance.correction_note_required", http.StatusUnprocessableEntity},
+	{CodeFactsMissing, http.StatusUnprocessableEntity},
+	{CodeNoteRequired, http.StatusUnprocessableEntity},
 	{CodeReasonRequired, http.StatusUnprocessableEntity},
 	{"governance.search_invalid", http.StatusUnprocessableEntity},
 	{CodeVoteOnBehalf, http.StatusForbidden},

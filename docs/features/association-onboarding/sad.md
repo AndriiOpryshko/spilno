@@ -274,6 +274,318 @@ sequenceDiagram
     end
 ```
 
+### Flow 5: following and refiling an application
+
+Covers US-02 — AC-05, AC-06, AC-30.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as голова правління
+    participant UI as <ui>
+    participant S as <service>
+    participant D as <data-store>
+    Note over U,UI: Precondition: the person has a заявка, pending or rejected
+    U->>UI: sign in and open my applications
+    UI->>S: list my applications
+    S->>D: read applications of the account with latest filing and decision
+    D-->>S: applications
+    S-->>UI: state, filing date, rejection reason
+    UI-->>U: «очікує розгляду з <дата>» and the оператор's contact, or the rejection reason
+    U->>UI: correct the fields, attach a new extract, file again
+    UI->>S: refile the application
+    alt not rejected
+        S-->>UI: refused, a decision was already taken or none is due
+        UI-->>U: «Рішення за цією заявкою вже ухвалено»
+    else term already ended
+        S-->>UI: refused, the term has ended
+        UI-->>U: «Строк повноважень голови вже завершився»
+    else valid
+        S->>D: insert the new extract and filing, set the application pending
+        Note over S,D: persists application_extracts, application_filings, applications.state
+        S-->>UI: pending again with the new filing date
+        UI-->>U: refiled, the rejected version stays in the history
+    end
+    Note over U,UI: Postcondition: the rejected filing and its reason are kept
+```
+
+### Flow 6: filing a запит на передачу
+
+Covers US-04 — AC-17, AC-18, AC-19c, AC-24b, AC-30.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as голова правління
+    participant UI as <ui>
+    participant S as <service>
+    participant D as <data-store>
+    Note over U,UI: Precondition: a newly elected голова holds a КЕП-signed extract naming them
+    U->>UI: file a transfer request with the code, term start and extract
+    opt from the card of the association set up by hand
+        UI->>UI: attach the association id of the card
+    end
+    UI->>S: file the transfer request
+    S->>S: validate every field and the term end
+    alt term ended
+        S-->>UI: refused, the term has ended
+        UI-->>U: «Строк повноважень голови вже завершився»
+    else valid
+        S->>D: find the association by code, or by the card's id
+        alt not connected
+            S-->>UI: refused, the association is not connected
+            UI-->>U: «Це ОСББ ще не підключене» with the заявка form
+        else connected or disabled
+            S->>D: insert extract, application and filing
+            Note over S,D: persists application_extracts, applications (kind transfer), application_filings
+            S-->>UI: filed, waiting for the оператор
+            UI-->>U: «Запит на передачу подано», nobody on the roster is revealed
+        end
+    end
+    Note over U,UI: Postcondition: a disabled association stays disabled whatever the decision
+```
+
+### Flow 7: the оператор opens an application for review
+
+Covers US-03, US-05 — AC-10, AC-11, AC-11b, AC-04c, AC-19b, AC-16.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor O as оператор
+    participant UI as <ui>
+    participant S as <service>
+    participant D as <data-store>
+    O->>UI: open the queue and one application
+    UI->>S: get the application for review
+    alt the session is not the оператор
+        S-->>UI: refused, operator only
+        UI-->>O: «Немає доступу», nothing of the queue shown
+    else оператор
+        S->>D: read application, filings, checks, decisions
+        S->>D: read other pending applications for the same code
+        S->>D: read the storage account of the association, for a transfer
+        D-->>S: rows
+        S->>S: compare typed name, signer and керівник, and the extract date
+        S-->>UI: values with their sources, warnings, competing applications
+        UI-->>O: each value marked «введено заявником», «перевірено оператором» or «не перевірено»
+        opt name mismatch or extract older than 30 days
+            UI-->>O: advisory warning, nothing blocked by it
+        end
+        opt competing application or request
+            UI-->>O: shown side by side as «конкуруюча заявка»
+        end
+    end
+```
+
+### Flow 8: rejecting an application
+
+Covers US-03 — AC-13, AC-14, AC-15.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor O as оператор
+    participant UI as <ui>
+    participant S as <service>
+    participant D as <data-store>
+    Note over O,UI: Precondition: the application is pending
+    O->>UI: reject the latest filing with a reason
+    UI->>S: reject the application
+    alt empty reason
+        S-->>UI: refused, a reason is required
+        UI-->>O: «Вкажіть причину — її побачить заявник»
+    else already decided
+        S-->>UI: refused, the decision was already taken
+        UI-->>O: «Рішення за цією заявкою вже ухвалено»
+    else valid
+        S->>D: insert the decision and set the application rejected
+        Note over S,D: persists application_decisions (one per filing), applications.state
+        S-->>UI: rejected
+        UI-->>O: the applicant will see the reason
+    end
+    Note over O,UI: Postcondition: no association is created
+```
+
+### Flow 9: disabling and enabling an association
+
+Covers US-06 — AC-21, AC-22, AC-23, AC-24.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor O as оператор
+    participant UI as <ui>
+    participant S as <service>
+    participant D as <data-store>
+    O->>UI: disable an association with a reason, or enable it
+    UI->>S: change the association state
+    alt disable with an empty reason
+        S-->>UI: refused, a reason is required
+        UI-->>O: «Вкажіть причину — її побачать члени правління»
+    else already in that state
+        S-->>UI: refused, the state is unchanged
+        UI-->>O: «ОСББ уже в цьому стані»
+    else valid
+        S->>D: set the state and insert the state change with reason, оператор and time
+        Note over S,D: persists associations.state, association_state_changes
+        S-->>UI: new state
+        UI-->>O: disabled or connected again
+    end
+    Note over O,UI: Postcondition: members of a disabled association read the registry only from the next request, enabling restores every record unchanged
+```
+
+### Flow 10: connecting the document storage
+
+Covers US-08 — AC-27, AC-28b, AC-25.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor M as член правління
+    participant UI as <ui>
+    participant S as <service>
+    participant X as <external-system>
+    participant D as <data-store>
+    M->>UI: connect the association's storage account
+    UI->>S: start the storage connection
+    alt association disabled
+        S-->>UI: refused, access suspended
+        UI-->>M: «Доступ призупинено» with the reason
+    else connected association
+        S-->>UI: redirect to the consent screen with a state bound to the session and association
+        UI->>X: consent with the association's account
+        X-->>UI: authorization code
+        UI->>S: complete the storage connection with code and state
+        S->>X: exchange the code for a refresh token, read the account address
+        X-->>S: token and address
+        S->>D: read the sign-in addresses of the members of this association
+        alt the address is a member's sign-in address
+            S-->>UI: refused, a personal account
+            UI-->>M: «Це особистий акаунт члена правління — підключіть акаунт ОСББ»
+        else association account
+            S->>X: create the folder for the association's files
+            S->>D: store the encrypted token, the address and who connected it
+            Note over S,D: persists google_connections
+            S-->>UI: connected
+            UI-->>M: «Сховище документів: <адреса акаунта>» for every член правління
+        end
+    end
+```
+
+### Flow 11: attaching a document while the storage is not connected
+
+Covers US-08 — AC-28.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor M as член правління
+    participant UI as <ui>
+    participant S as <service>
+    participant D as <data-store>
+    Note over M,UI: Precondition: the association has no storage connection
+    M->>UI: attach a document to a справа
+    UI->>S: add the case document
+    S->>D: read the storage connection of the association
+    D-->>S: none
+    S-->>UI: refused, the storage is not connected
+    UI-->>M: «Спершу підключіть сховище документів ОСББ», any член правління can connect it
+    Note over M,UI: Postcondition: nothing is stored
+```
+
+### Flow 12: my associations, the association card and the roster
+
+Covers US-09 — AC-04d, AC-29, AC-20.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor M as член правління
+    participant UI as <ui>
+    participant S as <service>
+    participant D as <data-store>
+    M->>UI: sign in
+    UI->>S: list my memberships
+    S->>D: read my own roster entries in every association, term covering today
+    D-->>S: memberships
+    S-->>UI: associations with position and state
+    UI-->>M: pick the association to work in
+    M->>UI: open the association card
+    UI->>S: get the association card
+    S->>D: read association, decisions with their checks, state changes
+    D-->>S: rows
+    S-->>UI: current голова, extract date and signer, decision dates, transfers and disablings
+    alt set up by hand without a transfer request
+        UI-->>M: «підключено вручну, без витягу»
+    else confirmed by an approval
+        UI-->>M: the chain from the extract to the decision, with the extract to download
+    end
+    M->>UI: open the roster
+    UI->>S: list board members
+    S-->>UI: entries marked «призначено / повноваження завершено за запитом на передачу від <дата>»
+    Note over M,UI: Postcondition: records of each association only in its own space
+```
+
+### Coverage: US/AC → flows
+
+| ID | Realized by (§6 heading) | How | Note |
+|---|---|---|---|
+| US-01 | `Flow 1: filing a заявка на підключення` | flow | |
+| US-02 | `Flow 5: following and refiling an application` | flow | |
+| US-03 | `Flow 2: the оператор records the check and approves a заявка`, `Flow 7: the оператор opens an application for review`, `Flow 8: rejecting an application` | flow | |
+| US-04 | `Flow 6: filing a запит на передачу` | flow | |
+| US-05 | `Flow 3: approving a запит на передачу`, `Flow 7: the оператор opens an application for review` | flow | |
+| US-06 | `Flow 9: disabling and enabling an association` | flow | |
+| US-07 | `Flow 4: an association-scoped request through the middleware` | flow | |
+| US-08 | `Flow 10: connecting the document storage`, `Flow 11: attaching a document while the storage is not connected` | flow | |
+| US-09 | `Flow 12: my associations, the association card and the roster` | flow | |
+| AC-01 | `Flow 1: filing a заявка на підключення` | flow | |
+| AC-02 | `Flow 1: filing a заявка на підключення` | branch | `alt invalid fields or term ended` |
+| AC-03 | `Flow 2: the оператор records the check and approves a заявка` | flow | refused at the guard step `check recorded, codes equal, document named if needed` when no check is recorded |
+| AC-03b | `Flow 2: the оператор records the check and approves a заявка` | flow | refused at the same guard step, `codes equal` |
+| AC-04 | `Flow 1: filing a заявка на підключення` | branch | `alt code connected` |
+| AC-04b | `Flow 1: filing a заявка на підключення` | branch | found by the check `is the code connected, or pending by this person`; the valid path is `else free or pending by someone else` |
+| AC-04c | `Flow 1: filing a заявка на підключення`, `Flow 2: the оператор records the check and approves a заявка`, `Flow 7: the оператор opens an application for review` | branch | Flow 1 `else free or pending by someone else` accepts the second заявка; Flow 2 step `begin, code still free, insert the association` refuses the later approval; Flow 7 `opt competing application or request` |
+| AC-04d | `Flow 12: my associations, the association card and the roster` | flow | |
+| AC-05 | `Flow 5: following and refiling an application` | flow | |
+| AC-06 | `Flow 5: following and refiling an application` | flow | |
+| AC-07 | `Flow 4: an association-scoped request through the middleware` | branch | `alt not a member, the operator, or unknown association` |
+| AC-08 | `Flow 2: the оператор records the check and approves a заявка` | flow | |
+| AC-09 | `Flow 2: the оператор records the check and approves a заявка` | flow | |
+| AC-10 | `Flow 7: the оператор opens an application for review` | flow | |
+| AC-11 | `Flow 7: the оператор opens an application for review` | branch | `opt name mismatch or extract older than 30 days` |
+| AC-11b | `Flow 7: the оператор opens an application for review` | branch | `opt name mismatch or extract older than 30 days` |
+| AC-12 | `Flow 2: the оператор records the check and approves a заявка` | flow | step `approve, naming a document if a mismatch is open`, refused at the guard `document named if needed` |
+| AC-13 | `Flow 8: rejecting an application` | branch | `alt empty reason` |
+| AC-14 | `Flow 8: rejecting an application` | flow | |
+| AC-15 | `Flow 8: rejecting an application` | branch | `else already decided` |
+| AC-16 | `Flow 7: the оператор opens an application for review` | branch | `alt the session is not the оператор` |
+| AC-16b | `Flow 4: an association-scoped request through the middleware` | branch | `alt not a member, the operator, or unknown association` |
+| AC-17 | `Flow 6: filing a запит на передачу` | flow | |
+| AC-18 | `Flow 6: filing a запит на передачу` | branch | `alt not connected` |
+| AC-18b | `Flow 3: approving a запит на передачу` | flow | refused at the guard step `check recorded, codes equal, document named if needed`, as AC-03 / AC-03b in Flow 2 |
+| AC-19 | `Flow 3: approving a запит на передачу` | flow | |
+| AC-19b | `Flow 3: approving a запит на передачу`, `Flow 7: the оператор opens an application for review` | flow | Flow 3 ends with `approved, competing requests stay waiting`; Flow 7 `opt competing application or request` shows them side by side |
+| AC-19c | `Flow 6: filing a запит на передачу`, `Flow 3: approving a запит на передачу` | flow | filed through Flow 6 `opt from the card of the association set up by hand`, approved through Flow 3 |
+| AC-20 | `Flow 12: my associations, the association card and the roster` | flow | |
+| AC-21 | `Flow 9: disabling and enabling an association` | flow | what the members see next is Flow 4 `else member and association disabled` |
+| AC-22 | `Flow 9: disabling and enabling an association` | branch | `alt disable with an empty reason` |
+| AC-23 | `Flow 9: disabling and enabling an association` | flow | |
+| AC-24 | `Flow 9: disabling and enabling an association` | branch | `else already in that state` |
+| AC-24b | `Flow 6: filing a запит на передачу` | branch | `else connected or disabled`; the approval is Flow 3 and the association stays disabled |
+| AC-25 | `Flow 4: an association-scoped request through the middleware`, `Flow 10: connecting the document storage` | branch | Flow 4 `else any change`; Flow 10 `alt association disabled` |
+| AC-26 | `Flow 4: an association-scoped request through the middleware` | branch | `alt registry read or signed copy download` |
+| AC-27 | `Flow 10: connecting the document storage` | flow | |
+| AC-28 | `Flow 11: attaching a document while the storage is not connected` | flow | |
+| AC-28b | `Flow 10: connecting the document storage` | branch | `alt the address is a member's sign-in address`; the оператор sees the account in Flow 7, step `read the storage account of the association, for a transfer` |
+| AC-29 | `Flow 12: my associations, the association card and the roster` | flow | |
+| AC-30 | `Flow 1: filing a заявка на підключення`, `Flow 5: following and refiling an application`, `Flow 6: filing a запит на передачу` | branch | Flow 1 `alt invalid fields or term ended`; Flow 5 `else term already ended`; Flow 6 `alt term ended` |
+
+Coverage: 9/9 user stories · 41/41 ACs — 0 non-runtime N/A.
+
+**Flags:** Flow 1–4 predate this pass: they are titled with a bold line instead of a `###` heading and use the container aliases of §5 (`W`, `I`, `G`, `D`) instead of generic participants; they are kept as written. No new participant, no decision worth an ADR.
+
 ## 7. Deployment view
 
 Same VM and compose topology as board-protocol SAD §7 (`caddy`, `core-api`, `worker`, `postgres`, `backup`, `otel-lgtm`); no new process. Changes:

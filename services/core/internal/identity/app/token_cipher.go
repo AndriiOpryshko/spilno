@@ -22,9 +22,16 @@ type SealedToken struct {
 }
 
 var (
-	ErrInvalidKey      = errors.New("identity: invalid token encryption key")
-	ErrEmptyToken      = errors.New("identity: empty token")
-	ErrUnknownKey      = errors.New("identity: token sealed with another key id")
+	// ErrInvalidKey is returned by NewTokenCipher when the key is not 32 bytes
+	// or the key id is not 1 to 64 characters.
+	ErrInvalidKey = errors.New("identity: invalid token encryption key")
+	// ErrEmptyToken is returned by Seal for an empty token.
+	ErrEmptyToken = errors.New("identity: empty token")
+	// ErrUnknownKey is returned by Open when the token was sealed under another
+	// key id: the key was rotated, the stored token is not corrupt.
+	ErrUnknownKey = errors.New("identity: token sealed with another key id")
+	// ErrTokenUnreadable is returned by Open for every other failure: another
+	// key under the same key id, a changed or malformed ciphertext or nonce.
 	ErrTokenUnreadable = errors.New("identity: token cannot be decrypted")
 )
 
@@ -74,8 +81,7 @@ func (c *TokenCipher) Open(s SealedToken) (string, error) {
 	if s.KeyID != c.keyID {
 		return "", ErrUnknownKey
 	}
-	// GCM panics on a nonce of the wrong length, so the length is checked here.
-	if len(s.Nonce) != c.aead.NonceSize() || len(s.Ciphertext) <= c.aead.Overhead() {
+	if !c.wellFormed(s) {
 		return "", ErrTokenUnreadable
 	}
 	token, err := c.aead.Open(nil, s.Nonce, s.Ciphertext, nil)
@@ -83,4 +89,11 @@ func (c *TokenCipher) Open(s SealedToken) (string, error) {
 		return "", ErrTokenUnreadable
 	}
 	return string(token), nil
+}
+
+// wellFormed reports whether s has the sizes Seal produces: a nonce of the GCM
+// nonce size and a ciphertext longer than the GCM tag. GCM panics on a nonce of
+// any other length, so Open checks the sizes before it decrypts.
+func (c *TokenCipher) wellFormed(s SealedToken) bool {
+	return len(s.Nonce) == c.aead.NonceSize() && len(s.Ciphertext) > c.aead.Overhead()
 }

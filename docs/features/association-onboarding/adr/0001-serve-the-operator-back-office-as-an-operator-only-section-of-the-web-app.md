@@ -35,6 +35,8 @@ The оператор reviews заявки and запити на передачу
 
 **Chosen:** Option 1. One build, one contract, one sign-in. The operator check is a single comparison in the identity middleware, and the оператор gets no association path at all.
 
+**Amended 2026-11-10** — superseded in part by [ADR-0009](./0009-treat-the-operator-role-and-a-roster-membership-as-independent-grants-on-one-account.md): the оператор *role* gets no association path; a person who is the оператор and also a current член правління reaches that association as its member, and decides nothing they filed (PRD AC-16b, AC-16c as clarified). The back office, its paths and the `SPILNO_OPERATOR_EMAIL` check stand.
+
 ### Consequences
 
 - Good: reuses the shadcn components, the Figma back-office frames and the generated client; e2e covers it with the rest.
@@ -49,4 +51,4 @@ N/A — no stored data changes.
 
 - PRD: [PRD.md](../PRD.md) — US-03, US-05, US-06, AC-16, AC-16b, §8
 - SAD: [sad.md](../sad.md) §4
-- Related ADR: [0004](./0004-let-any-verified-person-sign-in-and-derive-memberships-from-rosters.md); repo [0003 Spec-first codegen](../../../adr/0003-spec-first-codegen.md)
+- Related ADR: [0004](./0004-let-any-verified-person-sign-in-and-derive-memberships-from-rosters.md); [0009](./0009-treat-the-operator-role-and-a-roster-membership-as-independent-grants-on-one-account.md) (supersedes in part); repo [0003 Spec-first codegen](../../../adr/0003-spec-first-codegen.md)

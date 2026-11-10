@@ -43,7 +43,7 @@ Shape:
 
 ### Consequences
 
-- Good: a forgotten filter is no longer a leak; the оператор needs no bypass because it never reads association-owned tables (AC-16b).
+- Good: a forgotten filter is no longer a leak; the оператор role needs no bypass because the operator use cases never read association-owned tables (AC-16b); an оператор who is also a член правління reads them as a member, through `InAssociation` like anyone ([ADR-0009](./0009-treat-the-operator-role-and-a-roster-membership-as-independent-grants-on-one-account.md), clarified 2026-11-10).
 - Bad: every scoped read runs inside a transaction; two roles to operate locally, in tests and in production; about one week more effort.
 - Neutral: supersedes the «RLS later» trigger of board-protocol ADR-0015; the column and filters of ADR-0015 stay.
 

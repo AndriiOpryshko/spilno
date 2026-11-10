@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"net/http"
 	"os"
 	"regexp"
 	"sort"
@@ -57,11 +58,29 @@ func TestErrorRegistry_NoStrayOrMalformedEntries(t *testing.T) {
 		if !strings.HasPrefix(def.Code, "governance.") {
 			t.Errorf("registry code %q lacks governance. prefix", def.Code)
 		}
-		if !inContract[def.Code] {
+		if !inContract[def.Code] && def.Code != CodeDriveNotConnected { // advertised by association-onboarding, not board-protocol
 			t.Errorf("registry code %q is not advertised by the contract", def.Code)
 		}
 		if def.Status < 400 || def.Status > 599 {
 			t.Errorf("%s: status %d is not a 4xx/5xx", def.Code, def.Status)
 		}
+	}
+}
+
+func TestErrorRegistry_DriveNotConnected(t *testing.T) {
+	if CodeDriveNotConnected != "governance.drive_not_connected" {
+		t.Fatalf("CodeDriveNotConnected = %q", CodeDriveNotConnected)
+	}
+	n := 0
+	for _, def := range ErrorRegistry {
+		if def.Code == CodeDriveNotConnected {
+			n++
+			if def.Status != http.StatusConflict {
+				t.Errorf("status %d, want 409", def.Status)
+			}
+		}
+	}
+	if n != 1 {
+		t.Errorf("%d registry entries for %s, want exactly 1", n, CodeDriveNotConnected)
 	}
 }

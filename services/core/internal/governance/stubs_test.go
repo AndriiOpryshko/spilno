@@ -13,8 +13,8 @@ func TestNewOperationsAreStubbed(t *testing.T) {
 	srv := newServer(t)
 
 	tests := []struct{ name, path string }{
-		{"settings", "/governance/settings"},
-		{"protocol", "/governance/protocols/" + uuid.NewString()},
+		{"settings", "/governance/associations/" + assocA + "/settings"},
+		{"protocol", "/governance/associations/" + assocA + "/protocols/" + uuid.NewString()},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -29,5 +29,5 @@ func TestNewOperationsAreStubbed(t *testing.T) {
 
 func TestExistingMeetingsStillWorkWithoutCookie(t *testing.T) {
 	srv := newServer(t)
-	do(t, "GET", srv.URL+"/governance/meetings", nil, http.StatusOK, nil)
+	do(t, "GET", srv.URL+"/governance/associations/"+assocA+"/meetings", nil, http.StatusOK, nil)
 }

@@ -21,8 +21,8 @@ type Module struct {
 	handler *financehttp.Handler
 }
 
-func New(pool *pgxpool.Pool) *Module {
-	contracts := app.NewContractService(postgres.NewContracts(pool))
+func New(_ *pgxpool.Pool) *Module {
+	contracts := app.NewContractService(postgres.NewContracts())
 	return &Module{handler: financehttp.NewHandler(contracts)}
 }
 

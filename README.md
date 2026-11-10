@@ -31,6 +31,22 @@ mise run dev          # infra + core API (hot reload) + web, in mprocs panes
   `services/core/api/bruno`)
 - Grafana: http://localhost:3000 (traces in Tempo, logs in Loki, metrics in Prometheus)
 
+## Environment
+
+| Variable | Meaning |
+| --- | --- |
+| `DATABASE_URL` | The API's connection, as `spilno_app_login` (no `BYPASSRLS`) |
+| `MIGRATIONS_DATABASE_URL` | Migrations, as the database owner |
+| `SPILNO_DEV_SIGN_IN` | `true` turns on the development sign-in shim, the only sign-in for now |
+| `SPILNO_OPERATOR_EMAIL` | Address of the оператор who reviews applications |
+| `SPILNO_WEB_ORIGIN` | Where the web app is served (default `http://localhost:5180`); the storage connection returns to `<origin>/storage/callback`, register that address with the Google OAuth client |
+| `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_TOKEN_KEY_ID`, `GOOGLE_TOKEN_KEY` | Set all four to turn the storage connection on; without them it answers 501 |
+| `VITE_OPERATOR_CONTACT_EMAIL` | Web build: the address an applicant is told to write to |
+
+An existing local Postgres volume needs `infra/postgres-init/01-app-role.sql` run once (or recreate the
+volume) so that `spilno_app_login` exists. The оператор's procedure is in
+[the runbook](docs/runbooks/operator-extract-check.md).
+
 ## Tasks
 
 | Task | What it does |

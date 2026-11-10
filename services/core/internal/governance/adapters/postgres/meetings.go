@@ -9,36 +9,41 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/adapters/postgres/sqlcgen"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/domain"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/ports"
+	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/db"
 )
 
-// stage1Association is the one association of Stage 1 (ADR-0015), created by migration 00004.
-// Meetings are written and listed within it until sign-in brings the association from the session.
-var stage1Association = pgtype.UUID{Bytes: uuid.MustParse("00000000-0000-7000-8000-000000000001"), Valid: true}
-
-type Meetings struct {
-	q *sqlcgen.Queries
-}
+// Meetings reads and writes meetings on the transaction in ctx (db.InAssociation).
+type Meetings struct{}
 
 var _ ports.MeetingRepository = (*Meetings)(nil)
 
-func NewMeetings(pool *pgxpool.Pool) *Meetings {
-	return &Meetings{q: sqlcgen.New(pool)}
+func NewMeetings() *Meetings { return &Meetings{} }
+
+func queries(ctx context.Context) (*sqlcgen.Queries, error) {
+	tx, err := db.From(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return sqlcgen.New(tx), nil
 }
 
-func (s *Meetings) Create(ctx context.Context, f domain.MeetingFields) (domain.Meeting, error) {
-	row, err := s.q.CreateMeeting(ctx, sqlcgen.CreateMeetingParams{
+func (s *Meetings) Create(ctx context.Context, associationID uuid.UUID, f domain.MeetingFields) (domain.Meeting, error) {
+	q, err := queries(ctx)
+	if err != nil {
+		return domain.Meeting{}, err
+	}
+	row, err := q.CreateMeeting(ctx, sqlcgen.CreateMeetingParams{
 		Title:          f.Title,
 		Kind:           string(f.Kind),
 		HeldAt:         pgtype.Timestamptz{Time: f.HeldAt, Valid: true},
 		EndsAt:         timestamptzOf(f.EndsAt),
 		Location:       textOf(f.Location),
 		QuorumRequired: f.QuorumRequired,
-		AssociationID:  stage1Association,
+		AssociationID:  uuidOf(associationID),
 	})
 	if err != nil {
 		return domain.Meeting{}, err
@@ -46,8 +51,15 @@ func (s *Meetings) Create(ctx context.Context, f domain.MeetingFields) (domain.M
 	return toDomain(row), nil
 }
 
-func (s *Meetings) Get(ctx context.Context, id uuid.UUID) (domain.Meeting, error) {
-	row, err := s.q.GetMeeting(ctx, pgtype.UUID{Bytes: id, Valid: true})
+func (s *Meetings) Get(ctx context.Context, associationID, id uuid.UUID) (domain.Meeting, error) {
+	q, err := queries(ctx)
+	if err != nil {
+		return domain.Meeting{}, err
+	}
+	row, err := q.GetMeeting(ctx, sqlcgen.GetMeetingParams{
+		ID:            uuidOf(id),
+		AssociationID: uuidOf(associationID),
+	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.Meeting{}, domain.ErrMeetingNotFound
 	}
@@ -57,14 +69,18 @@ func (s *Meetings) Get(ctx context.Context, id uuid.UUID) (domain.Meeting, error
 	return toDomain(row), nil
 }
 
-func (s *Meetings) List(ctx context.Context, after *ports.MeetingKey, limit int) ([]domain.Meeting, error) {
+func (s *Meetings) List(ctx context.Context, associationID uuid.UUID, after *ports.MeetingKey, limit int) ([]domain.Meeting, error) {
 	// limit is bounded by app.MaxPageSize, so it fits int32.
-	arg := sqlcgen.ListMeetingsParams{AssociationID: stage1Association, RowLimit: int32(limit)}
+	arg := sqlcgen.ListMeetingsParams{AssociationID: uuidOf(associationID), RowLimit: int32(limit)}
 	if after != nil {
 		arg.AfterCreatedAt = pgtype.Timestamptz{Time: after.CreatedAt, Valid: true}
-		arg.AfterID = pgtype.UUID{Bytes: after.ID, Valid: true}
+		arg.AfterID = uuidOf(after.ID)
 	}
-	rows, err := s.q.ListMeetings(ctx, arg)
+	q, err := queries(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := q.ListMeetings(ctx, arg)
 	if err != nil {
 		return nil, err
 	}
@@ -119,4 +135,8 @@ func textPtr(v pgtype.Text) *string {
 	}
 	out := v.String
 	return &out
+}
+
+func uuidOf(v uuid.UUID) pgtype.UUID {
+	return pgtype.UUID{Bytes: v, Valid: true}
 }

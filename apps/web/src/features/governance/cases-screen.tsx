@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Link } from '@tanstack/react-router';
+import { Link, useParams } from '@tanstack/react-router';
 import { cn } from 'cn';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
@@ -121,6 +121,7 @@ export function CasesScreen() {
 }
 
 function CasesTable({ cases }: { cases: CaseSummary[] }) {
+  const { associationId } = useParams({ from: '/o/$associationId' });
   const head = 'text-xs font-semibold tracking-wide text-muted-foreground uppercase';
   return (
     <div className="overflow-hidden rounded-lg border bg-card shadow-[0_1px_3px_rgba(22,22,40,0.05)] max-md:hidden">
@@ -143,7 +144,7 @@ function CasesTable({ cases }: { cases: CaseSummary[] }) {
           <span className="text-right text-sm font-semibold tabular-nums">{amount(c)}</span>
           <span className="text-[13px] text-muted-foreground">{uk.caseStatus[c.status]}</span>
           <Button size="sm" variant="outline" asChild>
-            <Link to="/cases/$caseId/protocol" params={{ caseId: c.id }}>
+            <Link to="/o/$associationId/cases/$caseId/protocol" params={{ associationId, caseId: c.id }}>
               {uk.cases.open}
             </Link>
           </Button>

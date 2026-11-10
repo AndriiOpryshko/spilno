@@ -1,7 +1,8 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, redirect } from '@tanstack/react-router';
 
-import { CasesScreen } from '@/features/governance/cases-screen';
-
+// The old address has no association id: go through the entry, which picks one.
 export const Route = createFileRoute('/cases/')({
-  component: CasesScreen,
+  beforeLoad: () => {
+    throw redirect({ to: '/' });
+  },
 });

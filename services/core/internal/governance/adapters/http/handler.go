@@ -6,6 +6,8 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/google/uuid"
+
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/adapters/http/gen"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/app"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/domain"
@@ -13,12 +15,16 @@ import (
 
 type Handler struct {
 	meetings *app.MeetingService
+	storage  StorageConnected
 }
+
+// StorageConnected reports whether the association has a connected document storage.
+type StorageConnected func(ctx context.Context, association uuid.UUID) (bool, error)
 
 var _ gen.StrictServerInterface = (*Handler)(nil)
 
-func NewHandler(meetings *app.MeetingService) *Handler {
-	return &Handler{meetings: meetings}
+func NewHandler(meetings *app.MeetingService, storage StorageConnected) *Handler {
+	return &Handler{meetings: meetings, storage: storage}
 }
 
 func (h *Handler) CreateMeeting(ctx context.Context, req gen.CreateMeetingRequestObject) (gen.CreateMeetingResponseObject, error) {
@@ -38,7 +44,7 @@ func (h *Handler) CreateMeeting(ctx context.Context, req gen.CreateMeetingReques
 	if b.QuorumRequired != nil {
 		fields.QuorumRequired = *b.QuorumRequired
 	}
-	x, err := h.meetings.Create(ctx, fields)
+	x, err := h.meetings.Create(ctx, req.AssociationId, fields)
 	if v, ok := errors.AsType[*domain.ValidationError](err); ok {
 		return gen.CreateMeeting422ApplicationProblemPlusJSONResponse{
 			UnprocessableEntityApplicationProblemPlusJSONResponse: validationProblem(v),
@@ -51,7 +57,7 @@ func (h *Handler) CreateMeeting(ctx context.Context, req gen.CreateMeetingReques
 }
 
 func (h *Handler) GetMeeting(ctx context.Context, req gen.GetMeetingRequestObject) (gen.GetMeetingResponseObject, error) {
-	x, err := h.meetings.Get(ctx, req.Id)
+	x, err := h.meetings.Get(ctx, req.AssociationId, req.Id)
 	if errors.Is(err, domain.ErrMeetingNotFound) {
 		return gen.GetMeeting404ApplicationProblemPlusJSONResponse{
 			NotFoundApplicationProblemPlusJSONResponse: gen.NotFoundApplicationProblemPlusJSONResponse{
@@ -77,7 +83,7 @@ func (h *Handler) ListMeetings(ctx context.Context, req gen.ListMeetingsRequestO
 	if req.Params.Cursor != nil {
 		cursor = *req.Params.Cursor
 	}
-	page, err := h.meetings.List(ctx, limit, cursor)
+	page, err := h.meetings.List(ctx, req.AssociationId, limit, cursor)
 	if errors.Is(err, app.ErrInvalidCursor) {
 		return gen.ListMeetings422ApplicationProblemPlusJSONResponse{
 			UnprocessableEntityApplicationProblemPlusJSONResponse: gen.UnprocessableEntityApplicationProblemPlusJSONResponse{

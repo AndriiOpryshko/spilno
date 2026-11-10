@@ -3,7 +3,7 @@ status: Draft
 skill: ao-data-model
 owner: "Andrii Opryshko"
 reviewers: []
-updated_at: "2026-11-05"
+updated_at: "2026-11-10"
 feature_size: "M"
 prd: "PRD.md"
 sad: "sad.md"
@@ -194,7 +194,7 @@ Matches SAD §5. `sessions` is untouched (no association; the association is in 
 | `changed_by_email` | `VARCHAR(320)` | NOT NULL | PRD §6.1 | the оператор's sign-in address |
 | `created_at` | `TIMESTAMPTZ` | NOT NULL `DEFAULT now()` | - | |
 
-**Mutability:** insert-only — `spilno_app` has `SELECT, INSERT` only (ADR-0007).
+**Mutability:** insert-only — `spilno_app` has `SELECT, INSERT` only (ADR-0007). Row-level security by `association_id` (ADR-0003, file 21): the оператор writes and reads it inside `InAssociation` for that association.
 
 ### `applications` (identity) — new
 
@@ -356,6 +356,7 @@ Row-level security with the own-entry clause (ADR-0003). `idx_board_member_revis
 | `identity.association_already_connected` | conflict | `uq_associations_edrpou` | approve of a competing заявка hits the same key (AC-04c) |
 | `identity.application_already_open` | conflict | `uq_applications_account_edrpou_pending` | |
 | `identity.application_not_pending` | conflict | `uq_application_decisions_filing_id` + state check in Go | |
+| `identity.operator_own_application` | invariant | app only | `applications.account_id` vs the acting оператор's account (AC-16c) |
 | `identity.association_state_unchanged` | conflict | app only | compares `associations.state` |
 | `identity.application_invalid` | validation | app only | `VARCHAR` bounds back the lengths |
 | `identity.signature_not_checked` | invariant | app only | needs a check row with `signature_valid = true` |
@@ -381,19 +382,20 @@ Row-level security with the own-entry clause (ADR-0003). `idx_board_member_revis
 | 7 | `NNNNN_index_board_member_revisions_sign_in_email.sql` | index, concurrently | - | PR 1 | drop index | - |
 | 8 | `NNNNN_add_contracts_association_id.sql` | nullable column | expand | PR 1 | drop column | - |
 | 9 | `NNNNN_create_app_role.sql` | `spilno_app` role, grants, insert-only revokes | - | PR 1 | revoke (role kept) | - |
-| 10 | `NNNNN_backfill_associations_state.sql` | `connected` | backfill | PR 2 | no-op | [note](./migrations/backfill-associations-state.md) |
-| 11 | `NNNNN_backfill_board_member_revisions_position.sql` | `member` | backfill | PR 2 | no-op | [note](./migrations/backfill-board-member-revisions-position.md) |
-| 12 | `NNNNN_backfill_contracts_association_id.sql` | seeded association | backfill | PR 2 | no-op | [note](./migrations/backfill-contracts-association-id.md) |
-| 13 | `NNNNN_contract_associations_state.sql` | NOT NULL | contract | PR 3 | drop NOT NULL | - |
-| 14 | `NNNNN_contract_board_member_revisions_position.sql` | NOT NULL | contract | PR 3 | drop NOT NULL | - |
-| 15 | `NNNNN_contract_contracts_association_id.sql` | NOT NULL | contract | PR 3 | drop NOT NULL | - |
-| 16 | `NNNNN_index_contracts_association_created.sql` | index, concurrently | - | PR 3 | drop index | - |
-| 17 | `NNNNN_enable_rls_governance.sql` | RLS on 27 tables | - | PR 3 | drop policies, disable | - |
-| 18 | `NNNNN_enable_rls_finance.sql` | RLS on `contracts` | - | PR 3 | drop policy, disable | - |
-| 19 | `NNNNN_enable_rls_identity.sql` | RLS on `google_connections` | - | PR 3 | drop policy, disable | - |
-| 20 | `NNNNN_drop_accounts_association_id.sql` | drop column + index | contract | PR 4 | re-add NOT NULL FK + index, filled with the seeded association | - |
+| 10 | `NNNNN_drop_accounts_association_id.sql` | drop column + index | contract | PR 4 | re-add NOT NULL FK + index, filled with the seeded association | - |
+| 11 | `NNNNN_backfill_associations_state.sql` | `connected` | backfill | PR 2 | no-op | [note](./migrations/backfill-associations-state.md) |
+| 12 | `NNNNN_backfill_board_member_revisions_position.sql` | `member` | backfill | PR 2 | no-op | [note](./migrations/backfill-board-member-revisions-position.md) |
+| 13 | `NNNNN_backfill_contracts_association_id.sql` | seeded association | backfill | PR 2 | no-op | [note](./migrations/backfill-contracts-association-id.md) |
+| 14 | `NNNNN_contract_associations_state.sql` | NOT NULL | contract | PR 3 | drop NOT NULL | - |
+| 15 | `NNNNN_contract_board_member_revisions_position.sql` | NOT NULL | contract | PR 3 | drop NOT NULL | - |
+| 16 | `NNNNN_contract_contracts_association_id.sql` | NOT NULL | contract | PR 3 | drop NOT NULL | - |
+| 17 | `NNNNN_index_contracts_association_created.sql` | index, concurrently | - | PR 3 | drop index | - |
+| 18 | `NNNNN_enable_rls_governance.sql` | RLS on 27 tables | - | PR 3 | drop policies, disable | - |
+| 19 | `NNNNN_enable_rls_finance.sql` | RLS on `contracts` | - | PR 3 | drop policy, disable | - |
+| 20 | `NNNNN_enable_rls_identity.sql` | RLS on `google_connections` | - | PR 3 | drop policy, disable | - |
+| 21 | `NNNNN_enable_rls_identity_state_changes.sql` | RLS on `association_state_changes` (added in T20) | - | PR 3 | drop policy, disable | - |
 
-**Reversibility:** a rollback keeps every application, extract, check and decision (PRD §9); after real filings, the tables of file 1 are not dropped. Rolling back RLS (17–19) returns to explicit filters only (ADR-0015). File 20's Down is exact only while the one seeded association is the only one an account belonged to (audit).
+**Reversibility:** a rollback keeps every application, extract, check and decision (PRD §9); after real filings, the tables of file 1 are not dropped. Rolling back RLS (18–21) returns to explicit filters only (ADR-0015). File 10's Down (promoted early, was 20: AC-05 needs accounts without an association, and sign-in, the middleware and RLS all follow from it) is exact only while the one seeded association is the only one an account belonged to (audit).
 
 ## Deviations from the rules
 

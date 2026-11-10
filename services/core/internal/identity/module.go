@@ -12,6 +12,8 @@ import (
 
 	identityhttp "github.com/AndriiOpryshko/spilno/services/core/internal/identity/adapters/http"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/identity/adapters/http/gen"
+	"github.com/AndriiOpryshko/spilno/services/core/internal/identity/adapters/postgres"
+	"github.com/AndriiOpryshko/spilno/services/core/internal/identity/app"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/httpapi"
 )
 
@@ -19,10 +21,20 @@ type Module struct {
 	handler *identityhttp.Handler
 	pool    *pgxpool.Pool
 	google  *googleState // nil until EnableGoogle
+	signIn  *app.SignIn  // nil until EnableSignIn
+
+	applications *app.Applications
 }
 
 func New(pool *pgxpool.Pool) *Module {
-	return &Module{handler: identityhttp.NewHandler(), pool: pool}
+	h := identityhttp.NewHandler()
+	applications := app.NewApplications(postgres.NewApplications(pool))
+	h.EnableApplications(applications)
+	h.EnableAssociationStates(app.NewAssociationStates(postgres.NewAssociations(pool)))
+	h.EnableReviews(app.NewReviews(postgres.NewReviews(pool)))
+	h.EnableRejections(app.NewRejections(postgres.NewRejections(pool)))
+	h.EnableCards(app.NewCards(postgres.NewCards(pool)))
+	return &Module{handler: h, pool: pool, applications: applications}
 }
 
 // Routes attaches the context's routes to r inside their own group, validated
@@ -33,7 +45,7 @@ func (m *Module) Routes(r chi.Router) error {
 		return fmt.Errorf("identity: load spec: %w", err)
 	}
 	r.Group(func(r chi.Router) {
-		r.Use(httpapi.RequestValidator(spec))
+		r.Use(httpapi.RequestValidator(spec), identityhttp.CaptureSession)
 		strict := gen.NewStrictHandlerWithOptions(m.handler, nil, gen.StrictHTTPServerOptions{
 			RequestErrorHandlerFunc:  httpapi.StrictRequestError,
 			ResponseErrorHandlerFunc: httpapi.StrictResponseError,

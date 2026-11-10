@@ -10,22 +10,16 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/go-chi/chi/v5"
+
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance"
-	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/httpapi"
-	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/testdb"
 )
 
 // newServer serves the context through the same router, validator and
 // generated handlers as production, on a real migrated database.
 func newServer(t *testing.T) *httptest.Server {
 	t.Helper()
-	r := httpapi.NewRouter()
-	if err := governance.New(testdb.New(t)).Routes(r); err != nil {
-		t.Fatal(err)
-	}
-	srv := httptest.NewServer(r)
-	t.Cleanup(srv.Close)
-	return srv
+	return newGuardedServer(t, func(r chi.Router, gov *governance.Module) error { return gov.Routes(r) })
 }
 
 // validBody is a request body that passes every rule.
@@ -91,7 +85,7 @@ func TestCreateAndGetMeeting(t *testing.T) {
 	sent := validBody()
 
 	var created map[string]any
-	do(t, "POST", srv.URL+"/governance/meetings", sent, http.StatusCreated, &created)
+	do(t, "POST", srv.URL+"/governance/associations/"+assocA+"/meetings", sent, http.StatusCreated, &created)
 	for _, k := range []string{"id", "created_at", "updated_at"} {
 		if s, _ := created[k].(string); s == "" {
 			t.Errorf("created[%q] = %v, want a value", k, created[k])
@@ -104,7 +98,7 @@ func TestCreateAndGetMeeting(t *testing.T) {
 	}
 
 	var got map[string]any
-	do(t, "GET", srv.URL+"/governance/meetings/"+created["id"].(string), nil, http.StatusOK, &got)
+	do(t, "GET", srv.URL+"/governance/associations/"+assocA+"/meetings/"+created["id"].(string), nil, http.StatusOK, &got)
 	if !maps.EqualFunc(got, created, func(a, b any) bool { return fmt.Sprint(a) == fmt.Sprint(b) }) {
 		t.Errorf("got = %v, want the created meeting %v", got, created)
 	}
@@ -133,7 +127,7 @@ func TestCreateMeetingRejectsInvalidBody(t *testing.T) {
 			body := validBody()
 			tt.edit(body)
 			var p problem
-			do(t, "POST", srv.URL+"/governance/meetings", body, http.StatusUnprocessableEntity, &p)
+			do(t, "POST", srv.URL+"/governance/associations/"+assocA+"/meetings", body, http.StatusUnprocessableEntity, &p)
 			if tt.wantPointer == "" {
 				return
 			}
@@ -149,13 +143,13 @@ func TestCreateMeetingRejectsInvalidBody(t *testing.T) {
 
 func TestGetUnknownMeeting(t *testing.T) {
 	srv := newServer(t)
-	do(t, "GET", srv.URL+"/governance/meetings/00000000-0000-4000-8000-000000000000", nil, http.StatusNotFound, nil)
+	do(t, "GET", srv.URL+"/governance/associations/"+assocA+"/meetings/00000000-0000-4000-8000-000000000000", nil, http.StatusNotFound, nil)
 }
 
 func TestListMeetingsPaginates(t *testing.T) {
 	srv := newServer(t)
 	for range 3 {
-		do(t, "POST", srv.URL+"/governance/meetings", validBody(), http.StatusCreated, nil)
+		do(t, "POST", srv.URL+"/governance/associations/"+assocA+"/meetings", validBody(), http.StatusCreated, nil)
 	}
 
 	type page struct {
@@ -163,12 +157,12 @@ func TestListMeetingsPaginates(t *testing.T) {
 		NextCursor *string          `json:"next_cursor"`
 	}
 	var first page
-	do(t, "GET", srv.URL+"/governance/meetings?limit=2", nil, http.StatusOK, &first)
+	do(t, "GET", srv.URL+"/governance/associations/"+assocA+"/meetings?limit=2", nil, http.StatusOK, &first)
 	if len(first.Items) != 2 || first.NextCursor == nil {
 		t.Fatalf("first page: %d items, cursor %v; want 2 items and a cursor", len(first.Items), first.NextCursor)
 	}
 	var second page
-	do(t, "GET", srv.URL+"/governance/meetings?limit=2&cursor="+*first.NextCursor, nil, http.StatusOK, &second)
+	do(t, "GET", srv.URL+"/governance/associations/"+assocA+"/meetings?limit=2&cursor="+*first.NextCursor, nil, http.StatusOK, &second)
 	if len(second.Items) != 1 || second.NextCursor != nil {
 		t.Fatalf("second page: %d items, cursor %v; want 1 item and no cursor", len(second.Items), second.NextCursor)
 	}
@@ -179,5 +173,5 @@ func TestListMeetingsPaginates(t *testing.T) {
 
 func TestListMeetingsRejectsForeignCursor(t *testing.T) {
 	srv := newServer(t)
-	do(t, "GET", srv.URL+"/governance/meetings?cursor=bm90LWEtY3Vyc29y", nil, http.StatusUnprocessableEntity, nil)
+	do(t, "GET", srv.URL+"/governance/associations/"+assocA+"/meetings?cursor=bm90LWEtY3Vyc29y", nil, http.StatusUnprocessableEntity, nil)
 }

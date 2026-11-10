@@ -8,7 +8,8 @@ pnpm = "12.14.0"
 mprocs = "0.9.6"
 
 [env]
-DATABASE_URL = "postgres://spilno:spilno@localhost:5432/spilno?sslmode=disable"
+MIGRATIONS_DATABASE_URL = "postgres://spilno:spilno@localhost:5432/spilno?sslmode=disable"
+DATABASE_URL = "postgres://spilno_app_login:spilno_app_login@localhost:5432/spilno?sslmode=disable"
 OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:4318"
 OTEL_SERVICE_NAME = "spilno-core"
 
@@ -50,12 +51,16 @@ run = [
   "pnpm --filter @spilno/web test:stories",
 ]
 
+[tasks.load]
+description = "Load scenarios of PRD section 6 against a running stack (not part of test): mise run load -- -base-url http://localhost:8080 -read-p95 200ms"
+run = "cd tests/load && go run . "
+
 [tasks.storybook]
 description = "Component workshop on :6006 (stories mirror the Figma component variants)"
 run = "pnpm --filter @spilno/web storybook"
 
 [tasks.e2e]
-description = "Playwright against the running stack (core API must be up)"
+description = "Playwright against the running stack (core API up with SPILNO_DEV_SIGN_IN=true, SPILNO_DEV_STORAGE=true, SPILNO_OPERATOR_EMAIL=operator@example.test and GOOGLE_* placeholders; see the e2e job in ci.yml)"
 run = "pnpm --filter @spilno/web e2e"
 
 [tasks."migrate:new"]

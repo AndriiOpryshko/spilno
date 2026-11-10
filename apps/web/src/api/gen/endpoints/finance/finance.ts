@@ -29,6 +29,7 @@ import type {
   Contract,
   ContractPage,
   ListContractsParams,
+  MemberOrDisabledResponse,
   NewContract,
   NotFoundResponse,
   UnprocessableEntityResponse
@@ -58,6 +59,11 @@ export type createContractResponse201 = {
   status: 201
 }
 
+export type createContractResponse403 = {
+  data: MemberOrDisabledResponse
+  status: 403
+}
+
 export type createContractResponse422 = {
   data: UnprocessableEntityResponse
   status: 422
@@ -66,22 +72,23 @@ export type createContractResponse422 = {
 export type createContractResponseSuccess = (createContractResponse201) & {
   headers: Headers;
 };
-export type createContractResponseError = (createContractResponse422) & {
+export type createContractResponseError = (createContractResponse403 | createContractResponse422) & {
   headers: Headers;
 };
 
-export const getCreateContractUrl = () => {
+export const getCreateContractUrl = (associationId: string,) => {
 
 
 
 
-  return `/api/finance/contracts`
+  return `/api/finance/associations/${associationId}/contracts`
 }
 
 /**
  * @summary Register a contract with a counterparty
  */
-export const createContract = async (newContract: NewContract, options?: RequestInit): Promise<createContractResponseSuccess> => {
+export const createContract = async (associationId: string,
+    newContract: NewContract, options?: RequestInit): Promise<createContractResponseSuccess> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -97,7 +104,7 @@ export const createContract = async (newContract: NewContract, options?: Request
     }
     return headers;
   };
-const res = await fetch(getCreateContractUrl(),
+const res = await fetch(getCreateContractUrl(associationId),
   {
     ...options,
     method: 'POST',
@@ -126,7 +133,7 @@ const res = await fetch(getCreateContractUrl(),
 
 export const getCreateContractMutationKey = () => ['createContract'] as const;
 
-export const getCreateContractMutationOptions = <TError = globalThis.Error & { info?: UnprocessableEntityResponse; status?: number },
+export const getCreateContractMutationOptions = <TError = globalThis.Error & { info?: MemberOrDisabledResponse | UnprocessableEntityResponse; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createContract>>, TError,CreateContractMutationVariables, TContext>, fetch?: RequestInit}
 ): UseMutationOptions<Awaited<ReturnType<typeof createContract>>, TError,CreateContractMutationVariables, TContext> => {
 
@@ -141,9 +148,9 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof createContract>>, CreateContractMutationVariables> = (props) => {
-          const {data} = props ?? {};
+          const {associationId,data} = props ?? {};
 
-          return  createContract(data,fetchOptions)
+          return  createContract(associationId,data,fetchOptions)
         }
 
 
@@ -155,13 +162,13 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
     export type CreateContractMutationResult = NonNullable<Awaited<ReturnType<typeof createContract>>>
     export type CreateContractMutationBody = NewContract
-    export type CreateContractMutationError = globalThis.Error & { info?: UnprocessableEntityResponse; status?: number }
-    export type CreateContractMutationVariables = {data: NewContract}
+    export type CreateContractMutationError = globalThis.Error & { info?: MemberOrDisabledResponse | UnprocessableEntityResponse; status?: number }
+    export type CreateContractMutationVariables = {associationId: string;data: NewContract}
 
     /**
  * @summary Register a contract with a counterparty
  */
-export const useCreateContract = <TError = globalThis.Error & { info?: UnprocessableEntityResponse; status?: number },
+export const useCreateContract = <TError = globalThis.Error & { info?: MemberOrDisabledResponse | UnprocessableEntityResponse; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createContract>>, TError,CreateContractMutationVariables, TContext>, fetch?: RequestInit}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof createContract>>,
@@ -176,6 +183,11 @@ export const useCreateContract = <TError = globalThis.Error & { info?: Unprocess
   status: 200
 }
 
+export type listContractsResponse403 = {
+  data: MemberOrDisabledResponse
+  status: 403
+}
+
 export type listContractsResponse422 = {
   data: UnprocessableEntityResponse
   status: 422
@@ -184,11 +196,12 @@ export type listContractsResponse422 = {
 export type listContractsResponseSuccess = (listContractsResponse200) & {
   headers: Headers;
 };
-export type listContractsResponseError = (listContractsResponse422) & {
+export type listContractsResponseError = (listContractsResponse403 | listContractsResponse422) & {
   headers: Headers;
 };
 
-export const getListContractsUrl = (params?: ListContractsParams,) => {
+export const getListContractsUrl = (associationId: string,
+    params?: ListContractsParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -200,15 +213,16 @@ export const getListContractsUrl = (params?: ListContractsParams,) => {
 
   const stringifiedParams = normalizedParams.toString();
 
-  return stringifiedParams.length > 0 ? `/api/finance/contracts?${stringifiedParams}` : `/api/finance/contracts`
+  return stringifiedParams.length > 0 ? `/api/finance/associations/${associationId}/contracts?${stringifiedParams}` : `/api/finance/associations/${associationId}/contracts`
 }
 
 /**
  * @summary List contracts, newest first, one page at a time
  */
-export const listContracts = async (params?: ListContractsParams, options?: RequestInit): Promise<listContractsResponseSuccess> => {
+export const listContracts = async (associationId: string,
+    params?: ListContractsParams, options?: RequestInit): Promise<listContractsResponseSuccess> => {
 
-  const res = await fetch(getListContractsUrl(params),
+  const res = await fetch(getListContractsUrl(associationId,params),
   {
     ...options,
     method: 'GET'
@@ -235,37 +249,40 @@ export const listContracts = async (params?: ListContractsParams, options?: Requ
 
 
 
-export const getListContractsQueryKey = (params?: ListContractsParams,) => {
+export const getListContractsQueryKey = (associationId: string,
+    params?: ListContractsParams,) => {
     return [
-    `/api/finance/contracts`, ...(params ? [params] : [])
+    `/api/finance/associations/${associationId}/contracts`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getListContractsQueryOptions = <TData = Awaited<ReturnType<typeof listContracts>>, TError = globalThis.Error & { info?: UnprocessableEntityResponse; status?: number }>(params?: ListContractsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listContracts>>, TError, TData>>, fetch?: RequestInit}
+export const getListContractsQueryOptions = <TData = Awaited<ReturnType<typeof listContracts>>, TError = globalThis.Error & { info?: MemberOrDisabledResponse | UnprocessableEntityResponse; status?: number }>(associationId: string,
+    params?: ListContractsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listContracts>>, TError, TData>>, fetch?: RequestInit}
 ) => {
 
 const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getListContractsQueryKey(params);
+  const queryKey =  queryOptions?.queryKey ?? getListContractsQueryKey(associationId,params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listContracts>>> = ({ signal }) => listContracts(params, { signal, ...fetchOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listContracts>>> = ({ signal }) => listContracts(associationId,params, { signal, ...fetchOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listContracts>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+   return  { queryKey, queryFn, enabled: associationId !== null && associationId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listContracts>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type ListContractsQueryResult = NonNullable<Awaited<ReturnType<typeof listContracts>>>
-export type ListContractsQueryError = globalThis.Error & { info?: UnprocessableEntityResponse; status?: number }
+export type ListContractsQueryError = globalThis.Error & { info?: MemberOrDisabledResponse | UnprocessableEntityResponse; status?: number }
 
 
-export function useListContracts<TData = Awaited<ReturnType<typeof listContracts>>, TError = globalThis.Error & { info?: UnprocessableEntityResponse; status?: number }>(
- params: undefined |  ListContractsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listContracts>>, TError, TData>> & Pick<
+export function useListContracts<TData = Awaited<ReturnType<typeof listContracts>>, TError = globalThis.Error & { info?: MemberOrDisabledResponse | UnprocessableEntityResponse; status?: number }>(
+ associationId: string,
+    params: undefined |  ListContractsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listContracts>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listContracts>>,
           TError,
@@ -274,8 +291,9 @@ export function useListContracts<TData = Awaited<ReturnType<typeof listContracts
       >, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListContracts<TData = Awaited<ReturnType<typeof listContracts>>, TError = globalThis.Error & { info?: UnprocessableEntityResponse; status?: number }>(
- params?: ListContractsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listContracts>>, TError, TData>> & Pick<
+export function useListContracts<TData = Awaited<ReturnType<typeof listContracts>>, TError = globalThis.Error & { info?: MemberOrDisabledResponse | UnprocessableEntityResponse; status?: number }>(
+ associationId: string,
+    params?: ListContractsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listContracts>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listContracts>>,
           TError,
@@ -284,20 +302,22 @@ export function useListContracts<TData = Awaited<ReturnType<typeof listContracts
       >, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListContracts<TData = Awaited<ReturnType<typeof listContracts>>, TError = globalThis.Error & { info?: UnprocessableEntityResponse; status?: number }>(
- params?: ListContractsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listContracts>>, TError, TData>>, fetch?: RequestInit}
+export function useListContracts<TData = Awaited<ReturnType<typeof listContracts>>, TError = globalThis.Error & { info?: MemberOrDisabledResponse | UnprocessableEntityResponse; status?: number }>(
+ associationId: string,
+    params?: ListContractsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listContracts>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
  * @summary List contracts, newest first, one page at a time
  */
 
-export function useListContracts<TData = Awaited<ReturnType<typeof listContracts>>, TError = globalThis.Error & { info?: UnprocessableEntityResponse; status?: number }>(
- params?: ListContractsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listContracts>>, TError, TData>>, fetch?: RequestInit}
+export function useListContracts<TData = Awaited<ReturnType<typeof listContracts>>, TError = globalThis.Error & { info?: MemberOrDisabledResponse | UnprocessableEntityResponse; status?: number }>(
+ associationId: string,
+    params?: ListContractsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listContracts>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getListContractsQueryOptions(params,options)
+  const queryOptions = getListContractsQueryOptions(associationId,params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -314,6 +334,11 @@ export type getContractResponse200 = {
   status: 200
 }
 
+export type getContractResponse403 = {
+  data: MemberOrDisabledResponse
+  status: 403
+}
+
 export type getContractResponse404 = {
   data: NotFoundResponse
   status: 404
@@ -327,24 +352,26 @@ export type getContractResponse422 = {
 export type getContractResponseSuccess = (getContractResponse200) & {
   headers: Headers;
 };
-export type getContractResponseError = (getContractResponse404 | getContractResponse422) & {
+export type getContractResponseError = (getContractResponse403 | getContractResponse404 | getContractResponse422) & {
   headers: Headers;
 };
 
-export const getGetContractUrl = (id: string,) => {
+export const getGetContractUrl = (associationId: string,
+    id: string,) => {
 
 
 
 
-  return `/api/finance/contracts/${id}`
+  return `/api/finance/associations/${associationId}/contracts/${id}`
 }
 
 /**
  * @summary Get one contract
  */
-export const getContract = async (id: string, options?: RequestInit): Promise<getContractResponseSuccess> => {
+export const getContract = async (associationId: string,
+    id: string, options?: RequestInit): Promise<getContractResponseSuccess> => {
 
-  const res = await fetch(getGetContractUrl(id),
+  const res = await fetch(getGetContractUrl(associationId,id),
   {
     ...options,
     method: 'GET'
@@ -371,37 +398,40 @@ export const getContract = async (id: string, options?: RequestInit): Promise<ge
 
 
 
-export const getGetContractQueryKey = (id: string,) => {
+export const getGetContractQueryKey = (associationId: string,
+    id: string,) => {
     return [
-    `/api/finance/contracts/${id}`
+    `/api/finance/associations/${associationId}/contracts/${id}`
     ] as const;
     }
 
 
-export const getGetContractQueryOptions = <TData = Awaited<ReturnType<typeof getContract>>, TError = globalThis.Error & { info?: NotFoundResponse | UnprocessableEntityResponse; status?: number }>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getContract>>, TError, TData>>, fetch?: RequestInit}
+export const getGetContractQueryOptions = <TData = Awaited<ReturnType<typeof getContract>>, TError = globalThis.Error & { info?: MemberOrDisabledResponse | NotFoundResponse | UnprocessableEntityResponse; status?: number }>(associationId: string,
+    id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getContract>>, TError, TData>>, fetch?: RequestInit}
 ) => {
 
 const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetContractQueryKey(id);
+  const queryKey =  queryOptions?.queryKey ?? getGetContractQueryKey(associationId,id);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getContract>>> = ({ signal }) => getContract(id, { signal, ...fetchOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getContract>>> = ({ signal }) => getContract(associationId,id, { signal, ...fetchOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getContract>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+   return  { queryKey, queryFn, enabled: associationId !== null && associationId !== undefined && id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getContract>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type GetContractQueryResult = NonNullable<Awaited<ReturnType<typeof getContract>>>
-export type GetContractQueryError = globalThis.Error & { info?: NotFoundResponse | UnprocessableEntityResponse; status?: number }
+export type GetContractQueryError = globalThis.Error & { info?: MemberOrDisabledResponse | NotFoundResponse | UnprocessableEntityResponse; status?: number }
 
 
-export function useGetContract<TData = Awaited<ReturnType<typeof getContract>>, TError = globalThis.Error & { info?: NotFoundResponse | UnprocessableEntityResponse; status?: number }>(
- id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getContract>>, TError, TData>> & Pick<
+export function useGetContract<TData = Awaited<ReturnType<typeof getContract>>, TError = globalThis.Error & { info?: MemberOrDisabledResponse | NotFoundResponse | UnprocessableEntityResponse; status?: number }>(
+ associationId: string,
+    id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getContract>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof getContract>>,
           TError,
@@ -410,8 +440,9 @@ export function useGetContract<TData = Awaited<ReturnType<typeof getContract>>, 
       >, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useGetContract<TData = Awaited<ReturnType<typeof getContract>>, TError = globalThis.Error & { info?: NotFoundResponse | UnprocessableEntityResponse; status?: number }>(
- id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getContract>>, TError, TData>> & Pick<
+export function useGetContract<TData = Awaited<ReturnType<typeof getContract>>, TError = globalThis.Error & { info?: MemberOrDisabledResponse | NotFoundResponse | UnprocessableEntityResponse; status?: number }>(
+ associationId: string,
+    id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getContract>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof getContract>>,
           TError,
@@ -420,20 +451,22 @@ export function useGetContract<TData = Awaited<ReturnType<typeof getContract>>, 
       >, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useGetContract<TData = Awaited<ReturnType<typeof getContract>>, TError = globalThis.Error & { info?: NotFoundResponse | UnprocessableEntityResponse; status?: number }>(
- id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getContract>>, TError, TData>>, fetch?: RequestInit}
+export function useGetContract<TData = Awaited<ReturnType<typeof getContract>>, TError = globalThis.Error & { info?: MemberOrDisabledResponse | NotFoundResponse | UnprocessableEntityResponse; status?: number }>(
+ associationId: string,
+    id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getContract>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
  * @summary Get one contract
  */
 
-export function useGetContract<TData = Awaited<ReturnType<typeof getContract>>, TError = globalThis.Error & { info?: NotFoundResponse | UnprocessableEntityResponse; status?: number }>(
- id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getContract>>, TError, TData>>, fetch?: RequestInit}
+export function useGetContract<TData = Awaited<ReturnType<typeof getContract>>, TError = globalThis.Error & { info?: MemberOrDisabledResponse | NotFoundResponse | UnprocessableEntityResponse; status?: number }>(
+ associationId: string,
+    id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getContract>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getGetContractQueryOptions(id,options)
+  const queryOptions = getGetContractQueryOptions(associationId,id,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

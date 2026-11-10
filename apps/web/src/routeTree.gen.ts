@@ -10,12 +10,57 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as NoAccessRouteImport } from './routes/no-access'
+import { Route as SignInRouteImport } from './routes/sign-in'
+import { Route as StatusRouteImport } from './routes/status'
+import { Route as ApplicationsIndexRouteImport } from './routes/applications.index'
+import { Route as ApplicationsApplicationIdRouteImport } from './routes/applications.$applicationId'
+import { Route as ApplicationsNewRouteImport } from './routes/applications.new'
 import { Route as CasesIndexRouteImport } from './routes/cases.index'
+import { Route as OAssociationIdRouteImport } from './routes/o.$associationId'
+import { Route as OperatorAssociationsRouteImport } from './routes/operator.associations'
+import { Route as StorageCallbackRouteImport } from './routes/storage.callback'
 import { Route as CasesCaseIdProtocolRouteImport } from './routes/cases.$caseId.protocol'
+import { Route as OAssociationIdAssociationRouteImport } from './routes/o.$associationId.association'
+import { Route as OperatorApplicationsIndexRouteImport } from './routes/operator.applications.index'
+import { Route as OperatorApplicationsApplicationIdRouteImport } from './routes/operator.applications.$applicationId'
+import { Route as OAssociationIdCasesIndexRouteImport } from './routes/o.$associationId.cases.index'
+import { Route as OAssociationIdCasesCaseIdProtocolRouteImport } from './routes/o.$associationId.cases.$caseId.protocol'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NoAccessRoute = NoAccessRouteImport.update({
+  id: '/no-access',
+  path: '/no-access',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignInRoute = SignInRouteImport.update({
+  id: '/sign-in',
+  path: '/sign-in',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StatusRoute = StatusRouteImport.update({
+  id: '/status',
+  path: '/status',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApplicationsIndexRoute = ApplicationsIndexRouteImport.update({
+  id: '/applications/',
+  path: '/applications/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApplicationsApplicationIdRoute =
+  ApplicationsApplicationIdRouteImport.update({
+    id: '/applications/$applicationId',
+    path: '/applications/$applicationId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApplicationsNewRoute = ApplicationsNewRouteImport.update({
+  id: '/applications/new',
+  path: '/applications/new',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CasesIndexRoute = CasesIndexRouteImport.update({
@@ -23,40 +68,190 @@ const CasesIndexRoute = CasesIndexRouteImport.update({
   path: '/cases/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OAssociationIdRoute = OAssociationIdRouteImport.update({
+  id: '/o/$associationId',
+  path: '/o/$associationId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OperatorAssociationsRoute = OperatorAssociationsRouteImport.update({
+  id: '/operator/associations',
+  path: '/operator/associations',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StorageCallbackRoute = StorageCallbackRouteImport.update({
+  id: '/storage/callback',
+  path: '/storage/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CasesCaseIdProtocolRoute = CasesCaseIdProtocolRouteImport.update({
   id: '/cases/$caseId/protocol',
   path: '/cases/$caseId/protocol',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OAssociationIdAssociationRoute =
+  OAssociationIdAssociationRouteImport.update({
+    id: '/association',
+    path: '/association',
+    getParentRoute: () => OAssociationIdRoute,
+  } as any)
+const OperatorApplicationsIndexRoute =
+  OperatorApplicationsIndexRouteImport.update({
+    id: '/operator/applications/',
+    path: '/operator/applications/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const OperatorApplicationsApplicationIdRoute =
+  OperatorApplicationsApplicationIdRouteImport.update({
+    id: '/operator/applications/$applicationId',
+    path: '/operator/applications/$applicationId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const OAssociationIdCasesIndexRoute =
+  OAssociationIdCasesIndexRouteImport.update({
+    id: '/cases/',
+    path: '/cases/',
+    getParentRoute: () => OAssociationIdRoute,
+  } as any)
+const OAssociationIdCasesCaseIdProtocolRoute =
+  OAssociationIdCasesCaseIdProtocolRouteImport.update({
+    id: '/cases/$caseId/protocol',
+    path: '/cases/$caseId/protocol',
+    getParentRoute: () => OAssociationIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/no-access': typeof NoAccessRoute
+  '/sign-in': typeof SignInRoute
+  '/status': typeof StatusRoute
+  '/applications/$applicationId': typeof ApplicationsApplicationIdRoute
+  '/applications/new': typeof ApplicationsNewRoute
+  '/o/$associationId': typeof OAssociationIdRouteWithChildren
+  '/operator/associations': typeof OperatorAssociationsRoute
+  '/storage/callback': typeof StorageCallbackRoute
+  '/applications/': typeof ApplicationsIndexRoute
   '/cases/': typeof CasesIndexRoute
   '/cases/$caseId/protocol': typeof CasesCaseIdProtocolRoute
+  '/o/$associationId/association': typeof OAssociationIdAssociationRoute
+  '/operator/applications/$applicationId': typeof OperatorApplicationsApplicationIdRoute
+  '/operator/applications/': typeof OperatorApplicationsIndexRoute
+  '/o/$associationId/cases/': typeof OAssociationIdCasesIndexRoute
+  '/o/$associationId/cases/$caseId/protocol': typeof OAssociationIdCasesCaseIdProtocolRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/no-access': typeof NoAccessRoute
+  '/sign-in': typeof SignInRoute
+  '/status': typeof StatusRoute
+  '/applications/$applicationId': typeof ApplicationsApplicationIdRoute
+  '/applications/new': typeof ApplicationsNewRoute
+  '/o/$associationId': typeof OAssociationIdRouteWithChildren
+  '/operator/associations': typeof OperatorAssociationsRoute
+  '/storage/callback': typeof StorageCallbackRoute
+  '/applications': typeof ApplicationsIndexRoute
   '/cases': typeof CasesIndexRoute
   '/cases/$caseId/protocol': typeof CasesCaseIdProtocolRoute
+  '/o/$associationId/association': typeof OAssociationIdAssociationRoute
+  '/operator/applications/$applicationId': typeof OperatorApplicationsApplicationIdRoute
+  '/operator/applications': typeof OperatorApplicationsIndexRoute
+  '/o/$associationId/cases': typeof OAssociationIdCasesIndexRoute
+  '/o/$associationId/cases/$caseId/protocol': typeof OAssociationIdCasesCaseIdProtocolRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/no-access': typeof NoAccessRoute
+  '/sign-in': typeof SignInRoute
+  '/status': typeof StatusRoute
+  '/applications/$applicationId': typeof ApplicationsApplicationIdRoute
+  '/applications/new': typeof ApplicationsNewRoute
+  '/o/$associationId': typeof OAssociationIdRouteWithChildren
+  '/operator/associations': typeof OperatorAssociationsRoute
+  '/storage/callback': typeof StorageCallbackRoute
+  '/applications/': typeof ApplicationsIndexRoute
   '/cases/': typeof CasesIndexRoute
   '/cases/$caseId/protocol': typeof CasesCaseIdProtocolRoute
+  '/o/$associationId/association': typeof OAssociationIdAssociationRoute
+  '/operator/applications/$applicationId': typeof OperatorApplicationsApplicationIdRoute
+  '/operator/applications/': typeof OperatorApplicationsIndexRoute
+  '/o/$associationId/cases/': typeof OAssociationIdCasesIndexRoute
+  '/o/$associationId/cases/$caseId/protocol': typeof OAssociationIdCasesCaseIdProtocolRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/cases/' | '/cases/$caseId/protocol'
+  fullPaths:
+    | '/'
+    | '/no-access'
+    | '/sign-in'
+    | '/status'
+    | '/applications/$applicationId'
+    | '/applications/new'
+    | '/o/$associationId'
+    | '/operator/associations'
+    | '/storage/callback'
+    | '/applications/'
+    | '/cases/'
+    | '/cases/$caseId/protocol'
+    | '/o/$associationId/association'
+    | '/operator/applications/$applicationId'
+    | '/operator/applications/'
+    | '/o/$associationId/cases/'
+    | '/o/$associationId/cases/$caseId/protocol'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/cases' | '/cases/$caseId/protocol'
-  id: '__root__' | '/' | '/cases/' | '/cases/$caseId/protocol'
+  to:
+    | '/'
+    | '/no-access'
+    | '/sign-in'
+    | '/status'
+    | '/applications/$applicationId'
+    | '/applications/new'
+    | '/o/$associationId'
+    | '/operator/associations'
+    | '/storage/callback'
+    | '/applications'
+    | '/cases'
+    | '/cases/$caseId/protocol'
+    | '/o/$associationId/association'
+    | '/operator/applications/$applicationId'
+    | '/operator/applications'
+    | '/o/$associationId/cases'
+    | '/o/$associationId/cases/$caseId/protocol'
+  id:
+    | '__root__'
+    | '/'
+    | '/no-access'
+    | '/sign-in'
+    | '/status'
+    | '/applications/$applicationId'
+    | '/applications/new'
+    | '/o/$associationId'
+    | '/operator/associations'
+    | '/storage/callback'
+    | '/applications/'
+    | '/cases/'
+    | '/cases/$caseId/protocol'
+    | '/o/$associationId/association'
+    | '/operator/applications/$applicationId'
+    | '/operator/applications/'
+    | '/o/$associationId/cases/'
+    | '/o/$associationId/cases/$caseId/protocol'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  NoAccessRoute: typeof NoAccessRoute
+  SignInRoute: typeof SignInRoute
+  StatusRoute: typeof StatusRoute
+  ApplicationsApplicationIdRoute: typeof ApplicationsApplicationIdRoute
+  ApplicationsNewRoute: typeof ApplicationsNewRoute
+  OAssociationIdRoute: typeof OAssociationIdRouteWithChildren
+  OperatorAssociationsRoute: typeof OperatorAssociationsRoute
+  StorageCallbackRoute: typeof StorageCallbackRoute
+  ApplicationsIndexRoute: typeof ApplicationsIndexRoute
   CasesIndexRoute: typeof CasesIndexRoute
   CasesCaseIdProtocolRoute: typeof CasesCaseIdProtocolRoute
+  OperatorApplicationsApplicationIdRoute: typeof OperatorApplicationsApplicationIdRoute
+  OperatorApplicationsIndexRoute: typeof OperatorApplicationsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -68,11 +263,74 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/no-access': {
+      id: '/no-access'
+      path: '/no-access'
+      fullPath: '/no-access'
+      preLoaderRoute: typeof NoAccessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sign-in': {
+      id: '/sign-in'
+      path: '/sign-in'
+      fullPath: '/sign-in'
+      preLoaderRoute: typeof SignInRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/status': {
+      id: '/status'
+      path: '/status'
+      fullPath: '/status'
+      preLoaderRoute: typeof StatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/applications/': {
+      id: '/applications/'
+      path: '/applications'
+      fullPath: '/applications/'
+      preLoaderRoute: typeof ApplicationsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/applications/$applicationId': {
+      id: '/applications/$applicationId'
+      path: '/applications/$applicationId'
+      fullPath: '/applications/$applicationId'
+      preLoaderRoute: typeof ApplicationsApplicationIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/applications/new': {
+      id: '/applications/new'
+      path: '/applications/new'
+      fullPath: '/applications/new'
+      preLoaderRoute: typeof ApplicationsNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/cases/': {
       id: '/cases/'
       path: '/cases'
       fullPath: '/cases/'
       preLoaderRoute: typeof CasesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/o/$associationId': {
+      id: '/o/$associationId'
+      path: '/o/$associationId'
+      fullPath: '/o/$associationId'
+      preLoaderRoute: typeof OAssociationIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/operator/associations': {
+      id: '/operator/associations'
+      path: '/operator/associations'
+      fullPath: '/operator/associations'
+      preLoaderRoute: typeof OperatorAssociationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/storage/callback': {
+      id: '/storage/callback'
+      path: '/storage/callback'
+      fullPath: '/storage/callback'
+      preLoaderRoute: typeof StorageCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/cases/$caseId/protocol': {
@@ -82,13 +340,77 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CasesCaseIdProtocolRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/o/$associationId/association': {
+      id: '/o/$associationId/association'
+      path: '/association'
+      fullPath: '/o/$associationId/association'
+      preLoaderRoute: typeof OAssociationIdAssociationRouteImport
+      parentRoute: typeof OAssociationIdRoute
+    }
+    '/operator/applications/': {
+      id: '/operator/applications/'
+      path: '/operator/applications'
+      fullPath: '/operator/applications/'
+      preLoaderRoute: typeof OperatorApplicationsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/operator/applications/$applicationId': {
+      id: '/operator/applications/$applicationId'
+      path: '/operator/applications/$applicationId'
+      fullPath: '/operator/applications/$applicationId'
+      preLoaderRoute: typeof OperatorApplicationsApplicationIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/o/$associationId/cases/': {
+      id: '/o/$associationId/cases/'
+      path: '/cases'
+      fullPath: '/o/$associationId/cases/'
+      preLoaderRoute: typeof OAssociationIdCasesIndexRouteImport
+      parentRoute: typeof OAssociationIdRoute
+    }
+    '/o/$associationId/cases/$caseId/protocol': {
+      id: '/o/$associationId/cases/$caseId/protocol'
+      path: '/cases/$caseId/protocol'
+      fullPath: '/o/$associationId/cases/$caseId/protocol'
+      preLoaderRoute: typeof OAssociationIdCasesCaseIdProtocolRouteImport
+      parentRoute: typeof OAssociationIdRoute
+    }
   }
 }
 
+interface OAssociationIdRouteChildren {
+  OAssociationIdAssociationRoute: typeof OAssociationIdAssociationRoute
+  OAssociationIdCasesIndexRoute: typeof OAssociationIdCasesIndexRoute
+  OAssociationIdCasesCaseIdProtocolRoute: typeof OAssociationIdCasesCaseIdProtocolRoute
+}
+
+const OAssociationIdRouteChildren: OAssociationIdRouteChildren = {
+  OAssociationIdAssociationRoute: OAssociationIdAssociationRoute,
+  OAssociationIdCasesIndexRoute: OAssociationIdCasesIndexRoute,
+  OAssociationIdCasesCaseIdProtocolRoute:
+    OAssociationIdCasesCaseIdProtocolRoute,
+}
+
+const OAssociationIdRouteWithChildren = OAssociationIdRoute._addFileChildren(
+  OAssociationIdRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  NoAccessRoute: NoAccessRoute,
+  SignInRoute: SignInRoute,
+  StatusRoute: StatusRoute,
+  ApplicationsApplicationIdRoute: ApplicationsApplicationIdRoute,
+  ApplicationsNewRoute: ApplicationsNewRoute,
+  OAssociationIdRoute: OAssociationIdRouteWithChildren,
+  OperatorAssociationsRoute: OperatorAssociationsRoute,
+  StorageCallbackRoute: StorageCallbackRoute,
+  ApplicationsIndexRoute: ApplicationsIndexRoute,
   CasesIndexRoute: CasesIndexRoute,
   CasesCaseIdProtocolRoute: CasesCaseIdProtocolRoute,
+  OperatorApplicationsApplicationIdRoute:
+    OperatorApplicationsApplicationIdRoute,
+  OperatorApplicationsIndexRoute: OperatorApplicationsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

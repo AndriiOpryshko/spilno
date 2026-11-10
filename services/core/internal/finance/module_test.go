@@ -2,28 +2,25 @@ package finance_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 
-	"github.com/AndriiOpryshko/spilno/services/core/internal/finance"
-	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/httpapi"
-	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/testdb"
+	"github.com/google/uuid"
+
+	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/db"
 )
 
 // newServer serves the context through the same router, validator and
 // generated handlers as production, on a real migrated database.
 func newServer(t *testing.T) *httptest.Server {
 	t.Helper()
-	r := httpapi.NewRouter()
-	if err := finance.New(testdb.New(t)).Routes(r); err != nil {
-		t.Fatal(err)
-	}
-	srv := httptest.NewServer(r)
-	t.Cleanup(srv.Close)
+	srv, _ := newGuardedServer(t)
 	return srv
 }
 
@@ -86,11 +83,13 @@ func pointers(p problem) []string {
 	return out
 }
 
+const assocID = "0191a000-0000-7000-8000-00000000000a"
+
 func TestCreateAndGetContract(t *testing.T) {
 	srv := newServer(t)
 
 	var created contract
-	do(t, "POST", srv.URL+"/finance/contracts",
+	do(t, "POST", srv.URL+"/finance/associations/"+assocID+"/contracts",
 		`{"counterparty":"Kyivteploenergo","amount_cents":125000,"currency":"UAH","signed_at":"2026-01-15","ends_at":"2026-12-31"}`,
 		http.StatusCreated, &created)
 	if created.ID == "" || created.CreatedAt == "" || created.UpdatedAt == "" {
@@ -101,7 +100,7 @@ func TestCreateAndGetContract(t *testing.T) {
 	}
 
 	var got contract
-	do(t, "GET", srv.URL+"/finance/contracts/"+created.ID, "", http.StatusOK, &got)
+	do(t, "GET", srv.URL+"/finance/associations/"+assocID+"/contracts/"+created.ID, "", http.StatusOK, &got)
 	if got != (contract{ID: created.ID, Counterparty: "Kyivteploenergo", AmountCents: 125000, Currency: "UAH",
 		SignedAt: "2026-01-15", EndsAt: got.EndsAt, CreatedAt: created.CreatedAt, UpdatedAt: created.UpdatedAt}) ||
 		*got.EndsAt != "2026-12-31" {
@@ -113,7 +112,7 @@ func TestOpenEndedContractHasNullEndsAt(t *testing.T) {
 	srv := newServer(t)
 
 	var raw map[string]any
-	do(t, "POST", srv.URL+"/finance/contracts",
+	do(t, "POST", srv.URL+"/finance/associations/"+assocID+"/contracts",
 		`{"counterparty":"Lift service","amount_cents":1,"currency":"EUR","signed_at":"2026-03-01"}`,
 		http.StatusCreated, &raw)
 	if v, ok := raw["ends_at"]; !ok || v != nil {
@@ -138,7 +137,7 @@ func TestCreateContractRejectsInvalidTerms(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var p problem
-			do(t, "POST", srv.URL+"/finance/contracts", tt.body, http.StatusUnprocessableEntity, &p)
+			do(t, "POST", srv.URL+"/finance/associations/"+assocID+"/contracts", tt.body, http.StatusUnprocessableEntity, &p)
 			if tt.wantPointer != "" && !containsPointer(p, tt.wantPointer) {
 				t.Errorf("pointers = %v, want %s", pointers(p), tt.wantPointer)
 			}
@@ -158,8 +157,8 @@ func containsPointer(p problem, want string) bool {
 func TestGetContractErrors(t *testing.T) {
 	srv := newServer(t)
 
-	do(t, "GET", srv.URL+"/finance/contracts/0b0e6f2a-5c1d-4c4e-9b8a-0f6c2d1e3a4b", "", http.StatusNotFound, nil)
-	do(t, "GET", srv.URL+"/finance/contracts/not-a-uuid", "", http.StatusUnprocessableEntity, nil)
+	do(t, "GET", srv.URL+"/finance/associations/"+assocID+"/contracts/0b0e6f2a-5c1d-4c4e-9b8a-0f6c2d1e3a4b", "", http.StatusNotFound, nil)
+	do(t, "GET", srv.URL+"/finance/associations/"+assocID+"/contracts/not-a-uuid", "", http.StatusUnprocessableEntity, nil)
 }
 
 func TestListContractsPagesNewestFirst(t *testing.T) {
@@ -168,7 +167,7 @@ func TestListContractsPagesNewestFirst(t *testing.T) {
 	var ids []string
 	for i := range 5 {
 		var c contract
-		do(t, "POST", srv.URL+"/finance/contracts",
+		do(t, "POST", srv.URL+"/finance/associations/"+assocID+"/contracts",
 			fmt.Sprintf(`{"counterparty":"Vendor %d","amount_cents":%d,"currency":"USD","signed_at":"2026-01-01"}`, i, i+1),
 			http.StatusCreated, &c)
 		ids = append([]string{c.ID}, ids...)
@@ -179,7 +178,7 @@ func TestListContractsPagesNewestFirst(t *testing.T) {
 		NextCursor *string    `json:"next_cursor"`
 	}
 	var seen []string
-	next := srv.URL + "/finance/contracts?limit=2"
+	next := srv.URL + "/finance/associations/" + assocID + "/contracts?limit=2"
 	for pages := 0; ; pages++ {
 		if pages > 5 {
 			t.Fatal("listing did not end")
@@ -192,21 +191,21 @@ func TestListContractsPagesNewestFirst(t *testing.T) {
 		if p.NextCursor == nil {
 			break
 		}
-		next = srv.URL + "/finance/contracts?limit=2&cursor=" + url.QueryEscape(*p.NextCursor)
+		next = srv.URL + "/finance/associations/" + assocID + "/contracts?limit=2&cursor=" + url.QueryEscape(*p.NextCursor)
 	}
 	if fmt.Sprint(seen) != fmt.Sprint(ids) {
 		t.Errorf("listed %v, want newest first %v", seen, ids)
 	}
 
 	var all page
-	do(t, "GET", srv.URL+"/finance/contracts", "", http.StatusOK, &all)
+	do(t, "GET", srv.URL+"/finance/associations/"+assocID+"/contracts", "", http.StatusOK, &all)
 	if len(all.Items) != 5 || all.NextCursor != nil {
 		t.Errorf("default page: %d items, next %v; want 5 and null", len(all.Items), all.NextCursor)
 	}
 
 	// A page filled exactly to the limit is still the last one when nothing follows.
 	var exact page
-	do(t, "GET", srv.URL+"/finance/contracts?limit=5", "", http.StatusOK, &exact)
+	do(t, "GET", srv.URL+"/finance/associations/"+assocID+"/contracts?limit=5", "", http.StatusOK, &exact)
 	if len(exact.Items) != 5 || exact.NextCursor != nil {
 		t.Errorf("limit=5 page: %d items, next %v; want 5 and null", len(exact.Items), exact.NextCursor)
 	}
@@ -216,7 +215,7 @@ func TestListContractsEmptyIsArray(t *testing.T) {
 	srv := newServer(t)
 
 	var raw map[string]json.RawMessage
-	do(t, "GET", srv.URL+"/finance/contracts", "", http.StatusOK, &raw)
+	do(t, "GET", srv.URL+"/finance/associations/"+assocID+"/contracts", "", http.StatusOK, &raw)
 	if string(raw["items"]) != "[]" || string(raw["next_cursor"]) != "null" {
 		t.Errorf("body = items %s, next_cursor %s; want [] and null", raw["items"], raw["next_cursor"])
 	}
@@ -227,7 +226,7 @@ func TestListContractsRejectsBadParams(t *testing.T) {
 
 	for _, q := range []string{"limit=0", "limit=101", "cursor=garbage"} {
 		var p problem
-		do(t, "GET", srv.URL+"/finance/contracts?"+q, "", http.StatusUnprocessableEntity, &p)
+		do(t, "GET", srv.URL+"/finance/associations/"+assocID+"/contracts?"+q, "", http.StatusUnprocessableEntity, &p)
 		if len(p.Errors) == 0 {
 			t.Errorf("%s: no field errors", q)
 		}
@@ -237,5 +236,68 @@ func TestListContractsRejectsBadParams(t *testing.T) {
 func TestUnknownRouteIsProblem(t *testing.T) {
 	srv := newServer(t)
 
-	do(t, "GET", srv.URL+"/finance/nope", "", http.StatusNotFound, nil)
+	do(t, "GET", srv.URL+"/finance/associations/"+assocID+"/nope", "", http.StatusNotFound, nil)
+}
+
+const otherAssocID = "0191a000-0000-7000-8000-00000000000b"
+
+// AC-04d, AC-07: a contract belongs to the association in its path; under
+// another association it is neither listed nor opened, and the answer matches
+// the one for a missing id.
+func TestContractsAreScopedToTheAssociationInThePath(t *testing.T) {
+	srv, pool := newGuardedServer(t)
+
+	var created contract
+	do(t, "POST", srv.URL+"/finance/associations/"+assocID+"/contracts",
+		`{"counterparty":"Kyivteploenergo","amount_cents":125000,"currency":"UAH","signed_at":"2026-01-15"}`,
+		http.StatusCreated, &created)
+
+	var stored *string
+	// contracts is under row-level security: read it inside the association's own transaction.
+	err := db.InAssociation(context.Background(), pool, uuid.MustParse(assocID), "", func(ctx context.Context) error {
+		q, err := db.From(ctx)
+		if err != nil {
+			return err
+		}
+		return q.QueryRow(ctx, `SELECT association_id::text FROM contracts WHERE id = $1`, created.ID).Scan(&stored)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored == nil || *stored != assocID {
+		t.Errorf("stored association_id = %v, want %s", stored, assocID)
+	}
+
+	var inA struct {
+		Items []contract `json:"items"`
+	}
+	do(t, "GET", srv.URL+"/finance/associations/"+assocID+"/contracts", "", http.StatusOK, &inA)
+	if len(inA.Items) != 1 {
+		t.Errorf("list under A: %d items, want 1", len(inA.Items))
+	}
+	do(t, "GET", srv.URL+"/finance/associations/"+assocID+"/contracts/"+created.ID, "", http.StatusOK, nil)
+
+	var inB struct {
+		Items []contract `json:"items"`
+	}
+	do(t, "GET", srv.URL+"/finance/associations/"+otherAssocID+"/contracts", "", http.StatusOK, &inB)
+	if len(inB.Items) != 0 {
+		t.Errorf("list under B: %d items, want 0", len(inB.Items))
+	}
+
+	body := func(url string) string {
+		var raw map[string]any
+		do(t, "GET", url, "", http.StatusNotFound, &raw)
+		delete(raw, "instance")
+		b, _ := json.Marshal(raw)
+		return string(b)
+	}
+	missing := "0b0e6f2a-5c1d-4c4e-9b8a-0f6c2d1e3a4b"
+	// The detail names the requested id, so compare with the id masked out.
+	norm := func(s, id string) string { return strings.ReplaceAll(s, id, "<id>") }
+	gotB := norm(body(srv.URL+"/finance/associations/"+otherAssocID+"/contracts/"+created.ID), created.ID)
+	gotMissing := norm(body(srv.URL+"/finance/associations/"+otherAssocID+"/contracts/"+missing), missing)
+	if gotB != gotMissing {
+		t.Errorf("get under B = %s, want the body of a missing id %s", gotB, gotMissing)
+	}
 }

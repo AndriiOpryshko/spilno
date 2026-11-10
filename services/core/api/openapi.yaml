@@ -37,7 +37,9 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Health" }
-  /finance/contracts:
+  /finance/associations/{association_id}/contracts:
+    parameters:
+      - $ref: '#/components/parameters/AssociationId'
     post:
       operationId: createContract
       tags: [finance]
@@ -53,6 +55,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Contract" }
+        "403": { $ref: "#/components/responses/MemberOrDisabled" }
         "422": { $ref: "#/components/responses/UnprocessableEntity" }
     get:
       operationId: listContracts
@@ -73,8 +76,11 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ContractPage" }
+        "403": { $ref: "#/components/responses/MemberOrDisabled" }
         "422": { $ref: "#/components/responses/UnprocessableEntity" }
-  /finance/contracts/{id}:
+  /finance/associations/{association_id}/contracts/{id}:
+    parameters:
+      - $ref: '#/components/parameters/AssociationId'
     get:
       operationId: getContract
       tags: [finance]
@@ -90,9 +96,12 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Contract" }
+        "403": { $ref: "#/components/responses/MemberOrDisabled" }
         "404": { $ref: "#/components/responses/NotFound" }
         "422": { $ref: "#/components/responses/UnprocessableEntity" }
-  /governance/meetings:
+  /governance/associations/{association_id}/meetings:
+    parameters:
+      - $ref: '#/components/parameters/AssociationId'
     post:
       operationId: createMeeting
       tags: [governance]
@@ -108,6 +117,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Meeting" }
+        "403": { $ref: "#/components/responses/MemberOrDisabled" }
         "422": { $ref: "#/components/responses/UnprocessableEntity" }
     get:
       operationId: listMeetings
@@ -128,8 +138,11 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/MeetingPage" }
+        "403": { $ref: "#/components/responses/MemberOrDisabled" }
         "422": { $ref: "#/components/responses/UnprocessableEntity" }
-  /governance/meetings/{id}:
+  /governance/associations/{association_id}/meetings/{id}:
+    parameters:
+      - $ref: '#/components/parameters/AssociationId'
     get:
       operationId: getMeeting
       tags: [governance]
@@ -145,6 +158,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Meeting" }
+        "403": { $ref: "#/components/responses/MemberOrDisabled" }
         "404": { $ref: "#/components/responses/NotFound" }
         "422": { $ref: "#/components/responses/UnprocessableEntity" }
 
@@ -169,8 +183,8 @@ paths:
       tags: [identity]
       summary: Finish sign-in, create the session and redirect to the SPA
       description: |
-        ADR-0003. Public. The verified email must belong to a roster person whose term covers today's
-        Europe/Kyiv date; otherwise no session is created.
+        ADR-0003, ADR-0004. Public. Any person with a verified email gets a session, on or off a roster;
+        the associations they belong to come from `listMemberships`.
       security: []
       parameters:
         - name: code
@@ -200,7 +214,6 @@ paths:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
               examples: { session_required: { $ref: "#/components/examples/SessionRequired" } }
-        "403": { $ref: "#/components/responses/NotCurrentMember" }
   /identity/sign-out:
     post:
       operationId: signOut
@@ -218,24 +231,625 @@ paths:
     get:
       operationId: getSession
       tags: [identity]
-      summary: The signed-in person, their roster entry and the association
+      summary: The signed-in person; associations come from listMemberships (ADR-0004)
+      description: Changed repo operation — a person off every roster now has a session (AC-05), so the principal no longer carries one association.
+      x-problem-types:
+        "401": [identity.session_required]
       responses:
         "200":
           description: The current principal.
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Principal" }
-              example:
-                account_id: 0192f6a0-0000-7000-8000-000000000a01
-                email: user-1@example.test
-                board_member_id: 0192f6a0-0000-7000-8000-000000000b01
-                full_name: Test User
-                association: { id: 00000000-0000-7000-8000-000000000001, name: Test Association }
+              examples: { principal: { $ref: "#/components/examples/Principal" } }
         "401": { $ref: "#/components/responses/SessionRequired" }
-        "403": { $ref: "#/components/responses/NotCurrentMember" }
+
+  /identity/memberships:
+    get:
+      operationId: listMemberships
+      tags: [identity]
+      summary: Associations whose roster has the signed-in person with a term covering today (AC-04d)
+      x-problem-types:
+        "401": [identity.session_required]
+        "422": [about:blank]
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: One page of memberships; empty for an applicant.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MembershipPage" }
+              examples: { memberships: { $ref: "#/components/examples/MembershipPage" } }
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
+  # ─────────────────────── applicant: заявки and запити ───────────────────────
+  /identity/applications:
+    get:
+      operationId: listMyApplications
+      tags: [identity]
+      summary: The signed-in person's заявки and запити, newest first (US-02, AC-05)
+      x-problem-types:
+        "401": [identity.session_required]
+        "422": [about:blank]
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: One page of the person's applications.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApplicationPage" }
+              examples: { applications: { $ref: "#/components/examples/ApplicationPage" } }
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+    post:
+      operationId: fileApplication
+      tags: [identity]
+      summary: File a заявка на підключення or a запит на передачу with the signed extract (US-01, US-04, Flows 1 and 6)
+      description: |
+        AC-01, AC-17, AC-19c. Every broken field is named at once with `identity.application_invalid` (AC-02):
+        the code, the name, the address, the applicant's full name, a position other than `head`, a term start
+        that is missing or later than the filing date, no extract. A term end earlier than the filing date
+        answers `identity.term_ended` (AC-30). Any signed-in person may file a запит на передачу, on the roster
+        of that association or not (AC-17). A code that is pending by another person is accepted and not
+        revealed (AC-04c). `association_id` is set only when a член правління files a запит from the card of the
+        association set up by hand (AC-19c). The signature is not checked at filing (AC-03).
+      x-problem-types:
+        "401": [identity.session_required]
+        "409": [identity.association_already_connected, identity.application_already_open, identity.association_not_connected, identity.term_ended]
+        "422": [identity.application_invalid, about:blank]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { $ref: "#/components/schemas/NewApplication" }
+            encoding:
+              extract: { contentType: "application/pdf, application/pkcs7-signature, application/vnd.etsi.asic-e+zip" }
+            example:
+              kind: connection
+              edrpou: "12345678"
+              association_name: ОСББ «Тестовий Будинок»
+              association_address: м. Київ, вул. Тестова, 1
+              applicant_full_name: Тестовий Голова Правління
+              position: head
+              term_start: "2026-03-01"
+              extract: <binary vytyah.pdf.p7s>
+      responses:
+        "201":
+          description: Filed; the заявка or запит is pending.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Application" }
+              examples: { pending: { $ref: "#/components/examples/ApplicationPending" } }
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "409":
+          description: The code is connected, the person already has a заявка on it, a запит names an association that is not connected, or the term has ended.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+              examples:
+                association_already_connected: { $ref: "#/components/examples/AssociationAlreadyConnected" }
+                application_already_open: { $ref: "#/components/examples/ApplicationAlreadyOpen" }
+                association_not_connected: { $ref: "#/components/examples/AssociationNotConnected" }
+                term_ended: { $ref: "#/components/examples/TermEnded" }
+        "422":
+          description: Missing or wrong fields, all named (`identity.application_invalid`), or schema validation.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+              examples: { application_invalid: { $ref: "#/components/examples/ApplicationInvalid" } }
+
+  /identity/applications/{application_id}:
+    parameters:
+      - $ref: "#/components/parameters/ApplicationId"
+    get:
+      operationId: getMyApplication
+      tags: [identity]
+      summary: One of the person's applications with every filing and decision (AC-05, AC-06, AC-14)
+      description: Another person's application answers 404, the same as a missing one.
+      x-problem-types:
+        "401": [identity.session_required]
+        "404": [about:blank]
+      responses:
+        "200":
+          description: The application with its history.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApplicationDetail" }
+              examples: { rejected: { $ref: "#/components/examples/ApplicationDetailRejected" } }
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /identity/applications/{application_id}/filings:
+    parameters:
+      - $ref: "#/components/parameters/ApplicationId"
+    post:
+      operationId: refileApplication
+      tags: [identity]
+      summary: Fix and file a rejected application again (US-02, AC-06, Flow 5)
+      description: |
+        The filing checks of fileApplication run again (AC-02, AC-30). A заявка на підключення whose code was
+        connected meanwhile answers `identity.association_already_connected` (AC-04); a refiled запит на
+        передачу is not checked against AC-18 again.
+      x-problem-types:
+        "401": [identity.session_required]
+        "404": [about:blank]
+        "409": [identity.application_not_pending, identity.association_already_connected, identity.term_ended]
+        "422": [identity.application_invalid, about:blank]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { $ref: "#/components/schemas/ApplicationRefiling" }
+            encoding:
+              extract: { contentType: "application/pdf, application/pkcs7-signature, application/vnd.etsi.asic-e+zip" }
+            example:
+              association_name: ОСББ «Тестовий Будинок»
+              association_address: м. Київ, вул. Тестова, 1
+              applicant_full_name: Тестовий Голова Правління
+              position: head
+              term_start: "2026-03-01"
+              extract: <binary vytyah-new.pdf.p7s>
+      responses:
+        "201":
+          description: Refiled; the application is pending again with a new filing date.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Application" }
+              examples: { pending: { $ref: "#/components/examples/ApplicationPending" } }
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Only a rejected application can be refiled, the code of a заявка was connected meanwhile, or the term has ended.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+              examples:
+                application_not_pending: { $ref: "#/components/examples/ApplicationNotPending" }
+                association_already_connected: { $ref: "#/components/examples/AssociationAlreadyConnected" }
+                term_ended: { $ref: "#/components/examples/TermEnded" }
+        "422":
+          description: Missing or wrong fields, all named.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+              examples: { application_invalid: { $ref: "#/components/examples/ApplicationInvalid" } }
+
+  /identity/applications/{application_id}/filings/{filing_id}/extract:
+    parameters:
+      - $ref: "#/components/parameters/ApplicationId"
+      - $ref: "#/components/parameters/FilingId"
+    get:
+      operationId: downloadMyExtract
+      tags: [identity]
+      summary: Download the extract the person attached to one filing (ADR-0005)
+      x-problem-types:
+        "401": [identity.session_required]
+        "404": [about:blank]
+      responses:
+        "200": { $ref: "#/components/responses/ExtractFile" }
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ─────────────────────── operator back office (ADR-0001) ───────────────────────
+  /identity/operator/applications:
+    get:
+      operationId: listApplicationsForReview
+      tags: [identity]
+      summary: The оператор's queue, oldest pending first by default (US-03, US-05, AC-16)
+      x-problem-types:
+        "401": [identity.session_required]
+        "403": [identity.not_operator]
+        "422": [about:blank]
+      parameters:
+        - $ref: "#/components/parameters/ApplicationStateFilter"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: One page of applications in the given state.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApplicationPage" }
+              examples: { queue: { $ref: "#/components/examples/ApplicationPage" } }
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403": { $ref: "#/components/responses/NotOperator" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
+  /identity/operator/applications/{application_id}:
+    parameters:
+      - $ref: "#/components/parameters/ApplicationId"
+    get:
+      operationId: getApplicationForReview
+      tags: [identity]
+      summary: One application with filings, checks, decisions, warnings and competing applications (AC-10, AC-11, AC-11b, AC-04c, AC-19b, AC-28b)
+      x-problem-types:
+        "401": [identity.session_required]
+        "403": [identity.not_operator]
+        "404": [about:blank]
+      responses:
+        "200":
+          description: The review view.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApplicationReview" }
+              examples: { review: { $ref: "#/components/examples/ApplicationReview" } }
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403": { $ref: "#/components/responses/NotOperator" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /identity/operator/applications/{application_id}/filings/{filing_id}/extract:
+    parameters:
+      - $ref: "#/components/parameters/ApplicationId"
+      - $ref: "#/components/parameters/FilingId"
+    get:
+      operationId: downloadExtractForReview
+      tags: [identity]
+      summary: Download the extract of a filing to check it outside Спільно (ADR-0005)
+      x-problem-types:
+        "401": [identity.session_required]
+        "403": [identity.not_operator]
+        "404": [about:blank]
+      responses:
+        "200": { $ref: "#/components/responses/ExtractFile" }
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403": { $ref: "#/components/responses/NotOperator" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /identity/operator/applications/{application_id}/checks:
+    parameters:
+      - $ref: "#/components/parameters/ApplicationId"
+    post:
+      operationId: recordExtractCheck
+      tags: [identity]
+      summary: Record the оператор's check of the extract of the latest filing (AC-03, AC-10, Flow 2)
+      description: Not refused for the оператор's own filing — a recorded check leads to no decision (ADR-0009).
+      x-problem-types:
+        "401": [identity.session_required]
+        "403": [identity.not_operator]
+        "404": [about:blank]
+        "409": [identity.application_not_pending]
+        "422": [about:blank]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/NewExtractCheck" }
+            examples: { check: { $ref: "#/components/examples/NewExtractCheck" } }
+      responses:
+        "201":
+          description: Check recorded; warnings are recomputed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExtractCheck" }
+              examples: { check: { $ref: "#/components/examples/ExtractCheck" } }
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403": { $ref: "#/components/responses/NotOperator" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: The application is already decided.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+              examples: { application_not_pending: { $ref: "#/components/examples/ApplicationNotPending" } }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
+  /identity/operator/applications/{application_id}/approval:
+    parameters:
+      - $ref: "#/components/parameters/ApplicationId"
+    post:
+      operationId: approveApplication
+      tags: [identity]
+      summary: Approve the latest filing — create the association or change its roster (AC-08, AC-16c, AC-19, AC-19c, Flows 2-3)
+      description: |
+        The оператор's own filing is refused whatever the recorded check says and stays pending (AC-16c, ADR-0009).
+        For a запит на передачу: an applicant who already has a current roster entry gets no second entry, that
+        entry takes the position голова правління; only the entry of the голова recorded by an earlier approval
+        ends (AC-19). A competing запит stays pending and can be approved later as a new transfer (AC-19b), so
+        `identity.association_already_connected` is answered only for a заявка на підключення (AC-04c).
+      x-problem-types:
+        "401": [identity.session_required]
+        "403": [identity.not_operator]
+        "404": [about:blank]
+        "409": [identity.operator_own_application, identity.signature_not_checked, identity.extract_code_mismatch, identity.mismatch_needs_document, identity.application_not_pending, identity.association_already_connected]
+        "422": [about:blank]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ApproveApplicationRequest" }
+            examples: { with_document: { $ref: "#/components/examples/ApproveApplicationRequest" } }
+      responses:
+        "200":
+          description: Approved; the decision and the association it created or transferred.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApplicationDecision" }
+              examples: { approved: { $ref: "#/components/examples/DecisionApproved" } }
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403": { $ref: "#/components/responses/NotOperator" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: The оператор's own filing, no recorded check, an extract of another code, an open name mismatch without a document, already decided, or the code was connected by a competing заявка.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+              examples:
+                operator_own_application: { $ref: "#/components/examples/OperatorOwnApplication" }
+                signature_not_checked: { $ref: "#/components/examples/SignatureNotChecked" }
+                extract_code_mismatch: { $ref: "#/components/examples/ExtractCodeMismatch" }
+                mismatch_needs_document: { $ref: "#/components/examples/MismatchNeedsDocument" }
+                application_not_pending: { $ref: "#/components/examples/ApplicationNotPending" }
+                association_already_connected: { $ref: "#/components/examples/AssociationAlreadyConnected" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
+  /identity/operator/applications/{application_id}/rejection:
+    parameters:
+      - $ref: "#/components/parameters/ApplicationId"
+    post:
+      operationId: rejectApplication
+      tags: [identity]
+      summary: Reject the latest filing with a reason the applicant will see (AC-13, AC-14, AC-16c, Flow 8)
+      x-problem-types:
+        "401": [identity.session_required]
+        "403": [identity.not_operator]
+        "404": [about:blank]
+        "409": [identity.application_not_pending, identity.operator_own_application]
+        "422": [identity.reason_required, about:blank]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RejectApplicationRequest" }
+            examples: { reject: { $ref: "#/components/examples/RejectApplicationRequest" } }
+      responses:
+        "200":
+          description: Rejected.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApplicationDecision" }
+              examples: { rejected: { $ref: "#/components/examples/DecisionRejected" } }
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403": { $ref: "#/components/responses/NotOperator" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: The application is already decided, or it is the оператор's own filing (it stays pending).
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+              examples:
+                application_not_pending: { $ref: "#/components/examples/ApplicationNotPending" }
+                operator_own_application: { $ref: "#/components/examples/OperatorOwnApplication" }
+        "422":
+          description: Empty reason.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+              examples: { reason_required: { $ref: "#/components/examples/ReasonRequiredApplicant" } }
+
+  /identity/operator/associations:
+    get:
+      operationId: listAssociationsForOperator
+      tags: [identity]
+      summary: Every association with its state and whether its голова is confirmed by an extract (US-06)
+      x-problem-types:
+        "401": [identity.session_required]
+        "403": [identity.not_operator]
+        "422": [about:blank]
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: One page of associations.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OperatorAssociationPage" }
+              examples: { associations: { $ref: "#/components/examples/OperatorAssociationPage" } }
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403": { $ref: "#/components/responses/NotOperator" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
+  /identity/operator/associations/{association_id}/disabling:
+    parameters:
+      - $ref: "#/components/parameters/AssociationId"
+    post:
+      operationId: disableAssociation
+      tags: [identity]
+      summary: Disable an association with a reason its members will see (AC-21, AC-22, AC-24)
+      x-problem-types:
+        "401": [identity.session_required]
+        "403": [identity.not_operator]
+        "404": [about:blank]
+        "409": [identity.association_state_unchanged]
+        "422": [identity.reason_required, about:blank]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DisableAssociationRequest" }
+            example: { reason: спір щодо складу правління }
+      responses:
+        "200":
+          description: The association is вимкнене ОСББ.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AssociationStateChange" }
+              examples: { disabled: { $ref: "#/components/examples/AssociationDisabledChange" } }
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403": { $ref: "#/components/responses/NotOperator" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Already disabled.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+              examples: { association_state_unchanged: { $ref: "#/components/examples/AssociationStateUnchanged" } }
+        "422":
+          description: Empty reason.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+              examples: { reason_required: { $ref: "#/components/examples/ReasonRequiredMembers" } }
+
+  /identity/operator/associations/{association_id}/enabling:
+    parameters:
+      - $ref: "#/components/parameters/AssociationId"
+    post:
+      operationId: enableAssociation
+      tags: [identity]
+      summary: Enable a disabled association; every record is as before (AC-23, AC-24)
+      x-problem-types:
+        "401": [identity.session_required]
+        "403": [identity.not_operator]
+        "404": [about:blank]
+        "409": [identity.association_state_unchanged]
+      responses:
+        "200":
+          description: The association is підключене ОСББ again.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AssociationStateChange" }
+              examples: { enabled: { $ref: "#/components/examples/AssociationEnabledChange" } }
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403": { $ref: "#/components/responses/NotOperator" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Already connected.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+              examples: { association_state_unchanged: { $ref: "#/components/examples/AssociationStateUnchanged" } }
+
+  # ─────────────────────── association-scoped (ADR-0002) ───────────────────────
+  /identity/associations/{association_id}:
+    parameters:
+      - $ref: "#/components/parameters/AssociationId"
+    get:
+      operationId: getAssociationCard
+      tags: [identity]
+      summary: The association card — state, current голова and the chain of confirmation (US-09, AC-29, AC-21)
+      description: |
+        A non-member gets the same 403 whether the association exists or not (AC-07). Not on the allow-list of a
+        вимкнене ОСББ (ADR-0007, PRD §10): its members get `identity.association_disabled` with the reason (AC-21).
+      x-problem-types:
+        "401": [identity.session_required]
+        "403": [identity.not_current_member, identity.association_disabled]
+      responses:
+        "200":
+          description: The card.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AssociationCard" }
+              examples: { card: { $ref: "#/components/examples/AssociationCard" } }
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403": { $ref: "#/components/responses/MemberOrDisabled" }
+
+  /identity/associations/{association_id}/extracts/{extract_id}:
+    parameters:
+      - $ref: "#/components/parameters/AssociationId"
+      - $ref: "#/components/parameters/ExtractId"
+    get:
+      operationId: downloadConfirmationExtract
+      tags: [identity]
+      summary: Download an extract an approved decision of this association relied on (AC-20, AC-29)
+      x-problem-types:
+        "401": [identity.session_required]
+        "403": [identity.not_current_member, identity.association_disabled]
+        "404": [about:blank]
+      responses:
+        "200": { $ref: "#/components/responses/ExtractFile" }
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403": { $ref: "#/components/responses/MemberOrDisabled" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /identity/associations/{association_id}/storage-connection:
+    parameters:
+      - $ref: "#/components/parameters/AssociationId"
+    get:
+      operationId: getStorageConnection
+      tags: [identity]
+      summary: Whether the document storage is connected and which account holds the files (AC-27, AC-09)
+      x-problem-types:
+        "401": [identity.session_required]
+        "403": [identity.not_current_member, identity.association_disabled]
+      responses:
+        "200":
+          description: The connection status.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StorageConnection" }
+              examples: { connected: { $ref: "#/components/examples/StorageConnection" } }
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403": { $ref: "#/components/responses/MemberOrDisabled" }
+    post:
+      operationId: completeStorageConnection
+      tags: [identity]
+      # unresolved: no response is named for an unknown, expired or replayed `state`, or for a code the
+      # provider refuses — PRD §5.1 has no code for it (api-sync-report.md §D, /sdlc:clarify-prd).
+      # unresolved: who may replace a connected storage and what happens to the files on the old account is
+      # an open question of PRD §8; until it is closed a later connection replaces the stored one (report §D).
+      summary: Finish the storage consent the SPA received back from Google (ADR-0008, AC-27, AC-28b)
+      description: |
+        The SPA's callback route posts the authorization code and state; the state is bound to the session and
+        the association. When a storage is already connected, the new account replaces the stored one under the
+        same rules and no file is moved (SAD §8, open question of PRD §8).
+      x-problem-types:
+        "401": [identity.session_required]
+        "403": [identity.not_current_member, identity.association_disabled]
+        "409": [identity.storage_account_personal]
+        "422": [about:blank]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CompleteStorageConnectionRequest" }
+            example: { code: <authorization-code>, state: <state> }
+      responses:
+        "201":
+          description: Connected; the `spilno/` folder exists in the account.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StorageConnection" }
+              examples: { connected: { $ref: "#/components/examples/StorageConnection" } }
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403": { $ref: "#/components/responses/MemberOrDisabled" }
+        "409":
+          description: The Google account is a member's sign-in account.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+              examples: { storage_account_personal: { $ref: "#/components/examples/StorageAccountPersonal" } }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
+  /identity/associations/{association_id}/storage-connection/authorization:
+    parameters:
+      - $ref: "#/components/parameters/AssociationId"
+    get:
+      operationId: startStorageConnection
+      tags: [identity]
+      summary: Redirect a член правління to the storage consent (drive.file, offline) — ADR-0008
+      x-problem-types:
+        "401": [identity.session_required]
+        "403": [identity.not_current_member, identity.association_disabled]
+      responses:
+        "302":
+          description: Redirect to the provider's consent screen.
+          headers:
+            Location:
+              schema: { type: string, format: uri }
+              example: https://accounts.example.test/o/oauth2/auth?client_id=test-client&state=test-state
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403": { $ref: "#/components/responses/MemberOrDisabled" }
 
   # ─────────────────────── governance: settings & roster ───────────────────────
-  /governance/settings:
+  /governance/associations/{association_id}/settings:
+    parameters:
+      - $ref: '#/components/parameters/AssociationId'
     get:
       operationId: getAssociationSettings
       tags: [governance]
@@ -248,7 +862,7 @@ paths:
               schema: { $ref: "#/components/schemas/AssociationSettings" }
               examples: { association_settings: { $ref: "#/components/examples/AssociationSettings" } }
         "401": { $ref: "#/components/responses/SessionRequired" }
-        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "403": { $ref: "#/components/responses/MemberOrDisabled" }
         "409":
           description: Nothing saved yet (`governance.settings_missing`, every setting named in `errors`).
           content:
@@ -276,7 +890,7 @@ paths:
               schema: { $ref: "#/components/schemas/AssociationSettings" }
               examples: { association_settings: { $ref: "#/components/examples/AssociationSettings" } }
         "401": { $ref: "#/components/responses/SessionRequired" }
-        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "403": { $ref: "#/components/responses/MemberOrDisabled" }
         "409":
           description: The start number changed after the first protocol number was issued (ADR-0017).
           content:
@@ -289,7 +903,9 @@ paths:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
               examples: { settings_invalid: { $ref: "#/components/examples/SettingsInvalid" } }
-  /governance/board-members:
+  /governance/associations/{association_id}/board-members:
+    parameters:
+      - $ref: '#/components/parameters/AssociationId'
     get:
       operationId: listBoardMembers
       tags: [governance]
@@ -309,10 +925,10 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/BoardMemberPage" }
               example:
-                items: [{"id": "0192f6a0-0000-7000-8000-000000000b02", "full_name": "Test User", "sign_in_email": "user-2@example.test", "term_start": "2025-03-01", "term_end": null, "revised_by_member_id": "0192f6a0-0000-7000-8000-000000000b01", "revised_at": "2026-10-27T09:05:00Z"}]
+                items: [{"id": "0192f6a0-0000-7000-8000-000000000b02", "full_name": "Test User", "sign_in_email": "user-2@example.test", "term_start": "2025-03-01", "term_end": null, "revised_by_member_id": "0192f6a0-0000-7000-8000-000000000b01", "revised_at": "2026-10-27T09:05:00Z", "position": "member", "decision_id": null}]
                 next_cursor: null
         "401": { $ref: "#/components/responses/SessionRequired" }
-        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "403": { $ref: "#/components/responses/MemberOrDisabled" }
         "422": { $ref: "#/components/responses/ValidationFailed" }
     post:
       operationId: createBoardMember
@@ -336,15 +952,16 @@ paths:
               schema: { $ref: "#/components/schemas/BoardMember" }
               examples: { board_member: { $ref: "#/components/examples/BoardMember" } }
         "401": { $ref: "#/components/responses/SessionRequired" }
-        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "403": { $ref: "#/components/responses/MemberOrDisabled" }
         "422":
           description: Term start missing or term end before term start (`governance.roster_entry_invalid`).
           content:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
               examples: { roster_entry_invalid: { $ref: "#/components/examples/RosterEntryInvalid" } }
-  /governance/board-members/{board_member_id}:
+  /governance/associations/{association_id}/board-members/{board_member_id}:
     parameters:
+      - $ref: '#/components/parameters/AssociationId'
       - $ref: "#/components/parameters/BoardMemberId"
     put:
       operationId: updateBoardMember
@@ -368,7 +985,7 @@ paths:
               schema: { $ref: "#/components/schemas/BoardMember" }
               examples: { board_member: { $ref: "#/components/examples/BoardMember" } }
         "401": { $ref: "#/components/responses/SessionRequired" }
-        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "403": { $ref: "#/components/responses/MemberOrDisabled" }
         "404": { $ref: "#/components/responses/NotFound" }
         "422":
           description: Term start missing or term end before term start (`governance.roster_entry_invalid`).
@@ -378,7 +995,9 @@ paths:
               examples: { roster_entry_invalid: { $ref: "#/components/examples/RosterEntryInvalid" } }
 
   # ─────────────────────── governance: cases and files ───────────────────────
-  /governance/cases:
+  /governance/associations/{association_id}/cases:
+    parameters:
+      - $ref: '#/components/parameters/AssociationId'
     get:
       operationId: listCases
       tags: [governance]
@@ -396,7 +1015,7 @@ paths:
                 items: [{"id": "0192f6a0-0000-7000-8000-000000000c01", "title": "Гідроізоляція покрівлі, будинок 1", "created_by_member_id": "0192f6a0-0000-7000-8000-000000000b01", "created_at": "2026-10-20T09:00:00Z"}]
                 next_cursor: null
         "401": { $ref: "#/components/responses/SessionRequired" }
-        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "403": { $ref: "#/components/responses/MemberOrDisabled" }
         "422": { $ref: "#/components/responses/ValidationFailed" }
     post:
       operationId: createCase
@@ -416,10 +1035,11 @@ paths:
               schema: { $ref: "#/components/schemas/Case" }
               examples: { case: { $ref: "#/components/examples/Case" } }
         "401": { $ref: "#/components/responses/SessionRequired" }
-        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "403": { $ref: "#/components/responses/MemberOrDisabled" }
         "422": { $ref: "#/components/responses/ValidationFailed" }
-  /governance/cases/{case_id}:
+  /governance/associations/{association_id}/cases/{case_id}:
     parameters:
+      - $ref: '#/components/parameters/AssociationId'
       - $ref: "#/components/parameters/CaseId"
     get:
       operationId: getCase
@@ -438,10 +1058,11 @@ paths:
                 created_at: "2026-10-20T09:00:00Z"
                 documents: [{"id": "0192f6a0-0000-7000-8000-000000000d02", "case_id": "0192f6a0-0000-7000-8000-000000000c01", "file": {"id": "0192f6a0-0000-7000-8000-000000000702", "original_name": "rakhunok-123.pdf", "media_type": "application/pdf", "size_bytes": 482113, "sha256": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08", "uploaded_by_member_id": "0192f6a0-0000-7000-8000-000000000b01", "created_at": "2026-10-20T09:10:00Z"}, "previous_version_id": null, "document_date": "2026-10-18", "created_by_member_id": "0192f6a0-0000-7000-8000-000000000b01", "created_at": "2026-10-20T09:10:00Z"}]
         "401": { $ref: "#/components/responses/SessionRequired" }
-        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "403": { $ref: "#/components/responses/MemberOrDisabled" }
         "404": { $ref: "#/components/responses/NotFound" }
-  /governance/cases/{case_id}/documents:
+  /governance/associations/{association_id}/cases/{case_id}/documents:
     parameters:
+      - $ref: '#/components/parameters/AssociationId'
       - $ref: "#/components/parameters/CaseId"
     post:
       operationId: addCaseDocument
@@ -470,8 +1091,14 @@ paths:
               schema: { $ref: "#/components/schemas/CaseDocument" }
               examples: { case_document: { $ref: "#/components/examples/CaseDocument" } }
         "401": { $ref: "#/components/responses/SessionRequired" }
-        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "403": { $ref: "#/components/responses/MemberOrDisabled" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: The association has not connected its document storage (`governance.drive_not_connected`, AC-28).
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+              examples: { drive_not_connected: { $ref: "#/components/examples/DriveNotConnected" } }
         "422":
           description: |
             File over 20 MB or not PDF / JPEG / PNG by content (`governance.file_invalid`), or
@@ -481,8 +1108,9 @@ paths:
               schema: { $ref: "#/components/schemas/Problem" }
               examples: { file_invalid: { $ref: "#/components/examples/FileInvalid" } }
         "503": { $ref: "#/components/responses/StorageUnavailable" }
-  /governance/files/{file_id}:
+  /governance/associations/{association_id}/files/{file_id}:
     parameters:
+      - $ref: '#/components/parameters/AssociationId'
       - $ref: "#/components/parameters/FileId"
     get:
       operationId: downloadFile
@@ -511,8 +1139,9 @@ paths:
         "503": { $ref: "#/components/responses/StorageUnavailable" }
 
   # ─────────────────────── governance: drafting ───────────────────────
-  /governance/meetings/{meeting_id}/assistant-turns:
+  /governance/associations/{association_id}/meetings/{meeting_id}/assistant-turns:
     parameters:
+      - $ref: '#/components/parameters/AssociationId'
       - $ref: "#/components/parameters/MeetingId"
     post:
       operationId: createAssistantTurn
@@ -547,18 +1176,20 @@ paths:
                 protocol_id: 0192f6a0-0000-7000-8000-000000000e01
                 job: {"id": 1042, "kind": "governance.propose_draft", "state": "pending", "protocol_id": "0192f6a0-0000-7000-8000-000000000e01", "attempt": 0, "max_attempts": 5, "created_at": "2026-10-27T10:00:00Z", "finalized_at": null}
         "401": { $ref: "#/components/responses/SessionRequired" }
-        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "403": { $ref: "#/components/responses/MemberOrDisabled" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409":
           description: |
             `governance.settings_missing` — meeting form, signers or start number not saved, every missing
-            setting named (AC-42); `governance.protocol_locked` — the meeting's protocol is already signed.
+            setting named (AC-42); `governance.protocol_locked` — the meeting's protocol is already signed;
+            `governance.drive_not_connected` — the association has not connected its document storage (AC-28).
           content:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
               examples:
                 settings_missing: { $ref: "#/components/examples/SettingsMissing" }
                 protocol_locked: { $ref: "#/components/examples/ProtocolLocked" }
+                drive_not_connected: { $ref: "#/components/examples/DriveNotConnected" }
         "422":
           description: A file is over 20 MB or not PDF / JPEG / PNG (`governance.file_invalid`), or files are sent without `case_id`.
           content:
@@ -566,8 +1197,9 @@ paths:
               schema: { $ref: "#/components/schemas/Problem" }
               examples: { file_invalid: { $ref: "#/components/examples/FileInvalid" } }
         "503": { $ref: "#/components/responses/StorageUnavailable" }
-  /governance/meetings/{meeting_id}/agenda-items:
+  /governance/associations/{association_id}/meetings/{meeting_id}/agenda-items:
     parameters:
+      - $ref: '#/components/parameters/AssociationId'
       - $ref: "#/components/parameters/MeetingId"
     post:
       operationId: addAgendaItemFromCase
@@ -587,7 +1219,7 @@ paths:
               schema: { $ref: "#/components/schemas/Protocol" }
               examples: { protocol: { $ref: "#/components/examples/Protocol" } }
         "401": { $ref: "#/components/responses/SessionRequired" }
-        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "403": { $ref: "#/components/responses/MemberOrDisabled" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409":
           description: Settings missing (AC-42) or the meeting's protocol is already signed.
@@ -598,8 +1230,9 @@ paths:
                 settings_missing: { $ref: "#/components/examples/SettingsMissing" }
                 protocol_locked: { $ref: "#/components/examples/ProtocolLocked" }
         "422": { $ref: "#/components/responses/ValidationFailed" }
-  /governance/jobs/{job_id}:
+  /governance/associations/{association_id}/jobs/{job_id}:
     parameters:
+      - $ref: '#/components/parameters/AssociationId'
       - $ref: "#/components/parameters/JobId"
     get:
       operationId: getJob
@@ -613,10 +1246,11 @@ paths:
               schema: { $ref: "#/components/schemas/Job" }
               examples: { job_failed: { $ref: "#/components/examples/JobFailed" } }
         "401": { $ref: "#/components/responses/SessionRequired" }
-        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "403": { $ref: "#/components/responses/MemberOrDisabled" }
         "404": { $ref: "#/components/responses/NotFound" }
-  /governance/jobs/{job_id}/retry:
+  /governance/associations/{association_id}/jobs/{job_id}/retry:
     parameters:
+      - $ref: '#/components/parameters/AssociationId'
       - $ref: "#/components/parameters/JobId"
     post:
       operationId: retryJob
@@ -630,7 +1264,7 @@ paths:
               schema: { $ref: "#/components/schemas/Job" }
               examples: { job_pending: { $ref: "#/components/examples/JobPending" } }
         "401": { $ref: "#/components/responses/SessionRequired" }
-        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "403": { $ref: "#/components/responses/MemberOrDisabled" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409":
           description: The job is not failed (`governance.transition_not_allowed`).
@@ -638,7 +1272,9 @@ paths:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
               examples: { transition_not_allowed: { $ref: "#/components/examples/TransitionNotAllowed" } }
-  /governance/protocols:
+  /governance/associations/{association_id}/protocols:
+    parameters:
+      - $ref: '#/components/parameters/AssociationId'
     get:
       operationId: listProtocols
       tags: [governance]
@@ -667,10 +1303,11 @@ paths:
                     created_at: "2026-10-27T10:00:00Z"
                 next_cursor: null
         "401": { $ref: "#/components/responses/SessionRequired" }
-        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "403": { $ref: "#/components/responses/MemberOrDisabled" }
         "422": { $ref: "#/components/responses/ValidationFailed" }
-  /governance/protocols/{protocol_id}:
+  /governance/associations/{association_id}/protocols/{protocol_id}:
     parameters:
+      - $ref: '#/components/parameters/AssociationId'
       - $ref: "#/components/parameters/ProtocolId"
     get:
       operationId: getProtocol
@@ -684,10 +1321,11 @@ paths:
               schema: { $ref: "#/components/schemas/Protocol" }
               examples: { protocol: { $ref: "#/components/examples/Protocol" } }
         "401": { $ref: "#/components/responses/SessionRequired" }
-        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "403": { $ref: "#/components/responses/MemberOrDisabled" }
         "404": { $ref: "#/components/responses/NotFound" }
-  /governance/protocols/{protocol_id}/assistant-turns:
+  /governance/associations/{association_id}/protocols/{protocol_id}/assistant-turns:
     parameters:
+      - $ref: '#/components/parameters/AssociationId'
       - $ref: "#/components/parameters/ProtocolId"
     get:
       operationId: listAssistantTurns
@@ -706,11 +1344,12 @@ paths:
                 items: [{"id": "0192f6a0-0000-7000-8000-000000000901", "protocol_id": "0192f6a0-0000-7000-8000-000000000e01", "role": "member", "author_member_id": "0192f6a0-0000-7000-8000-000000000b01", "message": "Затвердити договір на гідроізоляцію покрівлі з ремонтного фонду", "protocol_revision": 1, "case_document_ids": ["0192f6a0-0000-7000-8000-000000000d01", "0192f6a0-0000-7000-8000-000000000d02"], "created_at": "2026-10-27T10:00:00Z"}]
                 next_cursor: null
         "401": { $ref: "#/components/responses/SessionRequired" }
-        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "403": { $ref: "#/components/responses/MemberOrDisabled" }
         "404": { $ref: "#/components/responses/NotFound" }
         "422": { $ref: "#/components/responses/ValidationFailed" }
-  /governance/protocols/{protocol_id}/agenda-items/{agenda_item_id}/wording:
+  /governance/associations/{association_id}/protocols/{protocol_id}/agenda-items/{agenda_item_id}/wording:
     parameters:
+      - $ref: '#/components/parameters/AssociationId'
       - $ref: "#/components/parameters/ProtocolId"
       - $ref: "#/components/parameters/AgendaItemId"
     put:
@@ -742,12 +1381,13 @@ paths:
               schema: { $ref: "#/components/schemas/Protocol" }
               examples: { protocol: { $ref: "#/components/examples/Protocol" } }
         "401": { $ref: "#/components/responses/SessionRequired" }
-        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "403": { $ref: "#/components/responses/MemberOrDisabled" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/ProtocolEditConflict" }
         "422": { $ref: "#/components/responses/ValidationFailed" }
-  /governance/protocols/{protocol_id}/agenda-items/{agenda_item_id}/slots:
+  /governance/associations/{association_id}/protocols/{protocol_id}/agenda-items/{agenda_item_id}/slots:
     parameters:
+      - $ref: '#/components/parameters/AssociationId'
       - $ref: "#/components/parameters/ProtocolId"
       - $ref: "#/components/parameters/AgendaItemId"
     post:
@@ -771,12 +1411,13 @@ paths:
               schema: { $ref: "#/components/schemas/Protocol" }
               examples: { protocol: { $ref: "#/components/examples/Protocol" } }
         "401": { $ref: "#/components/responses/SessionRequired" }
-        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "403": { $ref: "#/components/responses/MemberOrDisabled" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/ProtocolEditConflict" }
         "422": { $ref: "#/components/responses/ValidationFailed" }
-  /governance/protocols/{protocol_id}/slots/{slot_id}/confirmation:
+  /governance/associations/{association_id}/protocols/{protocol_id}/slots/{slot_id}/confirmation:
     parameters:
+      - $ref: '#/components/parameters/AssociationId'
       - $ref: "#/components/parameters/ProtocolId"
       - $ref: "#/components/parameters/SlotId"
     post:
@@ -797,12 +1438,13 @@ paths:
               schema: { $ref: "#/components/schemas/Protocol" }
               examples: { protocol: { $ref: "#/components/examples/Protocol" } }
         "401": { $ref: "#/components/responses/SessionRequired" }
-        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "403": { $ref: "#/components/responses/MemberOrDisabled" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/ProtocolEditConflict" }
         "422": { $ref: "#/components/responses/ValidationFailed" }
-  /governance/protocols/{protocol_id}/slots/{slot_id}/values:
+  /governance/associations/{association_id}/protocols/{protocol_id}/slots/{slot_id}/values:
     parameters:
+      - $ref: '#/components/parameters/AssociationId'
       - $ref: "#/components/parameters/ProtocolId"
       - $ref: "#/components/parameters/SlotId"
     post:
@@ -825,14 +1467,15 @@ paths:
               schema: { $ref: "#/components/schemas/Protocol" }
               examples: { protocol: { $ref: "#/components/examples/Protocol" } }
         "401": { $ref: "#/components/responses/SessionRequired" }
-        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "403": { $ref: "#/components/responses/MemberOrDisabled" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/ProtocolEditConflict" }
         "422": { $ref: "#/components/responses/ValidationFailed" }
 
   # ─────────────────────── governance: lifecycle ───────────────────────
-  /governance/protocols/{protocol_id}/poll-rounds:
+  /governance/associations/{association_id}/protocols/{protocol_id}/poll-rounds:
     parameters:
+      - $ref: '#/components/parameters/AssociationId'
       - $ref: "#/components/parameters/ProtocolId"
     post:
       operationId: startPollRound
@@ -852,11 +1495,12 @@ paths:
               schema: { $ref: "#/components/schemas/PollRound" }
               examples: { poll_round: { $ref: "#/components/examples/PollRound" } }
         "401": { $ref: "#/components/responses/SessionRequired" }
-        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "403": { $ref: "#/components/responses/MemberOrDisabled" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/ProtocolEditConflict" }
-  /governance/protocols/{protocol_id}/poll-rounds/{round_number}/votes:
+  /governance/associations/{association_id}/protocols/{protocol_id}/poll-rounds/{round_number}/votes:
     parameters:
+      - $ref: '#/components/parameters/AssociationId'
       - $ref: "#/components/parameters/ProtocolId"
       - $ref: "#/components/parameters/RoundNumber"
     put:
@@ -904,8 +1548,9 @@ paths:
                 protocol_locked: { $ref: "#/components/examples/ProtocolLocked" }
                 transition_not_allowed: { $ref: "#/components/examples/TransitionNotAllowed" }
         "422": { $ref: "#/components/responses/ValidationFailed" }
-  /governance/protocols/{protocol_id}/return-to-draft:
+  /governance/associations/{association_id}/protocols/{protocol_id}/return-to-draft:
     parameters:
+      - $ref: '#/components/parameters/AssociationId'
       - $ref: "#/components/parameters/ProtocolId"
     post:
       operationId: returnProtocolToDraft
@@ -928,11 +1573,12 @@ paths:
               schema: { $ref: "#/components/schemas/Protocol" }
               examples: { protocol: { $ref: "#/components/examples/Protocol" } }
         "401": { $ref: "#/components/responses/SessionRequired" }
-        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "403": { $ref: "#/components/responses/MemberOrDisabled" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/ProtocolEditConflict" }
-  /governance/protocols/{protocol_id}/ready-for-signing:
+  /governance/associations/{association_id}/protocols/{protocol_id}/ready-for-signing:
     parameters:
+      - $ref: '#/components/parameters/AssociationId'
       - $ref: "#/components/parameters/ProtocolId"
     post:
       operationId: markProtocolReadyForSigning
@@ -953,10 +1599,10 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ProtocolWithJob" }
               example:
-                protocol: {"id": "0192f6a0-0000-7000-8000-000000000e01", "meeting": {"id": "0192f6a0-0000-7000-8000-000000000f01", "held_at": "2026-11-05T16:00:00Z", "meeting_date": "2026-11-05", "chair_board_member_id": "0192f6a0-0000-7000-8000-000000000b01"}, "state": "draft", "revision": 8, "number": 14, "copied_from_protocol_id": null, "created_by_member_id": "0192f6a0-0000-7000-8000-000000000b01", "created_at": "2026-10-27T10:00:00Z", "roster_in_force": [{"id": "0192f6a0-0000-7000-8000-000000000b02", "full_name": "Test User", "sign_in_email": "user-2@example.test", "term_start": "2025-03-01", "term_end": null, "revised_by_member_id": "0192f6a0-0000-7000-8000-000000000b01", "revised_at": "2026-10-27T09:05:00Z"}], "agenda_items": [{"id": "0192f6a0-0000-7000-8000-000000001001", "position": 1, "case_id": "0192f6a0-0000-7000-8000-000000000c01", "subject": "Про затвердження договору на гідроізоляцію покрівлі", "fragments": [{"text": "Затвердити договір з "}, {"slot": "0192f6a0-0000-7000-8000-000000001101"}], "wording_author_member_id": null, "wording_revised_at": "2026-10-27T10:00:20Z", "slots": [{"id": "0192f6a0-0000-7000-8000-000000001101", "kind": "counterparty", "status": "unconfirmed", "values": [{"id": "0192f6a0-0000-7000-8000-000000001201", "origin": "ai", "amount_kopiyky": null, "currency": null, "text_value": "ТОВ Тест Покрівля", "date_value": null, "date_end_value": null, "person_member_id": null, "source_document_id": "0192f6a0-0000-7000-8000-000000000d01", "source_fragment": "Підрядник: ТОВ «Тест Покрівля»", "assistant_turn_id": "0192f6a0-0000-7000-8000-000000000902", "author_member_id": null, "created_at": "2026-10-27T10:00:20Z"}]}]}], "documents": [{"id": "0192f6a0-0000-7000-8000-000000000d02", "case_id": "0192f6a0-0000-7000-8000-000000000c01", "file": {"id": "0192f6a0-0000-7000-8000-000000000702", "original_name": "rakhunok-123.pdf", "media_type": "application/pdf", "size_bytes": 482113, "sha256": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08", "uploaded_by_member_id": "0192f6a0-0000-7000-8000-000000000b01", "created_at": "2026-10-20T09:10:00Z"}, "previous_version_id": null, "document_date": "2026-10-18", "created_by_member_id": "0192f6a0-0000-7000-8000-000000000b01", "created_at": "2026-10-20T09:10:00Z"}], "poll_rounds": [], "print_copies": [], "transitions": [{"from_state": null, "to_state": "draft", "revision": 1, "actor_member_id": "0192f6a0-0000-7000-8000-000000000b01", "created_at": "2026-10-27T10:00:00Z"}]}
+                protocol: {"id": "0192f6a0-0000-7000-8000-000000000e01", "meeting": {"id": "0192f6a0-0000-7000-8000-000000000f01", "held_at": "2026-11-05T16:00:00Z", "meeting_date": "2026-11-05", "chair_board_member_id": "0192f6a0-0000-7000-8000-000000000b01"}, "state": "draft", "revision": 8, "number": 14, "copied_from_protocol_id": null, "created_by_member_id": "0192f6a0-0000-7000-8000-000000000b01", "created_at": "2026-10-27T10:00:00Z", "roster_in_force": [{"id": "0192f6a0-0000-7000-8000-000000000b02", "full_name": "Test User", "sign_in_email": "user-2@example.test", "term_start": "2025-03-01", "term_end": null, "revised_by_member_id": "0192f6a0-0000-7000-8000-000000000b01", "revised_at": "2026-10-27T09:05:00Z", "position": "member", "decision_id": null}], "agenda_items": [{"id": "0192f6a0-0000-7000-8000-000000001001", "position": 1, "case_id": "0192f6a0-0000-7000-8000-000000000c01", "subject": "Про затвердження договору на гідроізоляцію покрівлі", "fragments": [{"text": "Затвердити договір з "}, {"slot": "0192f6a0-0000-7000-8000-000000001101"}], "wording_author_member_id": null, "wording_revised_at": "2026-10-27T10:00:20Z", "slots": [{"id": "0192f6a0-0000-7000-8000-000000001101", "kind": "counterparty", "status": "unconfirmed", "values": [{"id": "0192f6a0-0000-7000-8000-000000001201", "origin": "ai", "amount_kopiyky": null, "currency": null, "text_value": "ТОВ Тест Покрівля", "date_value": null, "date_end_value": null, "person_member_id": null, "source_document_id": "0192f6a0-0000-7000-8000-000000000d01", "source_fragment": "Підрядник: ТОВ «Тест Покрівля»", "assistant_turn_id": "0192f6a0-0000-7000-8000-000000000902", "author_member_id": null, "created_at": "2026-10-27T10:00:20Z"}]}]}], "documents": [{"id": "0192f6a0-0000-7000-8000-000000000d02", "case_id": "0192f6a0-0000-7000-8000-000000000c01", "file": {"id": "0192f6a0-0000-7000-8000-000000000702", "original_name": "rakhunok-123.pdf", "media_type": "application/pdf", "size_bytes": 482113, "sha256": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08", "uploaded_by_member_id": "0192f6a0-0000-7000-8000-000000000b01", "created_at": "2026-10-20T09:10:00Z"}, "previous_version_id": null, "document_date": "2026-10-18", "created_by_member_id": "0192f6a0-0000-7000-8000-000000000b01", "created_at": "2026-10-20T09:10:00Z"}], "poll_rounds": [], "print_copies": [], "transitions": [{"from_state": null, "to_state": "draft", "revision": 1, "actor_member_id": "0192f6a0-0000-7000-8000-000000000b01", "created_at": "2026-10-27T10:00:00Z"}]}
                 job: {"id": 1042, "kind": "governance.propose_draft", "state": "pending", "protocol_id": "0192f6a0-0000-7000-8000-000000000e01", "attempt": 0, "max_attempts": 5, "created_at": "2026-10-27T10:00:00Z", "finalized_at": null}
         "401": { $ref: "#/components/responses/SessionRequired" }
-        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "403": { $ref: "#/components/responses/MemberOrDisabled" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409":
           description: |
@@ -973,8 +1619,9 @@ paths:
                 draft_revision_conflict: { $ref: "#/components/examples/DraftRevisionConflict" }
                 transition_not_allowed: { $ref: "#/components/examples/TransitionNotAllowed" }
                 protocol_locked: { $ref: "#/components/examples/ProtocolLocked" }
-  /governance/protocols/{protocol_id}/signed-copy:
+  /governance/associations/{association_id}/protocols/{protocol_id}/signed-copy:
     parameters:
+      - $ref: '#/components/parameters/AssociationId'
       - $ref: "#/components/parameters/ProtocolId"
     post:
       operationId: lockProtocolWithSignedCopy
@@ -1008,7 +1655,7 @@ paths:
               schema: { $ref: "#/components/schemas/SignedProtocol" }
               examples: { signed_protocol: { $ref: "#/components/examples/SignedProtocol" } }
         "401": { $ref: "#/components/responses/SessionRequired" }
-        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "403": { $ref: "#/components/responses/MemberOrDisabled" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409":
           description: |
@@ -1036,8 +1683,9 @@ paths:
                 correction_note_required: { $ref: "#/components/examples/CorrectionNoteRequired" }
                 file_invalid: { $ref: "#/components/examples/FileInvalid" }
         "503": { $ref: "#/components/responses/StorageUnavailable" }
-  /governance/protocols/{protocol_id}/withdrawal:
+  /governance/associations/{association_id}/protocols/{protocol_id}/withdrawal:
     parameters:
+      - $ref: '#/components/parameters/AssociationId'
       - $ref: "#/components/parameters/ProtocolId"
     post:
       operationId: withdrawProtocol
@@ -1059,7 +1707,7 @@ paths:
               schema: { $ref: "#/components/schemas/Protocol" }
               examples: { protocol: { $ref: "#/components/examples/Protocol" } }
         "401": { $ref: "#/components/responses/SessionRequired" }
-        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "403": { $ref: "#/components/responses/MemberOrDisabled" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409":
           description: |
@@ -1078,8 +1726,9 @@ paths:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
               examples: { reason_required: { $ref: "#/components/examples/ReasonRequired" } }
-  /governance/protocols/{protocol_id}/copy:
+  /governance/associations/{association_id}/protocols/{protocol_id}/copy:
     parameters:
+      - $ref: '#/components/parameters/AssociationId'
       - $ref: "#/components/parameters/ProtocolId"
     post:
       operationId: copyWithdrawnProtocol
@@ -1093,7 +1742,7 @@ paths:
               schema: { $ref: "#/components/schemas/Protocol" }
               examples: { protocol: { $ref: "#/components/examples/Protocol" } }
         "401": { $ref: "#/components/responses/SessionRequired" }
-        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "403": { $ref: "#/components/responses/MemberOrDisabled" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409":
           description: The source is not знятий з розгляду, or the meeting already has an open draft (`governance.transition_not_allowed`).
@@ -1103,7 +1752,9 @@ paths:
               examples: { transition_not_allowed: { $ref: "#/components/examples/TransitionNotAllowed" } }
 
   # ─────────────────────── governance: реєстр протоколів ───────────────────────
-  /governance/registry/decisions:
+  /governance/associations/{association_id}/registry/decisions:
+    parameters:
+      - $ref: '#/components/parameters/AssociationId'
     get:
       operationId: searchRegistry
       tags: [governance]
@@ -1170,8 +1821,9 @@ paths:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
               examples: { search_invalid: { $ref: "#/components/examples/SearchInvalid" } }
-  /governance/registry/protocols/{protocol_id}:
+  /governance/associations/{association_id}/registry/protocols/{protocol_id}:
     parameters:
+      - $ref: '#/components/parameters/AssociationId'
       - $ref: "#/components/parameters/ProtocolId"
     get:
       operationId: getSignedProtocol
@@ -1197,6 +1849,32 @@ components:
       description: Server-side session (ADR-0003); HttpOnly, Secure, SameSite=Lax.
 
   parameters:
+    AssociationId:
+      name: association_id
+      in: path
+      required: true
+      description: The association the resource belongs to.
+      schema: { type: string, format: uuid }
+    ApplicationId:
+      name: application_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    FilingId:
+      name: filing_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ExtractId:
+      name: extract_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ApplicationStateFilter:
+      name: state
+      in: query
+      description: Defaults to pending (the queue); pending is ordered oldest first, the others newest first.
+      schema: { $ref: "#/components/schemas/ApplicationState" }
     Limit:
       name: limit
       in: query
@@ -1316,6 +1994,36 @@ components:
       content:
         application/problem+json:
           schema: { $ref: "#/components/schemas/Problem" }
+    NotOperator:
+      description: Only the оператор reaches the back office (`identity.not_operator`, AC-16); a roster membership gives no way in (ADR-0009).
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+          examples: { not_operator: { $ref: "#/components/examples/NotOperator" } }
+    MemberOrDisabled:
+      description: |
+        `identity.not_current_member` — not on this association's roster today (same body for a missing
+        association, AC-07); `identity.association_disabled` — a member of a вимкнене ОСББ on any operation
+        outside the registry reads and the signed-copy download (ADR-0007; AC-21, AC-25). Membership is checked first.
+        The оператор role is not asked here: an оператор off the roster gets `identity.not_current_member` like
+        anyone, an оператор on the roster is a member and nothing more (AC-16b, ADR-0009).
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+          examples:
+            not_current_member: { $ref: "#/components/examples/NotCurrentMember" }
+            association_disabled: { $ref: "#/components/examples/AssociationDisabled" }
+    ExtractFile:
+      description: The extract as uploaded, as an attachment with `X-Content-Type-Options nosniff`, never inline (SAD §8 Files).
+      headers:
+        Content-Disposition:
+          schema: { type: string }
+          example: attachment; filename="vytyah.pdf.p7s"
+        X-Content-Type-Options:
+          schema: { type: string, const: nosniff }
+      content:
+        application/octet-stream:
+          schema: { type: string, contentMediaType: application/octet-stream }
 
 
   examples:
@@ -1323,6 +2031,139 @@ components:
       value: { type: about:blank, title: Unauthorized, status: 401, code: identity.session_required, detail: Увійдіть, щоб продовжити }
     NotCurrentMember:
       value: { type: about:blank, title: Forbidden, status: 403, code: identity.not_current_member, detail: Доступ мають лише чинні члени правління }
+    NotOperator:
+      value: { type: about:blank, title: Forbidden, status: 403, code: identity.not_operator, detail: Немає доступу }
+    AssociationDisabled:
+      value: { type: about:blank, title: Forbidden, status: 403, code: identity.association_disabled, detail: "Доступ призупинено: спір щодо складу правління" }
+    ApplicationInvalid:
+      value:
+        type: about:blank
+        title: Application invalid
+        status: 422
+        code: identity.application_invalid
+        detail: "Перевірте поля заявки: edrpou, term_start"
+        errors:
+          - { pointer: /edrpou, detail: must be 8 digits }
+          - { pointer: /term_start, detail: must not be later than the filing date }
+    AssociationAlreadyConnected:
+      value: { type: about:blank, title: Association already connected, status: 409, code: identity.association_already_connected, detail: Це ОСББ вже підключене — зверніться до голови вашого ОСББ або подайте запит на передачу }
+    ApplicationAlreadyOpen:
+      value: { type: about:blank, title: Application already open, status: 409, code: identity.application_already_open, detail: У вас уже є заявка на це ОСББ }
+    AssociationNotConnected:
+      value: { type: about:blank, title: Association not connected, status: 409, code: identity.association_not_connected, detail: Це ОСББ ще не підключене — подайте заявку на підключення }
+    TermEnded:
+      value: { type: about:blank, title: Term ended, status: 409, code: identity.term_ended, detail: Строк повноважень голови вже завершився — подайте витяг після переобрання }
+    ApplicationNotPending:
+      value: { type: about:blank, title: Application not pending, status: 409, code: identity.application_not_pending, detail: Рішення за цією заявкою вже ухвалено }
+    OperatorOwnApplication:
+      value: { type: about:blank, title: Operator own application, status: 409, code: identity.operator_own_application, detail: Це ваша власна заявка — оператор не ухвалює рішення щодо себе }
+    SignatureNotChecked:
+      value: { type: about:blank, title: Signature not checked, status: 409, code: identity.signature_not_checked, detail: Спершу перевірте підпис КЕП і внесіть підписанта, керівника, код і дату витягу }
+    ExtractCodeMismatch:
+      value: { type: about:blank, title: Extract code mismatch, status: 409, code: identity.extract_code_mismatch, detail: Витяг стосується іншого ОСББ — відхиліть заявку або перевірте внесений код }
+    MismatchNeedsDocument:
+      value: { type: about:blank, title: Mismatch needs document, status: 409, code: identity.mismatch_needs_document, detail: "Схвалення з розбіжністю потребує документа: вкажіть, на чому ґрунтується рішення" }
+    ReasonRequiredApplicant:
+      value: { type: about:blank, title: Reason required, status: 422, code: identity.reason_required, detail: Вкажіть причину — її побачить заявник, errors: [{ pointer: /reason, detail: is required }] }
+    ReasonRequiredMembers:
+      value: { type: about:blank, title: Reason required, status: 422, code: identity.reason_required, detail: Вкажіть причину — її побачать члени правління, errors: [{ pointer: /reason, detail: is required }] }
+    AssociationStateUnchanged:
+      value: { type: about:blank, title: Association state unchanged, status: 409, code: identity.association_state_unchanged, detail: ОСББ уже в цьому стані }
+    StorageAccountPersonal:
+      value: { type: about:blank, title: Storage account personal, status: 409, code: identity.storage_account_personal, detail: Це особистий акаунт члена правління — підключіть акаунт ОСББ }
+    Principal:
+      value: { account_id: 00000000-0000-7000-8000-00000000a001, email: user-1@example.test, is_operator: false }
+    MembershipPage:
+      value:
+        items:
+          - { association_id: 00000000-0000-7000-8000-000000000001, association_name: ОСББ «Тестовий Будинок», association_state: connected, board_member_id: 00000000-0000-7000-8000-00000000b001, position: head }
+        next_cursor: null
+    ApplicationPending:
+      value:
+        id: 00000000-0000-7000-8000-00000000c001
+        kind: connection
+        edrpou: "12345678"
+        association_id: null
+        association_name: ОСББ «Тестовий Будинок»
+        state: pending
+        filed_at: "2026-11-10T09:00:00Z"
+        rejection_reason: null
+        created_at: "2026-11-10T09:00:00Z"
+    ApplicationPage:
+      value:
+        items:
+          - { id: 00000000-0000-7000-8000-00000000c001, kind: connection, edrpou: "12345678", association_id: null, association_name: ОСББ «Тестовий Будинок», state: pending, filed_at: "2026-11-10T09:00:00Z", rejection_reason: null, created_at: "2026-11-10T09:00:00Z" }
+        next_cursor: null
+    ApplicationDetailRejected:
+      value:
+        application: { id: 00000000-0000-7000-8000-00000000c001, kind: connection, edrpou: "12345678", association_id: null, association_name: ОСББ «Тестовий Будинок», state: rejected, filed_at: "2026-11-10T09:00:00Z", rejection_reason: "у витягу інший керівник, документа про обрання не надано", created_at: "2026-11-10T09:00:00Z" }
+        filings:
+          - id: 00000000-0000-7000-8000-00000000d001
+            association_name: ОСББ «Тестовий Будинок»
+            association_address: м. Київ, вул. Тестова, 1
+            applicant_full_name: Тестовий Голова Правління
+            position: head
+            term_start: "2026-03-01"
+            term_end: null
+            extract: { id: 00000000-0000-7000-8000-00000000e001, original_name: vytyah.pdf.p7s, media_type: application/pkcs7-signature, size_bytes: 184320, sha256: "0000000000000000000000000000000000000000000000000000000000000000" }
+            created_at: "2026-11-10T09:00:00Z"
+        decisions:
+          - { id: 00000000-0000-7000-8000-00000000f001, filing_id: 00000000-0000-7000-8000-00000000d001, outcome: rejected, reason: "у витягу інший керівник, документа про обрання не надано", relied_on_document: null, association_id: null, decided_at: "2026-11-12T10:00:00Z" }
+    ApplicationReview:
+      value:
+        application: { id: 00000000-0000-7000-8000-00000000c001, kind: connection, edrpou: "12345678", association_id: null, association_name: ОСББ «Тестовий Будинок», state: pending, filed_at: "2026-11-10T09:00:00Z", rejection_reason: null, created_at: "2026-11-10T09:00:00Z" }
+        applicant_email: user-1@example.test
+        filings:
+          - id: 00000000-0000-7000-8000-00000000d001
+            association_name: ОСББ «Тестовий Будинок»
+            association_address: м. Київ, вул. Тестова, 1
+            applicant_full_name: Тестовий Голова Правління
+            position: head
+            term_start: "2026-03-01"
+            term_end: null
+            extract: { id: 00000000-0000-7000-8000-00000000e001, original_name: vytyah.pdf.p7s, media_type: application/pkcs7-signature, size_bytes: 184320, sha256: "0000000000000000000000000000000000000000000000000000000000000000" }
+            created_at: "2026-11-10T09:00:00Z"
+        checks: []
+        decisions: []
+        warnings: []
+        competing_application_ids: []
+        storage_account_email: null
+    NewExtractCheck:
+      value: { filing_id: 00000000-0000-7000-8000-00000000d001, signature_valid: true, signer_full_name: Тестовий Голова Правління, signed_on: "2026-11-09", head_full_name: Тестовий Голова Правління, extract_edrpou: "12345678", extract_dated_on: "2026-11-08" }
+    ExtractCheck:
+      value: { id: 00000000-0000-7000-8000-00000000a101, filing_id: 00000000-0000-7000-8000-00000000d001, signature_valid: true, signer_full_name: Тестовий Голова Правління, signed_on: "2026-11-09", head_full_name: Тестовий Голова Правління, extract_edrpou: "12345678", extract_dated_on: "2026-11-08", checked_at: "2026-11-11T08:00:00Z" }
+    ApproveApplicationRequest:
+      value: { filing_id: 00000000-0000-7000-8000-00000000d001, relied_on_document: протокол загальних зборів № 3 від 01.03.2026 }
+    RejectApplicationRequest:
+      value: { filing_id: 00000000-0000-7000-8000-00000000d001, reason: "у витягу інший керівник, документа про обрання не надано" }
+    DecisionApproved:
+      value: { id: 00000000-0000-7000-8000-00000000f002, filing_id: 00000000-0000-7000-8000-00000000d001, outcome: approved, reason: null, relied_on_document: null, association_id: 00000000-0000-7000-8000-000000000002, decided_at: "2026-11-11T08:05:00Z" }
+    DecisionRejected:
+      value: { id: 00000000-0000-7000-8000-00000000f001, filing_id: 00000000-0000-7000-8000-00000000d001, outcome: rejected, reason: "у витягу інший керівник, документа про обрання не надано", relied_on_document: null, association_id: null, decided_at: "2026-11-12T10:00:00Z" }
+    OperatorAssociationPage:
+      value:
+        items:
+          - { id: 00000000-0000-7000-8000-000000000001, name: ОСББ «Тестовий Будинок», edrpou: null, state: connected, connected_by_hand: true, created_at: "2026-10-27T09:00:00Z" }
+        next_cursor: null
+    AssociationDisabledChange:
+      value: { association_id: 00000000-0000-7000-8000-000000000001, state: disabled, reason: спір щодо складу правління, changed_at: "2026-11-20T12:00:00Z" }
+    AssociationEnabledChange:
+      value: { association_id: 00000000-0000-7000-8000-000000000001, state: connected, reason: null, changed_at: "2026-11-27T12:00:00Z" }
+    AssociationCard:
+      value:
+        id: 00000000-0000-7000-8000-000000000002
+        name: ОСББ «Тестовий Будинок»
+        edrpou: "12345678"
+        address: м. Київ, вул. Тестова, 1
+        state: connected
+        head_full_name: Тестовий Голова Правління
+        connected_by_hand: false
+        history:
+          - { kind: connected, occurred_at: "2026-11-11T08:05:00Z", decision_id: 00000000-0000-7000-8000-00000000f002, filed_at: "2026-11-10T09:00:00Z", reason: null, head_full_name: Тестовий Голова Правління, signer_full_name: Тестовий Голова Правління, extract_id: 00000000-0000-7000-8000-00000000e001, extract_dated_on: "2026-11-08" }
+    StorageConnection:
+      value: { connected: true, google_account_email: osbb-1@example.test, connected_by_member_id: 00000000-0000-7000-8000-00000000b001, connected_at: "2026-11-11T09:00:00Z" }
+    DriveNotConnected:
+      value: { type: about:blank, title: Conflict, status: 409, code: governance.drive_not_connected, detail: Спершу підключіть сховище документів ОСББ }
     SettingsMissing:
       value:
         type: about:blank
@@ -1433,6 +2274,8 @@ components:
         term_end: null
         revised_by_member_id: 0192f6a0-0000-7000-8000-000000000b01
         revised_at: "2026-10-27T09:05:00Z"
+        position: member
+        decision_id: null
     Case:
       value:
         id: 0192f6a0-0000-7000-8000-000000000c01
@@ -1515,7 +2358,7 @@ components:
         copied_from_protocol_id: null
         created_by_member_id: 0192f6a0-0000-7000-8000-000000000b01
         created_at: "2026-10-27T10:00:00Z"
-        roster_in_force: [{"id": "0192f6a0-0000-7000-8000-000000000b02", "full_name": "Test User", "sign_in_email": "user-2@example.test", "term_start": "2025-03-01", "term_end": null, "revised_by_member_id": "0192f6a0-0000-7000-8000-000000000b01", "revised_at": "2026-10-27T09:05:00Z"}]
+        roster_in_force: [{"id": "0192f6a0-0000-7000-8000-000000000b02", "full_name": "Test User", "sign_in_email": "user-2@example.test", "term_start": "2025-03-01", "term_end": null, "revised_by_member_id": "0192f6a0-0000-7000-8000-000000000b01", "revised_at": "2026-10-27T09:05:00Z", "position": "member", "decision_id": null}]
         agenda_items:
           - id: 0192f6a0-0000-7000-8000-000000001001
             position: 1
@@ -1640,15 +2483,14 @@ components:
 
     # ── identity ──
     Principal:
+      description: Changed — the signed-in person only; associations from listMemberships (ADR-0004). `is_operator` = the session address equals the configured оператор (ADR-0001); the same person may also have memberships, and neither grant widens the other (ADR-0009).
       type: object
       additionalProperties: false
-      required: [account_id, email, board_member_id, full_name, association]
+      required: [account_id, email, is_operator]
       properties:
         account_id: { type: string, format: uuid }
         email: { type: string, format: email, maxLength: 320 }
-        board_member_id: { type: string, format: uuid }
-        full_name: { type: string, maxLength: 200 }
-        association: { $ref: "#/components/schemas/Association" }
+        is_operator: { type: boolean }
     Association:
       type: object
       additionalProperties: false
@@ -1701,7 +2543,7 @@ components:
       description: board_members + its latest board_member_revisions row.
       type: object
       additionalProperties: false
-      required: [id, full_name, sign_in_email, term_start, term_end, revised_by_member_id, revised_at]
+      required: [id, full_name, sign_in_email, term_start, term_end, revised_by_member_id, revised_at, position, decision_id]
       properties:
         id: { type: string, format: uuid }
         full_name: { type: string, maxLength: 200 }
@@ -1710,6 +2552,8 @@ components:
         term_end: { type: [string, "null"], format: date }
         revised_by_member_id: { type: [string, "null"], format: uuid }
         revised_at: { type: string, format: date-time }
+        position: { $ref: "#/components/schemas/BoardPosition" }
+        decision_id: { type: [string, "null"], format: uuid }
     BoardMemberPage:
       type: object
       required: [items, next_cursor]
@@ -2425,3 +3269,387 @@ components:
         next_cursor:
           type: [string, "null"]
           description: Pass as cursor to get the next page; null on the last page.
+
+    # enums (closed sets of data-model.md; Go constants, no CHECK)
+    ApplicationKind:
+      description: applications.kind — заявка на підключення / запит на передачу.
+      type: string
+      enum: [connection, transfer]
+    ApplicationState:
+      description: applications.state (PRD §10) — очікує · схвалена · відхилена.
+      type: string
+      enum: [pending, approved, rejected]
+    DecisionOutcome:
+      type: string
+      enum: [approved, rejected]
+    BoardPosition:
+      description: application_filings.position and board_member_revisions.position — голова правління / член правління.
+      type: string
+      enum: [head, member]
+    AssociationState:
+      description: associations.state — підключене ОСББ / вимкнене ОСББ.
+      type: string
+      enum: [connected, disabled]
+    ReviewWarningKind:
+      description: розбіжність імен — the applicant's typed full name, the signer and the керівник differ after ignoring letter case, extra spaces, the form of the apostrophe and the order of the words (AC-11) — or an extract older than 30 days (AC-11b); advisory only.
+      type: string
+      enum: [name_mismatch, extract_age]
+    AssociationEventKind:
+      type: string
+      enum: [connected, transfer_approved, disabled, enabled]
+
+    # memberships
+    Membership:
+      type: object
+      additionalProperties: false
+      required: [association_id, association_name, association_state, board_member_id, position]
+      properties:
+        association_id: { type: string, format: uuid }
+        association_name: { type: string, maxLength: 200 }
+        association_state: { $ref: "#/components/schemas/AssociationState" }
+        board_member_id: { type: string, format: uuid }
+        position: { $ref: "#/components/schemas/BoardPosition" }
+    MembershipPage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Membership" }
+        next_cursor: { type: [string, "null"] }
+
+    # applications
+    NewApplication:
+      description: |
+        multipart body of fileApplication; application + its first filing + the extract. `position` is always
+        `head`: the applicant does not choose it, and `member` is named in `identity.application_invalid` (AC-02).
+      type: object
+      required: [kind, edrpou, association_name, association_address, applicant_full_name, position, term_start, extract]
+      properties:
+        kind: { $ref: "#/components/schemas/ApplicationKind" }
+        edrpou: { type: string, pattern: "^[0-9]{8}$", minLength: 8, maxLength: 8 }
+        association_id:
+          description: Only for a запит filed from the card of the association set up by hand (AC-19c).
+          type: string
+          format: uuid
+        association_name: { type: string, minLength: 1, maxLength: 200 }
+        association_address: { type: string, minLength: 1, maxLength: 500 }
+        applicant_full_name:
+          description: The applicant's own ПІБ; compared with the signer and the керівник the оператор records (AC-11).
+          type: string
+          minLength: 1
+          maxLength: 200
+        position: { $ref: "#/components/schemas/BoardPosition" }
+        term_start:
+          description: Not later than the filing date (Europe/Kyiv); a later date is named in identity.application_invalid (AC-02).
+          type: string
+          format: date
+        term_end:
+          description: Optional. A date earlier than the filing date answers identity.term_ended; the filing date itself is still in force (AC-30).
+          type: string
+          format: date
+        extract:
+          description: |
+            The КЕП-signed витяг з ЄДР as one file ≤ 5 MB: a PDF with the signature inside it, or a signed container
+            that holds the PDF (`.p7s`, ASiC-E); a signature sent as a second, separate file is not accepted
+            (PRD §6). Kept unchanged, never parsed (ADR-0005).
+          type: string
+          contentMediaType: application/octet-stream
+    ApplicationRefiling:
+      description: |
+        multipart body of refileApplication; a new filing of the same application (AC-06), under the same field
+        rules as NewApplication (AC-02, AC-30).
+      type: object
+      required: [association_name, association_address, applicant_full_name, position, term_start, extract]
+      properties:
+        association_name: { type: string, minLength: 1, maxLength: 200 }
+        association_address: { type: string, minLength: 1, maxLength: 500 }
+        applicant_full_name:
+          description: The applicant's own ПІБ; compared with the signer and the керівник the оператор records (AC-11).
+          type: string
+          minLength: 1
+          maxLength: 200
+        position: { $ref: "#/components/schemas/BoardPosition" }
+        term_start:
+          description: Not later than the filing date (Europe/Kyiv); a later date is named in identity.application_invalid (AC-02).
+          type: string
+          format: date
+        term_end:
+          description: Optional. A date earlier than the filing date answers identity.term_ended; the filing date itself is still in force (AC-30).
+          type: string
+          format: date
+        extract:
+          description: The new КЕП-signed витяг з ЄДР, one file ≤ 5 MB, in the same forms as in NewApplication.
+          type: string
+          contentMediaType: application/octet-stream
+    Application:
+      description: applications row + its latest filing's name and date + the latest rejection reason.
+      type: object
+      additionalProperties: false
+      required: [id, kind, edrpou, association_id, association_name, state, filed_at, rejection_reason, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { $ref: "#/components/schemas/ApplicationKind" }
+        edrpou: { type: string, maxLength: 8 }
+        association_id: { type: [string, "null"], format: uuid }
+        association_name: { type: string, maxLength: 200 }
+        state: { $ref: "#/components/schemas/ApplicationState" }
+        filed_at:
+          description: created_at of the latest filing (AC-05 «очікує розгляду з …»).
+          type: string
+          format: date-time
+        rejection_reason: { type: [string, "null"], maxLength: 1000 }
+        created_at: { type: string, format: date-time }
+    ApplicationPage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Application" }
+        next_cursor: { type: [string, "null"] }
+    ExtractRef:
+      description: application_extracts metadata; the content is served only by the download operations.
+      type: object
+      additionalProperties: false
+      required: [id, original_name, media_type, size_bytes, sha256]
+      properties:
+        id: { type: string, format: uuid }
+        original_name: { type: string, maxLength: 255 }
+        media_type: { type: string, maxLength: 100 }
+        size_bytes: { type: integer, format: int64, maximum: 5242880 }
+        sha256:
+          description: Hex of the 32-byte SHA-256 of the stored content.
+          type: string
+          pattern: "^[0-9a-f]{64}$"
+    ApplicationFiling:
+      type: object
+      additionalProperties: false
+      required: [id, association_name, association_address, applicant_full_name, position, term_start, term_end, extract, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        association_name: { type: string, maxLength: 200 }
+        association_address: { type: string, maxLength: 500 }
+        applicant_full_name: { type: string, maxLength: 200 }
+        position: { $ref: "#/components/schemas/BoardPosition" }
+        term_start: { type: string, format: date }
+        term_end: { type: [string, "null"], format: date }
+        extract: { $ref: "#/components/schemas/ExtractRef" }
+        created_at: { type: string, format: date-time }
+    ApplicationDecision:
+      type: object
+      additionalProperties: false
+      required: [id, filing_id, outcome, reason, relied_on_document, association_id, decided_at]
+      properties:
+        id: { type: string, format: uuid }
+        filing_id: { type: string, format: uuid }
+        outcome: { $ref: "#/components/schemas/DecisionOutcome" }
+        reason: { type: [string, "null"], maxLength: 1000 }
+        relied_on_document: { type: [string, "null"], maxLength: 500 }
+        association_id: { type: [string, "null"], format: uuid }
+        decided_at: { type: string, format: date-time }
+    ApplicationDetail:
+      description: The applicant's view; filings and decisions newest first.
+      type: object
+      additionalProperties: false
+      required: [application, filings, decisions]
+      properties:
+        application: { $ref: "#/components/schemas/Application" }
+        filings:
+          type: array
+          items: { $ref: "#/components/schemas/ApplicationFiling" }
+        decisions:
+          type: array
+          items: { $ref: "#/components/schemas/ApplicationDecision" }
+    NewExtractCheck:
+      type: object
+      additionalProperties: false
+      required: [filing_id, signature_valid, signer_full_name, signed_on, head_full_name, extract_edrpou, extract_dated_on]
+      properties:
+        filing_id: { type: string, format: uuid }
+        signature_valid: { type: boolean }
+        signer_full_name: { type: string, minLength: 1, maxLength: 200 }
+        signed_on: { type: string, format: date }
+        head_full_name: { type: string, minLength: 1, maxLength: 200 }
+        extract_edrpou: { type: string, pattern: "^[0-9]{8}$", minLength: 8, maxLength: 8 }
+        extract_dated_on: { type: string, format: date }
+    ExtractCheck:
+      type: object
+      additionalProperties: false
+      required: [id, filing_id, signature_valid, signer_full_name, signed_on, head_full_name, extract_edrpou, extract_dated_on, checked_at]
+      properties:
+        id: { type: string, format: uuid }
+        filing_id: { type: string, format: uuid }
+        signature_valid: { type: boolean }
+        signer_full_name: { type: string, maxLength: 200 }
+        signed_on: { type: string, format: date }
+        head_full_name: { type: string, maxLength: 200 }
+        extract_edrpou: { type: string, maxLength: 8 }
+        extract_dated_on: { type: string, format: date }
+        checked_at: { type: string, format: date-time }
+    ReviewWarning:
+      type: object
+      additionalProperties: false
+      required: [kind, detail]
+      properties:
+        kind: { $ref: "#/components/schemas/ReviewWarningKind" }
+        detail:
+          description: Which values differ, or the extract's date (AC-11, AC-11b).
+          type: string
+          maxLength: 500
+    ApplicationReview:
+      description: The оператор's view (AC-10). Values entered by the applicant and recorded by the оператор are told apart by where they sit (filings vs checks).
+      type: object
+      additionalProperties: false
+      required: [application, applicant_email, filings, checks, decisions, warnings, competing_application_ids, storage_account_email]
+      properties:
+        application: { $ref: "#/components/schemas/Application" }
+        applicant_email: { type: string, format: email, maxLength: 320 }
+        filings:
+          type: array
+          items: { $ref: "#/components/schemas/ApplicationFiling" }
+        checks:
+          type: array
+          items: { $ref: "#/components/schemas/ExtractCheck" }
+        decisions:
+          type: array
+          items: { $ref: "#/components/schemas/ApplicationDecision" }
+        warnings:
+          type: array
+          items: { $ref: "#/components/schemas/ReviewWarning" }
+        competing_application_ids:
+          description: Other pending applications for the same ЄДРПОУ (AC-04c, AC-19b).
+          type: array
+          items: { type: string, format: uuid }
+        storage_account_email:
+          description: For a запит на передачу — the account that holds the association's files (AC-28b); null otherwise.
+          type: [string, "null"]
+          format: email
+          maxLength: 320
+    ApproveApplicationRequest:
+      type: object
+      additionalProperties: false
+      required: [filing_id]
+      properties:
+        filing_id:
+          description: The filing shown to the оператор; a newer filing answers identity.application_not_pending.
+          type: string
+          format: uuid
+        relied_on_document:
+          description: Required when розбіжність імен is open (AC-12) — a typed reference to the document, no file is uploaded.
+          type: string
+          minLength: 1
+          maxLength: 500
+    RejectApplicationRequest:
+      type: object
+      additionalProperties: false
+      required: [filing_id, reason]
+      properties:
+        filing_id: { type: string, format: uuid }
+        reason:
+          description: Shown to the applicant; empty → identity.reason_required (AC-13).
+          type: string
+          maxLength: 1000
+
+    # associations
+    OperatorAssociation:
+      type: object
+      additionalProperties: false
+      required: [id, name, edrpou, state, connected_by_hand, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string, maxLength: 200 }
+        edrpou: { type: [string, "null"], maxLength: 8 }
+        state: { $ref: "#/components/schemas/AssociationState" }
+        connected_by_hand:
+          description: confirmed_by_decision_id is null — «підключено вручну, без витягу».
+          type: boolean
+        created_at: { type: string, format: date-time }
+    OperatorAssociationPage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/OperatorAssociation" }
+        next_cursor: { type: [string, "null"] }
+    DisableAssociationRequest:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        reason:
+          description: Shown to the members; empty → identity.reason_required (AC-22).
+          type: string
+          maxLength: 1000
+    AssociationStateChange:
+      description: association_state_changes row.
+      type: object
+      additionalProperties: false
+      required: [association_id, state, reason, changed_at]
+      properties:
+        association_id: { type: string, format: uuid }
+        state: { $ref: "#/components/schemas/AssociationState" }
+        reason: { type: [string, "null"], maxLength: 1000 }
+        changed_at: { type: string, format: date-time }
+    AssociationEvent:
+      description: |
+        One step of the chain on the card — an approval (with the extract it relied on) or a state change.
+        A roster entry's `decision_id` (`BoardMember`, governance) matches `decision_id` here, which gives the
+        «за запитом на передачу від <filed_at>, схвалено оператором <occurred_at>» mark and the extract of AC-20.
+      type: object
+      additionalProperties: false
+      required: [kind, occurred_at, decision_id, filed_at, reason, head_full_name, signer_full_name, extract_id, extract_dated_on]
+      properties:
+        kind: { $ref: "#/components/schemas/AssociationEventKind" }
+        occurred_at: { type: string, format: date-time }
+        decision_id:
+          description: application_decisions.id of an approval; null for a state change.
+          type: [string, "null"]
+          format: uuid
+        filed_at:
+          description: created_at of the filing the approval decided; null for a state change.
+          type: [string, "null"]
+          format: date-time
+        reason: { type: [string, "null"], maxLength: 1000 }
+        head_full_name: { type: [string, "null"], maxLength: 200 }
+        signer_full_name: { type: [string, "null"], maxLength: 200 }
+        extract_id: { type: [string, "null"], format: uuid }
+        extract_dated_on: { type: [string, "null"], format: date }
+    AssociationCard:
+      type: object
+      additionalProperties: false
+      required: [id, name, edrpou, address, state, head_full_name, connected_by_hand, history]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string, maxLength: 200 }
+        edrpou: { type: [string, "null"], maxLength: 8 }
+        address: { type: [string, "null"], maxLength: 500 }
+        state: { $ref: "#/components/schemas/AssociationState" }
+        head_full_name:
+          description: The roster entry with position head, if any (null for the association set up by hand until AC-19c).
+          type: [string, "null"]
+          maxLength: 200
+        connected_by_hand: { type: boolean }
+        history:
+          description: Newest first (AC-29).
+          type: array
+          items: { $ref: "#/components/schemas/AssociationEvent" }
+
+    # storage connection
+    StorageConnection:
+      type: object
+      additionalProperties: false
+      required: [connected, google_account_email, connected_by_member_id, connected_at]
+      properties:
+        connected: { type: boolean }
+        google_account_email: { type: [string, "null"], format: email, maxLength: 320 }
+        connected_by_member_id: { type: [string, "null"], format: uuid }
+        connected_at: { type: [string, "null"], format: date-time }
+    CompleteStorageConnectionRequest:
+      type: object
+      additionalProperties: false
+      required: [code, state]
+      properties:
+        code: { type: string, minLength: 1 }
+        state: { type: string, minLength: 1 }

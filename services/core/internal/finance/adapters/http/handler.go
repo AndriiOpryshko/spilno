@@ -11,6 +11,7 @@ import (
 	"github.com/AndriiOpryshko/spilno/services/core/internal/finance/adapters/http/gen"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/finance/app"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/finance/domain"
+	"github.com/AndriiOpryshko/spilno/services/core/internal/finance/ports"
 )
 
 type Handler struct {
@@ -24,6 +25,7 @@ func NewHandler(contracts *app.ContractService) *Handler {
 }
 
 func (h *Handler) CreateContract(ctx context.Context, req gen.CreateContractRequestObject) (gen.CreateContractResponseObject, error) {
+	ctx = ports.WithAssociation(ctx, req.AssociationId)
 	// The request validator rejects a missing body before this runs.
 	b := req.Body
 	terms := domain.ContractTerms{
@@ -48,6 +50,7 @@ func (h *Handler) CreateContract(ctx context.Context, req gen.CreateContractRequ
 }
 
 func (h *Handler) GetContract(ctx context.Context, req gen.GetContractRequestObject) (gen.GetContractResponseObject, error) {
+	ctx = ports.WithAssociation(ctx, req.AssociationId)
 	c, err := h.contracts.Get(ctx, req.Id)
 	if errors.Is(err, domain.ErrContractNotFound) {
 		return gen.GetContract404ApplicationProblemPlusJSONResponse{
@@ -66,6 +69,7 @@ func (h *Handler) GetContract(ctx context.Context, req gen.GetContractRequestObj
 }
 
 func (h *Handler) ListContracts(ctx context.Context, req gen.ListContractsRequestObject) (gen.ListContractsResponseObject, error) {
+	ctx = ports.WithAssociation(ctx, req.AssociationId)
 	var limit int
 	if req.Params.Limit != nil {
 		limit = *req.Params.Limit

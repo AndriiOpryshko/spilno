@@ -10,6 +10,8 @@ ticket: ""
 
 # 0003 — Sign in through OIDC (Google first) with server-side sessions in Postgres
 
+> Superseded in part by [association-onboarding ADR-0004](../../association-onboarding/adr/0004-let-any-verified-person-sign-in-and-derive-memberships-from-rosters.md): sign-in no longer refuses a person off the roster; memberships are derived from the rosters. A real OIDC adapter is still a known gap there.
+
 - **Status:** Accepted
 - **Date:** 2026-10-25
 - **Deciders:** Andrii Opryshko (Architect), with Claude during the architecture-design pass

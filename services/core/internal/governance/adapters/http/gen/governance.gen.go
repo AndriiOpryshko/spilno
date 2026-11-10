@@ -43,6 +43,24 @@ func (e AssistantTurnRole) Valid() bool {
 	}
 }
 
+// Defines values for BoardPosition.
+const (
+	BoardPositionHead   BoardPosition = "head"
+	BoardPositionMember BoardPosition = "member"
+)
+
+// Valid indicates whether the value is a known member of the BoardPosition enum.
+func (e BoardPosition) Valid() bool {
+	switch e {
+	case BoardPositionHead:
+		return true
+	case BoardPositionMember:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for Currency.
 const (
 	CurrencyEUR Currency = "EUR"
@@ -406,8 +424,12 @@ type AssociationSettingsInput struct {
 
 // BoardMember board_members + its latest board_member_revisions row.
 type BoardMember struct {
-	FullName          string               `json:"full_name"`
-	Id                openapi_types.UUID   `json:"id"`
+	DecisionId *openapi_types.UUID `json:"decision_id"`
+	FullName   string              `json:"full_name"`
+	Id         openapi_types.UUID  `json:"id"`
+
+	// Position application_filings.position and board_member_revisions.position — голова правління / член правління.
+	Position          BoardPosition        `json:"position"`
 	RevisedAt         time.Time            `json:"revised_at"`
 	RevisedByMemberId *openapi_types.UUID  `json:"revised_by_member_id"`
 	SignInEmail       *openapi_types.Email `json:"sign_in_email"`
@@ -432,6 +454,9 @@ type BoardMemberPage struct {
 	Items      []BoardMember `json:"items"`
 	NextCursor *string       `json:"next_cursor"`
 }
+
+// BoardPosition application_filings.position and board_member_revisions.position — голова правління / член правління.
+type BoardPosition string
 
 // Case defines model for Case.
 type Case struct {
@@ -954,6 +979,12 @@ type WithdrawalInput struct {
 // AgendaItemId defines model for AgendaItemId.
 type AgendaItemId = openapi_types.UUID
 
+// ApplicationId defines model for ApplicationId.
+type ApplicationId = openapi_types.UUID
+
+// AssociationId defines model for AssociationId.
+type AssociationId = openapi_types.UUID
+
 // BoardMemberId defines model for BoardMemberId.
 type BoardMemberId = openapi_types.UUID
 
@@ -963,8 +994,14 @@ type CaseId = openapi_types.UUID
 // Cursor defines model for Cursor.
 type Cursor = string
 
+// ExtractId defines model for ExtractId.
+type ExtractId = openapi_types.UUID
+
 // FileId defines model for FileId.
 type FileId = openapi_types.UUID
+
+// FilingId defines model for FilingId.
+type FilingId = openapi_types.UUID
 
 // IdempotencyKey defines model for IdempotencyKey.
 type IdempotencyKey = openapi_types.UUID
@@ -986,6 +1023,11 @@ type RoundNumber = int32
 
 // SlotId defines model for SlotId.
 type SlotId = openapi_types.UUID
+
+// MemberOrDisabled RFC 9457 problem details (internal/platform/httpapi). `code` is an extension member
+// `<context>.<error_name>`; it is set by a context and absent on a 422 from the shared request validator.
+// Delta to the repo schema: adds `code`.
+type MemberOrDisabled = Problem
 
 // NotCurrentMember RFC 9457 problem details (internal/platform/httpapi). `code` is an extension member
 // `<context>.<error_name>`; it is set by a context and absent on a 422 from the shared request validator.
@@ -1242,104 +1284,104 @@ func (t *TextFragment) UnmarshalJSON(b []byte) error {
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// ListBoardMembers Board roster with terms, newest entry first (US-01)
-	// (GET /governance/board-members)
-	ListBoardMembers(w http.ResponseWriter, r *http.Request, params ListBoardMembersParams)
+	// (GET /governance/associations/{association_id}/board-members)
+	ListBoardMembers(w http.ResponseWriter, r *http.Request, associationId AssociationId, params ListBoardMembersParams)
 	// CreateBoardMember Add a person to the board roster for one term (AC-02, Flow 12)
-	// (POST /governance/board-members)
-	CreateBoardMember(w http.ResponseWriter, r *http.Request)
+	// (POST /governance/associations/{association_id}/board-members)
+	CreateBoardMember(w http.ResponseWriter, r *http.Request, associationId AssociationId)
 	// UpdateBoardMember Save a new revision of a roster entry (e.g. the term ends) (AC-02, Flow 12)
-	// (PUT /governance/board-members/{board_member_id})
-	UpdateBoardMember(w http.ResponseWriter, r *http.Request, boardMemberId BoardMemberId)
+	// (PUT /governance/associations/{association_id}/board-members/{board_member_id})
+	UpdateBoardMember(w http.ResponseWriter, r *http.Request, associationId AssociationId, boardMemberId BoardMemberId)
 	// ListCases List справи, newest first
-	// (GET /governance/cases)
-	ListCases(w http.ResponseWriter, r *http.Request, params ListCasesParams)
+	// (GET /governance/associations/{association_id}/cases)
+	ListCases(w http.ResponseWriter, r *http.Request, associationId AssociationId, params ListCasesParams)
 	// CreateCase Open a справа (US-02)
-	// (POST /governance/cases)
-	CreateCase(w http.ResponseWriter, r *http.Request)
+	// (POST /governance/associations/{association_id}/cases)
+	CreateCase(w http.ResponseWriter, r *http.Request, associationId AssociationId)
 	// GetCase One справа with all its document versions (AC-03, AC-19)
-	// (GET /governance/cases/{case_id})
-	GetCase(w http.ResponseWriter, r *http.Request, caseId CaseId)
+	// (GET /governance/associations/{association_id}/cases/{case_id})
+	GetCase(w http.ResponseWriter, r *http.Request, associationId AssociationId, caseId CaseId)
 	// AddCaseDocument Upload a document, or a newer version of one, into a справа (US-04, AC-09, Flow 3, Flow 8)
-	// (POST /governance/cases/{case_id}/documents)
-	AddCaseDocument(w http.ResponseWriter, r *http.Request, caseId CaseId)
+	// (POST /governance/associations/{association_id}/cases/{case_id}/documents)
+	AddCaseDocument(w http.ResponseWriter, r *http.Request, associationId AssociationId, caseId CaseId)
 	// DownloadFile Download a stored file — case document, print copy or signed scan (US-07, Flow 13)
-	// (GET /governance/files/{file_id})
-	DownloadFile(w http.ResponseWriter, r *http.Request, fileId FileId)
+	// (GET /governance/associations/{association_id}/files/{file_id})
+	DownloadFile(w http.ResponseWriter, r *http.Request, associationId AssociationId, fileId FileId)
 	// GetJob Status of a proposal or print-copy job, polled about every 2 s (SAD §4, Flows 1, 4, 8)
-	// (GET /governance/jobs/{job_id})
-	GetJob(w http.ResponseWriter, r *http.Request, jobId JobId)
+	// (GET /governance/associations/{association_id}/jobs/{job_id})
+	GetJob(w http.ResponseWriter, r *http.Request, associationId AssociationId, jobId JobId)
 	// RetryJob Retry a failed job (Flow 8 "retry offered")
-	// (POST /governance/jobs/{job_id}/retry)
-	RetryJob(w http.ResponseWriter, r *http.Request, jobId JobId)
+	// (POST /governance/associations/{association_id}/jobs/{job_id}/retry)
+	RetryJob(w http.ResponseWriter, r *http.Request, associationId AssociationId, jobId JobId)
 	// ListMeetings List meetings, newest first, one page at a time
-	// (GET /governance/meetings)
-	ListMeetings(w http.ResponseWriter, r *http.Request, params ListMeetingsParams)
+	// (GET /governance/associations/{association_id}/meetings)
+	ListMeetings(w http.ResponseWriter, r *http.Request, associationId AssociationId, params ListMeetingsParams)
 	// CreateMeeting Schedule a board meeting
-	// (POST /governance/meetings)
-	CreateMeeting(w http.ResponseWriter, r *http.Request)
+	// (POST /governance/associations/{association_id}/meetings)
+	CreateMeeting(w http.ResponseWriter, r *http.Request, associationId AssociationId)
 	// GetMeeting Get one meeting
-	// (GET /governance/meetings/{id})
-	GetMeeting(w http.ResponseWriter, r *http.Request, id openapi_types.UUID)
+	// (GET /governance/associations/{association_id}/meetings/{id})
+	GetMeeting(w http.ResponseWriter, r *http.Request, associationId AssociationId, id openapi_types.UUID)
 	// AddAgendaItemFromCase Open the meeting's draft from a справа, or add the справа as an agenda item (US-02, AC-03c)
-	// (POST /governance/meetings/{meeting_id}/agenda-items)
-	AddAgendaItemFromCase(w http.ResponseWriter, r *http.Request, meetingId MeetingId)
+	// (POST /governance/associations/{association_id}/meetings/{meeting_id}/agenda-items)
+	AddAgendaItemFromCase(w http.ResponseWriter, r *http.Request, associationId AssociationId, meetingId MeetingId)
 	// CreateAssistantTurn Ask the помічник протоколу for a draft of the meeting's protocol, or refine it (US-12, Flow 1)
-	// (POST /governance/meetings/{meeting_id}/assistant-turns)
-	CreateAssistantTurn(w http.ResponseWriter, r *http.Request, meetingId MeetingId, params CreateAssistantTurnParams)
+	// (POST /governance/associations/{association_id}/meetings/{meeting_id}/assistant-turns)
+	CreateAssistantTurn(w http.ResponseWriter, r *http.Request, associationId AssociationId, meetingId MeetingId, params CreateAssistantTurnParams)
 	// ListProtocols List protocol drafts and protocols, newest first, optionally by state
-	// (GET /governance/protocols)
-	ListProtocols(w http.ResponseWriter, r *http.Request, params ListProtocolsParams)
+	// (GET /governance/associations/{association_id}/protocols)
+	ListProtocols(w http.ResponseWriter, r *http.Request, associationId AssociationId, params ListProtocolsParams)
 	// GetProtocol Open a draft with its meeting, roster in force, documents, slots, poll rounds and print copies (AC-03)
-	// (GET /governance/protocols/{protocol_id})
-	GetProtocol(w http.ResponseWriter, r *http.Request, protocolId ProtocolId)
+	// (GET /governance/associations/{association_id}/protocols/{protocol_id})
+	GetProtocol(w http.ResponseWriter, r *http.Request, associationId AssociationId, protocolId ProtocolId)
 	// AddDecisionSlot Turn a typed fact into a слот рішення by hand (ADR-0011 highlight offer, AC-28)
-	// (POST /governance/protocols/{protocol_id}/agenda-items/{agenda_item_id}/slots)
-	AddDecisionSlot(w http.ResponseWriter, r *http.Request, protocolId ProtocolId, agendaItemId AgendaItemId)
+	// (POST /governance/associations/{association_id}/protocols/{protocol_id}/agenda-items/{agenda_item_id}/slots)
+	AddDecisionSlot(w http.ResponseWriter, r *http.Request, associationId AssociationId, protocolId ProtocolId, agendaItemId AgendaItemId)
 	// SaveAgendaItemWording Reword an agenda item's subject and text (AC-29, AC-05d, AC-14b, Flows 1, 3)
-	// (PUT /governance/protocols/{protocol_id}/agenda-items/{agenda_item_id}/wording)
-	SaveAgendaItemWording(w http.ResponseWriter, r *http.Request, protocolId ProtocolId, agendaItemId AgendaItemId)
+	// (PUT /governance/associations/{association_id}/protocols/{protocol_id}/agenda-items/{agenda_item_id}/wording)
+	SaveAgendaItemWording(w http.ResponseWriter, r *http.Request, associationId AssociationId, protocolId ProtocolId, agendaItemId AgendaItemId)
 	// ListAssistantTurns The conversation kept with the draft, newest first (AC-26)
-	// (GET /governance/protocols/{protocol_id}/assistant-turns)
-	ListAssistantTurns(w http.ResponseWriter, r *http.Request, protocolId ProtocolId, params ListAssistantTurnsParams)
+	// (GET /governance/associations/{association_id}/protocols/{protocol_id}/assistant-turns)
+	ListAssistantTurns(w http.ResponseWriter, r *http.Request, associationId AssociationId, protocolId ProtocolId, params ListAssistantTurnsParams)
 	// CopyWithdrawnProtocol Start a new draft copied from a withdrawn one (AC-39)
-	// (POST /governance/protocols/{protocol_id}/copy)
-	CopyWithdrawnProtocol(w http.ResponseWriter, r *http.Request, protocolId ProtocolId)
+	// (POST /governance/associations/{association_id}/protocols/{protocol_id}/copy)
+	CopyWithdrawnProtocol(w http.ResponseWriter, r *http.Request, associationId AssociationId, protocolId ProtocolId)
 	// StartPollRound Freeze the wording as the next round of the попереднє голосування (чернетка → готовий до голосування) (AC-30, Flow 2)
-	// (POST /governance/protocols/{protocol_id}/poll-rounds)
-	StartPollRound(w http.ResponseWriter, r *http.Request, protocolId ProtocolId)
+	// (POST /governance/associations/{association_id}/protocols/{protocol_id}/poll-rounds)
+	StartPollRound(w http.ResponseWriter, r *http.Request, associationId AssociationId, protocolId ProtocolId)
 	// CastPollVote Cast or change one's own informal vote on an agenda item (AC-31, AC-05e, AC-32, Flow 2)
-	// (PUT /governance/protocols/{protocol_id}/poll-rounds/{round_number}/votes)
-	CastPollVote(w http.ResponseWriter, r *http.Request, protocolId ProtocolId, roundNumber RoundNumber)
+	// (PUT /governance/associations/{association_id}/protocols/{protocol_id}/poll-rounds/{round_number}/votes)
+	CastPollVote(w http.ResponseWriter, r *http.Request, associationId AssociationId, protocolId ProtocolId, roundNumber RoundNumber)
 	// MarkProtocolReadyForSigning Mark готовий до підпису — freeze the text, reserve the number, render the print copy (AC-04, AC-21, AC-14c, AC-33, Flow 4)
-	// (POST /governance/protocols/{protocol_id}/ready-for-signing)
-	MarkProtocolReadyForSigning(w http.ResponseWriter, r *http.Request, protocolId ProtocolId)
+	// (POST /governance/associations/{association_id}/protocols/{protocol_id}/ready-for-signing)
+	MarkProtocolReadyForSigning(w http.ResponseWriter, r *http.Request, associationId AssociationId, protocolId ProtocolId)
 	// ReturnProtocolToDraft «Повернути в чернетку» (готовий до голосування / готовий до підпису → чернетка) (AC-05d, AC-14b, Flow 3)
-	// (POST /governance/protocols/{protocol_id}/return-to-draft)
-	ReturnProtocolToDraft(w http.ResponseWriter, r *http.Request, protocolId ProtocolId)
+	// (POST /governance/associations/{association_id}/protocols/{protocol_id}/return-to-draft)
+	ReturnProtocolToDraft(w http.ResponseWriter, r *http.Request, associationId AssociationId, protocolId ProtocolId)
 	// LockProtocolWithSignedCopy Upload the signed scan with the meeting facts and lock (готовий до підпису → підписаний) (AC-14, AC-34, AC-15, AC-40, AC-16, Flow 5)
-	// (POST /governance/protocols/{protocol_id}/signed-copy)
-	LockProtocolWithSignedCopy(w http.ResponseWriter, r *http.Request, protocolId ProtocolId)
+	// (POST /governance/associations/{association_id}/protocols/{protocol_id}/signed-copy)
+	LockProtocolWithSignedCopy(w http.ResponseWriter, r *http.Request, associationId AssociationId, protocolId ProtocolId)
 	// ConfirmDecisionSlot Confirm one value of a slot — the proposed one or an alternative beside it (AC-21, AC-22, AC-28b)
-	// (POST /governance/protocols/{protocol_id}/slots/{slot_id}/confirmation)
-	ConfirmDecisionSlot(w http.ResponseWriter, r *http.Request, protocolId ProtocolId, slotId SlotId)
+	// (POST /governance/associations/{association_id}/protocols/{protocol_id}/slots/{slot_id}/confirmation)
+	ConfirmDecisionSlot(w http.ResponseWriter, r *http.Request, associationId AssociationId, protocolId ProtocolId, slotId SlotId)
 	// CorrectDecisionSlot Correct a slot by hand; a corrected value counts as confirmed (AC-21)
-	// (POST /governance/protocols/{protocol_id}/slots/{slot_id}/values)
-	CorrectDecisionSlot(w http.ResponseWriter, r *http.Request, protocolId ProtocolId, slotId SlotId)
+	// (POST /governance/associations/{association_id}/protocols/{protocol_id}/slots/{slot_id}/values)
+	CorrectDecisionSlot(w http.ResponseWriter, r *http.Request, associationId AssociationId, protocolId ProtocolId, slotId SlotId)
 	// WithdrawProtocol Close a draft as знятий з розгляду with a reason (AC-35, AC-36, AC-37, AC-38, Flow 9)
-	// (POST /governance/protocols/{protocol_id}/withdrawal)
-	WithdrawProtocol(w http.ResponseWriter, r *http.Request, protocolId ProtocolId)
+	// (POST /governance/associations/{association_id}/protocols/{protocol_id}/withdrawal)
+	WithdrawProtocol(w http.ResponseWriter, r *http.Request, associationId AssociationId, protocolId ProtocolId)
 	// SearchRegistry Search decisions of signed protocols, newest meeting first (AC-18, Flow 13)
-	// (GET /governance/registry/decisions)
-	SearchRegistry(w http.ResponseWriter, r *http.Request, params SearchRegistryParams)
+	// (GET /governance/associations/{association_id}/registry/decisions)
+	SearchRegistry(w http.ResponseWriter, r *http.Request, associationId AssociationId, params SearchRegistryParams)
 	// GetSignedProtocol Open a signed protocol with its signed copy, meeting facts, cited documents and poll history (AC-18, AC-41, AC-15, Flow 13)
-	// (GET /governance/registry/protocols/{protocol_id})
-	GetSignedProtocol(w http.ResponseWriter, r *http.Request, protocolId ProtocolId)
+	// (GET /governance/associations/{association_id}/registry/protocols/{protocol_id})
+	GetSignedProtocol(w http.ResponseWriter, r *http.Request, associationId AssociationId, protocolId ProtocolId)
 	// GetAssociationSettings Current association settings (latest saved revision)
-	// (GET /governance/settings)
-	GetAssociationSettings(w http.ResponseWriter, r *http.Request)
+	// (GET /governance/associations/{association_id}/settings)
+	GetAssociationSettings(w http.ResponseWriter, r *http.Request, associationId AssociationId)
 	// SaveAssociationSettings Save a new revision of the association settings (AC-42, Flow 12)
-	// (PUT /governance/settings)
-	SaveAssociationSettings(w http.ResponseWriter, r *http.Request)
+	// (PUT /governance/associations/{association_id}/settings)
+	SaveAssociationSettings(w http.ResponseWriter, r *http.Request, associationId AssociationId)
 }
 
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
@@ -1347,200 +1389,200 @@ type ServerInterface interface {
 type Unimplemented struct{}
 
 // ListBoardMembers Board roster with terms, newest entry first (US-01)
-// (GET /governance/board-members)
-func (_ Unimplemented) ListBoardMembers(w http.ResponseWriter, r *http.Request, params ListBoardMembersParams) {
+// (GET /governance/associations/{association_id}/board-members)
+func (_ Unimplemented) ListBoardMembers(w http.ResponseWriter, r *http.Request, associationId AssociationId, params ListBoardMembersParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // CreateBoardMember Add a person to the board roster for one term (AC-02, Flow 12)
-// (POST /governance/board-members)
-func (_ Unimplemented) CreateBoardMember(w http.ResponseWriter, r *http.Request) {
+// (POST /governance/associations/{association_id}/board-members)
+func (_ Unimplemented) CreateBoardMember(w http.ResponseWriter, r *http.Request, associationId AssociationId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // UpdateBoardMember Save a new revision of a roster entry (e.g. the term ends) (AC-02, Flow 12)
-// (PUT /governance/board-members/{board_member_id})
-func (_ Unimplemented) UpdateBoardMember(w http.ResponseWriter, r *http.Request, boardMemberId BoardMemberId) {
+// (PUT /governance/associations/{association_id}/board-members/{board_member_id})
+func (_ Unimplemented) UpdateBoardMember(w http.ResponseWriter, r *http.Request, associationId AssociationId, boardMemberId BoardMemberId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // ListCases List справи, newest first
-// (GET /governance/cases)
-func (_ Unimplemented) ListCases(w http.ResponseWriter, r *http.Request, params ListCasesParams) {
+// (GET /governance/associations/{association_id}/cases)
+func (_ Unimplemented) ListCases(w http.ResponseWriter, r *http.Request, associationId AssociationId, params ListCasesParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // CreateCase Open a справа (US-02)
-// (POST /governance/cases)
-func (_ Unimplemented) CreateCase(w http.ResponseWriter, r *http.Request) {
+// (POST /governance/associations/{association_id}/cases)
+func (_ Unimplemented) CreateCase(w http.ResponseWriter, r *http.Request, associationId AssociationId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // GetCase One справа with all its document versions (AC-03, AC-19)
-// (GET /governance/cases/{case_id})
-func (_ Unimplemented) GetCase(w http.ResponseWriter, r *http.Request, caseId CaseId) {
+// (GET /governance/associations/{association_id}/cases/{case_id})
+func (_ Unimplemented) GetCase(w http.ResponseWriter, r *http.Request, associationId AssociationId, caseId CaseId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // AddCaseDocument Upload a document, or a newer version of one, into a справа (US-04, AC-09, Flow 3, Flow 8)
-// (POST /governance/cases/{case_id}/documents)
-func (_ Unimplemented) AddCaseDocument(w http.ResponseWriter, r *http.Request, caseId CaseId) {
+// (POST /governance/associations/{association_id}/cases/{case_id}/documents)
+func (_ Unimplemented) AddCaseDocument(w http.ResponseWriter, r *http.Request, associationId AssociationId, caseId CaseId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // DownloadFile Download a stored file — case document, print copy or signed scan (US-07, Flow 13)
-// (GET /governance/files/{file_id})
-func (_ Unimplemented) DownloadFile(w http.ResponseWriter, r *http.Request, fileId FileId) {
+// (GET /governance/associations/{association_id}/files/{file_id})
+func (_ Unimplemented) DownloadFile(w http.ResponseWriter, r *http.Request, associationId AssociationId, fileId FileId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // GetJob Status of a proposal or print-copy job, polled about every 2 s (SAD §4, Flows 1, 4, 8)
-// (GET /governance/jobs/{job_id})
-func (_ Unimplemented) GetJob(w http.ResponseWriter, r *http.Request, jobId JobId) {
+// (GET /governance/associations/{association_id}/jobs/{job_id})
+func (_ Unimplemented) GetJob(w http.ResponseWriter, r *http.Request, associationId AssociationId, jobId JobId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // RetryJob Retry a failed job (Flow 8 "retry offered")
-// (POST /governance/jobs/{job_id}/retry)
-func (_ Unimplemented) RetryJob(w http.ResponseWriter, r *http.Request, jobId JobId) {
+// (POST /governance/associations/{association_id}/jobs/{job_id}/retry)
+func (_ Unimplemented) RetryJob(w http.ResponseWriter, r *http.Request, associationId AssociationId, jobId JobId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // ListMeetings List meetings, newest first, one page at a time
-// (GET /governance/meetings)
-func (_ Unimplemented) ListMeetings(w http.ResponseWriter, r *http.Request, params ListMeetingsParams) {
+// (GET /governance/associations/{association_id}/meetings)
+func (_ Unimplemented) ListMeetings(w http.ResponseWriter, r *http.Request, associationId AssociationId, params ListMeetingsParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // CreateMeeting Schedule a board meeting
-// (POST /governance/meetings)
-func (_ Unimplemented) CreateMeeting(w http.ResponseWriter, r *http.Request) {
+// (POST /governance/associations/{association_id}/meetings)
+func (_ Unimplemented) CreateMeeting(w http.ResponseWriter, r *http.Request, associationId AssociationId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // GetMeeting Get one meeting
-// (GET /governance/meetings/{id})
-func (_ Unimplemented) GetMeeting(w http.ResponseWriter, r *http.Request, id openapi_types.UUID) {
+// (GET /governance/associations/{association_id}/meetings/{id})
+func (_ Unimplemented) GetMeeting(w http.ResponseWriter, r *http.Request, associationId AssociationId, id openapi_types.UUID) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // AddAgendaItemFromCase Open the meeting's draft from a справа, or add the справа as an agenda item (US-02, AC-03c)
-// (POST /governance/meetings/{meeting_id}/agenda-items)
-func (_ Unimplemented) AddAgendaItemFromCase(w http.ResponseWriter, r *http.Request, meetingId MeetingId) {
+// (POST /governance/associations/{association_id}/meetings/{meeting_id}/agenda-items)
+func (_ Unimplemented) AddAgendaItemFromCase(w http.ResponseWriter, r *http.Request, associationId AssociationId, meetingId MeetingId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // CreateAssistantTurn Ask the помічник протоколу for a draft of the meeting's protocol, or refine it (US-12, Flow 1)
-// (POST /governance/meetings/{meeting_id}/assistant-turns)
-func (_ Unimplemented) CreateAssistantTurn(w http.ResponseWriter, r *http.Request, meetingId MeetingId, params CreateAssistantTurnParams) {
+// (POST /governance/associations/{association_id}/meetings/{meeting_id}/assistant-turns)
+func (_ Unimplemented) CreateAssistantTurn(w http.ResponseWriter, r *http.Request, associationId AssociationId, meetingId MeetingId, params CreateAssistantTurnParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // ListProtocols List protocol drafts and protocols, newest first, optionally by state
-// (GET /governance/protocols)
-func (_ Unimplemented) ListProtocols(w http.ResponseWriter, r *http.Request, params ListProtocolsParams) {
+// (GET /governance/associations/{association_id}/protocols)
+func (_ Unimplemented) ListProtocols(w http.ResponseWriter, r *http.Request, associationId AssociationId, params ListProtocolsParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // GetProtocol Open a draft with its meeting, roster in force, documents, slots, poll rounds and print copies (AC-03)
-// (GET /governance/protocols/{protocol_id})
-func (_ Unimplemented) GetProtocol(w http.ResponseWriter, r *http.Request, protocolId ProtocolId) {
+// (GET /governance/associations/{association_id}/protocols/{protocol_id})
+func (_ Unimplemented) GetProtocol(w http.ResponseWriter, r *http.Request, associationId AssociationId, protocolId ProtocolId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // AddDecisionSlot Turn a typed fact into a слот рішення by hand (ADR-0011 highlight offer, AC-28)
-// (POST /governance/protocols/{protocol_id}/agenda-items/{agenda_item_id}/slots)
-func (_ Unimplemented) AddDecisionSlot(w http.ResponseWriter, r *http.Request, protocolId ProtocolId, agendaItemId AgendaItemId) {
+// (POST /governance/associations/{association_id}/protocols/{protocol_id}/agenda-items/{agenda_item_id}/slots)
+func (_ Unimplemented) AddDecisionSlot(w http.ResponseWriter, r *http.Request, associationId AssociationId, protocolId ProtocolId, agendaItemId AgendaItemId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // SaveAgendaItemWording Reword an agenda item's subject and text (AC-29, AC-05d, AC-14b, Flows 1, 3)
-// (PUT /governance/protocols/{protocol_id}/agenda-items/{agenda_item_id}/wording)
-func (_ Unimplemented) SaveAgendaItemWording(w http.ResponseWriter, r *http.Request, protocolId ProtocolId, agendaItemId AgendaItemId) {
+// (PUT /governance/associations/{association_id}/protocols/{protocol_id}/agenda-items/{agenda_item_id}/wording)
+func (_ Unimplemented) SaveAgendaItemWording(w http.ResponseWriter, r *http.Request, associationId AssociationId, protocolId ProtocolId, agendaItemId AgendaItemId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // ListAssistantTurns The conversation kept with the draft, newest first (AC-26)
-// (GET /governance/protocols/{protocol_id}/assistant-turns)
-func (_ Unimplemented) ListAssistantTurns(w http.ResponseWriter, r *http.Request, protocolId ProtocolId, params ListAssistantTurnsParams) {
+// (GET /governance/associations/{association_id}/protocols/{protocol_id}/assistant-turns)
+func (_ Unimplemented) ListAssistantTurns(w http.ResponseWriter, r *http.Request, associationId AssociationId, protocolId ProtocolId, params ListAssistantTurnsParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // CopyWithdrawnProtocol Start a new draft copied from a withdrawn one (AC-39)
-// (POST /governance/protocols/{protocol_id}/copy)
-func (_ Unimplemented) CopyWithdrawnProtocol(w http.ResponseWriter, r *http.Request, protocolId ProtocolId) {
+// (POST /governance/associations/{association_id}/protocols/{protocol_id}/copy)
+func (_ Unimplemented) CopyWithdrawnProtocol(w http.ResponseWriter, r *http.Request, associationId AssociationId, protocolId ProtocolId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // StartPollRound Freeze the wording as the next round of the попереднє голосування (чернетка → готовий до голосування) (AC-30, Flow 2)
-// (POST /governance/protocols/{protocol_id}/poll-rounds)
-func (_ Unimplemented) StartPollRound(w http.ResponseWriter, r *http.Request, protocolId ProtocolId) {
+// (POST /governance/associations/{association_id}/protocols/{protocol_id}/poll-rounds)
+func (_ Unimplemented) StartPollRound(w http.ResponseWriter, r *http.Request, associationId AssociationId, protocolId ProtocolId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // CastPollVote Cast or change one's own informal vote on an agenda item (AC-31, AC-05e, AC-32, Flow 2)
-// (PUT /governance/protocols/{protocol_id}/poll-rounds/{round_number}/votes)
-func (_ Unimplemented) CastPollVote(w http.ResponseWriter, r *http.Request, protocolId ProtocolId, roundNumber RoundNumber) {
+// (PUT /governance/associations/{association_id}/protocols/{protocol_id}/poll-rounds/{round_number}/votes)
+func (_ Unimplemented) CastPollVote(w http.ResponseWriter, r *http.Request, associationId AssociationId, protocolId ProtocolId, roundNumber RoundNumber) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // MarkProtocolReadyForSigning Mark готовий до підпису — freeze the text, reserve the number, render the print copy (AC-04, AC-21, AC-14c, AC-33, Flow 4)
-// (POST /governance/protocols/{protocol_id}/ready-for-signing)
-func (_ Unimplemented) MarkProtocolReadyForSigning(w http.ResponseWriter, r *http.Request, protocolId ProtocolId) {
+// (POST /governance/associations/{association_id}/protocols/{protocol_id}/ready-for-signing)
+func (_ Unimplemented) MarkProtocolReadyForSigning(w http.ResponseWriter, r *http.Request, associationId AssociationId, protocolId ProtocolId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // ReturnProtocolToDraft «Повернути в чернетку» (готовий до голосування / готовий до підпису → чернетка) (AC-05d, AC-14b, Flow 3)
-// (POST /governance/protocols/{protocol_id}/return-to-draft)
-func (_ Unimplemented) ReturnProtocolToDraft(w http.ResponseWriter, r *http.Request, protocolId ProtocolId) {
+// (POST /governance/associations/{association_id}/protocols/{protocol_id}/return-to-draft)
+func (_ Unimplemented) ReturnProtocolToDraft(w http.ResponseWriter, r *http.Request, associationId AssociationId, protocolId ProtocolId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // LockProtocolWithSignedCopy Upload the signed scan with the meeting facts and lock (готовий до підпису → підписаний) (AC-14, AC-34, AC-15, AC-40, AC-16, Flow 5)
-// (POST /governance/protocols/{protocol_id}/signed-copy)
-func (_ Unimplemented) LockProtocolWithSignedCopy(w http.ResponseWriter, r *http.Request, protocolId ProtocolId) {
+// (POST /governance/associations/{association_id}/protocols/{protocol_id}/signed-copy)
+func (_ Unimplemented) LockProtocolWithSignedCopy(w http.ResponseWriter, r *http.Request, associationId AssociationId, protocolId ProtocolId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // ConfirmDecisionSlot Confirm one value of a slot — the proposed one or an alternative beside it (AC-21, AC-22, AC-28b)
-// (POST /governance/protocols/{protocol_id}/slots/{slot_id}/confirmation)
-func (_ Unimplemented) ConfirmDecisionSlot(w http.ResponseWriter, r *http.Request, protocolId ProtocolId, slotId SlotId) {
+// (POST /governance/associations/{association_id}/protocols/{protocol_id}/slots/{slot_id}/confirmation)
+func (_ Unimplemented) ConfirmDecisionSlot(w http.ResponseWriter, r *http.Request, associationId AssociationId, protocolId ProtocolId, slotId SlotId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // CorrectDecisionSlot Correct a slot by hand; a corrected value counts as confirmed (AC-21)
-// (POST /governance/protocols/{protocol_id}/slots/{slot_id}/values)
-func (_ Unimplemented) CorrectDecisionSlot(w http.ResponseWriter, r *http.Request, protocolId ProtocolId, slotId SlotId) {
+// (POST /governance/associations/{association_id}/protocols/{protocol_id}/slots/{slot_id}/values)
+func (_ Unimplemented) CorrectDecisionSlot(w http.ResponseWriter, r *http.Request, associationId AssociationId, protocolId ProtocolId, slotId SlotId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // WithdrawProtocol Close a draft as знятий з розгляду with a reason (AC-35, AC-36, AC-37, AC-38, Flow 9)
-// (POST /governance/protocols/{protocol_id}/withdrawal)
-func (_ Unimplemented) WithdrawProtocol(w http.ResponseWriter, r *http.Request, protocolId ProtocolId) {
+// (POST /governance/associations/{association_id}/protocols/{protocol_id}/withdrawal)
+func (_ Unimplemented) WithdrawProtocol(w http.ResponseWriter, r *http.Request, associationId AssociationId, protocolId ProtocolId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // SearchRegistry Search decisions of signed protocols, newest meeting first (AC-18, Flow 13)
-// (GET /governance/registry/decisions)
-func (_ Unimplemented) SearchRegistry(w http.ResponseWriter, r *http.Request, params SearchRegistryParams) {
+// (GET /governance/associations/{association_id}/registry/decisions)
+func (_ Unimplemented) SearchRegistry(w http.ResponseWriter, r *http.Request, associationId AssociationId, params SearchRegistryParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // GetSignedProtocol Open a signed protocol with its signed copy, meeting facts, cited documents and poll history (AC-18, AC-41, AC-15, Flow 13)
-// (GET /governance/registry/protocols/{protocol_id})
-func (_ Unimplemented) GetSignedProtocol(w http.ResponseWriter, r *http.Request, protocolId ProtocolId) {
+// (GET /governance/associations/{association_id}/registry/protocols/{protocol_id})
+func (_ Unimplemented) GetSignedProtocol(w http.ResponseWriter, r *http.Request, associationId AssociationId, protocolId ProtocolId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // GetAssociationSettings Current association settings (latest saved revision)
-// (GET /governance/settings)
-func (_ Unimplemented) GetAssociationSettings(w http.ResponseWriter, r *http.Request) {
+// (GET /governance/associations/{association_id}/settings)
+func (_ Unimplemented) GetAssociationSettings(w http.ResponseWriter, r *http.Request, associationId AssociationId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // SaveAssociationSettings Save a new revision of the association settings (AC-42, Flow 12)
-// (PUT /governance/settings)
-func (_ Unimplemented) SaveAssociationSettings(w http.ResponseWriter, r *http.Request) {
+// (PUT /governance/associations/{association_id}/settings)
+func (_ Unimplemented) SaveAssociationSettings(w http.ResponseWriter, r *http.Request, associationId AssociationId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1558,6 +1600,15 @@ func (siw *ServerInterfaceWrapper) ListBoardMembers(w http.ResponseWriter, r *ht
 
 	var err error
 	_ = err
+
+	// ------------- Path parameter "association_id" -------------
+	var associationId AssociationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "association_id", chi.URLParam(r, "association_id"), &associationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "association_id", Err: err})
+		return
+	}
 
 	// Parameter object where we will unmarshal all parameters from the context
 	var params ListBoardMembersParams
@@ -1602,7 +1653,7 @@ func (siw *ServerInterfaceWrapper) ListBoardMembers(w http.ResponseWriter, r *ht
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ListBoardMembers(w, r, params)
+		siw.Handler.ListBoardMembers(w, r, associationId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1615,8 +1666,20 @@ func (siw *ServerInterfaceWrapper) ListBoardMembers(w http.ResponseWriter, r *ht
 // CreateBoardMember operation middleware
 func (siw *ServerInterfaceWrapper) CreateBoardMember(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+	_ = err
+
+	// ------------- Path parameter "association_id" -------------
+	var associationId AssociationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "association_id", chi.URLParam(r, "association_id"), &associationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "association_id", Err: err})
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.CreateBoardMember(w, r)
+		siw.Handler.CreateBoardMember(w, r, associationId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1632,6 +1695,15 @@ func (siw *ServerInterfaceWrapper) UpdateBoardMember(w http.ResponseWriter, r *h
 	var err error
 	_ = err
 
+	// ------------- Path parameter "association_id" -------------
+	var associationId AssociationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "association_id", chi.URLParam(r, "association_id"), &associationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "association_id", Err: err})
+		return
+	}
+
 	// ------------- Path parameter "board_member_id" -------------
 	var boardMemberId BoardMemberId
 
@@ -1642,7 +1714,7 @@ func (siw *ServerInterfaceWrapper) UpdateBoardMember(w http.ResponseWriter, r *h
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.UpdateBoardMember(w, r, boardMemberId)
+		siw.Handler.UpdateBoardMember(w, r, associationId, boardMemberId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1657,6 +1729,15 @@ func (siw *ServerInterfaceWrapper) ListCases(w http.ResponseWriter, r *http.Requ
 
 	var err error
 	_ = err
+
+	// ------------- Path parameter "association_id" -------------
+	var associationId AssociationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "association_id", chi.URLParam(r, "association_id"), &associationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "association_id", Err: err})
+		return
+	}
 
 	// Parameter object where we will unmarshal all parameters from the context
 	var params ListCasesParams
@@ -1688,7 +1769,7 @@ func (siw *ServerInterfaceWrapper) ListCases(w http.ResponseWriter, r *http.Requ
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ListCases(w, r, params)
+		siw.Handler.ListCases(w, r, associationId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1701,8 +1782,20 @@ func (siw *ServerInterfaceWrapper) ListCases(w http.ResponseWriter, r *http.Requ
 // CreateCase operation middleware
 func (siw *ServerInterfaceWrapper) CreateCase(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+	_ = err
+
+	// ------------- Path parameter "association_id" -------------
+	var associationId AssociationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "association_id", chi.URLParam(r, "association_id"), &associationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "association_id", Err: err})
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.CreateCase(w, r)
+		siw.Handler.CreateCase(w, r, associationId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1718,6 +1811,15 @@ func (siw *ServerInterfaceWrapper) GetCase(w http.ResponseWriter, r *http.Reques
 	var err error
 	_ = err
 
+	// ------------- Path parameter "association_id" -------------
+	var associationId AssociationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "association_id", chi.URLParam(r, "association_id"), &associationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "association_id", Err: err})
+		return
+	}
+
 	// ------------- Path parameter "case_id" -------------
 	var caseId CaseId
 
@@ -1728,7 +1830,7 @@ func (siw *ServerInterfaceWrapper) GetCase(w http.ResponseWriter, r *http.Reques
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetCase(w, r, caseId)
+		siw.Handler.GetCase(w, r, associationId, caseId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1744,6 +1846,15 @@ func (siw *ServerInterfaceWrapper) AddCaseDocument(w http.ResponseWriter, r *htt
 	var err error
 	_ = err
 
+	// ------------- Path parameter "association_id" -------------
+	var associationId AssociationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "association_id", chi.URLParam(r, "association_id"), &associationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "association_id", Err: err})
+		return
+	}
+
 	// ------------- Path parameter "case_id" -------------
 	var caseId CaseId
 
@@ -1754,7 +1865,7 @@ func (siw *ServerInterfaceWrapper) AddCaseDocument(w http.ResponseWriter, r *htt
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.AddCaseDocument(w, r, caseId)
+		siw.Handler.AddCaseDocument(w, r, associationId, caseId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1770,6 +1881,15 @@ func (siw *ServerInterfaceWrapper) DownloadFile(w http.ResponseWriter, r *http.R
 	var err error
 	_ = err
 
+	// ------------- Path parameter "association_id" -------------
+	var associationId AssociationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "association_id", chi.URLParam(r, "association_id"), &associationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "association_id", Err: err})
+		return
+	}
+
 	// ------------- Path parameter "file_id" -------------
 	var fileId FileId
 
@@ -1780,7 +1900,7 @@ func (siw *ServerInterfaceWrapper) DownloadFile(w http.ResponseWriter, r *http.R
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.DownloadFile(w, r, fileId)
+		siw.Handler.DownloadFile(w, r, associationId, fileId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1796,6 +1916,15 @@ func (siw *ServerInterfaceWrapper) GetJob(w http.ResponseWriter, r *http.Request
 	var err error
 	_ = err
 
+	// ------------- Path parameter "association_id" -------------
+	var associationId AssociationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "association_id", chi.URLParam(r, "association_id"), &associationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "association_id", Err: err})
+		return
+	}
+
 	// ------------- Path parameter "job_id" -------------
 	var jobId JobId
 
@@ -1806,7 +1935,7 @@ func (siw *ServerInterfaceWrapper) GetJob(w http.ResponseWriter, r *http.Request
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetJob(w, r, jobId)
+		siw.Handler.GetJob(w, r, associationId, jobId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1822,6 +1951,15 @@ func (siw *ServerInterfaceWrapper) RetryJob(w http.ResponseWriter, r *http.Reque
 	var err error
 	_ = err
 
+	// ------------- Path parameter "association_id" -------------
+	var associationId AssociationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "association_id", chi.URLParam(r, "association_id"), &associationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "association_id", Err: err})
+		return
+	}
+
 	// ------------- Path parameter "job_id" -------------
 	var jobId JobId
 
@@ -1832,7 +1970,7 @@ func (siw *ServerInterfaceWrapper) RetryJob(w http.ResponseWriter, r *http.Reque
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.RetryJob(w, r, jobId)
+		siw.Handler.RetryJob(w, r, associationId, jobId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1847,6 +1985,15 @@ func (siw *ServerInterfaceWrapper) ListMeetings(w http.ResponseWriter, r *http.R
 
 	var err error
 	_ = err
+
+	// ------------- Path parameter "association_id" -------------
+	var associationId AssociationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "association_id", chi.URLParam(r, "association_id"), &associationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "association_id", Err: err})
+		return
+	}
 
 	// Parameter object where we will unmarshal all parameters from the context
 	var params ListMeetingsParams
@@ -1878,7 +2025,7 @@ func (siw *ServerInterfaceWrapper) ListMeetings(w http.ResponseWriter, r *http.R
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ListMeetings(w, r, params)
+		siw.Handler.ListMeetings(w, r, associationId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1891,8 +2038,20 @@ func (siw *ServerInterfaceWrapper) ListMeetings(w http.ResponseWriter, r *http.R
 // CreateMeeting operation middleware
 func (siw *ServerInterfaceWrapper) CreateMeeting(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+	_ = err
+
+	// ------------- Path parameter "association_id" -------------
+	var associationId AssociationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "association_id", chi.URLParam(r, "association_id"), &associationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "association_id", Err: err})
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.CreateMeeting(w, r)
+		siw.Handler.CreateMeeting(w, r, associationId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1908,6 +2067,15 @@ func (siw *ServerInterfaceWrapper) GetMeeting(w http.ResponseWriter, r *http.Req
 	var err error
 	_ = err
 
+	// ------------- Path parameter "association_id" -------------
+	var associationId AssociationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "association_id", chi.URLParam(r, "association_id"), &associationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "association_id", Err: err})
+		return
+	}
+
 	// ------------- Path parameter "id" -------------
 	var id openapi_types.UUID
 
@@ -1918,7 +2086,7 @@ func (siw *ServerInterfaceWrapper) GetMeeting(w http.ResponseWriter, r *http.Req
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetMeeting(w, r, id)
+		siw.Handler.GetMeeting(w, r, associationId, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1934,6 +2102,15 @@ func (siw *ServerInterfaceWrapper) AddAgendaItemFromCase(w http.ResponseWriter, 
 	var err error
 	_ = err
 
+	// ------------- Path parameter "association_id" -------------
+	var associationId AssociationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "association_id", chi.URLParam(r, "association_id"), &associationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "association_id", Err: err})
+		return
+	}
+
 	// ------------- Path parameter "meeting_id" -------------
 	var meetingId MeetingId
 
@@ -1944,7 +2121,7 @@ func (siw *ServerInterfaceWrapper) AddAgendaItemFromCase(w http.ResponseWriter, 
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.AddAgendaItemFromCase(w, r, meetingId)
+		siw.Handler.AddAgendaItemFromCase(w, r, associationId, meetingId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1959,6 +2136,15 @@ func (siw *ServerInterfaceWrapper) CreateAssistantTurn(w http.ResponseWriter, r 
 
 	var err error
 	_ = err
+
+	// ------------- Path parameter "association_id" -------------
+	var associationId AssociationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "association_id", chi.URLParam(r, "association_id"), &associationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "association_id", Err: err})
+		return
+	}
 
 	// ------------- Path parameter "meeting_id" -------------
 	var meetingId MeetingId
@@ -1998,7 +2184,7 @@ func (siw *ServerInterfaceWrapper) CreateAssistantTurn(w http.ResponseWriter, r 
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.CreateAssistantTurn(w, r, meetingId, params)
+		siw.Handler.CreateAssistantTurn(w, r, associationId, meetingId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2013,6 +2199,15 @@ func (siw *ServerInterfaceWrapper) ListProtocols(w http.ResponseWriter, r *http.
 
 	var err error
 	_ = err
+
+	// ------------- Path parameter "association_id" -------------
+	var associationId AssociationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "association_id", chi.URLParam(r, "association_id"), &associationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "association_id", Err: err})
+		return
+	}
 
 	// Parameter object where we will unmarshal all parameters from the context
 	var params ListProtocolsParams
@@ -2057,7 +2252,7 @@ func (siw *ServerInterfaceWrapper) ListProtocols(w http.ResponseWriter, r *http.
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ListProtocols(w, r, params)
+		siw.Handler.ListProtocols(w, r, associationId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2073,6 +2268,15 @@ func (siw *ServerInterfaceWrapper) GetProtocol(w http.ResponseWriter, r *http.Re
 	var err error
 	_ = err
 
+	// ------------- Path parameter "association_id" -------------
+	var associationId AssociationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "association_id", chi.URLParam(r, "association_id"), &associationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "association_id", Err: err})
+		return
+	}
+
 	// ------------- Path parameter "protocol_id" -------------
 	var protocolId ProtocolId
 
@@ -2083,7 +2287,7 @@ func (siw *ServerInterfaceWrapper) GetProtocol(w http.ResponseWriter, r *http.Re
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetProtocol(w, r, protocolId)
+		siw.Handler.GetProtocol(w, r, associationId, protocolId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2099,6 +2303,15 @@ func (siw *ServerInterfaceWrapper) AddDecisionSlot(w http.ResponseWriter, r *htt
 	var err error
 	_ = err
 
+	// ------------- Path parameter "association_id" -------------
+	var associationId AssociationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "association_id", chi.URLParam(r, "association_id"), &associationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "association_id", Err: err})
+		return
+	}
+
 	// ------------- Path parameter "protocol_id" -------------
 	var protocolId ProtocolId
 
@@ -2118,7 +2331,7 @@ func (siw *ServerInterfaceWrapper) AddDecisionSlot(w http.ResponseWriter, r *htt
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.AddDecisionSlot(w, r, protocolId, agendaItemId)
+		siw.Handler.AddDecisionSlot(w, r, associationId, protocolId, agendaItemId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2134,6 +2347,15 @@ func (siw *ServerInterfaceWrapper) SaveAgendaItemWording(w http.ResponseWriter, 
 	var err error
 	_ = err
 
+	// ------------- Path parameter "association_id" -------------
+	var associationId AssociationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "association_id", chi.URLParam(r, "association_id"), &associationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "association_id", Err: err})
+		return
+	}
+
 	// ------------- Path parameter "protocol_id" -------------
 	var protocolId ProtocolId
 
@@ -2153,7 +2375,7 @@ func (siw *ServerInterfaceWrapper) SaveAgendaItemWording(w http.ResponseWriter, 
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.SaveAgendaItemWording(w, r, protocolId, agendaItemId)
+		siw.Handler.SaveAgendaItemWording(w, r, associationId, protocolId, agendaItemId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2168,6 +2390,15 @@ func (siw *ServerInterfaceWrapper) ListAssistantTurns(w http.ResponseWriter, r *
 
 	var err error
 	_ = err
+
+	// ------------- Path parameter "association_id" -------------
+	var associationId AssociationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "association_id", chi.URLParam(r, "association_id"), &associationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "association_id", Err: err})
+		return
+	}
 
 	// ------------- Path parameter "protocol_id" -------------
 	var protocolId ProtocolId
@@ -2208,7 +2439,7 @@ func (siw *ServerInterfaceWrapper) ListAssistantTurns(w http.ResponseWriter, r *
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ListAssistantTurns(w, r, protocolId, params)
+		siw.Handler.ListAssistantTurns(w, r, associationId, protocolId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2224,6 +2455,15 @@ func (siw *ServerInterfaceWrapper) CopyWithdrawnProtocol(w http.ResponseWriter, 
 	var err error
 	_ = err
 
+	// ------------- Path parameter "association_id" -------------
+	var associationId AssociationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "association_id", chi.URLParam(r, "association_id"), &associationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "association_id", Err: err})
+		return
+	}
+
 	// ------------- Path parameter "protocol_id" -------------
 	var protocolId ProtocolId
 
@@ -2234,7 +2474,7 @@ func (siw *ServerInterfaceWrapper) CopyWithdrawnProtocol(w http.ResponseWriter, 
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.CopyWithdrawnProtocol(w, r, protocolId)
+		siw.Handler.CopyWithdrawnProtocol(w, r, associationId, protocolId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2250,6 +2490,15 @@ func (siw *ServerInterfaceWrapper) StartPollRound(w http.ResponseWriter, r *http
 	var err error
 	_ = err
 
+	// ------------- Path parameter "association_id" -------------
+	var associationId AssociationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "association_id", chi.URLParam(r, "association_id"), &associationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "association_id", Err: err})
+		return
+	}
+
 	// ------------- Path parameter "protocol_id" -------------
 	var protocolId ProtocolId
 
@@ -2260,7 +2509,7 @@ func (siw *ServerInterfaceWrapper) StartPollRound(w http.ResponseWriter, r *http
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.StartPollRound(w, r, protocolId)
+		siw.Handler.StartPollRound(w, r, associationId, protocolId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2275,6 +2524,15 @@ func (siw *ServerInterfaceWrapper) CastPollVote(w http.ResponseWriter, r *http.R
 
 	var err error
 	_ = err
+
+	// ------------- Path parameter "association_id" -------------
+	var associationId AssociationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "association_id", chi.URLParam(r, "association_id"), &associationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "association_id", Err: err})
+		return
+	}
 
 	// ------------- Path parameter "protocol_id" -------------
 	var protocolId ProtocolId
@@ -2295,7 +2553,7 @@ func (siw *ServerInterfaceWrapper) CastPollVote(w http.ResponseWriter, r *http.R
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.CastPollVote(w, r, protocolId, roundNumber)
+		siw.Handler.CastPollVote(w, r, associationId, protocolId, roundNumber)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2311,6 +2569,15 @@ func (siw *ServerInterfaceWrapper) MarkProtocolReadyForSigning(w http.ResponseWr
 	var err error
 	_ = err
 
+	// ------------- Path parameter "association_id" -------------
+	var associationId AssociationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "association_id", chi.URLParam(r, "association_id"), &associationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "association_id", Err: err})
+		return
+	}
+
 	// ------------- Path parameter "protocol_id" -------------
 	var protocolId ProtocolId
 
@@ -2321,7 +2588,7 @@ func (siw *ServerInterfaceWrapper) MarkProtocolReadyForSigning(w http.ResponseWr
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.MarkProtocolReadyForSigning(w, r, protocolId)
+		siw.Handler.MarkProtocolReadyForSigning(w, r, associationId, protocolId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2337,6 +2604,15 @@ func (siw *ServerInterfaceWrapper) ReturnProtocolToDraft(w http.ResponseWriter, 
 	var err error
 	_ = err
 
+	// ------------- Path parameter "association_id" -------------
+	var associationId AssociationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "association_id", chi.URLParam(r, "association_id"), &associationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "association_id", Err: err})
+		return
+	}
+
 	// ------------- Path parameter "protocol_id" -------------
 	var protocolId ProtocolId
 
@@ -2347,7 +2623,7 @@ func (siw *ServerInterfaceWrapper) ReturnProtocolToDraft(w http.ResponseWriter, 
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ReturnProtocolToDraft(w, r, protocolId)
+		siw.Handler.ReturnProtocolToDraft(w, r, associationId, protocolId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2363,6 +2639,15 @@ func (siw *ServerInterfaceWrapper) LockProtocolWithSignedCopy(w http.ResponseWri
 	var err error
 	_ = err
 
+	// ------------- Path parameter "association_id" -------------
+	var associationId AssociationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "association_id", chi.URLParam(r, "association_id"), &associationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "association_id", Err: err})
+		return
+	}
+
 	// ------------- Path parameter "protocol_id" -------------
 	var protocolId ProtocolId
 
@@ -2373,7 +2658,7 @@ func (siw *ServerInterfaceWrapper) LockProtocolWithSignedCopy(w http.ResponseWri
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.LockProtocolWithSignedCopy(w, r, protocolId)
+		siw.Handler.LockProtocolWithSignedCopy(w, r, associationId, protocolId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2389,6 +2674,15 @@ func (siw *ServerInterfaceWrapper) ConfirmDecisionSlot(w http.ResponseWriter, r 
 	var err error
 	_ = err
 
+	// ------------- Path parameter "association_id" -------------
+	var associationId AssociationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "association_id", chi.URLParam(r, "association_id"), &associationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "association_id", Err: err})
+		return
+	}
+
 	// ------------- Path parameter "protocol_id" -------------
 	var protocolId ProtocolId
 
@@ -2408,7 +2702,7 @@ func (siw *ServerInterfaceWrapper) ConfirmDecisionSlot(w http.ResponseWriter, r 
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ConfirmDecisionSlot(w, r, protocolId, slotId)
+		siw.Handler.ConfirmDecisionSlot(w, r, associationId, protocolId, slotId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2424,6 +2718,15 @@ func (siw *ServerInterfaceWrapper) CorrectDecisionSlot(w http.ResponseWriter, r 
 	var err error
 	_ = err
 
+	// ------------- Path parameter "association_id" -------------
+	var associationId AssociationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "association_id", chi.URLParam(r, "association_id"), &associationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "association_id", Err: err})
+		return
+	}
+
 	// ------------- Path parameter "protocol_id" -------------
 	var protocolId ProtocolId
 
@@ -2443,7 +2746,7 @@ func (siw *ServerInterfaceWrapper) CorrectDecisionSlot(w http.ResponseWriter, r 
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.CorrectDecisionSlot(w, r, protocolId, slotId)
+		siw.Handler.CorrectDecisionSlot(w, r, associationId, protocolId, slotId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2459,6 +2762,15 @@ func (siw *ServerInterfaceWrapper) WithdrawProtocol(w http.ResponseWriter, r *ht
 	var err error
 	_ = err
 
+	// ------------- Path parameter "association_id" -------------
+	var associationId AssociationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "association_id", chi.URLParam(r, "association_id"), &associationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "association_id", Err: err})
+		return
+	}
+
 	// ------------- Path parameter "protocol_id" -------------
 	var protocolId ProtocolId
 
@@ -2469,7 +2781,7 @@ func (siw *ServerInterfaceWrapper) WithdrawProtocol(w http.ResponseWriter, r *ht
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.WithdrawProtocol(w, r, protocolId)
+		siw.Handler.WithdrawProtocol(w, r, associationId, protocolId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2484,6 +2796,15 @@ func (siw *ServerInterfaceWrapper) SearchRegistry(w http.ResponseWriter, r *http
 
 	var err error
 	_ = err
+
+	// ------------- Path parameter "association_id" -------------
+	var associationId AssociationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "association_id", chi.URLParam(r, "association_id"), &associationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "association_id", Err: err})
+		return
+	}
 
 	// Parameter object where we will unmarshal all parameters from the context
 	var params SearchRegistryParams
@@ -2606,7 +2927,7 @@ func (siw *ServerInterfaceWrapper) SearchRegistry(w http.ResponseWriter, r *http
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.SearchRegistry(w, r, params)
+		siw.Handler.SearchRegistry(w, r, associationId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2622,6 +2943,15 @@ func (siw *ServerInterfaceWrapper) GetSignedProtocol(w http.ResponseWriter, r *h
 	var err error
 	_ = err
 
+	// ------------- Path parameter "association_id" -------------
+	var associationId AssociationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "association_id", chi.URLParam(r, "association_id"), &associationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "association_id", Err: err})
+		return
+	}
+
 	// ------------- Path parameter "protocol_id" -------------
 	var protocolId ProtocolId
 
@@ -2632,7 +2962,7 @@ func (siw *ServerInterfaceWrapper) GetSignedProtocol(w http.ResponseWriter, r *h
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetSignedProtocol(w, r, protocolId)
+		siw.Handler.GetSignedProtocol(w, r, associationId, protocolId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2645,8 +2975,20 @@ func (siw *ServerInterfaceWrapper) GetSignedProtocol(w http.ResponseWriter, r *h
 // GetAssociationSettings operation middleware
 func (siw *ServerInterfaceWrapper) GetAssociationSettings(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+	_ = err
+
+	// ------------- Path parameter "association_id" -------------
+	var associationId AssociationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "association_id", chi.URLParam(r, "association_id"), &associationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "association_id", Err: err})
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetAssociationSettings(w, r)
+		siw.Handler.GetAssociationSettings(w, r, associationId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2659,8 +3001,20 @@ func (siw *ServerInterfaceWrapper) GetAssociationSettings(w http.ResponseWriter,
 // SaveAssociationSettings operation middleware
 func (siw *ServerInterfaceWrapper) SaveAssociationSettings(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+	_ = err
+
+	// ------------- Path parameter "association_id" -------------
+	var associationId AssociationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "association_id", chi.URLParam(r, "association_id"), &associationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "association_id", Err: err})
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.SaveAssociationSettings(w, r)
+		siw.Handler.SaveAssociationSettings(w, r, associationId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2784,107 +3138,109 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	}
 
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/governance/meetings", wrapper.ListMeetings)
+		r.Get(options.BaseURL+"/governance/associations/{association_id}/meetings", wrapper.ListMeetings)
 	})
 	r.Group(func(r chi.Router) {
-		r.Post(options.BaseURL+"/governance/meetings", wrapper.CreateMeeting)
+		r.Post(options.BaseURL+"/governance/associations/{association_id}/meetings", wrapper.CreateMeeting)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/governance/meetings/{id}", wrapper.GetMeeting)
+		r.Get(options.BaseURL+"/governance/associations/{association_id}/meetings/{id}", wrapper.GetMeeting)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/governance/settings", wrapper.GetAssociationSettings)
+		r.Get(options.BaseURL+"/governance/associations/{association_id}/settings", wrapper.GetAssociationSettings)
 	})
 	r.Group(func(r chi.Router) {
-		r.Put(options.BaseURL+"/governance/settings", wrapper.SaveAssociationSettings)
+		r.Put(options.BaseURL+"/governance/associations/{association_id}/settings", wrapper.SaveAssociationSettings)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/governance/board-members", wrapper.ListBoardMembers)
+		r.Get(options.BaseURL+"/governance/associations/{association_id}/board-members", wrapper.ListBoardMembers)
 	})
 	r.Group(func(r chi.Router) {
-		r.Post(options.BaseURL+"/governance/board-members", wrapper.CreateBoardMember)
+		r.Post(options.BaseURL+"/governance/associations/{association_id}/board-members", wrapper.CreateBoardMember)
 	})
 	r.Group(func(r chi.Router) {
-		r.Put(options.BaseURL+"/governance/board-members/{board_member_id}", wrapper.UpdateBoardMember)
+		r.Put(options.BaseURL+"/governance/associations/{association_id}/board-members/{board_member_id}", wrapper.UpdateBoardMember)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/governance/cases", wrapper.ListCases)
+		r.Get(options.BaseURL+"/governance/associations/{association_id}/cases", wrapper.ListCases)
 	})
 	r.Group(func(r chi.Router) {
-		r.Post(options.BaseURL+"/governance/cases", wrapper.CreateCase)
+		r.Post(options.BaseURL+"/governance/associations/{association_id}/cases", wrapper.CreateCase)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/governance/cases/{case_id}", wrapper.GetCase)
+		r.Get(options.BaseURL+"/governance/associations/{association_id}/cases/{case_id}", wrapper.GetCase)
 	})
 	r.Group(func(r chi.Router) {
-		r.Post(options.BaseURL+"/governance/cases/{case_id}/documents", wrapper.AddCaseDocument)
+		r.Post(options.BaseURL+"/governance/associations/{association_id}/cases/{case_id}/documents", wrapper.AddCaseDocument)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/governance/files/{file_id}", wrapper.DownloadFile)
+		r.Get(options.BaseURL+"/governance/associations/{association_id}/files/{file_id}", wrapper.DownloadFile)
 	})
 	r.Group(func(r chi.Router) {
-		r.Post(options.BaseURL+"/governance/meetings/{meeting_id}/assistant-turns", wrapper.CreateAssistantTurn)
+		r.Post(options.BaseURL+"/governance/associations/{association_id}/meetings/{meeting_id}/assistant-turns", wrapper.CreateAssistantTurn)
 	})
 	r.Group(func(r chi.Router) {
-		r.Post(options.BaseURL+"/governance/meetings/{meeting_id}/agenda-items", wrapper.AddAgendaItemFromCase)
+		r.Post(options.BaseURL+"/governance/associations/{association_id}/meetings/{meeting_id}/agenda-items", wrapper.AddAgendaItemFromCase)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/governance/jobs/{job_id}", wrapper.GetJob)
+		r.Get(options.BaseURL+"/governance/associations/{association_id}/jobs/{job_id}", wrapper.GetJob)
 	})
 	r.Group(func(r chi.Router) {
-		r.Post(options.BaseURL+"/governance/jobs/{job_id}/retry", wrapper.RetryJob)
+		r.Post(options.BaseURL+"/governance/associations/{association_id}/jobs/{job_id}/retry", wrapper.RetryJob)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/governance/protocols", wrapper.ListProtocols)
+		r.Get(options.BaseURL+"/governance/associations/{association_id}/protocols", wrapper.ListProtocols)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/governance/protocols/{protocol_id}", wrapper.GetProtocol)
+		r.Get(options.BaseURL+"/governance/associations/{association_id}/protocols/{protocol_id}", wrapper.GetProtocol)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/governance/protocols/{protocol_id}/assistant-turns", wrapper.ListAssistantTurns)
+		r.Get(options.BaseURL+"/governance/associations/{association_id}/protocols/{protocol_id}/assistant-turns", wrapper.ListAssistantTurns)
 	})
 	r.Group(func(r chi.Router) {
-		r.Put(options.BaseURL+"/governance/protocols/{protocol_id}/agenda-items/{agenda_item_id}/wording", wrapper.SaveAgendaItemWording)
+		r.Put(options.BaseURL+"/governance/associations/{association_id}/protocols/{protocol_id}/agenda-items/{agenda_item_id}/wording", wrapper.SaveAgendaItemWording)
 	})
 	r.Group(func(r chi.Router) {
-		r.Post(options.BaseURL+"/governance/protocols/{protocol_id}/agenda-items/{agenda_item_id}/slots", wrapper.AddDecisionSlot)
+		r.Post(options.BaseURL+"/governance/associations/{association_id}/protocols/{protocol_id}/agenda-items/{agenda_item_id}/slots", wrapper.AddDecisionSlot)
 	})
 	r.Group(func(r chi.Router) {
-		r.Post(options.BaseURL+"/governance/protocols/{protocol_id}/slots/{slot_id}/confirmation", wrapper.ConfirmDecisionSlot)
+		r.Post(options.BaseURL+"/governance/associations/{association_id}/protocols/{protocol_id}/slots/{slot_id}/confirmation", wrapper.ConfirmDecisionSlot)
 	})
 	r.Group(func(r chi.Router) {
-		r.Post(options.BaseURL+"/governance/protocols/{protocol_id}/slots/{slot_id}/values", wrapper.CorrectDecisionSlot)
+		r.Post(options.BaseURL+"/governance/associations/{association_id}/protocols/{protocol_id}/slots/{slot_id}/values", wrapper.CorrectDecisionSlot)
 	})
 	r.Group(func(r chi.Router) {
-		r.Post(options.BaseURL+"/governance/protocols/{protocol_id}/poll-rounds", wrapper.StartPollRound)
+		r.Post(options.BaseURL+"/governance/associations/{association_id}/protocols/{protocol_id}/poll-rounds", wrapper.StartPollRound)
 	})
 	r.Group(func(r chi.Router) {
-		r.Put(options.BaseURL+"/governance/protocols/{protocol_id}/poll-rounds/{round_number}/votes", wrapper.CastPollVote)
+		r.Put(options.BaseURL+"/governance/associations/{association_id}/protocols/{protocol_id}/poll-rounds/{round_number}/votes", wrapper.CastPollVote)
 	})
 	r.Group(func(r chi.Router) {
-		r.Post(options.BaseURL+"/governance/protocols/{protocol_id}/return-to-draft", wrapper.ReturnProtocolToDraft)
+		r.Post(options.BaseURL+"/governance/associations/{association_id}/protocols/{protocol_id}/return-to-draft", wrapper.ReturnProtocolToDraft)
 	})
 	r.Group(func(r chi.Router) {
-		r.Post(options.BaseURL+"/governance/protocols/{protocol_id}/ready-for-signing", wrapper.MarkProtocolReadyForSigning)
+		r.Post(options.BaseURL+"/governance/associations/{association_id}/protocols/{protocol_id}/ready-for-signing", wrapper.MarkProtocolReadyForSigning)
 	})
 	r.Group(func(r chi.Router) {
-		r.Post(options.BaseURL+"/governance/protocols/{protocol_id}/signed-copy", wrapper.LockProtocolWithSignedCopy)
+		r.Post(options.BaseURL+"/governance/associations/{association_id}/protocols/{protocol_id}/signed-copy", wrapper.LockProtocolWithSignedCopy)
 	})
 	r.Group(func(r chi.Router) {
-		r.Post(options.BaseURL+"/governance/protocols/{protocol_id}/withdrawal", wrapper.WithdrawProtocol)
+		r.Post(options.BaseURL+"/governance/associations/{association_id}/protocols/{protocol_id}/withdrawal", wrapper.WithdrawProtocol)
 	})
 	r.Group(func(r chi.Router) {
-		r.Post(options.BaseURL+"/governance/protocols/{protocol_id}/copy", wrapper.CopyWithdrawnProtocol)
+		r.Post(options.BaseURL+"/governance/associations/{association_id}/protocols/{protocol_id}/copy", wrapper.CopyWithdrawnProtocol)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/governance/registry/decisions", wrapper.SearchRegistry)
+		r.Get(options.BaseURL+"/governance/associations/{association_id}/registry/decisions", wrapper.SearchRegistry)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/governance/registry/protocols/{protocol_id}", wrapper.GetSignedProtocol)
+		r.Get(options.BaseURL+"/governance/associations/{association_id}/registry/protocols/{protocol_id}", wrapper.GetSignedProtocol)
 	})
 
 	return r
 }
+
+type MemberOrDisabledApplicationProblemPlusJSONResponse Problem
 
 type NotCurrentMemberApplicationProblemPlusJSONResponse Problem
 
@@ -2901,7 +3257,8 @@ type UnprocessableEntityApplicationProblemPlusJSONResponse Problem
 type ValidationFailedApplicationProblemPlusJSONResponse Problem
 
 type ListBoardMembersRequestObject struct {
-	Params ListBoardMembersParams
+	AssociationId AssociationId `json:"association_id"`
+	Params        ListBoardMembersParams
 }
 
 type ListBoardMembersResponseObject interface {
@@ -2939,7 +3296,7 @@ func (response ListBoardMembers401ApplicationProblemPlusJSONResponse) VisitListB
 }
 
 type ListBoardMembers403ApplicationProblemPlusJSONResponse struct {
-	NotCurrentMemberApplicationProblemPlusJSONResponse
+	MemberOrDisabledApplicationProblemPlusJSONResponse
 }
 
 func (response ListBoardMembers403ApplicationProblemPlusJSONResponse) VisitListBoardMembersResponse(w http.ResponseWriter) error {
@@ -2971,7 +3328,8 @@ func (response ListBoardMembers422ApplicationProblemPlusJSONResponse) VisitListB
 }
 
 type CreateBoardMemberRequestObject struct {
-	Body *CreateBoardMemberJSONRequestBody
+	AssociationId AssociationId `json:"association_id"`
+	Body          *CreateBoardMemberJSONRequestBody
 }
 
 type CreateBoardMemberResponseObject interface {
@@ -3009,7 +3367,7 @@ func (response CreateBoardMember401ApplicationProblemPlusJSONResponse) VisitCrea
 }
 
 type CreateBoardMember403ApplicationProblemPlusJSONResponse struct {
-	NotCurrentMemberApplicationProblemPlusJSONResponse
+	MemberOrDisabledApplicationProblemPlusJSONResponse
 }
 
 func (response CreateBoardMember403ApplicationProblemPlusJSONResponse) VisitCreateBoardMemberResponse(w http.ResponseWriter) error {
@@ -3039,6 +3397,7 @@ func (response CreateBoardMember422ApplicationProblemPlusJSONResponse) VisitCrea
 }
 
 type UpdateBoardMemberRequestObject struct {
+	AssociationId AssociationId `json:"association_id"`
 	BoardMemberId BoardMemberId `json:"board_member_id"`
 	Body          *UpdateBoardMemberJSONRequestBody
 }
@@ -3078,7 +3437,7 @@ func (response UpdateBoardMember401ApplicationProblemPlusJSONResponse) VisitUpda
 }
 
 type UpdateBoardMember403ApplicationProblemPlusJSONResponse struct {
-	NotCurrentMemberApplicationProblemPlusJSONResponse
+	MemberOrDisabledApplicationProblemPlusJSONResponse
 }
 
 func (response UpdateBoardMember403ApplicationProblemPlusJSONResponse) VisitUpdateBoardMemberResponse(w http.ResponseWriter) error {
@@ -3124,7 +3483,8 @@ func (response UpdateBoardMember422ApplicationProblemPlusJSONResponse) VisitUpda
 }
 
 type ListCasesRequestObject struct {
-	Params ListCasesParams
+	AssociationId AssociationId `json:"association_id"`
+	Params        ListCasesParams
 }
 
 type ListCasesResponseObject interface {
@@ -3162,7 +3522,7 @@ func (response ListCases401ApplicationProblemPlusJSONResponse) VisitListCasesRes
 }
 
 type ListCases403ApplicationProblemPlusJSONResponse struct {
-	NotCurrentMemberApplicationProblemPlusJSONResponse
+	MemberOrDisabledApplicationProblemPlusJSONResponse
 }
 
 func (response ListCases403ApplicationProblemPlusJSONResponse) VisitListCasesResponse(w http.ResponseWriter) error {
@@ -3194,7 +3554,8 @@ func (response ListCases422ApplicationProblemPlusJSONResponse) VisitListCasesRes
 }
 
 type CreateCaseRequestObject struct {
-	Body *CreateCaseJSONRequestBody
+	AssociationId AssociationId `json:"association_id"`
+	Body          *CreateCaseJSONRequestBody
 }
 
 type CreateCaseResponseObject interface {
@@ -3232,7 +3593,7 @@ func (response CreateCase401ApplicationProblemPlusJSONResponse) VisitCreateCaseR
 }
 
 type CreateCase403ApplicationProblemPlusJSONResponse struct {
-	NotCurrentMemberApplicationProblemPlusJSONResponse
+	MemberOrDisabledApplicationProblemPlusJSONResponse
 }
 
 func (response CreateCase403ApplicationProblemPlusJSONResponse) VisitCreateCaseResponse(w http.ResponseWriter) error {
@@ -3264,7 +3625,8 @@ func (response CreateCase422ApplicationProblemPlusJSONResponse) VisitCreateCaseR
 }
 
 type GetCaseRequestObject struct {
-	CaseId CaseId `json:"case_id"`
+	AssociationId AssociationId `json:"association_id"`
+	CaseId        CaseId        `json:"case_id"`
 }
 
 type GetCaseResponseObject interface {
@@ -3302,7 +3664,7 @@ func (response GetCase401ApplicationProblemPlusJSONResponse) VisitGetCaseRespons
 }
 
 type GetCase403ApplicationProblemPlusJSONResponse struct {
-	NotCurrentMemberApplicationProblemPlusJSONResponse
+	MemberOrDisabledApplicationProblemPlusJSONResponse
 }
 
 func (response GetCase403ApplicationProblemPlusJSONResponse) VisitGetCaseResponse(w http.ResponseWriter) error {
@@ -3334,8 +3696,9 @@ func (response GetCase404ApplicationProblemPlusJSONResponse) VisitGetCaseRespons
 }
 
 type AddCaseDocumentRequestObject struct {
-	CaseId CaseId `json:"case_id"`
-	Body   *multipart.Reader
+	AssociationId AssociationId `json:"association_id"`
+	CaseId        CaseId        `json:"case_id"`
+	Body          *multipart.Reader
 }
 
 type AddCaseDocumentResponseObject interface {
@@ -3373,7 +3736,7 @@ func (response AddCaseDocument401ApplicationProblemPlusJSONResponse) VisitAddCas
 }
 
 type AddCaseDocument403ApplicationProblemPlusJSONResponse struct {
-	NotCurrentMemberApplicationProblemPlusJSONResponse
+	MemberOrDisabledApplicationProblemPlusJSONResponse
 }
 
 func (response AddCaseDocument403ApplicationProblemPlusJSONResponse) VisitAddCaseDocumentResponse(w http.ResponseWriter) error {
@@ -3400,6 +3763,20 @@ func (response AddCaseDocument404ApplicationProblemPlusJSONResponse) VisitAddCas
 	}
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddCaseDocument409ApplicationProblemPlusJSONResponse Problem
+
+func (response AddCaseDocument409ApplicationProblemPlusJSONResponse) VisitAddCaseDocumentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -3435,7 +3812,8 @@ func (response AddCaseDocument503ApplicationProblemPlusJSONResponse) VisitAddCas
 }
 
 type DownloadFileRequestObject struct {
-	FileId FileId `json:"file_id"`
+	AssociationId AssociationId `json:"association_id"`
+	FileId        FileId        `json:"file_id"`
 }
 
 type DownloadFileResponseObject interface {
@@ -3593,7 +3971,8 @@ func (response DownloadFile503ApplicationProblemPlusJSONResponse) VisitDownloadF
 }
 
 type GetJobRequestObject struct {
-	JobId JobId `json:"job_id"`
+	AssociationId AssociationId `json:"association_id"`
+	JobId         JobId         `json:"job_id"`
 }
 
 type GetJobResponseObject interface {
@@ -3631,7 +4010,7 @@ func (response GetJob401ApplicationProblemPlusJSONResponse) VisitGetJobResponse(
 }
 
 type GetJob403ApplicationProblemPlusJSONResponse struct {
-	NotCurrentMemberApplicationProblemPlusJSONResponse
+	MemberOrDisabledApplicationProblemPlusJSONResponse
 }
 
 func (response GetJob403ApplicationProblemPlusJSONResponse) VisitGetJobResponse(w http.ResponseWriter) error {
@@ -3663,7 +4042,8 @@ func (response GetJob404ApplicationProblemPlusJSONResponse) VisitGetJobResponse(
 }
 
 type RetryJobRequestObject struct {
-	JobId JobId `json:"job_id"`
+	AssociationId AssociationId `json:"association_id"`
+	JobId         JobId         `json:"job_id"`
 }
 
 type RetryJobResponseObject interface {
@@ -3701,7 +4081,7 @@ func (response RetryJob401ApplicationProblemPlusJSONResponse) VisitRetryJobRespo
 }
 
 type RetryJob403ApplicationProblemPlusJSONResponse struct {
-	NotCurrentMemberApplicationProblemPlusJSONResponse
+	MemberOrDisabledApplicationProblemPlusJSONResponse
 }
 
 func (response RetryJob403ApplicationProblemPlusJSONResponse) VisitRetryJobResponse(w http.ResponseWriter) error {
@@ -3747,7 +4127,8 @@ func (response RetryJob409ApplicationProblemPlusJSONResponse) VisitRetryJobRespo
 }
 
 type ListMeetingsRequestObject struct {
-	Params ListMeetingsParams
+	AssociationId AssociationId `json:"association_id"`
+	Params        ListMeetingsParams
 }
 
 type ListMeetingsResponseObject interface {
@@ -3764,6 +4145,22 @@ func (response ListMeetings200JSONResponse) VisitListMeetingsResponse(w http.Res
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListMeetings403ApplicationProblemPlusJSONResponse struct {
+	MemberOrDisabledApplicationProblemPlusJSONResponse
+}
+
+func (response ListMeetings403ApplicationProblemPlusJSONResponse) VisitListMeetingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -3785,7 +4182,8 @@ func (response ListMeetings422ApplicationProblemPlusJSONResponse) VisitListMeeti
 }
 
 type CreateMeetingRequestObject struct {
-	Body *CreateMeetingJSONRequestBody
+	AssociationId AssociationId `json:"association_id"`
+	Body          *CreateMeetingJSONRequestBody
 }
 
 type CreateMeetingResponseObject interface {
@@ -3802,6 +4200,22 @@ func (response CreateMeeting201JSONResponse) VisitCreateMeetingResponse(w http.R
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateMeeting403ApplicationProblemPlusJSONResponse struct {
+	MemberOrDisabledApplicationProblemPlusJSONResponse
+}
+
+func (response CreateMeeting403ApplicationProblemPlusJSONResponse) VisitCreateMeetingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -3823,7 +4237,8 @@ func (response CreateMeeting422ApplicationProblemPlusJSONResponse) VisitCreateMe
 }
 
 type GetMeetingRequestObject struct {
-	Id openapi_types.UUID `json:"id"`
+	AssociationId AssociationId      `json:"association_id"`
+	Id            openapi_types.UUID `json:"id"`
 }
 
 type GetMeetingResponseObject interface {
@@ -3840,6 +4255,22 @@ func (response GetMeeting200JSONResponse) VisitGetMeetingResponse(w http.Respons
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetMeeting403ApplicationProblemPlusJSONResponse struct {
+	MemberOrDisabledApplicationProblemPlusJSONResponse
+}
+
+func (response GetMeeting403ApplicationProblemPlusJSONResponse) VisitGetMeetingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -3877,8 +4308,9 @@ func (response GetMeeting422ApplicationProblemPlusJSONResponse) VisitGetMeetingR
 }
 
 type AddAgendaItemFromCaseRequestObject struct {
-	MeetingId MeetingId `json:"meeting_id"`
-	Body      *AddAgendaItemFromCaseJSONRequestBody
+	AssociationId AssociationId `json:"association_id"`
+	MeetingId     MeetingId     `json:"meeting_id"`
+	Body          *AddAgendaItemFromCaseJSONRequestBody
 }
 
 type AddAgendaItemFromCaseResponseObject interface {
@@ -3916,7 +4348,7 @@ func (response AddAgendaItemFromCase401ApplicationProblemPlusJSONResponse) Visit
 }
 
 type AddAgendaItemFromCase403ApplicationProblemPlusJSONResponse struct {
-	NotCurrentMemberApplicationProblemPlusJSONResponse
+	MemberOrDisabledApplicationProblemPlusJSONResponse
 }
 
 func (response AddAgendaItemFromCase403ApplicationProblemPlusJSONResponse) VisitAddAgendaItemFromCaseResponse(w http.ResponseWriter) error {
@@ -3978,9 +4410,10 @@ func (response AddAgendaItemFromCase422ApplicationProblemPlusJSONResponse) Visit
 }
 
 type CreateAssistantTurnRequestObject struct {
-	MeetingId MeetingId `json:"meeting_id"`
-	Params    CreateAssistantTurnParams
-	Body      *multipart.Reader
+	AssociationId AssociationId `json:"association_id"`
+	MeetingId     MeetingId     `json:"meeting_id"`
+	Params        CreateAssistantTurnParams
+	Body          *multipart.Reader
 }
 
 type CreateAssistantTurnResponseObject interface {
@@ -4018,7 +4451,7 @@ func (response CreateAssistantTurn401ApplicationProblemPlusJSONResponse) VisitCr
 }
 
 type CreateAssistantTurn403ApplicationProblemPlusJSONResponse struct {
-	NotCurrentMemberApplicationProblemPlusJSONResponse
+	MemberOrDisabledApplicationProblemPlusJSONResponse
 }
 
 func (response CreateAssistantTurn403ApplicationProblemPlusJSONResponse) VisitCreateAssistantTurnResponse(w http.ResponseWriter) error {
@@ -4094,7 +4527,8 @@ func (response CreateAssistantTurn503ApplicationProblemPlusJSONResponse) VisitCr
 }
 
 type ListProtocolsRequestObject struct {
-	Params ListProtocolsParams
+	AssociationId AssociationId `json:"association_id"`
+	Params        ListProtocolsParams
 }
 
 type ListProtocolsResponseObject interface {
@@ -4132,7 +4566,7 @@ func (response ListProtocols401ApplicationProblemPlusJSONResponse) VisitListProt
 }
 
 type ListProtocols403ApplicationProblemPlusJSONResponse struct {
-	NotCurrentMemberApplicationProblemPlusJSONResponse
+	MemberOrDisabledApplicationProblemPlusJSONResponse
 }
 
 func (response ListProtocols403ApplicationProblemPlusJSONResponse) VisitListProtocolsResponse(w http.ResponseWriter) error {
@@ -4164,7 +4598,8 @@ func (response ListProtocols422ApplicationProblemPlusJSONResponse) VisitListProt
 }
 
 type GetProtocolRequestObject struct {
-	ProtocolId ProtocolId `json:"protocol_id"`
+	AssociationId AssociationId `json:"association_id"`
+	ProtocolId    ProtocolId    `json:"protocol_id"`
 }
 
 type GetProtocolResponseObject interface {
@@ -4202,7 +4637,7 @@ func (response GetProtocol401ApplicationProblemPlusJSONResponse) VisitGetProtoco
 }
 
 type GetProtocol403ApplicationProblemPlusJSONResponse struct {
-	NotCurrentMemberApplicationProblemPlusJSONResponse
+	MemberOrDisabledApplicationProblemPlusJSONResponse
 }
 
 func (response GetProtocol403ApplicationProblemPlusJSONResponse) VisitGetProtocolResponse(w http.ResponseWriter) error {
@@ -4234,9 +4669,10 @@ func (response GetProtocol404ApplicationProblemPlusJSONResponse) VisitGetProtoco
 }
 
 type AddDecisionSlotRequestObject struct {
-	ProtocolId   ProtocolId   `json:"protocol_id"`
-	AgendaItemId AgendaItemId `json:"agenda_item_id"`
-	Body         *AddDecisionSlotJSONRequestBody
+	AssociationId AssociationId `json:"association_id"`
+	ProtocolId    ProtocolId    `json:"protocol_id"`
+	AgendaItemId  AgendaItemId  `json:"agenda_item_id"`
+	Body          *AddDecisionSlotJSONRequestBody
 }
 
 type AddDecisionSlotResponseObject interface {
@@ -4274,7 +4710,7 @@ func (response AddDecisionSlot401ApplicationProblemPlusJSONResponse) VisitAddDec
 }
 
 type AddDecisionSlot403ApplicationProblemPlusJSONResponse struct {
-	NotCurrentMemberApplicationProblemPlusJSONResponse
+	MemberOrDisabledApplicationProblemPlusJSONResponse
 }
 
 func (response AddDecisionSlot403ApplicationProblemPlusJSONResponse) VisitAddDecisionSlotResponse(w http.ResponseWriter) error {
@@ -4338,9 +4774,10 @@ func (response AddDecisionSlot422ApplicationProblemPlusJSONResponse) VisitAddDec
 }
 
 type SaveAgendaItemWordingRequestObject struct {
-	ProtocolId   ProtocolId   `json:"protocol_id"`
-	AgendaItemId AgendaItemId `json:"agenda_item_id"`
-	Body         *SaveAgendaItemWordingJSONRequestBody
+	AssociationId AssociationId `json:"association_id"`
+	ProtocolId    ProtocolId    `json:"protocol_id"`
+	AgendaItemId  AgendaItemId  `json:"agenda_item_id"`
+	Body          *SaveAgendaItemWordingJSONRequestBody
 }
 
 type SaveAgendaItemWordingResponseObject interface {
@@ -4378,7 +4815,7 @@ func (response SaveAgendaItemWording401ApplicationProblemPlusJSONResponse) Visit
 }
 
 type SaveAgendaItemWording403ApplicationProblemPlusJSONResponse struct {
-	NotCurrentMemberApplicationProblemPlusJSONResponse
+	MemberOrDisabledApplicationProblemPlusJSONResponse
 }
 
 func (response SaveAgendaItemWording403ApplicationProblemPlusJSONResponse) VisitSaveAgendaItemWordingResponse(w http.ResponseWriter) error {
@@ -4442,8 +4879,9 @@ func (response SaveAgendaItemWording422ApplicationProblemPlusJSONResponse) Visit
 }
 
 type ListAssistantTurnsRequestObject struct {
-	ProtocolId ProtocolId `json:"protocol_id"`
-	Params     ListAssistantTurnsParams
+	AssociationId AssociationId `json:"association_id"`
+	ProtocolId    ProtocolId    `json:"protocol_id"`
+	Params        ListAssistantTurnsParams
 }
 
 type ListAssistantTurnsResponseObject interface {
@@ -4481,7 +4919,7 @@ func (response ListAssistantTurns401ApplicationProblemPlusJSONResponse) VisitLis
 }
 
 type ListAssistantTurns403ApplicationProblemPlusJSONResponse struct {
-	NotCurrentMemberApplicationProblemPlusJSONResponse
+	MemberOrDisabledApplicationProblemPlusJSONResponse
 }
 
 func (response ListAssistantTurns403ApplicationProblemPlusJSONResponse) VisitListAssistantTurnsResponse(w http.ResponseWriter) error {
@@ -4529,7 +4967,8 @@ func (response ListAssistantTurns422ApplicationProblemPlusJSONResponse) VisitLis
 }
 
 type CopyWithdrawnProtocolRequestObject struct {
-	ProtocolId ProtocolId `json:"protocol_id"`
+	AssociationId AssociationId `json:"association_id"`
+	ProtocolId    ProtocolId    `json:"protocol_id"`
 }
 
 type CopyWithdrawnProtocolResponseObject interface {
@@ -4567,7 +5006,7 @@ func (response CopyWithdrawnProtocol401ApplicationProblemPlusJSONResponse) Visit
 }
 
 type CopyWithdrawnProtocol403ApplicationProblemPlusJSONResponse struct {
-	NotCurrentMemberApplicationProblemPlusJSONResponse
+	MemberOrDisabledApplicationProblemPlusJSONResponse
 }
 
 func (response CopyWithdrawnProtocol403ApplicationProblemPlusJSONResponse) VisitCopyWithdrawnProtocolResponse(w http.ResponseWriter) error {
@@ -4613,8 +5052,9 @@ func (response CopyWithdrawnProtocol409ApplicationProblemPlusJSONResponse) Visit
 }
 
 type StartPollRoundRequestObject struct {
-	ProtocolId ProtocolId `json:"protocol_id"`
-	Body       *StartPollRoundJSONRequestBody
+	AssociationId AssociationId `json:"association_id"`
+	ProtocolId    ProtocolId    `json:"protocol_id"`
+	Body          *StartPollRoundJSONRequestBody
 }
 
 type StartPollRoundResponseObject interface {
@@ -4652,7 +5092,7 @@ func (response StartPollRound401ApplicationProblemPlusJSONResponse) VisitStartPo
 }
 
 type StartPollRound403ApplicationProblemPlusJSONResponse struct {
-	NotCurrentMemberApplicationProblemPlusJSONResponse
+	MemberOrDisabledApplicationProblemPlusJSONResponse
 }
 
 func (response StartPollRound403ApplicationProblemPlusJSONResponse) VisitStartPollRoundResponse(w http.ResponseWriter) error {
@@ -4700,9 +5140,10 @@ func (response StartPollRound409ApplicationProblemPlusJSONResponse) VisitStartPo
 }
 
 type CastPollVoteRequestObject struct {
-	ProtocolId  ProtocolId  `json:"protocol_id"`
-	RoundNumber RoundNumber `json:"round_number"`
-	Body        *CastPollVoteJSONRequestBody
+	AssociationId AssociationId `json:"association_id"`
+	ProtocolId    ProtocolId    `json:"protocol_id"`
+	RoundNumber   RoundNumber   `json:"round_number"`
+	Body          *CastPollVoteJSONRequestBody
 }
 
 type CastPollVoteResponseObject interface {
@@ -4800,8 +5241,9 @@ func (response CastPollVote422ApplicationProblemPlusJSONResponse) VisitCastPollV
 }
 
 type MarkProtocolReadyForSigningRequestObject struct {
-	ProtocolId ProtocolId `json:"protocol_id"`
-	Body       *MarkProtocolReadyForSigningJSONRequestBody
+	AssociationId AssociationId `json:"association_id"`
+	ProtocolId    ProtocolId    `json:"protocol_id"`
+	Body          *MarkProtocolReadyForSigningJSONRequestBody
 }
 
 type MarkProtocolReadyForSigningResponseObject interface {
@@ -4839,7 +5281,7 @@ func (response MarkProtocolReadyForSigning401ApplicationProblemPlusJSONResponse)
 }
 
 type MarkProtocolReadyForSigning403ApplicationProblemPlusJSONResponse struct {
-	NotCurrentMemberApplicationProblemPlusJSONResponse
+	MemberOrDisabledApplicationProblemPlusJSONResponse
 }
 
 func (response MarkProtocolReadyForSigning403ApplicationProblemPlusJSONResponse) VisitMarkProtocolReadyForSigningResponse(w http.ResponseWriter) error {
@@ -4885,8 +5327,9 @@ func (response MarkProtocolReadyForSigning409ApplicationProblemPlusJSONResponse)
 }
 
 type ReturnProtocolToDraftRequestObject struct {
-	ProtocolId ProtocolId `json:"protocol_id"`
-	Body       *ReturnProtocolToDraftJSONRequestBody
+	AssociationId AssociationId `json:"association_id"`
+	ProtocolId    ProtocolId    `json:"protocol_id"`
+	Body          *ReturnProtocolToDraftJSONRequestBody
 }
 
 type ReturnProtocolToDraftResponseObject interface {
@@ -4924,7 +5367,7 @@ func (response ReturnProtocolToDraft401ApplicationProblemPlusJSONResponse) Visit
 }
 
 type ReturnProtocolToDraft403ApplicationProblemPlusJSONResponse struct {
-	NotCurrentMemberApplicationProblemPlusJSONResponse
+	MemberOrDisabledApplicationProblemPlusJSONResponse
 }
 
 func (response ReturnProtocolToDraft403ApplicationProblemPlusJSONResponse) VisitReturnProtocolToDraftResponse(w http.ResponseWriter) error {
@@ -4972,8 +5415,9 @@ func (response ReturnProtocolToDraft409ApplicationProblemPlusJSONResponse) Visit
 }
 
 type LockProtocolWithSignedCopyRequestObject struct {
-	ProtocolId ProtocolId `json:"protocol_id"`
-	Body       *multipart.Reader
+	AssociationId AssociationId `json:"association_id"`
+	ProtocolId    ProtocolId    `json:"protocol_id"`
+	Body          *multipart.Reader
 }
 
 type LockProtocolWithSignedCopyResponseObject interface {
@@ -5011,7 +5455,7 @@ func (response LockProtocolWithSignedCopy401ApplicationProblemPlusJSONResponse) 
 }
 
 type LockProtocolWithSignedCopy403ApplicationProblemPlusJSONResponse struct {
-	NotCurrentMemberApplicationProblemPlusJSONResponse
+	MemberOrDisabledApplicationProblemPlusJSONResponse
 }
 
 func (response LockProtocolWithSignedCopy403ApplicationProblemPlusJSONResponse) VisitLockProtocolWithSignedCopyResponse(w http.ResponseWriter) error {
@@ -5087,9 +5531,10 @@ func (response LockProtocolWithSignedCopy503ApplicationProblemPlusJSONResponse) 
 }
 
 type ConfirmDecisionSlotRequestObject struct {
-	ProtocolId ProtocolId `json:"protocol_id"`
-	SlotId     SlotId     `json:"slot_id"`
-	Body       *ConfirmDecisionSlotJSONRequestBody
+	AssociationId AssociationId `json:"association_id"`
+	ProtocolId    ProtocolId    `json:"protocol_id"`
+	SlotId        SlotId        `json:"slot_id"`
+	Body          *ConfirmDecisionSlotJSONRequestBody
 }
 
 type ConfirmDecisionSlotResponseObject interface {
@@ -5127,7 +5572,7 @@ func (response ConfirmDecisionSlot401ApplicationProblemPlusJSONResponse) VisitCo
 }
 
 type ConfirmDecisionSlot403ApplicationProblemPlusJSONResponse struct {
-	NotCurrentMemberApplicationProblemPlusJSONResponse
+	MemberOrDisabledApplicationProblemPlusJSONResponse
 }
 
 func (response ConfirmDecisionSlot403ApplicationProblemPlusJSONResponse) VisitConfirmDecisionSlotResponse(w http.ResponseWriter) error {
@@ -5191,9 +5636,10 @@ func (response ConfirmDecisionSlot422ApplicationProblemPlusJSONResponse) VisitCo
 }
 
 type CorrectDecisionSlotRequestObject struct {
-	ProtocolId ProtocolId `json:"protocol_id"`
-	SlotId     SlotId     `json:"slot_id"`
-	Body       *CorrectDecisionSlotJSONRequestBody
+	AssociationId AssociationId `json:"association_id"`
+	ProtocolId    ProtocolId    `json:"protocol_id"`
+	SlotId        SlotId        `json:"slot_id"`
+	Body          *CorrectDecisionSlotJSONRequestBody
 }
 
 type CorrectDecisionSlotResponseObject interface {
@@ -5231,7 +5677,7 @@ func (response CorrectDecisionSlot401ApplicationProblemPlusJSONResponse) VisitCo
 }
 
 type CorrectDecisionSlot403ApplicationProblemPlusJSONResponse struct {
-	NotCurrentMemberApplicationProblemPlusJSONResponse
+	MemberOrDisabledApplicationProblemPlusJSONResponse
 }
 
 func (response CorrectDecisionSlot403ApplicationProblemPlusJSONResponse) VisitCorrectDecisionSlotResponse(w http.ResponseWriter) error {
@@ -5295,8 +5741,9 @@ func (response CorrectDecisionSlot422ApplicationProblemPlusJSONResponse) VisitCo
 }
 
 type WithdrawProtocolRequestObject struct {
-	ProtocolId ProtocolId `json:"protocol_id"`
-	Body       *WithdrawProtocolJSONRequestBody
+	AssociationId AssociationId `json:"association_id"`
+	ProtocolId    ProtocolId    `json:"protocol_id"`
+	Body          *WithdrawProtocolJSONRequestBody
 }
 
 type WithdrawProtocolResponseObject interface {
@@ -5334,7 +5781,7 @@ func (response WithdrawProtocol401ApplicationProblemPlusJSONResponse) VisitWithd
 }
 
 type WithdrawProtocol403ApplicationProblemPlusJSONResponse struct {
-	NotCurrentMemberApplicationProblemPlusJSONResponse
+	MemberOrDisabledApplicationProblemPlusJSONResponse
 }
 
 func (response WithdrawProtocol403ApplicationProblemPlusJSONResponse) VisitWithdrawProtocolResponse(w http.ResponseWriter) error {
@@ -5394,7 +5841,8 @@ func (response WithdrawProtocol422ApplicationProblemPlusJSONResponse) VisitWithd
 }
 
 type SearchRegistryRequestObject struct {
-	Params SearchRegistryParams
+	AssociationId AssociationId `json:"association_id"`
+	Params        SearchRegistryParams
 }
 
 type SearchRegistryResponseObject interface {
@@ -5462,7 +5910,8 @@ func (response SearchRegistry422ApplicationProblemPlusJSONResponse) VisitSearchR
 }
 
 type GetSignedProtocolRequestObject struct {
-	ProtocolId ProtocolId `json:"protocol_id"`
+	AssociationId AssociationId `json:"association_id"`
+	ProtocolId    ProtocolId    `json:"protocol_id"`
 }
 
 type GetSignedProtocolResponseObject interface {
@@ -5532,6 +5981,7 @@ func (response GetSignedProtocol404ApplicationProblemPlusJSONResponse) VisitGetS
 }
 
 type GetAssociationSettingsRequestObject struct {
+	AssociationId AssociationId `json:"association_id"`
 }
 
 type GetAssociationSettingsResponseObject interface {
@@ -5569,7 +6019,7 @@ func (response GetAssociationSettings401ApplicationProblemPlusJSONResponse) Visi
 }
 
 type GetAssociationSettings403ApplicationProblemPlusJSONResponse struct {
-	NotCurrentMemberApplicationProblemPlusJSONResponse
+	MemberOrDisabledApplicationProblemPlusJSONResponse
 }
 
 func (response GetAssociationSettings403ApplicationProblemPlusJSONResponse) VisitGetAssociationSettingsResponse(w http.ResponseWriter) error {
@@ -5599,7 +6049,8 @@ func (response GetAssociationSettings409ApplicationProblemPlusJSONResponse) Visi
 }
 
 type SaveAssociationSettingsRequestObject struct {
-	Body *SaveAssociationSettingsJSONRequestBody
+	AssociationId AssociationId `json:"association_id"`
+	Body          *SaveAssociationSettingsJSONRequestBody
 }
 
 type SaveAssociationSettingsResponseObject interface {
@@ -5637,7 +6088,7 @@ func (response SaveAssociationSettings401ApplicationProblemPlusJSONResponse) Vis
 }
 
 type SaveAssociationSettings403ApplicationProblemPlusJSONResponse struct {
-	NotCurrentMemberApplicationProblemPlusJSONResponse
+	MemberOrDisabledApplicationProblemPlusJSONResponse
 }
 
 func (response SaveAssociationSettings403ApplicationProblemPlusJSONResponse) VisitSaveAssociationSettingsResponse(w http.ResponseWriter) error {
@@ -5683,103 +6134,103 @@ func (response SaveAssociationSettings422ApplicationProblemPlusJSONResponse) Vis
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// ListBoardMembers Board roster with terms, newest entry first (US-01)
-	// (GET /governance/board-members)
+	// (GET /governance/associations/{association_id}/board-members)
 	ListBoardMembers(ctx context.Context, request ListBoardMembersRequestObject) (ListBoardMembersResponseObject, error)
 	// CreateBoardMember Add a person to the board roster for one term (AC-02, Flow 12)
-	// (POST /governance/board-members)
+	// (POST /governance/associations/{association_id}/board-members)
 	CreateBoardMember(ctx context.Context, request CreateBoardMemberRequestObject) (CreateBoardMemberResponseObject, error)
 	// UpdateBoardMember Save a new revision of a roster entry (e.g. the term ends) (AC-02, Flow 12)
-	// (PUT /governance/board-members/{board_member_id})
+	// (PUT /governance/associations/{association_id}/board-members/{board_member_id})
 	UpdateBoardMember(ctx context.Context, request UpdateBoardMemberRequestObject) (UpdateBoardMemberResponseObject, error)
 	// ListCases List справи, newest first
-	// (GET /governance/cases)
+	// (GET /governance/associations/{association_id}/cases)
 	ListCases(ctx context.Context, request ListCasesRequestObject) (ListCasesResponseObject, error)
 	// CreateCase Open a справа (US-02)
-	// (POST /governance/cases)
+	// (POST /governance/associations/{association_id}/cases)
 	CreateCase(ctx context.Context, request CreateCaseRequestObject) (CreateCaseResponseObject, error)
 	// GetCase One справа with all its document versions (AC-03, AC-19)
-	// (GET /governance/cases/{case_id})
+	// (GET /governance/associations/{association_id}/cases/{case_id})
 	GetCase(ctx context.Context, request GetCaseRequestObject) (GetCaseResponseObject, error)
 	// AddCaseDocument Upload a document, or a newer version of one, into a справа (US-04, AC-09, Flow 3, Flow 8)
-	// (POST /governance/cases/{case_id}/documents)
+	// (POST /governance/associations/{association_id}/cases/{case_id}/documents)
 	AddCaseDocument(ctx context.Context, request AddCaseDocumentRequestObject) (AddCaseDocumentResponseObject, error)
 	// DownloadFile Download a stored file — case document, print copy or signed scan (US-07, Flow 13)
-	// (GET /governance/files/{file_id})
+	// (GET /governance/associations/{association_id}/files/{file_id})
 	DownloadFile(ctx context.Context, request DownloadFileRequestObject) (DownloadFileResponseObject, error)
 	// GetJob Status of a proposal or print-copy job, polled about every 2 s (SAD §4, Flows 1, 4, 8)
-	// (GET /governance/jobs/{job_id})
+	// (GET /governance/associations/{association_id}/jobs/{job_id})
 	GetJob(ctx context.Context, request GetJobRequestObject) (GetJobResponseObject, error)
 	// RetryJob Retry a failed job (Flow 8 "retry offered")
-	// (POST /governance/jobs/{job_id}/retry)
+	// (POST /governance/associations/{association_id}/jobs/{job_id}/retry)
 	RetryJob(ctx context.Context, request RetryJobRequestObject) (RetryJobResponseObject, error)
 	// ListMeetings List meetings, newest first, one page at a time
-	// (GET /governance/meetings)
+	// (GET /governance/associations/{association_id}/meetings)
 	ListMeetings(ctx context.Context, request ListMeetingsRequestObject) (ListMeetingsResponseObject, error)
 	// CreateMeeting Schedule a board meeting
-	// (POST /governance/meetings)
+	// (POST /governance/associations/{association_id}/meetings)
 	CreateMeeting(ctx context.Context, request CreateMeetingRequestObject) (CreateMeetingResponseObject, error)
 	// GetMeeting Get one meeting
-	// (GET /governance/meetings/{id})
+	// (GET /governance/associations/{association_id}/meetings/{id})
 	GetMeeting(ctx context.Context, request GetMeetingRequestObject) (GetMeetingResponseObject, error)
 	// AddAgendaItemFromCase Open the meeting's draft from a справа, or add the справа as an agenda item (US-02, AC-03c)
-	// (POST /governance/meetings/{meeting_id}/agenda-items)
+	// (POST /governance/associations/{association_id}/meetings/{meeting_id}/agenda-items)
 	AddAgendaItemFromCase(ctx context.Context, request AddAgendaItemFromCaseRequestObject) (AddAgendaItemFromCaseResponseObject, error)
 	// CreateAssistantTurn Ask the помічник протоколу for a draft of the meeting's protocol, or refine it (US-12, Flow 1)
-	// (POST /governance/meetings/{meeting_id}/assistant-turns)
+	// (POST /governance/associations/{association_id}/meetings/{meeting_id}/assistant-turns)
 	CreateAssistantTurn(ctx context.Context, request CreateAssistantTurnRequestObject) (CreateAssistantTurnResponseObject, error)
 	// ListProtocols List protocol drafts and protocols, newest first, optionally by state
-	// (GET /governance/protocols)
+	// (GET /governance/associations/{association_id}/protocols)
 	ListProtocols(ctx context.Context, request ListProtocolsRequestObject) (ListProtocolsResponseObject, error)
 	// GetProtocol Open a draft with its meeting, roster in force, documents, slots, poll rounds and print copies (AC-03)
-	// (GET /governance/protocols/{protocol_id})
+	// (GET /governance/associations/{association_id}/protocols/{protocol_id})
 	GetProtocol(ctx context.Context, request GetProtocolRequestObject) (GetProtocolResponseObject, error)
 	// AddDecisionSlot Turn a typed fact into a слот рішення by hand (ADR-0011 highlight offer, AC-28)
-	// (POST /governance/protocols/{protocol_id}/agenda-items/{agenda_item_id}/slots)
+	// (POST /governance/associations/{association_id}/protocols/{protocol_id}/agenda-items/{agenda_item_id}/slots)
 	AddDecisionSlot(ctx context.Context, request AddDecisionSlotRequestObject) (AddDecisionSlotResponseObject, error)
 	// SaveAgendaItemWording Reword an agenda item's subject and text (AC-29, AC-05d, AC-14b, Flows 1, 3)
-	// (PUT /governance/protocols/{protocol_id}/agenda-items/{agenda_item_id}/wording)
+	// (PUT /governance/associations/{association_id}/protocols/{protocol_id}/agenda-items/{agenda_item_id}/wording)
 	SaveAgendaItemWording(ctx context.Context, request SaveAgendaItemWordingRequestObject) (SaveAgendaItemWordingResponseObject, error)
 	// ListAssistantTurns The conversation kept with the draft, newest first (AC-26)
-	// (GET /governance/protocols/{protocol_id}/assistant-turns)
+	// (GET /governance/associations/{association_id}/protocols/{protocol_id}/assistant-turns)
 	ListAssistantTurns(ctx context.Context, request ListAssistantTurnsRequestObject) (ListAssistantTurnsResponseObject, error)
 	// CopyWithdrawnProtocol Start a new draft copied from a withdrawn one (AC-39)
-	// (POST /governance/protocols/{protocol_id}/copy)
+	// (POST /governance/associations/{association_id}/protocols/{protocol_id}/copy)
 	CopyWithdrawnProtocol(ctx context.Context, request CopyWithdrawnProtocolRequestObject) (CopyWithdrawnProtocolResponseObject, error)
 	// StartPollRound Freeze the wording as the next round of the попереднє голосування (чернетка → готовий до голосування) (AC-30, Flow 2)
-	// (POST /governance/protocols/{protocol_id}/poll-rounds)
+	// (POST /governance/associations/{association_id}/protocols/{protocol_id}/poll-rounds)
 	StartPollRound(ctx context.Context, request StartPollRoundRequestObject) (StartPollRoundResponseObject, error)
 	// CastPollVote Cast or change one's own informal vote on an agenda item (AC-31, AC-05e, AC-32, Flow 2)
-	// (PUT /governance/protocols/{protocol_id}/poll-rounds/{round_number}/votes)
+	// (PUT /governance/associations/{association_id}/protocols/{protocol_id}/poll-rounds/{round_number}/votes)
 	CastPollVote(ctx context.Context, request CastPollVoteRequestObject) (CastPollVoteResponseObject, error)
 	// MarkProtocolReadyForSigning Mark готовий до підпису — freeze the text, reserve the number, render the print copy (AC-04, AC-21, AC-14c, AC-33, Flow 4)
-	// (POST /governance/protocols/{protocol_id}/ready-for-signing)
+	// (POST /governance/associations/{association_id}/protocols/{protocol_id}/ready-for-signing)
 	MarkProtocolReadyForSigning(ctx context.Context, request MarkProtocolReadyForSigningRequestObject) (MarkProtocolReadyForSigningResponseObject, error)
 	// ReturnProtocolToDraft «Повернути в чернетку» (готовий до голосування / готовий до підпису → чернетка) (AC-05d, AC-14b, Flow 3)
-	// (POST /governance/protocols/{protocol_id}/return-to-draft)
+	// (POST /governance/associations/{association_id}/protocols/{protocol_id}/return-to-draft)
 	ReturnProtocolToDraft(ctx context.Context, request ReturnProtocolToDraftRequestObject) (ReturnProtocolToDraftResponseObject, error)
 	// LockProtocolWithSignedCopy Upload the signed scan with the meeting facts and lock (готовий до підпису → підписаний) (AC-14, AC-34, AC-15, AC-40, AC-16, Flow 5)
-	// (POST /governance/protocols/{protocol_id}/signed-copy)
+	// (POST /governance/associations/{association_id}/protocols/{protocol_id}/signed-copy)
 	LockProtocolWithSignedCopy(ctx context.Context, request LockProtocolWithSignedCopyRequestObject) (LockProtocolWithSignedCopyResponseObject, error)
 	// ConfirmDecisionSlot Confirm one value of a slot — the proposed one or an alternative beside it (AC-21, AC-22, AC-28b)
-	// (POST /governance/protocols/{protocol_id}/slots/{slot_id}/confirmation)
+	// (POST /governance/associations/{association_id}/protocols/{protocol_id}/slots/{slot_id}/confirmation)
 	ConfirmDecisionSlot(ctx context.Context, request ConfirmDecisionSlotRequestObject) (ConfirmDecisionSlotResponseObject, error)
 	// CorrectDecisionSlot Correct a slot by hand; a corrected value counts as confirmed (AC-21)
-	// (POST /governance/protocols/{protocol_id}/slots/{slot_id}/values)
+	// (POST /governance/associations/{association_id}/protocols/{protocol_id}/slots/{slot_id}/values)
 	CorrectDecisionSlot(ctx context.Context, request CorrectDecisionSlotRequestObject) (CorrectDecisionSlotResponseObject, error)
 	// WithdrawProtocol Close a draft as знятий з розгляду with a reason (AC-35, AC-36, AC-37, AC-38, Flow 9)
-	// (POST /governance/protocols/{protocol_id}/withdrawal)
+	// (POST /governance/associations/{association_id}/protocols/{protocol_id}/withdrawal)
 	WithdrawProtocol(ctx context.Context, request WithdrawProtocolRequestObject) (WithdrawProtocolResponseObject, error)
 	// SearchRegistry Search decisions of signed protocols, newest meeting first (AC-18, Flow 13)
-	// (GET /governance/registry/decisions)
+	// (GET /governance/associations/{association_id}/registry/decisions)
 	SearchRegistry(ctx context.Context, request SearchRegistryRequestObject) (SearchRegistryResponseObject, error)
 	// GetSignedProtocol Open a signed protocol with its signed copy, meeting facts, cited documents and poll history (AC-18, AC-41, AC-15, Flow 13)
-	// (GET /governance/registry/protocols/{protocol_id})
+	// (GET /governance/associations/{association_id}/registry/protocols/{protocol_id})
 	GetSignedProtocol(ctx context.Context, request GetSignedProtocolRequestObject) (GetSignedProtocolResponseObject, error)
 	// GetAssociationSettings Current association settings (latest saved revision)
-	// (GET /governance/settings)
+	// (GET /governance/associations/{association_id}/settings)
 	GetAssociationSettings(ctx context.Context, request GetAssociationSettingsRequestObject) (GetAssociationSettingsResponseObject, error)
 	// SaveAssociationSettings Save a new revision of the association settings (AC-42, Flow 12)
-	// (PUT /governance/settings)
+	// (PUT /governance/associations/{association_id}/settings)
 	SaveAssociationSettings(ctx context.Context, request SaveAssociationSettingsRequestObject) (SaveAssociationSettingsResponseObject, error)
 }
 
@@ -5823,9 +6274,10 @@ type strictHandler struct {
 }
 
 // ListBoardMembers operation middleware
-func (sh *strictHandler) ListBoardMembers(w http.ResponseWriter, r *http.Request, params ListBoardMembersParams) {
+func (sh *strictHandler) ListBoardMembers(w http.ResponseWriter, r *http.Request, associationId AssociationId, params ListBoardMembersParams) {
 	var request ListBoardMembersRequestObject
 
+	request.AssociationId = associationId
 	request.Params = params
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
@@ -5849,8 +6301,10 @@ func (sh *strictHandler) ListBoardMembers(w http.ResponseWriter, r *http.Request
 }
 
 // CreateBoardMember operation middleware
-func (sh *strictHandler) CreateBoardMember(w http.ResponseWriter, r *http.Request) {
+func (sh *strictHandler) CreateBoardMember(w http.ResponseWriter, r *http.Request, associationId AssociationId) {
 	var request CreateBoardMemberRequestObject
+
+	request.AssociationId = associationId
 
 	var body CreateBoardMemberJSONRequestBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -5880,9 +6334,10 @@ func (sh *strictHandler) CreateBoardMember(w http.ResponseWriter, r *http.Reques
 }
 
 // UpdateBoardMember operation middleware
-func (sh *strictHandler) UpdateBoardMember(w http.ResponseWriter, r *http.Request, boardMemberId BoardMemberId) {
+func (sh *strictHandler) UpdateBoardMember(w http.ResponseWriter, r *http.Request, associationId AssociationId, boardMemberId BoardMemberId) {
 	var request UpdateBoardMemberRequestObject
 
+	request.AssociationId = associationId
 	request.BoardMemberId = boardMemberId
 
 	var body UpdateBoardMemberJSONRequestBody
@@ -5913,9 +6368,10 @@ func (sh *strictHandler) UpdateBoardMember(w http.ResponseWriter, r *http.Reques
 }
 
 // ListCases operation middleware
-func (sh *strictHandler) ListCases(w http.ResponseWriter, r *http.Request, params ListCasesParams) {
+func (sh *strictHandler) ListCases(w http.ResponseWriter, r *http.Request, associationId AssociationId, params ListCasesParams) {
 	var request ListCasesRequestObject
 
+	request.AssociationId = associationId
 	request.Params = params
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
@@ -5939,8 +6395,10 @@ func (sh *strictHandler) ListCases(w http.ResponseWriter, r *http.Request, param
 }
 
 // CreateCase operation middleware
-func (sh *strictHandler) CreateCase(w http.ResponseWriter, r *http.Request) {
+func (sh *strictHandler) CreateCase(w http.ResponseWriter, r *http.Request, associationId AssociationId) {
 	var request CreateCaseRequestObject
+
+	request.AssociationId = associationId
 
 	var body CreateCaseJSONRequestBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -5970,9 +6428,10 @@ func (sh *strictHandler) CreateCase(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetCase operation middleware
-func (sh *strictHandler) GetCase(w http.ResponseWriter, r *http.Request, caseId CaseId) {
+func (sh *strictHandler) GetCase(w http.ResponseWriter, r *http.Request, associationId AssociationId, caseId CaseId) {
 	var request GetCaseRequestObject
 
+	request.AssociationId = associationId
 	request.CaseId = caseId
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
@@ -5996,9 +6455,10 @@ func (sh *strictHandler) GetCase(w http.ResponseWriter, r *http.Request, caseId 
 }
 
 // AddCaseDocument operation middleware
-func (sh *strictHandler) AddCaseDocument(w http.ResponseWriter, r *http.Request, caseId CaseId) {
+func (sh *strictHandler) AddCaseDocument(w http.ResponseWriter, r *http.Request, associationId AssociationId, caseId CaseId) {
 	var request AddCaseDocumentRequestObject
 
+	request.AssociationId = associationId
 	request.CaseId = caseId
 
 	if reader, err := r.MultipartReader(); err != nil {
@@ -6029,9 +6489,10 @@ func (sh *strictHandler) AddCaseDocument(w http.ResponseWriter, r *http.Request,
 }
 
 // DownloadFile operation middleware
-func (sh *strictHandler) DownloadFile(w http.ResponseWriter, r *http.Request, fileId FileId) {
+func (sh *strictHandler) DownloadFile(w http.ResponseWriter, r *http.Request, associationId AssociationId, fileId FileId) {
 	var request DownloadFileRequestObject
 
+	request.AssociationId = associationId
 	request.FileId = fileId
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
@@ -6055,9 +6516,10 @@ func (sh *strictHandler) DownloadFile(w http.ResponseWriter, r *http.Request, fi
 }
 
 // GetJob operation middleware
-func (sh *strictHandler) GetJob(w http.ResponseWriter, r *http.Request, jobId JobId) {
+func (sh *strictHandler) GetJob(w http.ResponseWriter, r *http.Request, associationId AssociationId, jobId JobId) {
 	var request GetJobRequestObject
 
+	request.AssociationId = associationId
 	request.JobId = jobId
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
@@ -6081,9 +6543,10 @@ func (sh *strictHandler) GetJob(w http.ResponseWriter, r *http.Request, jobId Jo
 }
 
 // RetryJob operation middleware
-func (sh *strictHandler) RetryJob(w http.ResponseWriter, r *http.Request, jobId JobId) {
+func (sh *strictHandler) RetryJob(w http.ResponseWriter, r *http.Request, associationId AssociationId, jobId JobId) {
 	var request RetryJobRequestObject
 
+	request.AssociationId = associationId
 	request.JobId = jobId
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
@@ -6107,9 +6570,10 @@ func (sh *strictHandler) RetryJob(w http.ResponseWriter, r *http.Request, jobId 
 }
 
 // ListMeetings operation middleware
-func (sh *strictHandler) ListMeetings(w http.ResponseWriter, r *http.Request, params ListMeetingsParams) {
+func (sh *strictHandler) ListMeetings(w http.ResponseWriter, r *http.Request, associationId AssociationId, params ListMeetingsParams) {
 	var request ListMeetingsRequestObject
 
+	request.AssociationId = associationId
 	request.Params = params
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
@@ -6133,8 +6597,10 @@ func (sh *strictHandler) ListMeetings(w http.ResponseWriter, r *http.Request, pa
 }
 
 // CreateMeeting operation middleware
-func (sh *strictHandler) CreateMeeting(w http.ResponseWriter, r *http.Request) {
+func (sh *strictHandler) CreateMeeting(w http.ResponseWriter, r *http.Request, associationId AssociationId) {
 	var request CreateMeetingRequestObject
+
+	request.AssociationId = associationId
 
 	var body CreateMeetingJSONRequestBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -6164,9 +6630,10 @@ func (sh *strictHandler) CreateMeeting(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetMeeting operation middleware
-func (sh *strictHandler) GetMeeting(w http.ResponseWriter, r *http.Request, id openapi_types.UUID) {
+func (sh *strictHandler) GetMeeting(w http.ResponseWriter, r *http.Request, associationId AssociationId, id openapi_types.UUID) {
 	var request GetMeetingRequestObject
 
+	request.AssociationId = associationId
 	request.Id = id
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
@@ -6190,9 +6657,10 @@ func (sh *strictHandler) GetMeeting(w http.ResponseWriter, r *http.Request, id o
 }
 
 // AddAgendaItemFromCase operation middleware
-func (sh *strictHandler) AddAgendaItemFromCase(w http.ResponseWriter, r *http.Request, meetingId MeetingId) {
+func (sh *strictHandler) AddAgendaItemFromCase(w http.ResponseWriter, r *http.Request, associationId AssociationId, meetingId MeetingId) {
 	var request AddAgendaItemFromCaseRequestObject
 
+	request.AssociationId = associationId
 	request.MeetingId = meetingId
 
 	var body AddAgendaItemFromCaseJSONRequestBody
@@ -6223,9 +6691,10 @@ func (sh *strictHandler) AddAgendaItemFromCase(w http.ResponseWriter, r *http.Re
 }
 
 // CreateAssistantTurn operation middleware
-func (sh *strictHandler) CreateAssistantTurn(w http.ResponseWriter, r *http.Request, meetingId MeetingId, params CreateAssistantTurnParams) {
+func (sh *strictHandler) CreateAssistantTurn(w http.ResponseWriter, r *http.Request, associationId AssociationId, meetingId MeetingId, params CreateAssistantTurnParams) {
 	var request CreateAssistantTurnRequestObject
 
+	request.AssociationId = associationId
 	request.MeetingId = meetingId
 	request.Params = params
 
@@ -6257,9 +6726,10 @@ func (sh *strictHandler) CreateAssistantTurn(w http.ResponseWriter, r *http.Requ
 }
 
 // ListProtocols operation middleware
-func (sh *strictHandler) ListProtocols(w http.ResponseWriter, r *http.Request, params ListProtocolsParams) {
+func (sh *strictHandler) ListProtocols(w http.ResponseWriter, r *http.Request, associationId AssociationId, params ListProtocolsParams) {
 	var request ListProtocolsRequestObject
 
+	request.AssociationId = associationId
 	request.Params = params
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
@@ -6283,9 +6753,10 @@ func (sh *strictHandler) ListProtocols(w http.ResponseWriter, r *http.Request, p
 }
 
 // GetProtocol operation middleware
-func (sh *strictHandler) GetProtocol(w http.ResponseWriter, r *http.Request, protocolId ProtocolId) {
+func (sh *strictHandler) GetProtocol(w http.ResponseWriter, r *http.Request, associationId AssociationId, protocolId ProtocolId) {
 	var request GetProtocolRequestObject
 
+	request.AssociationId = associationId
 	request.ProtocolId = protocolId
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
@@ -6309,9 +6780,10 @@ func (sh *strictHandler) GetProtocol(w http.ResponseWriter, r *http.Request, pro
 }
 
 // AddDecisionSlot operation middleware
-func (sh *strictHandler) AddDecisionSlot(w http.ResponseWriter, r *http.Request, protocolId ProtocolId, agendaItemId AgendaItemId) {
+func (sh *strictHandler) AddDecisionSlot(w http.ResponseWriter, r *http.Request, associationId AssociationId, protocolId ProtocolId, agendaItemId AgendaItemId) {
 	var request AddDecisionSlotRequestObject
 
+	request.AssociationId = associationId
 	request.ProtocolId = protocolId
 	request.AgendaItemId = agendaItemId
 
@@ -6343,9 +6815,10 @@ func (sh *strictHandler) AddDecisionSlot(w http.ResponseWriter, r *http.Request,
 }
 
 // SaveAgendaItemWording operation middleware
-func (sh *strictHandler) SaveAgendaItemWording(w http.ResponseWriter, r *http.Request, protocolId ProtocolId, agendaItemId AgendaItemId) {
+func (sh *strictHandler) SaveAgendaItemWording(w http.ResponseWriter, r *http.Request, associationId AssociationId, protocolId ProtocolId, agendaItemId AgendaItemId) {
 	var request SaveAgendaItemWordingRequestObject
 
+	request.AssociationId = associationId
 	request.ProtocolId = protocolId
 	request.AgendaItemId = agendaItemId
 
@@ -6377,9 +6850,10 @@ func (sh *strictHandler) SaveAgendaItemWording(w http.ResponseWriter, r *http.Re
 }
 
 // ListAssistantTurns operation middleware
-func (sh *strictHandler) ListAssistantTurns(w http.ResponseWriter, r *http.Request, protocolId ProtocolId, params ListAssistantTurnsParams) {
+func (sh *strictHandler) ListAssistantTurns(w http.ResponseWriter, r *http.Request, associationId AssociationId, protocolId ProtocolId, params ListAssistantTurnsParams) {
 	var request ListAssistantTurnsRequestObject
 
+	request.AssociationId = associationId
 	request.ProtocolId = protocolId
 	request.Params = params
 
@@ -6404,9 +6878,10 @@ func (sh *strictHandler) ListAssistantTurns(w http.ResponseWriter, r *http.Reque
 }
 
 // CopyWithdrawnProtocol operation middleware
-func (sh *strictHandler) CopyWithdrawnProtocol(w http.ResponseWriter, r *http.Request, protocolId ProtocolId) {
+func (sh *strictHandler) CopyWithdrawnProtocol(w http.ResponseWriter, r *http.Request, associationId AssociationId, protocolId ProtocolId) {
 	var request CopyWithdrawnProtocolRequestObject
 
+	request.AssociationId = associationId
 	request.ProtocolId = protocolId
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
@@ -6430,9 +6905,10 @@ func (sh *strictHandler) CopyWithdrawnProtocol(w http.ResponseWriter, r *http.Re
 }
 
 // StartPollRound operation middleware
-func (sh *strictHandler) StartPollRound(w http.ResponseWriter, r *http.Request, protocolId ProtocolId) {
+func (sh *strictHandler) StartPollRound(w http.ResponseWriter, r *http.Request, associationId AssociationId, protocolId ProtocolId) {
 	var request StartPollRoundRequestObject
 
+	request.AssociationId = associationId
 	request.ProtocolId = protocolId
 
 	var body StartPollRoundJSONRequestBody
@@ -6463,9 +6939,10 @@ func (sh *strictHandler) StartPollRound(w http.ResponseWriter, r *http.Request, 
 }
 
 // CastPollVote operation middleware
-func (sh *strictHandler) CastPollVote(w http.ResponseWriter, r *http.Request, protocolId ProtocolId, roundNumber RoundNumber) {
+func (sh *strictHandler) CastPollVote(w http.ResponseWriter, r *http.Request, associationId AssociationId, protocolId ProtocolId, roundNumber RoundNumber) {
 	var request CastPollVoteRequestObject
 
+	request.AssociationId = associationId
 	request.ProtocolId = protocolId
 	request.RoundNumber = roundNumber
 
@@ -6497,9 +6974,10 @@ func (sh *strictHandler) CastPollVote(w http.ResponseWriter, r *http.Request, pr
 }
 
 // MarkProtocolReadyForSigning operation middleware
-func (sh *strictHandler) MarkProtocolReadyForSigning(w http.ResponseWriter, r *http.Request, protocolId ProtocolId) {
+func (sh *strictHandler) MarkProtocolReadyForSigning(w http.ResponseWriter, r *http.Request, associationId AssociationId, protocolId ProtocolId) {
 	var request MarkProtocolReadyForSigningRequestObject
 
+	request.AssociationId = associationId
 	request.ProtocolId = protocolId
 
 	var body MarkProtocolReadyForSigningJSONRequestBody
@@ -6530,9 +7008,10 @@ func (sh *strictHandler) MarkProtocolReadyForSigning(w http.ResponseWriter, r *h
 }
 
 // ReturnProtocolToDraft operation middleware
-func (sh *strictHandler) ReturnProtocolToDraft(w http.ResponseWriter, r *http.Request, protocolId ProtocolId) {
+func (sh *strictHandler) ReturnProtocolToDraft(w http.ResponseWriter, r *http.Request, associationId AssociationId, protocolId ProtocolId) {
 	var request ReturnProtocolToDraftRequestObject
 
+	request.AssociationId = associationId
 	request.ProtocolId = protocolId
 
 	var body ReturnProtocolToDraftJSONRequestBody
@@ -6563,9 +7042,10 @@ func (sh *strictHandler) ReturnProtocolToDraft(w http.ResponseWriter, r *http.Re
 }
 
 // LockProtocolWithSignedCopy operation middleware
-func (sh *strictHandler) LockProtocolWithSignedCopy(w http.ResponseWriter, r *http.Request, protocolId ProtocolId) {
+func (sh *strictHandler) LockProtocolWithSignedCopy(w http.ResponseWriter, r *http.Request, associationId AssociationId, protocolId ProtocolId) {
 	var request LockProtocolWithSignedCopyRequestObject
 
+	request.AssociationId = associationId
 	request.ProtocolId = protocolId
 
 	if reader, err := r.MultipartReader(); err != nil {
@@ -6596,9 +7076,10 @@ func (sh *strictHandler) LockProtocolWithSignedCopy(w http.ResponseWriter, r *ht
 }
 
 // ConfirmDecisionSlot operation middleware
-func (sh *strictHandler) ConfirmDecisionSlot(w http.ResponseWriter, r *http.Request, protocolId ProtocolId, slotId SlotId) {
+func (sh *strictHandler) ConfirmDecisionSlot(w http.ResponseWriter, r *http.Request, associationId AssociationId, protocolId ProtocolId, slotId SlotId) {
 	var request ConfirmDecisionSlotRequestObject
 
+	request.AssociationId = associationId
 	request.ProtocolId = protocolId
 	request.SlotId = slotId
 
@@ -6630,9 +7111,10 @@ func (sh *strictHandler) ConfirmDecisionSlot(w http.ResponseWriter, r *http.Requ
 }
 
 // CorrectDecisionSlot operation middleware
-func (sh *strictHandler) CorrectDecisionSlot(w http.ResponseWriter, r *http.Request, protocolId ProtocolId, slotId SlotId) {
+func (sh *strictHandler) CorrectDecisionSlot(w http.ResponseWriter, r *http.Request, associationId AssociationId, protocolId ProtocolId, slotId SlotId) {
 	var request CorrectDecisionSlotRequestObject
 
+	request.AssociationId = associationId
 	request.ProtocolId = protocolId
 	request.SlotId = slotId
 
@@ -6664,9 +7146,10 @@ func (sh *strictHandler) CorrectDecisionSlot(w http.ResponseWriter, r *http.Requ
 }
 
 // WithdrawProtocol operation middleware
-func (sh *strictHandler) WithdrawProtocol(w http.ResponseWriter, r *http.Request, protocolId ProtocolId) {
+func (sh *strictHandler) WithdrawProtocol(w http.ResponseWriter, r *http.Request, associationId AssociationId, protocolId ProtocolId) {
 	var request WithdrawProtocolRequestObject
 
+	request.AssociationId = associationId
 	request.ProtocolId = protocolId
 
 	var body WithdrawProtocolJSONRequestBody
@@ -6697,9 +7180,10 @@ func (sh *strictHandler) WithdrawProtocol(w http.ResponseWriter, r *http.Request
 }
 
 // SearchRegistry operation middleware
-func (sh *strictHandler) SearchRegistry(w http.ResponseWriter, r *http.Request, params SearchRegistryParams) {
+func (sh *strictHandler) SearchRegistry(w http.ResponseWriter, r *http.Request, associationId AssociationId, params SearchRegistryParams) {
 	var request SearchRegistryRequestObject
 
+	request.AssociationId = associationId
 	request.Params = params
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
@@ -6723,9 +7207,10 @@ func (sh *strictHandler) SearchRegistry(w http.ResponseWriter, r *http.Request, 
 }
 
 // GetSignedProtocol operation middleware
-func (sh *strictHandler) GetSignedProtocol(w http.ResponseWriter, r *http.Request, protocolId ProtocolId) {
+func (sh *strictHandler) GetSignedProtocol(w http.ResponseWriter, r *http.Request, associationId AssociationId, protocolId ProtocolId) {
 	var request GetSignedProtocolRequestObject
 
+	request.AssociationId = associationId
 	request.ProtocolId = protocolId
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
@@ -6749,8 +7234,10 @@ func (sh *strictHandler) GetSignedProtocol(w http.ResponseWriter, r *http.Reques
 }
 
 // GetAssociationSettings operation middleware
-func (sh *strictHandler) GetAssociationSettings(w http.ResponseWriter, r *http.Request) {
+func (sh *strictHandler) GetAssociationSettings(w http.ResponseWriter, r *http.Request, associationId AssociationId) {
 	var request GetAssociationSettingsRequestObject
+
+	request.AssociationId = associationId
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
 		return sh.ssi.GetAssociationSettings(ctx, request.(GetAssociationSettingsRequestObject))
@@ -6773,8 +7260,10 @@ func (sh *strictHandler) GetAssociationSettings(w http.ResponseWriter, r *http.R
 }
 
 // SaveAssociationSettings operation middleware
-func (sh *strictHandler) SaveAssociationSettings(w http.ResponseWriter, r *http.Request) {
+func (sh *strictHandler) SaveAssociationSettings(w http.ResponseWriter, r *http.Request, associationId AssociationId) {
 	var request SaveAssociationSettingsRequestObject
+
+	request.AssociationId = associationId
 
 	var body SaveAssociationSettingsJSONRequestBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -6808,273 +7297,287 @@ func (sh *strictHandler) SaveAssociationSettings(w http.ResponseWriter, r *http.
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
+	"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",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

@@ -101,3 +101,12 @@ func (m *Module) GoogleTokenSource(ctx context.Context, associationID uuid.UUID)
 	}
 	return m.google.oauth.TokenSource(ctx, &oauth2.Token{RefreshToken: refreshToken}), nil
 }
+
+// HasStorageConnection reports whether the association has connected its Google storage.
+func (m *Module) HasStorageConnection(ctx context.Context, associationID uuid.UUID) (bool, error) {
+	_, err := postgres.NewGoogleConnections(m.pool).Get(ctx, associationID)
+	if errors.Is(err, ports.ErrGoogleConnectionNotFound) {
+		return false, nil
+	}
+	return err == nil, err
+}

@@ -60,12 +60,11 @@ func (ns NullRiverJobState) Value() (driver.Value, error) {
 }
 
 type Account struct {
-	ID            pgtype.UUID
-	AssociationID pgtype.UUID
-	OidcIssuer    string
-	OidcSubject   string
-	Email         string
-	CreatedAt     pgtype.Timestamptz
+	ID          pgtype.UUID
+	OidcIssuer  string
+	OidcSubject string
+	Email       string
+	CreatedAt   pgtype.Timestamptz
 }
 
 type AgendaItem struct {
@@ -89,6 +88,66 @@ type AgendaItemVersion struct {
 	CreatedAt        pgtype.Timestamptz
 }
 
+type Application struct {
+	ID            pgtype.UUID
+	Kind          string
+	AccountID     pgtype.UUID
+	Edrpou        string
+	AssociationID pgtype.UUID
+	State         string
+	CreatedAt     pgtype.Timestamptz
+}
+
+type ApplicationCheck struct {
+	ID             pgtype.UUID
+	FilingID       pgtype.UUID
+	SignatureValid bool
+	SignerFullName string
+	SignedOn       pgtype.Date
+	HeadFullName   string
+	ExtractEdrpou  string
+	ExtractDatedOn pgtype.Date
+	CheckedByEmail string
+	CreatedAt      pgtype.Timestamptz
+}
+
+type ApplicationDecision struct {
+	ID               pgtype.UUID
+	ApplicationID    pgtype.UUID
+	FilingID         pgtype.UUID
+	CheckID          pgtype.UUID
+	AssociationID    pgtype.UUID
+	Outcome          string
+	Reason           pgtype.Text
+	ReliedOnDocument pgtype.Text
+	DecidedByEmail   string
+	CreatedAt        pgtype.Timestamptz
+}
+
+type ApplicationExtract struct {
+	ID           pgtype.UUID
+	AccountID    pgtype.UUID
+	Content      []byte
+	Sha256       []byte
+	SizeBytes    int64
+	MediaType    string
+	OriginalName string
+	CreatedAt    pgtype.Timestamptz
+}
+
+type ApplicationFiling struct {
+	ID                 pgtype.UUID
+	ApplicationID      pgtype.UUID
+	ExtractID          pgtype.UUID
+	AssociationName    string
+	AssociationAddress string
+	ApplicantFullName  string
+	Position           string
+	TermStart          pgtype.Date
+	TermEnd            pgtype.Date
+	CreatedAt          pgtype.Timestamptz
+}
+
 type AssistantTurn struct {
 	ID               pgtype.UUID
 	AssociationID    pgtype.UUID
@@ -109,9 +168,13 @@ type AssistantTurnDocument struct {
 }
 
 type Association struct {
-	ID        pgtype.UUID
-	Name      string
-	CreatedAt pgtype.Timestamptz
+	ID                    pgtype.UUID
+	Name                  string
+	CreatedAt             pgtype.Timestamptz
+	Edrpou                pgtype.Text
+	Address               pgtype.Text
+	State                 string
+	ConfirmedByDecisionID pgtype.UUID
 }
 
 type AssociationSetting struct {
@@ -122,6 +185,15 @@ type AssociationSetting struct {
 	RegisterStartNumber int32
 	CreatedByMemberID   pgtype.UUID
 	CreatedAt           pgtype.Timestamptz
+}
+
+type AssociationStateChange struct {
+	ID             pgtype.UUID
+	AssociationID  pgtype.UUID
+	ToState        string
+	Reason         pgtype.Text
+	ChangedByEmail string
+	CreatedAt      pgtype.Timestamptz
 }
 
 type BoardMember struct {
@@ -141,6 +213,8 @@ type BoardMemberRevision struct {
 	TermEnd           pgtype.Date
 	CreatedByMemberID pgtype.UUID
 	CreatedAt         pgtype.Timestamptz
+	Position          string
+	DecisionID        pgtype.UUID
 }
 
 type Case struct {
@@ -164,14 +238,15 @@ type CaseDocument struct {
 }
 
 type Contract struct {
-	ID           pgtype.UUID
-	Counterparty string
-	AmountCents  int64
-	Currency     string
-	SignedAt     pgtype.Date
-	EndsAt       pgtype.Date
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
+	ID            pgtype.UUID
+	Counterparty  string
+	AmountCents   int64
+	Currency      string
+	SignedAt      pgtype.Date
+	EndsAt        pgtype.Date
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+	AssociationID pgtype.UUID
 }
 
 type DecisionSlot struct {

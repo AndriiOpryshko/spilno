@@ -10,6 +10,8 @@ ticket: ""
 
 # 0005 — Store files in an association-owned Google Drive folder, with metadata in Postgres
 
+> Superseded in part by [association-onboarding ADR-0008](../../association-onboarding/adr/0008-let-a-board-member-connect-the-association-storage-in-the-web-app.md): the storage is connected by a board member in the web app, not by a developer command.
+
 - **Status:** Accepted
 - **Date:** 2026-10-25
 - **Deciders:** Andrii Opryshko (Architect), with Claude during the architecture-design pass

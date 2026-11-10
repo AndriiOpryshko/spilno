@@ -23,7 +23,8 @@ All tasks run from the repo root through mise (`mise tasks` lists them):
 ## Layout rules
 
 - One OpenAPI contract: `services/core/api/openapi.yaml` (3.1). Every operation has exactly one
-  tag, the name of its bounded context. Paths start with `/<context>/`.
+  tag, the name of its bounded context. Paths start with `/<context>/`; an association's own data
+  lives under `/<context>/associations/{association_id}/...`.
 - A bounded context is `services/core/internal/<bc>/`:
   `domain/` (stdlib only), `app/` (use cases), `ports/` (interfaces app needs),
   `adapters/http/` (implements the generated `StrictServerInterface`),
@@ -34,7 +35,11 @@ All tasks run from the repo root through mise (`mise tasks` lists them):
   `sqlc.yaml`, a `<bc>-private` depguard rule in `.golangci.yml`, and a line in `cmd/api/main.go`.
 - Never edit generated files (`*.gen.go`, `sqlcgen/`, `apps/web/src/api/gen/`, `routeTree.gen.ts`).
 - Errors on the wire are RFC 9457 `application/problem+json` (`internal/platform/httpapi`).
-- Integration tests use `internal/platform/testdb.New(t)`: a fresh migrated database per test.
+- Two database roles: the API migrates over `MIGRATIONS_DATABASE_URL` as the owner and serves over
+  `DATABASE_URL` as `spilno_app_login` (group role `spilno_app`, no `BYPASSRLS`). Association-scoped reads
+  and writes run inside `platform/db.InAssociation`, which sets the association the RLS policies read.
+- Integration tests use `internal/platform/testdb.New(t)`: a fresh migrated database per test. Tests of
+  scoped data use `testdb.NewApp(t)` / `testdb.NewTwoAssociations(t)`, which connect as the app role.
 - Web: generated hooks from `@/api/gen/endpoints/<bc>/<bc>`; pages under `src/routes/`,
   feature components under `src/features/<bc>/`; UI primitives from shadcn (`src/components/ui`).
 
@@ -44,6 +49,13 @@ All tasks run from the repo root through mise (`mise tasks` lists them):
   `-- +goose StatementBegin` / `-- +goose StatementEnd`.
 - Do not use `r.Mount` for a context: generated handlers register absolute paths. Use the
   `r.Group` pattern from `internal/system/module.go`.
+- An existing local Postgres volume needs `infra/postgres-init/01-app-role.sql` run once (or the volume
+  recreated), otherwise `spilno_app_login` does not exist.
+- Sign-in works only through the development shim (`SPILNO_DEV_SIGN_IN=true`); the real provider's adapter is
+  a known gap. `SPILNO_OPERATOR_EMAIL` names the оператор. The e2e specs open the public `/status` page.
+- Visual baselines live in `apps/web/src/features/identity/__screenshots__` per platform and architecture.
+  Update them deliberately with `pnpm --filter @spilno/web test:stories -u` on the matching platform; the
+  linux-x64 ones come from the CI Playwright image.
 - The web dev server runs on :5180 and proxies `/api/*` to the core API on :8080.
 
 ## Git

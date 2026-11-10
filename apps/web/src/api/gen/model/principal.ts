@@ -6,14 +6,13 @@
  *
  * OpenAPI spec version: 0.1.0
  */
-import type { Association } from './association';
 
+/**
+ * Changed — the signed-in person only; associations from listMemberships (ADR-0004). `is_operator` = the session address equals the configured оператор (ADR-0001); the same person may also have memberships, and neither grant widens the other (ADR-0009).
+ */
 export interface Principal {
   account_id: string;
   /** @maxLength 320 */
   email: string;
-  board_member_id: string;
-  /** @maxLength 200 */
-  full_name: string;
-  association: Association;
+  is_operator: boolean;
 }

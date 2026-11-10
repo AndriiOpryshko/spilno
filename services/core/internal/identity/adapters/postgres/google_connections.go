@@ -12,50 +12,62 @@ import (
 
 	"github.com/AndriiOpryshko/spilno/services/core/internal/identity/adapters/postgres/sqlcgen"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/identity/ports"
+	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/db"
 )
 
 type GoogleConnections struct {
 	pool *pgxpool.Pool
-	q    *sqlcgen.Queries
 }
 
 var _ ports.GoogleConnectionRepository = (*GoogleConnections)(nil)
 
 func NewGoogleConnections(pool *pgxpool.Pool) *GoogleConnections {
-	return &GoogleConnections{pool: pool, q: sqlcgen.New(pool)}
+	return &GoogleConnections{pool: pool}
 }
 
 func (s *GoogleConnections) Replace(ctx context.Context, c ports.GoogleConnection) error {
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	// Rollback after a successful Commit is a no-op.
-	defer func() { _ = tx.Rollback(ctx) }()
-
-	q := s.q.WithTx(tx)
-	association := pgtype.UUID{Bytes: c.AssociationID, Valid: true}
-	if err := q.DeleteGoogleConnection(ctx, association); err != nil {
-		return err
-	}
-	if err := q.InsertGoogleConnection(ctx, sqlcgen.InsertGoogleConnectionParams{
-		ID:                     pgtype.UUID{Bytes: c.ID, Valid: true},
-		AssociationID:          association,
-		GoogleAccountEmail:     c.AccountEmail,
-		RefreshTokenCiphertext: c.RefreshTokenCiphertext,
-		RefreshTokenNonce:      c.RefreshTokenNonce,
-		EncryptionKeyID:        c.EncryptionKeyID,
-		Scopes:                 c.Scopes,
-		DriveRootFolderID:      pgtype.Text{String: c.DriveRootFolderID, Valid: c.DriveRootFolderID != ""},
-		AuthorizedByAccountID:  pgtype.UUID{Bytes: c.AuthorizedBy, Valid: true},
-	}); err != nil {
-		return err
-	}
-	return tx.Commit(ctx)
+	return db.InAssociation(ctx, s.pool, c.AssociationID, "", func(ctx context.Context) error {
+		tx, err := db.From(ctx)
+		if err != nil {
+			return err
+		}
+		q := sqlcgen.New(tx)
+		association := pgtype.UUID{Bytes: c.AssociationID, Valid: true}
+		if err := q.DeleteGoogleConnection(ctx, association); err != nil {
+			return err
+		}
+		return q.InsertGoogleConnection(ctx, sqlcgen.InsertGoogleConnectionParams{
+			ID:                     pgtype.UUID{Bytes: c.ID, Valid: true},
+			AssociationID:          association,
+			GoogleAccountEmail:     c.AccountEmail,
+			RefreshTokenCiphertext: c.RefreshTokenCiphertext,
+			RefreshTokenNonce:      c.RefreshTokenNonce,
+			EncryptionKeyID:        c.EncryptionKeyID,
+			Scopes:                 c.Scopes,
+			DriveRootFolderID:      pgtype.Text{String: c.DriveRootFolderID, Valid: c.DriveRootFolderID != ""},
+			AuthorizedByAccountID:  pgtype.UUID{Bytes: c.AuthorizedBy, Valid: true},
+		})
+	})
 }
 
 func (s *GoogleConnections) Get(ctx context.Context, associationID uuid.UUID) (ports.GoogleConnection, error) {
-	row, err := s.q.GetGoogleConnection(ctx, pgtype.UUID{Bytes: associationID, Valid: true})
+	var row sqlcgen.GoogleConnection
+	var email string
+	err := db.InAssociation(ctx, s.pool, associationID, "", func(ctx context.Context) error {
+		tx, err := db.From(ctx)
+		if err != nil {
+			return err
+		}
+		row, err = sqlcgen.New(tx).GetGoogleConnection(ctx, pgtype.UUID{Bytes: associationID, Valid: true})
+		if err != nil {
+			return err
+		}
+		email, err = sqlcgen.New(tx).GetAccountEmail(ctx, row.AuthorizedByAccountID)
+		if errors.Is(err, pgx.ErrNoRows) {
+			email, err = "", nil
+		}
+		return err
+	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ports.GoogleConnection{}, ports.ErrGoogleConnectionNotFound
 	}
@@ -72,5 +84,7 @@ func (s *GoogleConnections) Get(ctx context.Context, associationID uuid.UUID) (p
 		Scopes:                 row.Scopes,
 		DriveRootFolderID:      row.DriveRootFolderID.String,
 		AuthorizedBy:           row.AuthorizedByAccountID.Bytes,
+		AuthorizedByEmail:      email,
+		CreatedAt:              row.CreatedAt.Time,
 	}, nil
 }

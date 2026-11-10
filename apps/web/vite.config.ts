@@ -38,7 +38,29 @@ export default defineConfig({
         plugins: [storybookTest({ configDir: path.join(import.meta.dirname, '.storybook') })],
         test: {
           name: 'storybook',
-          browser: { enabled: true, headless: true, provider: playwright({}), instances: [{ browser: 'chromium' }] },
+          // Visual regression: `toMatchScreenshot` in the stories. Baselines are committed next to the
+          // features, one per platform and architecture (font rasterisation differs between them).
+          // Update deliberately: pnpm --filter @spilno/web test:stories -u
+          browser: {
+            enabled: true,
+            headless: true,
+            provider: playwright({}),
+            instances: [{ browser: 'chromium' }],
+            // Pinned so a laptop and the CI image render the same pixels.
+            viewport: { width: 1280, height: 800 },
+            expect: {
+              toMatchScreenshot: {
+                resolveScreenshotPath: ({ arg, browserName, ext }) =>
+                  path.join(
+                    import.meta.dirname,
+                    'src/features/identity/__screenshots__',
+                    `${arg}-${browserName}-${process.platform}-${process.arch}${ext}`,
+                  ),
+                comparatorName: 'pixelmatch',
+                comparatorOptions: { threshold: 0.1, allowedMismatchedPixelRatio: 0.001 },
+              },
+            },
+          },
         },
       },
     ],

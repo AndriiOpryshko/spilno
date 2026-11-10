@@ -6,6 +6,7 @@
  *
  * OpenAPI spec version: 0.1.0
  */
+import type { BoardPosition } from './boardPosition';
 
 /**
  * board_members + its latest board_member_revisions row.
@@ -25,4 +26,7 @@ export interface BoardMember {
   /** @nullable */
   revised_by_member_id: string | null;
   revised_at: string;
+  position: BoardPosition;
+  /** @nullable */
+  decision_id: string | null;
 }

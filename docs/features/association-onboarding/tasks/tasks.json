@@ -1,0 +1,1167 @@
+{
+  "slug": "association-onboarding",
+  "tasks": [
+    {
+      "id": "T01",
+      "title": "Move the governance and finance operations under `/<context>/associations/{association_id}/`",
+      "layer": "wiring",
+      "deps": [],
+      "acs": [
+        "AC-04d",
+        "AC-07"
+      ],
+      "dod": "Every governance and finance operation of the live contract carries {association_id} in its path, generated code is in sync and a meeting created under one association is not listed under another.",
+      "files_hint": [
+        "services/core/api/openapi.yaml",
+        "services/core/internal/governance/adapters/http/",
+        "services/core/internal/governance/meetings_test.go",
+        "services/core/internal/governance/stubs_test.go",
+        "services/core/internal/finance/adapters/http/",
+        "services/core/internal/finance/module_test.go",
+        "apps/web/src/features/governance/api.ts",
+        "apps/web/src/features/governance/types.ts"
+      ]
+    },
+    {
+      "id": "T02",
+      "title": "Merge the onboarding contract delta and stub the new identity operations",
+      "layer": "wiring",
+      "deps": [
+        "T01"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-10",
+        "AC-17",
+        "AC-21",
+        "AC-27",
+        "AC-29"
+      ],
+      "dod": "The live contract holds the 20 new identity operations and the changed components, generated server and client are in sync, and every new operation answers 501 problem+json from a stub.",
+      "files_hint": [
+        "services/core/api/openapi.yaml",
+        "services/core/internal/identity/adapters/http/handler.go",
+        "services/core/internal/identity/module_test.go",
+        "docs/features/association-onboarding/contracts/api-sync-report.md"
+      ]
+    },
+    {
+      "id": "T03",
+      "title": "Register the identity problem codes of PRD §5.1 and governance.drive_not_connected",
+      "layer": "infra",
+      "deps": [],
+      "acs": [
+        "AC-02",
+        "AC-03",
+        "AC-03b",
+        "AC-04",
+        "AC-04b",
+        "AC-12",
+        "AC-13",
+        "AC-15",
+        "AC-16",
+        "AC-16c",
+        "AC-18",
+        "AC-22",
+        "AC-24",
+        "AC-25",
+        "AC-28",
+        "AC-28b",
+        "AC-30"
+      ],
+      "dod": "Every code of PRD §5.1 has exactly one constant whose string equals the catalogue, with its HTTP status, and a test fails when a code is missing or misspelt.",
+      "files_hint": [
+        "services/core/internal/identity/domain/errors.go",
+        "services/core/internal/identity/domain/errors_test.go",
+        "services/core/internal/governance/domain/errors.go",
+        "services/core/internal/governance/domain/errors_test.go"
+      ]
+    },
+    {
+      "id": "T04",
+      "title": "Add platform/db.InAssociation: a transaction that carries the association and the actor",
+      "layer": "infra",
+      "deps": [],
+      "acs": [
+        "AC-04d",
+        "AC-07"
+      ],
+      "dod": "InAssociation runs fn in a transaction where app.association_id and app.actor_email are set, both are gone after it ends, and a scoped runner asked for outside it is counted.",
+      "files_hint": [
+        "services/core/internal/platform/db/"
+      ]
+    },
+    {
+      "id": "T05",
+      "title": "Promote the expand migrations: application tables, association and roster columns, the app role",
+      "layer": "migration",
+      "deps": [],
+      "acs": [
+        "AC-01",
+        "AC-06",
+        "AC-08",
+        "AC-21",
+        "AC-29"
+      ],
+      "dod": "Staged files 1-9 are live goose files in manifest order that apply, revert and re-apply cleanly, and sqlc generates the new tables.",
+      "files_hint": [
+        "docs/features/association-onboarding/migrations/NNNNN_create_applications.sql",
+        "docs/features/association-onboarding/migrations/NNNNN_add_associations_onboarding_columns.sql",
+        "docs/features/association-onboarding/migrations/NNNNN_index_associations_edrpou.sql",
+        "docs/features/association-onboarding/migrations/NNNNN_index_associations_confirmed_by_decision.sql",
+        "docs/features/association-onboarding/migrations/NNNNN_create_association_state_changes.sql",
+        "docs/features/association-onboarding/migrations/NNNNN_add_board_member_revisions_position.sql",
+        "docs/features/association-onboarding/migrations/NNNNN_index_board_member_revisions_sign_in_email.sql",
+        "docs/features/association-onboarding/migrations/NNNNN_add_contracts_association_id.sql",
+        "docs/features/association-onboarding/migrations/NNNNN_create_app_role.sql",
+        "docs/features/association-onboarding/migrations/MANIFEST.md"
+      ]
+    },
+    {
+      "id": "T06",
+      "title": "Promote the drop of accounts.association_id ahead of the manifest order",
+      "layer": "migration",
+      "deps": [
+        "T05"
+      ],
+      "acs": [
+        "AC-04d",
+        "AC-05"
+      ],
+      "dod": "accounts has no association_id column, the migration reverts and re-applies cleanly, and MANIFEST.md and data-model.md record the changed order with its reason.",
+      "files_hint": [
+        "docs/features/association-onboarding/migrations/NNNNN_drop_accounts_association_id.sql",
+        "docs/features/association-onboarding/migrations/MANIFEST.md",
+        "docs/features/association-onboarding/data-model.md"
+      ]
+    },
+    {
+      "id": "T07",
+      "title": "Give roster entries a position and a decision reference, with the date rules of a transfer",
+      "layer": "domain",
+      "deps": [],
+      "acs": [
+        "AC-08",
+        "AC-19",
+        "AC-19b",
+        "AC-19c"
+      ],
+      "dod": "Unit tests prove the position on an entry, the end date of the previous голова (the day before the new term start, never before the entry's first day) and the re-seat of an entry without a second one.",
+      "files_hint": [
+        "services/core/internal/governance/domain/board_member.go",
+        "services/core/internal/governance/domain/board_member_test.go"
+      ]
+    },
+    {
+      "id": "T08",
+      "title": "Validate a filing: every field at once, the term rules and the extract file",
+      "layer": "domain",
+      "deps": [
+        "T03"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-02",
+        "AC-30"
+      ],
+      "dod": "Table tests name every broken field of a заявка and of a запит in one answer, refuse a term that ended before the filing date, and accept an extract only as one PDF or signed container of at most 5 MB.",
+      "files_hint": [
+        "services/core/internal/identity/domain/filing.go",
+        "services/core/internal/identity/domain/filing_test.go",
+        "services/core/internal/identity/domain/extract_file.go",
+        "services/core/internal/identity/domain/extract_file_test.go"
+      ]
+    },
+    {
+      "id": "T09",
+      "title": "Model the application lifecycle and the guards of a decision",
+      "layer": "domain",
+      "deps": [
+        "T03"
+      ],
+      "acs": [
+        "AC-03",
+        "AC-03b",
+        "AC-06",
+        "AC-12",
+        "AC-13",
+        "AC-15",
+        "AC-16c",
+        "AC-18b"
+      ],
+      "dod": "Unit tests cover every allowed and refused transition of PRD §10 for a заявка and a запит, each refusal with its catalogue code.",
+      "files_hint": [
+        "services/core/internal/identity/domain/application.go",
+        "services/core/internal/identity/domain/application_test.go"
+      ]
+    },
+    {
+      "id": "T10",
+      "title": "Compare the three names after levelling and flag an extract older than 30 days",
+      "layer": "domain",
+      "deps": [],
+      "acs": [
+        "AC-11",
+        "AC-11b"
+      ],
+      "dod": "Table tests tell the same person from a розбіжність імен by the levelling rules of AC-11 and raise the age warning at 31 days and not at 30.",
+      "files_hint": [
+        "services/core/internal/identity/domain/name_match.go",
+        "services/core/internal/identity/domain/name_match_test.go",
+        "services/core/internal/identity/domain/review_warning.go",
+        "services/core/internal/identity/domain/review_warning_test.go"
+      ]
+    },
+    {
+      "id": "T11",
+      "title": "Model the association state and the access matrix of PRD §10",
+      "layer": "domain",
+      "deps": [
+        "T03"
+      ],
+      "acs": [
+        "AC-07",
+        "AC-16",
+        "AC-16b",
+        "AC-21",
+        "AC-22",
+        "AC-23",
+        "AC-24",
+        "AC-25",
+        "AC-26"
+      ],
+      "dod": "A table test equal to the PRD §10 role and action matrix passes, and the association state machine refuses a disabling without a reason and a change to the same state.",
+      "files_hint": [
+        "services/core/internal/identity/domain/association.go",
+        "services/core/internal/identity/domain/association_test.go",
+        "services/core/internal/identity/domain/access.go",
+        "services/core/internal/identity/domain/access_test.go"
+      ]
+    },
+    {
+      "id": "T12",
+      "title": "Run goose as the owner and serve as spilno_app; give tests an app-role pool with two associations",
+      "layer": "infra",
+      "deps": [
+        "T05"
+      ],
+      "acs": [
+        "AC-06",
+        "AC-15"
+      ],
+      "dod": "The API migrates over MIGRATIONS_DATABASE_URL and serves over a login role in spilno_app, tests get an app-role pool with two seeded associations, and that role cannot update or delete the insert-only tables.",
+      "files_hint": [
+        "services/core/internal/platform/config/config.go",
+        "services/core/cmd/api/main.go",
+        "services/core/internal/platform/postgres/",
+        "services/core/internal/platform/testdb/",
+        "infra/compose.yaml",
+        "mprocs.yaml",
+        ".github/workflows/ci.yml"
+      ]
+    },
+    {
+      "id": "T13",
+      "title": "Scope finance contracts to the association in the path",
+      "layer": "app",
+      "deps": [
+        "T01",
+        "T04",
+        "T05"
+      ],
+      "acs": [
+        "AC-04d",
+        "AC-07"
+      ],
+      "dod": "A contract created under association A is written with its association_id and is neither listed nor opened under association B.",
+      "files_hint": [
+        "services/core/internal/finance/"
+      ]
+    },
+    {
+      "id": "T14",
+      "title": "Serve the roster facade: the current member, a person's memberships and the members' sign-in addresses",
+      "layer": "infra",
+      "deps": [
+        "T04",
+        "T05",
+        "T07"
+      ],
+      "acs": [
+        "AC-04d",
+        "AC-07",
+        "AC-09",
+        "AC-28b"
+      ],
+      "dod": "governance exposes CurrentMember, MembershipsOf and MemberSignInAddresses over Postgres on the transaction in ctx, and integration tests prove term boundaries, a person on two rosters and the stored position.",
+      "files_hint": [
+        "services/core/internal/governance/adapters/postgres/",
+        "services/core/internal/governance/app/roster.go",
+        "services/core/internal/governance/ports/ports.go",
+        "services/core/internal/governance/module.go",
+        "services/core/internal/governance/governancetest/"
+      ]
+    },
+    {
+      "id": "T15",
+      "title": "Seat a голова and end a term through the governance facade inside the caller's transaction",
+      "layer": "app",
+      "deps": [
+        "T14"
+      ],
+      "acs": [
+        "AC-08",
+        "AC-19",
+        "AC-19c",
+        "AC-20"
+      ],
+      "dod": "SeatHead creates or re-seats one entry with the decision reference and EndTerm ends one whole entry, both only inside the transaction in ctx, and a failure in the caller leaves the roster unchanged.",
+      "files_hint": [
+        "services/core/internal/governance/app/roster.go",
+        "services/core/internal/governance/app/roster_test.go",
+        "services/core/internal/governance/adapters/postgres/",
+        "services/core/internal/governance/module.go"
+      ]
+    },
+    {
+      "id": "T16",
+      "title": "Promote the backfills: association state, roster positions and the contracts' association",
+      "layer": "migration",
+      "deps": [
+        "T06",
+        "T13",
+        "T14"
+      ],
+      "acs": [
+        "AC-19c",
+        "AC-29"
+      ],
+      "dod": "After the three backfills no row has a NULL in associations.state, board_member_revisions.position or contracts.association_id, and the migrations revert and re-apply cleanly.",
+      "files_hint": [
+        "docs/features/association-onboarding/migrations/NNNNN_backfill_associations_state.sql",
+        "docs/features/association-onboarding/migrations/NNNNN_backfill_board_member_revisions_position.sql",
+        "docs/features/association-onboarding/migrations/NNNNN_backfill_contracts_association_id.sql",
+        "docs/features/association-onboarding/migrations/backfill-associations-state.md",
+        "docs/features/association-onboarding/migrations/backfill-board-member-revisions-position.md",
+        "docs/features/association-onboarding/migrations/backfill-contracts-association-id.md",
+        "docs/features/association-onboarding/migrations/MANIFEST.md"
+      ]
+    },
+    {
+      "id": "T17",
+      "title": "Promote the NOT NULL steps and the contracts index",
+      "layer": "migration",
+      "deps": [
+        "T16"
+      ],
+      "acs": [
+        "AC-08",
+        "AC-21"
+      ],
+      "dod": "associations.state, board_member_revisions.position and contracts.association_id are NOT NULL, idx_contracts_association_created exists, and the whole test suite still writes every row.",
+      "files_hint": [
+        "docs/features/association-onboarding/migrations/NNNNN_contract_associations_state.sql",
+        "docs/features/association-onboarding/migrations/NNNNN_contract_board_member_revisions_position.sql",
+        "docs/features/association-onboarding/migrations/NNNNN_contract_contracts_association_id.sql",
+        "docs/features/association-onboarding/migrations/NNNNN_index_contracts_association_created.sql",
+        "docs/features/association-onboarding/migrations/MANIFEST.md"
+      ]
+    },
+    {
+      "id": "T18",
+      "title": "Sign in any verified person, keep the session in Postgres and tell the оператор",
+      "layer": "app",
+      "deps": [
+        "T02",
+        "T03",
+        "T06"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-05",
+        "AC-16"
+      ],
+      "dod": "Against a fake sign-in provider a verified person off every roster gets an account and a session, getSession returns the principal with is_operator true only for SPILNO_OPERATOR_EMAIL, and an unverified address gets nothing.",
+      "files_hint": [
+        "services/core/internal/identity/domain/account.go",
+        "services/core/internal/identity/app/",
+        "services/core/internal/identity/ports/ports.go",
+        "services/core/internal/identity/adapters/postgres/",
+        "services/core/internal/identity/adapters/oidc/",
+        "services/core/internal/identity/adapters/http/",
+        "services/core/internal/identity/module.go",
+        "services/core/internal/platform/config/config.go",
+        "services/core/cmd/api/main.go"
+      ]
+    },
+    {
+      "id": "T19",
+      "title": "Guard association paths with the session, the roster and a scoped transaction, and operator paths with the оператор flag",
+      "layer": "wiring",
+      "deps": [
+        "T04",
+        "T11",
+        "T14",
+        "T18"
+      ],
+      "acs": [
+        "AC-04d",
+        "AC-07",
+        "AC-16",
+        "AC-16b"
+      ],
+      "dod": "Every association-scoped route of governance, finance and identity runs inside InAssociation after a roster check that answers a non-member and an unknown id with the same body, and every /identity/operator route refuses a person who is not the оператор.",
+      "files_hint": [
+        "services/core/internal/identity/adapters/http/middleware.go",
+        "services/core/internal/identity/adapters/http/middleware_test.go",
+        "services/core/internal/identity/actor.go",
+        "services/core/internal/identity/module.go",
+        "services/core/internal/identity/ports/ports.go",
+        "services/core/internal/identity/adapters/postgres/google_connections.go",
+        "services/core/internal/governance/module.go",
+        "services/core/internal/finance/module.go",
+        "services/core/cmd/api/main.go"
+      ]
+    },
+    {
+      "id": "T20",
+      "title": "Promote row-level security for the governance, finance and identity tables",
+      "layer": "migration",
+      "deps": [
+        "T12",
+        "T13",
+        "T17",
+        "T19"
+      ],
+      "acs": [
+        "AC-04d",
+        "AC-07",
+        "AC-16b"
+      ],
+      "dod": "As spilno_app, every table with an association_id returns no rows without an association set and only that association's rows with one set, and the integration tests of all three contexts pass on the app-role pool.",
+      "files_hint": [
+        "docs/features/association-onboarding/migrations/NNNNN_enable_rls_governance.sql",
+        "docs/features/association-onboarding/migrations/NNNNN_enable_rls_finance.sql",
+        "docs/features/association-onboarding/migrations/NNNNN_enable_rls_identity.sql",
+        "docs/features/association-onboarding/migrations/MANIFEST.md",
+        "services/core/internal/platform/db/rls_test.go"
+      ]
+    },
+    {
+      "id": "T21",
+      "title": "Add the release-blocking isolation test over every association-scoped operation of the contract",
+      "layer": "tests",
+      "deps": [
+        "T02",
+        "T20"
+      ],
+      "acs": [
+        "AC-04d",
+        "AC-07",
+        "AC-16b"
+      ],
+      "dod": "A test in mise run test calls every operation of the contract that has {association_id} with another association's id as three seeded persons and fails on any record of B returned to a person off B's roster.",
+      "files_hint": [
+        "services/core/internal/platform/isolation_test.go"
+      ]
+    },
+    {
+      "id": "T22",
+      "title": "File a заявка на підключення and keep the signed extract unchanged",
+      "layer": "ports",
+      "deps": [
+        "T05",
+        "T08",
+        "T12",
+        "T18"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-02",
+        "AC-04",
+        "AC-04b",
+        "AC-04c",
+        "AC-30"
+      ],
+      "dod": "fileApplication records a complete заявка as pending with its filing and the extract byte for byte, and answers every refusal of AC-02, AC-04, AC-04b and AC-30 with its code while storing nothing.",
+      "files_hint": [
+        "services/core/internal/identity/app/",
+        "services/core/internal/identity/ports/ports.go",
+        "services/core/internal/identity/adapters/postgres/",
+        "services/core/internal/identity/adapters/http/",
+        "services/core/internal/identity/identitytest/"
+      ]
+    },
+    {
+      "id": "T23",
+      "title": "Let the applicant follow and refile their application",
+      "layer": "ports",
+      "deps": [
+        "T09",
+        "T22"
+      ],
+      "acs": [
+        "AC-05",
+        "AC-06",
+        "AC-07",
+        "AC-14"
+      ],
+      "dod": "The applicant lists and opens only their own applications with status, filing date, history and rejection reason, refiles a rejected one into pending with the old filing kept, and downloads their own extract.",
+      "files_hint": [
+        "services/core/internal/identity/app/",
+        "services/core/internal/identity/ports/ports.go",
+        "services/core/internal/identity/adapters/postgres/",
+        "services/core/internal/identity/adapters/http/"
+      ]
+    },
+    {
+      "id": "T24",
+      "title": "Serve the оператор's queue and review page, and record the check of the extract",
+      "layer": "ports",
+      "deps": [
+        "T10",
+        "T19",
+        "T22"
+      ],
+      "acs": [
+        "AC-04c",
+        "AC-10",
+        "AC-11",
+        "AC-11b",
+        "AC-16"
+      ],
+      "dod": "The оператор lists pending applications, opens one with typed values, recorded checks, warnings and competing applications, downloads its extract and records a check as a new row; nobody else gets any of it.",
+      "files_hint": [
+        "services/core/internal/identity/app/",
+        "services/core/internal/identity/ports/ports.go",
+        "services/core/internal/identity/adapters/postgres/",
+        "services/core/internal/identity/adapters/http/",
+        "services/core/internal/identity/identitytest/"
+      ]
+    },
+    {
+      "id": "T25",
+      "title": "Reject an application with a reason",
+      "layer": "ports",
+      "deps": [
+        "T09",
+        "T24"
+      ],
+      "acs": [
+        "AC-13",
+        "AC-14",
+        "AC-15",
+        "AC-16c"
+      ],
+      "dod": "rejectApplication records one decision with the reason, date and оператор and sets the application rejected, refuses an empty reason, a decided application and the оператор's own filing, and creates no association.",
+      "files_hint": [
+        "services/core/internal/identity/app/",
+        "services/core/internal/identity/ports/ports.go",
+        "services/core/internal/identity/adapters/postgres/",
+        "services/core/internal/identity/adapters/http/"
+      ]
+    },
+    {
+      "id": "T26",
+      "title": "Approve a заявка на підключення: create the association and seat its first голова in one transaction",
+      "layer": "ports",
+      "deps": [
+        "T09",
+        "T15",
+        "T20",
+        "T24"
+      ],
+      "acs": [
+        "AC-03",
+        "AC-03b",
+        "AC-04c",
+        "AC-08",
+        "AC-09",
+        "AC-12",
+        "AC-15",
+        "AC-16c"
+      ],
+      "dod": "approveApplication creates the association, the decision and the applicant's roster entry as голова правління together or not at all, refuses every guard of AC-03, AC-03b, AC-12, AC-15 and AC-16c, and two racing approvals for one code create exactly one association.",
+      "files_hint": [
+        "services/core/internal/identity/app/",
+        "services/core/internal/identity/ports/ports.go",
+        "services/core/internal/identity/adapters/postgres/",
+        "services/core/internal/identity/adapters/http/"
+      ]
+    },
+    {
+      "id": "T27",
+      "title": "File a запит на передачу for a connected association",
+      "layer": "ports",
+      "deps": [
+        "T14",
+        "T22"
+      ],
+      "acs": [
+        "AC-02",
+        "AC-17",
+        "AC-18",
+        "AC-19c",
+        "AC-24b",
+        "AC-30"
+      ],
+      "dod": "fileApplication with kind transfer records a pending запит attached to the association found by its code or by the card's id, reveals nobody of its roster, and refuses a code that is not connected.",
+      "files_hint": [
+        "services/core/internal/identity/app/",
+        "services/core/internal/identity/ports/ports.go",
+        "services/core/internal/identity/adapters/postgres/",
+        "services/core/internal/identity/adapters/http/"
+      ]
+    },
+    {
+      "id": "T28",
+      "title": "Show competing запити and the storage account in the review of a запит",
+      "layer": "ports",
+      "deps": [
+        "T24",
+        "T27"
+      ],
+      "acs": [
+        "AC-19b",
+        "AC-28b"
+      ],
+      "dod": "The review of a запит на передачу lists the other pending запити of the same association and the address of the account that holds its files, read inside InAssociation and nothing else.",
+      "files_hint": [
+        "services/core/internal/identity/app/",
+        "services/core/internal/identity/ports/ports.go",
+        "services/core/internal/identity/adapters/postgres/",
+        "services/core/internal/identity/adapters/http/"
+      ]
+    },
+    {
+      "id": "T29",
+      "title": "Approve a запит на передачу: seat the new голова and end the previous term in one transaction",
+      "layer": "ports",
+      "deps": [
+        "T26",
+        "T28"
+      ],
+      "acs": [
+        "AC-16c",
+        "AC-18b",
+        "AC-19",
+        "AC-19b",
+        "AC-19c",
+        "AC-20",
+        "AC-24b"
+      ],
+      "dod": "Approving a запит seats or re-seats the applicant as голова правління, ends the whole entry of the голова confirmed by the previous approval on the day before the new term start, records the decision on both, and the previous голова's next request is refused.",
+      "files_hint": [
+        "services/core/internal/identity/app/",
+        "services/core/internal/identity/ports/ports.go",
+        "services/core/internal/identity/adapters/postgres/",
+        "services/core/internal/identity/adapters/http/"
+      ]
+    },
+    {
+      "id": "T30",
+      "title": "Disable and enable an association as the оператор",
+      "layer": "ports",
+      "deps": [
+        "T11",
+        "T19"
+      ],
+      "acs": [
+        "AC-16",
+        "AC-21",
+        "AC-22",
+        "AC-23",
+        "AC-24"
+      ],
+      "dod": "The оператор lists associations, disables one with a reason and enables it again, each change an insert-only row with reason, оператор and time, and the refusals of AC-22 and AC-24 record nothing.",
+      "files_hint": [
+        "services/core/internal/identity/app/",
+        "services/core/internal/identity/ports/ports.go",
+        "services/core/internal/identity/adapters/postgres/",
+        "services/core/internal/identity/adapters/http/"
+      ]
+    },
+    {
+      "id": "T31",
+      "title": "Make a disabled association read-only in the middleware",
+      "layer": "wiring",
+      "deps": [
+        "T19",
+        "T30"
+      ],
+      "acs": [
+        "AC-21",
+        "AC-23",
+        "AC-25",
+        "AC-26"
+      ],
+      "dod": "A member of a disabled association passes the guard only on searchRegistry, getSignedProtocol and downloadFile, every other association-scoped operation of the contract answers identity.association_disabled with the reason, and this holds from the first request after the disabling.",
+      "files_hint": [
+        "services/core/internal/identity/adapters/http/middleware.go",
+        "services/core/internal/identity/adapters/http/middleware_test.go",
+        "services/core/internal/identity/actor.go",
+        "services/core/internal/identity/adapters/postgres/"
+      ]
+    },
+    {
+      "id": "T32",
+      "title": "Serve my associations and the association card with the confirmation chain",
+      "layer": "ports",
+      "deps": [
+        "T19",
+        "T26"
+      ],
+      "acs": [
+        "AC-04d",
+        "AC-19c",
+        "AC-20",
+        "AC-29"
+      ],
+      "dod": "listMemberships returns every association whose roster has the person today, and the card shows the current голова, the extract with its date and signer, the decision date and every later transfer and disabling, or the hand-made mark, with the extract downloadable by members only.",
+      "files_hint": [
+        "services/core/internal/identity/app/",
+        "services/core/internal/identity/ports/ports.go",
+        "services/core/internal/identity/adapters/postgres/",
+        "services/core/internal/identity/adapters/http/"
+      ]
+    },
+    {
+      "id": "T33",
+      "title": "Connect the association's document storage from the web app",
+      "layer": "ports",
+      "deps": [
+        "T14",
+        "T19",
+        "T20"
+      ],
+      "acs": [
+        "AC-27",
+        "AC-28b"
+      ],
+      "dod": "A current член правління starts the consent, completes it with the code and a state bound to their session and association, and the connection is stored with the account address and the member — unless the address is a member's sign-in address, which is refused and stores nothing.",
+      "files_hint": [
+        "services/core/internal/identity/app/",
+        "services/core/internal/identity/ports/ports.go",
+        "services/core/internal/identity/adapters/postgres/",
+        "services/core/internal/identity/adapters/http/",
+        "services/core/internal/identity/google.go",
+        "services/core/internal/identity/module.go",
+        "services/core/internal/platform/google/"
+      ]
+    },
+    {
+      "id": "T34",
+      "title": "Refuse case documents and assistant turns while the storage is not connected",
+      "layer": "ports",
+      "deps": [
+        "T02",
+        "T03",
+        "T19"
+      ],
+      "acs": [
+        "AC-28"
+      ],
+      "dod": "addCaseDocument and createAssistantTurn answer 409 governance.drive_not_connected for an association without a storage connection and reach their existing behaviour for one that has it.",
+      "files_hint": [
+        "services/core/internal/governance/adapters/http/",
+        "services/core/internal/governance/module.go",
+        "services/core/internal/identity/module.go"
+      ]
+    },
+    {
+      "id": "T35",
+      "title": "Build the signed-in shell: sign-in page, association picker, routes under /o/$associationId and the оператор's entry",
+      "layer": "ui",
+      "deps": [
+        "T02"
+      ],
+      "acs": [
+        "AC-04d",
+        "AC-07",
+        "AC-16",
+        "AC-16b"
+      ],
+      "dod": "Component tests show that a visitor without a session lands on sign-in, a person on two rosters picks an association whose id is in every link, a person on none lands on their applications, only the оператор sees the operator entry, and a 403 shows a no-access page with no record.",
+      "files_hint": [
+        "apps/web/src/routes/__root.tsx",
+        "apps/web/src/routes/index.tsx",
+        "apps/web/src/routes/sign-in.tsx",
+        "apps/web/src/routes/no-access.tsx",
+        "apps/web/src/routes/o.$associationId.tsx",
+        "apps/web/src/routes/o.$associationId.cases.index.tsx",
+        "apps/web/src/routes/o.$associationId.cases.$caseId.protocol.tsx",
+        "apps/web/src/routes/cases.index.tsx",
+        "apps/web/src/routes/cases.$caseId.protocol.tsx",
+        "apps/web/src/components/app-shell.tsx",
+        "apps/web/src/features/identity/shell/",
+        "apps/web/src/i18n/uk.ts"
+      ]
+    },
+    {
+      "id": "T36",
+      "title": "Build the filing forms for a заявка на підключення and a запит на передачу",
+      "layer": "ui",
+      "deps": [
+        "T35"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-02",
+        "AC-04",
+        "AC-04b",
+        "AC-17",
+        "AC-18",
+        "AC-30"
+      ],
+      "dod": "Component tests show the form without a position control, every broken field marked after one submit, each refusal with its message and link, and the success message of each kind.",
+      "files_hint": [
+        "apps/web/src/routes/applications.new.tsx",
+        "apps/web/src/features/identity/applications/filing-form.tsx",
+        "apps/web/src/features/identity/applications/filing-form.test.tsx",
+        "apps/web/src/features/identity/applications/filing-form.stories.tsx",
+        "apps/web/src/components/ui/label.tsx",
+        "apps/web/src/components/ui/date-field.tsx",
+        "apps/web/src/components/ui/file-field.tsx",
+        "apps/web/src/components/ui/form-fields.stories.tsx"
+      ]
+    },
+    {
+      "id": "T37",
+      "title": "Show my applications: status, the оператор's contact, the reason and refiling",
+      "layer": "ui",
+      "deps": [
+        "T36"
+      ],
+      "acs": [
+        "AC-05",
+        "AC-06",
+        "AC-14"
+      ],
+      "dod": "Component tests show the status line for pending, approved and rejected, the оператор's contact address, the rejection reason and history, and a refile that returns the application to pending.",
+      "files_hint": [
+        "apps/web/src/routes/applications.index.tsx",
+        "apps/web/src/routes/applications.$applicationId.tsx",
+        "apps/web/src/features/identity/applications/status-line.tsx",
+        "apps/web/src/features/identity/applications/status-line.test.tsx",
+        "apps/web/src/features/identity/applications/status-line.stories.tsx",
+        "apps/web/src/features/identity/applications/application-detail.tsx",
+        "apps/web/src/features/identity/applications/application-detail.test.tsx",
+        "apps/web/src/vite-env.d.ts"
+      ]
+    },
+    {
+      "id": "T38",
+      "title": "Build the оператор's queue and the review page with sources, warnings and the check form",
+      "layer": "ui",
+      "deps": [
+        "T36"
+      ],
+      "acs": [
+        "AC-04c",
+        "AC-10",
+        "AC-11",
+        "AC-11b",
+        "AC-16",
+        "AC-19b",
+        "AC-28b"
+      ],
+      "dod": "Component tests show the three source labels and «не перевірено», both advisory warnings without a blocked decision, the competing marker for both kinds, the storage account of a запит and no queue for a person who is not the оператор.",
+      "files_hint": [
+        "apps/web/src/routes/operator.applications.index.tsx",
+        "apps/web/src/routes/operator.applications.$applicationId.tsx",
+        "apps/web/src/features/identity/operator/review-page.tsx",
+        "apps/web/src/features/identity/operator/review-page.test.tsx",
+        "apps/web/src/features/identity/operator/review-page.stories.tsx",
+        "apps/web/src/features/identity/operator/source-label.tsx",
+        "apps/web/src/features/identity/operator/check-form.tsx",
+        "apps/web/src/features/identity/operator/queue.tsx"
+      ]
+    },
+    {
+      "id": "T39",
+      "title": "Add the оператор's decisions: approve, reject and their refusals",
+      "layer": "ui",
+      "deps": [
+        "T38"
+      ],
+      "acs": [
+        "AC-03",
+        "AC-03b",
+        "AC-08",
+        "AC-12",
+        "AC-13",
+        "AC-14",
+        "AC-15",
+        "AC-16c",
+        "AC-18b"
+      ],
+      "dod": "Component tests show an approval and a rejection through to the new state, each server refusal with its PRD §5.1 message, and no decision buttons on the оператор's own filing.",
+      "files_hint": [
+        "apps/web/src/features/identity/operator/decision-panel.tsx",
+        "apps/web/src/features/identity/operator/decision-panel.test.tsx",
+        "apps/web/src/features/identity/operator/decision-panel.stories.tsx",
+        "apps/web/src/components/ui/dialog.tsx",
+        "apps/web/src/components/ui/dialog.stories.tsx"
+      ]
+    },
+    {
+      "id": "T40",
+      "title": "Build the оператор's associations list with disabling and enabling",
+      "layer": "ui",
+      "deps": [
+        "T35"
+      ],
+      "acs": [
+        "AC-21",
+        "AC-22",
+        "AC-23",
+        "AC-24"
+      ],
+      "dod": "Component tests show an association disabled with a reason and enabled again, and the messages for an empty reason and for the same state.",
+      "files_hint": [
+        "apps/web/src/routes/operator.associations.tsx",
+        "apps/web/src/features/identity/operator/associations.tsx",
+        "apps/web/src/features/identity/operator/associations.test.tsx",
+        "apps/web/src/features/identity/operator/associations.stories.tsx"
+      ]
+    },
+    {
+      "id": "T41",
+      "title": "Build the association card with the confirmation chain and the roster marks",
+      "layer": "ui",
+      "deps": [
+        "T35"
+      ],
+      "acs": [
+        "AC-19c",
+        "AC-20",
+        "AC-29"
+      ],
+      "dod": "Component tests show the card with the голова, the extract, its date and signer, the decision date and the history, the «підключено вручну, без витягу» variant with a link to the запит form, and the appointed and ended marks of a transfer.",
+      "files_hint": [
+        "apps/web/src/routes/o.$associationId.association.tsx",
+        "apps/web/src/features/identity/association/association-card.tsx",
+        "apps/web/src/features/identity/association/association-card.test.tsx",
+        "apps/web/src/features/identity/association/association-card.stories.tsx",
+        "apps/web/src/features/identity/association/roster-decision-mark.tsx",
+        "apps/web/src/features/identity/association/roster-decision-mark.test.tsx"
+      ]
+    },
+    {
+      "id": "T42",
+      "title": "Show the storage connection, the connect flow and the «Доступ призупинено» notice",
+      "layer": "ui",
+      "deps": [
+        "T41"
+      ],
+      "acs": [
+        "AC-09",
+        "AC-21",
+        "AC-25",
+        "AC-27",
+        "AC-28",
+        "AC-28b"
+      ],
+      "dod": "Component tests show the storage line in both states, the consent round trip ending in the account address, the personal-account refusal, the suspended notice with its reason and the «connect the storage first» message with its link.",
+      "files_hint": [
+        "apps/web/src/routes/storage.callback.tsx",
+        "apps/web/src/features/identity/storage/storage-line.tsx",
+        "apps/web/src/features/identity/storage/storage-line.test.tsx",
+        "apps/web/src/features/identity/storage/storage-line.stories.tsx",
+        "apps/web/src/features/identity/association/suspended-notice.tsx",
+        "apps/web/src/features/identity/association/suspended-notice.test.tsx",
+        "apps/web/src/features/identity/association/suspended-notice.stories.tsx",
+        "apps/web/src/routes/o.$associationId.tsx",
+        "apps/web/src/routes/o.$associationId.association.tsx"
+      ]
+    },
+    {
+      "id": "T43",
+      "title": "Add visual-regression checks for the filing form, the review page and the association card",
+      "layer": "tests",
+      "deps": [
+        "T36",
+        "T38",
+        "T41"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-10",
+        "AC-29"
+      ],
+      "dod": "The story tests of the three screens compare against committed baselines and fail on an unintended visual change.",
+      "files_hint": [
+        "apps/web/vite.config.ts",
+        "apps/web/src/features/identity/applications/filing-form.stories.tsx",
+        "apps/web/src/features/identity/operator/review-page.stories.tsx",
+        "apps/web/src/features/identity/association/association-card.stories.tsx",
+        "apps/web/src/features/identity/__screenshots__/"
+      ]
+    },
+    {
+      "id": "T44",
+      "title": "Prove filing, following and deciding a заявка end to end through the UI (US-01, US-02, US-03)",
+      "layer": "tests",
+      "deps": [
+        "T23",
+        "T25",
+        "T26",
+        "T32",
+        "T37",
+        "T39"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-02",
+        "AC-03",
+        "AC-03b",
+        "AC-04",
+        "AC-04b",
+        "AC-04c",
+        "AC-05",
+        "AC-06",
+        "AC-08",
+        "AC-09",
+        "AC-10",
+        "AC-11",
+        "AC-11b",
+        "AC-12",
+        "AC-13",
+        "AC-14",
+        "AC-15",
+        "AC-16c",
+        "AC-30"
+      ],
+      "dod": "mise run e2e passes the flows of US-01, US-02 and US-03 and their refusals against the real web app, core service and database, with the sign-in provider faked.",
+      "files_hint": [
+        "apps/web/e2e/",
+        "apps/web/playwright.config.ts",
+        "mprocs.yaml",
+        "mise.toml"
+      ]
+    },
+    {
+      "id": "T45",
+      "title": "Prove a transfer, the takeover and the association card end to end (US-04, US-05, US-09)",
+      "layer": "tests",
+      "deps": [
+        "T29",
+        "T41",
+        "T44"
+      ],
+      "acs": [
+        "AC-17",
+        "AC-18",
+        "AC-18b",
+        "AC-19",
+        "AC-20",
+        "AC-29"
+      ],
+      "dod": "mise run e2e passes the flows of US-04, US-05 and US-09: a запит is filed and approved, the new голова opens the association, the previous one gets no access, and the card shows the chain with a downloadable extract.",
+      "files_hint": [
+        "apps/web/e2e/"
+      ]
+    },
+    {
+      "id": "T46",
+      "title": "Prove disabling, the read-only association, the storage connection and every access denial end to end (US-06, US-07, US-08)",
+      "layer": "tests",
+      "deps": [
+        "T21",
+        "T31",
+        "T33",
+        "T34",
+        "T40",
+        "T42",
+        "T44"
+      ],
+      "acs": [
+        "AC-04d",
+        "AC-07",
+        "AC-09",
+        "AC-16",
+        "AC-16b",
+        "AC-21",
+        "AC-22",
+        "AC-23",
+        "AC-24",
+        "AC-25",
+        "AC-26",
+        "AC-27",
+        "AC-28",
+        "AC-28b"
+      ],
+      "dod": "mise run e2e passes the flows of US-06, US-07 and US-08 and the access denials of AC-04d, AC-07, AC-16 and AC-16b, with the storage provider faked.",
+      "files_hint": [
+        "apps/web/e2e/"
+      ]
+    },
+    {
+      "id": "T47",
+      "title": "Add the load scenarios for the latency and throughput targets of PRD §6",
+      "layer": "tests",
+      "deps": [
+        "T26",
+        "T30",
+        "T32"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-05",
+        "AC-08",
+        "AC-29"
+      ],
+      "dod": "Three load scenarios run against the local stack, fail when a PRD §6 threshold is missed, and their first results are recorded.",
+      "files_hint": [
+        "tests/load/",
+        "mise.toml",
+        "docs/features/association-onboarding/_review/"
+      ]
+    },
+    {
+      "id": "T48",
+      "title": "Update the repo rules and environment docs, amend the board-protocol documents and write the оператор's runbook",
+      "layer": "docs",
+      "deps": [
+        "T20",
+        "T33"
+      ],
+      "acs": [
+        "AC-03",
+        "AC-05",
+        "AC-12"
+      ],
+      "dod": "CLAUDE.md, the OpenAPI rule, the README's environment section and the amended board-protocol documents describe the system as built, the оператор's runbook exists, and every link in the edited files resolves.",
+      "files_hint": [
+        "CLAUDE.md",
+        ".claude/rules/openapi.md",
+        "README.md",
+        "docs/features/board-protocol/PRD.md",
+        "docs/features/board-protocol/adr/",
+        "docs/features/board-protocol/tasks/tracker.md",
+        "docs/features/association-onboarding/data-model.md",
+        "docs/runbooks/operator-extract-check.md"
+      ]
+    },
+    {
+      "id": "T49",
+      "title": "Run and record the security review that PRD §6.1 requires",
+      "layer": "docs",
+      "deps": [
+        "T45",
+        "T46"
+      ],
+      "acs": [
+        "AC-04c",
+        "AC-07",
+        "AC-16b",
+        "AC-16c",
+        "AC-28b"
+      ],
+      "dod": "A review record maps each of the seven abuse cases of PRD §6.1 to the test that covers it or to a finding with an owner and a date, and no High finding is open.",
+      "files_hint": [
+        "docs/features/association-onboarding/_review/"
+      ]
+    }
+  ]
+}

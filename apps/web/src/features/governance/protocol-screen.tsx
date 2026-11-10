@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link } from '@tanstack/react-router';
+import { Link, useParams } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 
 import { TopBar } from '@/components/app-shell';
@@ -20,12 +20,13 @@ import { TransitionActions } from './transition-actions';
 import type { ProtocolDraft, ProtocolState } from './types';
 
 export function ProtocolScreen({ caseId }: { caseId: string }) {
+  const { associationId } = useParams({ from: '/o/$associationId' });
   const query = useQuery({ queryKey: ['protocol', caseId], queryFn: () => getProtocol(caseId), retry: false });
   const [savedJustNow, setSavedJustNow] = useState(false);
   const [announcement, setAnnouncement] = useState('');
   const draft = query.data;
 
-  const crumbs = [{ label: uk.nav.cases, to: '/cases' }, ...(draft ? [{ label: draft.caseTitle }, { label: uk.protocol.breadcrumb(draft.number) }] : [])];
+  const crumbs = [{ label: uk.nav.cases, to: `/o/${associationId}/cases` }, ...(draft ? [{ label: draft.caseTitle }, { label: uk.protocol.breadcrumb(draft.number) }] : [])];
   const saved = draft && (
     <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
       <StatusGlyph state="done" /> {savedJustNow ? uk.protocol.savedJustNow : uk.protocol.saved}
@@ -170,13 +171,14 @@ function ProtocolSkeleton() {
 }
 
 function Unavailable({ caseId }: { caseId: string }) {
+  const { associationId } = useParams({ from: '/o/$associationId' });
   return (
     <InlineAlert
       tone="neutral"
       title={uk.protocol.unavailable}
       action={
         <Button variant="outline" asChild>
-          <Link to="/cases">{uk.protocol.backToCases}</Link>
+          <Link to="/o/$associationId/cases" params={{ associationId }}>{uk.protocol.backToCases}</Link>
         </Button>
       }
     >

@@ -5,8 +5,10 @@ package http
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/adapters/http/gen"
+	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/domain"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/httpapi"
 )
 
@@ -34,7 +36,14 @@ func (h *Handler) GetCase(_ context.Context, _ gen.GetCaseRequestObject) (gen.Ge
 	return nil, httpapi.ErrNotImplemented
 }
 
-func (h *Handler) AddCaseDocument(_ context.Context, _ gen.AddCaseDocumentRequestObject) (gen.AddCaseDocumentResponseObject, error) {
+func (h *Handler) AddCaseDocument(ctx context.Context, req gen.AddCaseDocumentRequestObject) (gen.AddCaseDocumentResponseObject, error) {
+	connected, err := h.storage(ctx, req.AssociationId)
+	if err != nil {
+		return nil, err
+	}
+	if !connected {
+		return gen.AddCaseDocument409ApplicationProblemPlusJSONResponse(driveNotConnectedProblem()), nil
+	}
 	return nil, httpapi.ErrNotImplemented
 }
 
@@ -54,7 +63,14 @@ func (h *Handler) AddAgendaItemFromCase(_ context.Context, _ gen.AddAgendaItemFr
 	return nil, httpapi.ErrNotImplemented
 }
 
-func (h *Handler) CreateAssistantTurn(_ context.Context, _ gen.CreateAssistantTurnRequestObject) (gen.CreateAssistantTurnResponseObject, error) {
+func (h *Handler) CreateAssistantTurn(ctx context.Context, req gen.CreateAssistantTurnRequestObject) (gen.CreateAssistantTurnResponseObject, error) {
+	connected, err := h.storage(ctx, req.AssociationId)
+	if err != nil {
+		return nil, err
+	}
+	if !connected {
+		return gen.CreateAssistantTurn409ApplicationProblemPlusJSONResponse(driveNotConnectedProblem()), nil
+	}
 	return nil, httpapi.ErrNotImplemented
 }
 
@@ -128,4 +144,16 @@ func (h *Handler) GetAssociationSettings(_ context.Context, _ gen.GetAssociation
 
 func (h *Handler) SaveAssociationSettings(_ context.Context, _ gen.SaveAssociationSettingsRequestObject) (gen.SaveAssociationSettingsResponseObject, error) {
 	return nil, httpapi.ErrNotImplemented
+}
+
+// driveNotConnectedProblem is the 409 for a document or assistant call while the
+// association has no storage connection (AC-28).
+func driveNotConnectedProblem() gen.Problem {
+	return gen.Problem{
+		Type:   "about:blank",
+		Title:  "Conflict",
+		Status: http.StatusConflict,
+		Code:   ptr(domain.CodeDriveNotConnected),
+		Detail: ptr("Спершу підключіть сховище документів ОСББ: це може зробити будь-який член правління."),
+	}
 }

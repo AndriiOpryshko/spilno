@@ -26,11 +26,37 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  Application,
+  ApplicationDecision,
+  ApplicationDetail,
+  ApplicationPage,
+  ApplicationRefiling,
+  ApplicationReview,
+  ApproveApplicationRequest,
+  AssociationCard,
+  AssociationStateChange,
   CompleteSignInParams,
-  NotCurrentMemberResponse,
+  CompleteStorageConnectionRequest,
+  DisableAssociationRequest,
+  ExtractCheck,
+  ExtractFileResponse,
+  ListApplicationsForReviewParams,
+  ListAssociationsForOperatorParams,
+  ListMembershipsParams,
+  ListMyApplicationsParams,
+  MemberOrDisabledResponse,
+  MembershipPage,
+  NewApplication,
+  NewExtractCheck,
+  NotFoundResponse,
+  NotOperatorResponse,
+  OperatorAssociationPage,
   Principal,
   Problem,
-  SessionRequiredResponse
+  RejectApplicationRequest,
+  SessionRequiredResponse,
+  StorageConnection,
+  ValidationFailedResponse
 } from '../../model';
 
 
@@ -189,13 +215,8 @@ export type completeSignInResponse401 = {
   status: 401
 }
 
-export type completeSignInResponse403 = {
-  data: NotCurrentMemberResponse
-  status: 403
-}
-
 ;
-export type completeSignInResponseError = (completeSignInResponse302 | completeSignInResponse401 | completeSignInResponse403) & {
+export type completeSignInResponseError = (completeSignInResponse302 | completeSignInResponse401) & {
   headers: Headers;
 };
 
@@ -217,8 +238,8 @@ export const getCompleteSignInUrl = (params: CompleteSignInParams,) => {
 }
 
 /**
- * ADR-0003. Public. The verified email must belong to a roster person whose term covers today's
- * Europe/Kyiv date; otherwise no session is created.
+ * ADR-0003, ADR-0004. Public. Any person with a verified email gets a session, on or off a roster;
+ * the associations they belong to come from `listMemberships`.
  * @summary Finish sign-in, create the session and redirect to the SPA
  */
 export const completeSignIn = async (params: CompleteSignInParams, options?: RequestInit): Promise<completeSignInResponse> => {
@@ -257,7 +278,7 @@ export const getCompleteSignInQueryKey = (params?: CompleteSignInParams,) => {
     }
 
 
-export const getCompleteSignInQueryOptions = <TData = Awaited<ReturnType<typeof completeSignIn>>, TError = globalThis.Error & { info?: void | Problem | NotCurrentMemberResponse; status?: number }>(params: CompleteSignInParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof completeSignIn>>, TError, TData>>, fetch?: RequestInit}
+export const getCompleteSignInQueryOptions = <TData = Awaited<ReturnType<typeof completeSignIn>>, TError = globalThis.Error & { info?: void | Problem; status?: number }>(params: CompleteSignInParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof completeSignIn>>, TError, TData>>, fetch?: RequestInit}
 ) => {
 
 const {query: queryOptions, fetch: fetchOptions} = options ?? {};
@@ -276,10 +297,10 @@ const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 }
 
 export type CompleteSignInQueryResult = NonNullable<Awaited<ReturnType<typeof completeSignIn>>>
-export type CompleteSignInQueryError = globalThis.Error & { info?: void | Problem | NotCurrentMemberResponse; status?: number }
+export type CompleteSignInQueryError = globalThis.Error & { info?: void | Problem; status?: number }
 
 
-export function useCompleteSignIn<TData = Awaited<ReturnType<typeof completeSignIn>>, TError = globalThis.Error & { info?: void | Problem | NotCurrentMemberResponse; status?: number }>(
+export function useCompleteSignIn<TData = Awaited<ReturnType<typeof completeSignIn>>, TError = globalThis.Error & { info?: void | Problem; status?: number }>(
  params: CompleteSignInParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof completeSignIn>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof completeSignIn>>,
@@ -289,7 +310,7 @@ export function useCompleteSignIn<TData = Awaited<ReturnType<typeof completeSign
       >, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useCompleteSignIn<TData = Awaited<ReturnType<typeof completeSignIn>>, TError = globalThis.Error & { info?: void | Problem | NotCurrentMemberResponse; status?: number }>(
+export function useCompleteSignIn<TData = Awaited<ReturnType<typeof completeSignIn>>, TError = globalThis.Error & { info?: void | Problem; status?: number }>(
  params: CompleteSignInParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof completeSignIn>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof completeSignIn>>,
@@ -299,7 +320,7 @@ export function useCompleteSignIn<TData = Awaited<ReturnType<typeof completeSign
       >, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useCompleteSignIn<TData = Awaited<ReturnType<typeof completeSignIn>>, TError = globalThis.Error & { info?: void | Problem | NotCurrentMemberResponse; status?: number }>(
+export function useCompleteSignIn<TData = Awaited<ReturnType<typeof completeSignIn>>, TError = globalThis.Error & { info?: void | Problem; status?: number }>(
  params: CompleteSignInParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof completeSignIn>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
@@ -307,7 +328,7 @@ export function useCompleteSignIn<TData = Awaited<ReturnType<typeof completeSign
  * @summary Finish sign-in, create the session and redirect to the SPA
  */
 
-export function useCompleteSignIn<TData = Awaited<ReturnType<typeof completeSignIn>>, TError = globalThis.Error & { info?: void | Problem | NotCurrentMemberResponse; status?: number }>(
+export function useCompleteSignIn<TData = Awaited<ReturnType<typeof completeSignIn>>, TError = globalThis.Error & { info?: void | Problem; status?: number }>(
  params: CompleteSignInParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof completeSignIn>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
@@ -438,15 +459,10 @@ export type getSessionResponse401 = {
   status: 401
 }
 
-export type getSessionResponse403 = {
-  data: NotCurrentMemberResponse
-  status: 403
-}
-
 export type getSessionResponseSuccess = (getSessionResponse200) & {
   headers: Headers;
 };
-export type getSessionResponseError = (getSessionResponse401 | getSessionResponse403) & {
+export type getSessionResponseError = (getSessionResponse401) & {
   headers: Headers;
 };
 
@@ -459,7 +475,8 @@ export const getGetSessionUrl = () => {
 }
 
 /**
- * @summary The signed-in person, their roster entry and the association
+ * Changed repo operation — a person off every roster now has a session (AC-05), so the principal no longer carries one association.
+ * @summary The signed-in person; associations come from listMemberships (ADR-0004)
  */
 export const getSession = async ( options?: RequestInit): Promise<getSessionResponseSuccess> => {
 
@@ -497,7 +514,7 @@ export const getGetSessionQueryKey = () => {
     }
 
 
-export const getGetSessionQueryOptions = <TData = Awaited<ReturnType<typeof getSession>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse; status?: number }>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSession>>, TError, TData>>, fetch?: RequestInit}
+export const getGetSessionQueryOptions = <TData = Awaited<ReturnType<typeof getSession>>, TError = globalThis.Error & { info?: SessionRequiredResponse; status?: number }>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSession>>, TError, TData>>, fetch?: RequestInit}
 ) => {
 
 const {query: queryOptions, fetch: fetchOptions} = options ?? {};
@@ -516,10 +533,10 @@ const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 }
 
 export type GetSessionQueryResult = NonNullable<Awaited<ReturnType<typeof getSession>>>
-export type GetSessionQueryError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse; status?: number }
+export type GetSessionQueryError = globalThis.Error & { info?: SessionRequiredResponse; status?: number }
 
 
-export function useGetSession<TData = Awaited<ReturnType<typeof getSession>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse; status?: number }>(
+export function useGetSession<TData = Awaited<ReturnType<typeof getSession>>, TError = globalThis.Error & { info?: SessionRequiredResponse; status?: number }>(
   options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSession>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof getSession>>,
@@ -529,7 +546,7 @@ export function useGetSession<TData = Awaited<ReturnType<typeof getSession>>, TE
       >, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useGetSession<TData = Awaited<ReturnType<typeof getSession>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse; status?: number }>(
+export function useGetSession<TData = Awaited<ReturnType<typeof getSession>>, TError = globalThis.Error & { info?: SessionRequiredResponse; status?: number }>(
   options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSession>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof getSession>>,
@@ -539,20 +556,2819 @@ export function useGetSession<TData = Awaited<ReturnType<typeof getSession>>, TE
       >, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useGetSession<TData = Awaited<ReturnType<typeof getSession>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse; status?: number }>(
+export function useGetSession<TData = Awaited<ReturnType<typeof getSession>>, TError = globalThis.Error & { info?: SessionRequiredResponse; status?: number }>(
   options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSession>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
- * @summary The signed-in person, their roster entry and the association
+ * @summary The signed-in person; associations come from listMemberships (ADR-0004)
  */
 
-export function useGetSession<TData = Awaited<ReturnType<typeof getSession>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse; status?: number }>(
+export function useGetSession<TData = Awaited<ReturnType<typeof getSession>>, TError = globalThis.Error & { info?: SessionRequiredResponse; status?: number }>(
   options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSession>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetSessionQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export type listMembershipsResponse200 = {
+  data: MembershipPage
+  status: 200
+}
+
+export type listMembershipsResponse401 = {
+  data: SessionRequiredResponse
+  status: 401
+}
+
+export type listMembershipsResponse422 = {
+  data: ValidationFailedResponse
+  status: 422
+}
+
+export type listMembershipsResponseSuccess = (listMembershipsResponse200) & {
+  headers: Headers;
+};
+export type listMembershipsResponseError = (listMembershipsResponse401 | listMembershipsResponse422) & {
+  headers: Headers;
+};
+
+export const getListMembershipsUrl = (params?: ListMembershipsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/identity/memberships?${stringifiedParams}` : `/api/identity/memberships`
+}
+
+/**
+ * @summary Associations whose roster has the signed-in person with a term covering today (AC-04d)
+ */
+export const listMemberships = async (params?: ListMembershipsParams, options?: RequestInit): Promise<listMembershipsResponseSuccess> => {
+
+  const res = await fetch(getListMembershipsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+
+    const err: globalThis.Error & {info?: listMembershipsResponseError['data'], status?: number} = new globalThis.Error();
+    const data : listMembershipsResponseError['data'] = body ? JSON.parse(body) : {}
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: listMembershipsResponseSuccess['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as listMembershipsResponseSuccess
+}
+
+
+
+
+
+export const getListMembershipsQueryKey = (params?: ListMembershipsParams,) => {
+    return [
+    `/api/identity/memberships`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListMembershipsQueryOptions = <TData = Awaited<ReturnType<typeof listMemberships>>, TError = globalThis.Error & { info?: SessionRequiredResponse | ValidationFailedResponse; status?: number }>(params?: ListMembershipsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMemberships>>, TError, TData>>, fetch?: RequestInit}
+) => {
+
+const {query: queryOptions, fetch: fetchOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMembershipsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMemberships>>> = ({ signal }) => listMemberships(params, { signal, ...fetchOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMemberships>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListMembershipsQueryResult = NonNullable<Awaited<ReturnType<typeof listMemberships>>>
+export type ListMembershipsQueryError = globalThis.Error & { info?: SessionRequiredResponse | ValidationFailedResponse; status?: number }
+
+
+export function useListMemberships<TData = Awaited<ReturnType<typeof listMemberships>>, TError = globalThis.Error & { info?: SessionRequiredResponse | ValidationFailedResponse; status?: number }>(
+ params: undefined |  ListMembershipsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMemberships>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMemberships>>,
+          TError,
+          Awaited<ReturnType<typeof listMemberships>>
+        > , 'initialData'
+      >, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMemberships<TData = Awaited<ReturnType<typeof listMemberships>>, TError = globalThis.Error & { info?: SessionRequiredResponse | ValidationFailedResponse; status?: number }>(
+ params?: ListMembershipsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMemberships>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMemberships>>,
+          TError,
+          Awaited<ReturnType<typeof listMemberships>>
+        > , 'initialData'
+      >, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMemberships<TData = Awaited<ReturnType<typeof listMemberships>>, TError = globalThis.Error & { info?: SessionRequiredResponse | ValidationFailedResponse; status?: number }>(
+ params?: ListMembershipsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMemberships>>, TError, TData>>, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Associations whose roster has the signed-in person with a term covering today (AC-04d)
+ */
+
+export function useListMemberships<TData = Awaited<ReturnType<typeof listMemberships>>, TError = globalThis.Error & { info?: SessionRequiredResponse | ValidationFailedResponse; status?: number }>(
+ params?: ListMembershipsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMemberships>>, TError, TData>>, fetch?: RequestInit}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListMembershipsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export type listMyApplicationsResponse200 = {
+  data: ApplicationPage
+  status: 200
+}
+
+export type listMyApplicationsResponse401 = {
+  data: SessionRequiredResponse
+  status: 401
+}
+
+export type listMyApplicationsResponse422 = {
+  data: ValidationFailedResponse
+  status: 422
+}
+
+export type listMyApplicationsResponseSuccess = (listMyApplicationsResponse200) & {
+  headers: Headers;
+};
+export type listMyApplicationsResponseError = (listMyApplicationsResponse401 | listMyApplicationsResponse422) & {
+  headers: Headers;
+};
+
+export const getListMyApplicationsUrl = (params?: ListMyApplicationsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/identity/applications?${stringifiedParams}` : `/api/identity/applications`
+}
+
+/**
+ * @summary The signed-in person's заявки and запити, newest first (US-02, AC-05)
+ */
+export const listMyApplications = async (params?: ListMyApplicationsParams, options?: RequestInit): Promise<listMyApplicationsResponseSuccess> => {
+
+  const res = await fetch(getListMyApplicationsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+
+    const err: globalThis.Error & {info?: listMyApplicationsResponseError['data'], status?: number} = new globalThis.Error();
+    const data : listMyApplicationsResponseError['data'] = body ? JSON.parse(body) : {}
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: listMyApplicationsResponseSuccess['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as listMyApplicationsResponseSuccess
+}
+
+
+
+
+
+export const getListMyApplicationsQueryKey = (params?: ListMyApplicationsParams,) => {
+    return [
+    `/api/identity/applications`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListMyApplicationsQueryOptions = <TData = Awaited<ReturnType<typeof listMyApplications>>, TError = globalThis.Error & { info?: SessionRequiredResponse | ValidationFailedResponse; status?: number }>(params?: ListMyApplicationsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyApplications>>, TError, TData>>, fetch?: RequestInit}
+) => {
+
+const {query: queryOptions, fetch: fetchOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMyApplicationsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyApplications>>> = ({ signal }) => listMyApplications(params, { signal, ...fetchOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMyApplications>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListMyApplicationsQueryResult = NonNullable<Awaited<ReturnType<typeof listMyApplications>>>
+export type ListMyApplicationsQueryError = globalThis.Error & { info?: SessionRequiredResponse | ValidationFailedResponse; status?: number }
+
+
+export function useListMyApplications<TData = Awaited<ReturnType<typeof listMyApplications>>, TError = globalThis.Error & { info?: SessionRequiredResponse | ValidationFailedResponse; status?: number }>(
+ params: undefined |  ListMyApplicationsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyApplications>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMyApplications>>,
+          TError,
+          Awaited<ReturnType<typeof listMyApplications>>
+        > , 'initialData'
+      >, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMyApplications<TData = Awaited<ReturnType<typeof listMyApplications>>, TError = globalThis.Error & { info?: SessionRequiredResponse | ValidationFailedResponse; status?: number }>(
+ params?: ListMyApplicationsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyApplications>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMyApplications>>,
+          TError,
+          Awaited<ReturnType<typeof listMyApplications>>
+        > , 'initialData'
+      >, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMyApplications<TData = Awaited<ReturnType<typeof listMyApplications>>, TError = globalThis.Error & { info?: SessionRequiredResponse | ValidationFailedResponse; status?: number }>(
+ params?: ListMyApplicationsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyApplications>>, TError, TData>>, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary The signed-in person's заявки and запити, newest first (US-02, AC-05)
+ */
+
+export function useListMyApplications<TData = Awaited<ReturnType<typeof listMyApplications>>, TError = globalThis.Error & { info?: SessionRequiredResponse | ValidationFailedResponse; status?: number }>(
+ params?: ListMyApplicationsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyApplications>>, TError, TData>>, fetch?: RequestInit}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListMyApplicationsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export type fileApplicationResponse201 = {
+  data: Application
+  status: 201
+}
+
+export type fileApplicationResponse401 = {
+  data: SessionRequiredResponse
+  status: 401
+}
+
+export type fileApplicationResponse409 = {
+  data: Problem
+  status: 409
+}
+
+export type fileApplicationResponse422 = {
+  data: Problem
+  status: 422
+}
+
+export type fileApplicationResponseSuccess = (fileApplicationResponse201) & {
+  headers: Headers;
+};
+export type fileApplicationResponseError = (fileApplicationResponse401 | fileApplicationResponse409 | fileApplicationResponse422) & {
+  headers: Headers;
+};
+
+export const getFileApplicationUrl = () => {
+
+
+
+
+  return `/api/identity/applications`
+}
+
+/**
+ * AC-01, AC-17, AC-19c. Every broken field is named at once with `identity.application_invalid` (AC-02):
+ * the code, the name, the address, the applicant's full name, a position other than `head`, a term start
+ * that is missing or later than the filing date, no extract. A term end earlier than the filing date
+ * answers `identity.term_ended` (AC-30). Any signed-in person may file a запит на передачу, on the roster
+ * of that association or not (AC-17). A code that is pending by another person is accepted and not
+ * revealed (AC-04c). `association_id` is set only when a член правління files a запит from the card of the
+ * association set up by hand (AC-19c). The signature is not checked at filing (AC-03).
+ * @summary File a заявка на підключення or a запит на передачу with the signed extract (US-01, US-04, Flows 1 and 6)
+ */
+export const fileApplication = async (newApplication: NewApplication, options?: RequestInit): Promise<fileApplicationResponseSuccess> => {
+    const formData = new FormData();
+formData.append(`kind`, newApplication.kind);
+formData.append(`edrpou`, newApplication.edrpou);
+if(newApplication.association_id !== undefined) {
+ formData.append(`association_id`, newApplication.association_id);
+ }
+formData.append(`association_name`, newApplication.association_name);
+formData.append(`association_address`, newApplication.association_address);
+formData.append(`applicant_full_name`, newApplication.applicant_full_name);
+formData.append(`position`, newApplication.position);
+formData.append(`term_start`, newApplication.term_start);
+if(newApplication.term_end !== undefined) {
+ formData.append(`term_end`, newApplication.term_end);
+ }
+formData.append(`extract`, newApplication.extract instanceof Blob ? newApplication.extract : new Blob([newApplication.extract], { type: 'application/pdf, application/pkcs7-signature, application/vnd.etsi.asic-e+zip' }));
+
+  const res = await fetch(getFileApplicationUrl(),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+
+    const err: globalThis.Error & {info?: fileApplicationResponseError['data'], status?: number} = new globalThis.Error();
+    const data : fileApplicationResponseError['data'] = body ? JSON.parse(body) : {}
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: fileApplicationResponseSuccess['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as fileApplicationResponseSuccess
+}
+
+
+
+
+
+export const getFileApplicationMutationKey = () => ['fileApplication'] as const;
+
+export const getFileApplicationMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | Problem; status?: number },
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof fileApplication>>, TError,FileApplicationMutationVariables, TContext>, fetch?: RequestInit}
+): UseMutationOptions<Awaited<ReturnType<typeof fileApplication>>, TError,FileApplicationMutationVariables, TContext> => {
+
+const mutationKey = getFileApplicationMutationKey();
+const {mutation: mutationOptions, fetch: fetchOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, fetch: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof fileApplication>>, FileApplicationMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  fileApplication(data,fetchOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type FileApplicationMutationResult = NonNullable<Awaited<ReturnType<typeof fileApplication>>>
+    export type FileApplicationMutationBody = NewApplication
+    export type FileApplicationMutationError = globalThis.Error & { info?: SessionRequiredResponse | Problem; status?: number }
+    export type FileApplicationMutationVariables = {data: NewApplication}
+
+    /**
+ * @summary File a заявка на підключення or a запит на передачу with the signed extract (US-01, US-04, Flows 1 and 6)
+ */
+export const useFileApplication = <TError = globalThis.Error & { info?: SessionRequiredResponse | Problem; status?: number },
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof fileApplication>>, TError,FileApplicationMutationVariables, TContext>, fetch?: RequestInit}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof fileApplication>>,
+        TError,
+        FileApplicationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getFileApplicationMutationOptions(options), queryClient);
+    }
+    export type getMyApplicationResponse200 = {
+  data: ApplicationDetail
+  status: 200
+}
+
+export type getMyApplicationResponse401 = {
+  data: SessionRequiredResponse
+  status: 401
+}
+
+export type getMyApplicationResponse404 = {
+  data: NotFoundResponse
+  status: 404
+}
+
+export type getMyApplicationResponseSuccess = (getMyApplicationResponse200) & {
+  headers: Headers;
+};
+export type getMyApplicationResponseError = (getMyApplicationResponse401 | getMyApplicationResponse404) & {
+  headers: Headers;
+};
+
+export const getGetMyApplicationUrl = (applicationId: string,) => {
+
+
+
+
+  return `/api/identity/applications/${applicationId}`
+}
+
+/**
+ * Another person's application answers 404, the same as a missing one.
+ * @summary One of the person's applications with every filing and decision (AC-05, AC-06, AC-14)
+ */
+export const getMyApplication = async (applicationId: string, options?: RequestInit): Promise<getMyApplicationResponseSuccess> => {
+
+  const res = await fetch(getGetMyApplicationUrl(applicationId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+
+    const err: globalThis.Error & {info?: getMyApplicationResponseError['data'], status?: number} = new globalThis.Error();
+    const data : getMyApplicationResponseError['data'] = body ? JSON.parse(body) : {}
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: getMyApplicationResponseSuccess['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as getMyApplicationResponseSuccess
+}
+
+
+
+
+
+export const getGetMyApplicationQueryKey = (applicationId: string,) => {
+    return [
+    `/api/identity/applications/${applicationId}`
+    ] as const;
+    }
+
+
+export const getGetMyApplicationQueryOptions = <TData = Awaited<ReturnType<typeof getMyApplication>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotFoundResponse; status?: number }>(applicationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyApplication>>, TError, TData>>, fetch?: RequestInit}
+) => {
+
+const {query: queryOptions, fetch: fetchOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyApplicationQueryKey(applicationId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyApplication>>> = ({ signal }) => getMyApplication(applicationId, { signal, ...fetchOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: applicationId !== null && applicationId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyApplication>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetMyApplicationQueryResult = NonNullable<Awaited<ReturnType<typeof getMyApplication>>>
+export type GetMyApplicationQueryError = globalThis.Error & { info?: SessionRequiredResponse | NotFoundResponse; status?: number }
+
+
+export function useGetMyApplication<TData = Awaited<ReturnType<typeof getMyApplication>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotFoundResponse; status?: number }>(
+ applicationId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyApplication>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMyApplication>>,
+          TError,
+          Awaited<ReturnType<typeof getMyApplication>>
+        > , 'initialData'
+      >, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMyApplication<TData = Awaited<ReturnType<typeof getMyApplication>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotFoundResponse; status?: number }>(
+ applicationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyApplication>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMyApplication>>,
+          TError,
+          Awaited<ReturnType<typeof getMyApplication>>
+        > , 'initialData'
+      >, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMyApplication<TData = Awaited<ReturnType<typeof getMyApplication>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotFoundResponse; status?: number }>(
+ applicationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyApplication>>, TError, TData>>, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary One of the person's applications with every filing and decision (AC-05, AC-06, AC-14)
+ */
+
+export function useGetMyApplication<TData = Awaited<ReturnType<typeof getMyApplication>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotFoundResponse; status?: number }>(
+ applicationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyApplication>>, TError, TData>>, fetch?: RequestInit}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetMyApplicationQueryOptions(applicationId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export type refileApplicationResponse201 = {
+  data: Application
+  status: 201
+}
+
+export type refileApplicationResponse401 = {
+  data: SessionRequiredResponse
+  status: 401
+}
+
+export type refileApplicationResponse404 = {
+  data: NotFoundResponse
+  status: 404
+}
+
+export type refileApplicationResponse409 = {
+  data: Problem
+  status: 409
+}
+
+export type refileApplicationResponse422 = {
+  data: Problem
+  status: 422
+}
+
+export type refileApplicationResponseSuccess = (refileApplicationResponse201) & {
+  headers: Headers;
+};
+export type refileApplicationResponseError = (refileApplicationResponse401 | refileApplicationResponse404 | refileApplicationResponse409 | refileApplicationResponse422) & {
+  headers: Headers;
+};
+
+export const getRefileApplicationUrl = (applicationId: string,) => {
+
+
+
+
+  return `/api/identity/applications/${applicationId}/filings`
+}
+
+/**
+ * The filing checks of fileApplication run again (AC-02, AC-30). A заявка на підключення whose code was
+ * connected meanwhile answers `identity.association_already_connected` (AC-04); a refiled запит на
+ * передачу is not checked against AC-18 again.
+ * @summary Fix and file a rejected application again (US-02, AC-06, Flow 5)
+ */
+export const refileApplication = async (applicationId: string,
+    applicationRefiling: ApplicationRefiling, options?: RequestInit): Promise<refileApplicationResponseSuccess> => {
+    const formData = new FormData();
+formData.append(`association_name`, applicationRefiling.association_name);
+formData.append(`association_address`, applicationRefiling.association_address);
+formData.append(`applicant_full_name`, applicationRefiling.applicant_full_name);
+formData.append(`position`, applicationRefiling.position);
+formData.append(`term_start`, applicationRefiling.term_start);
+if(applicationRefiling.term_end !== undefined) {
+ formData.append(`term_end`, applicationRefiling.term_end);
+ }
+formData.append(`extract`, applicationRefiling.extract instanceof Blob ? applicationRefiling.extract : new Blob([applicationRefiling.extract], { type: 'application/pdf, application/pkcs7-signature, application/vnd.etsi.asic-e+zip' }));
+
+  const res = await fetch(getRefileApplicationUrl(applicationId),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+
+    const err: globalThis.Error & {info?: refileApplicationResponseError['data'], status?: number} = new globalThis.Error();
+    const data : refileApplicationResponseError['data'] = body ? JSON.parse(body) : {}
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: refileApplicationResponseSuccess['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as refileApplicationResponseSuccess
+}
+
+
+
+
+
+export const getRefileApplicationMutationKey = () => ['refileApplication'] as const;
+
+export const getRefileApplicationMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotFoundResponse | Problem; status?: number },
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refileApplication>>, TError,RefileApplicationMutationVariables, TContext>, fetch?: RequestInit}
+): UseMutationOptions<Awaited<ReturnType<typeof refileApplication>>, TError,RefileApplicationMutationVariables, TContext> => {
+
+const mutationKey = getRefileApplicationMutationKey();
+const {mutation: mutationOptions, fetch: fetchOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, fetch: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof refileApplication>>, RefileApplicationMutationVariables> = (props) => {
+          const {applicationId,data} = props ?? {};
+
+          return  refileApplication(applicationId,data,fetchOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RefileApplicationMutationResult = NonNullable<Awaited<ReturnType<typeof refileApplication>>>
+    export type RefileApplicationMutationBody = ApplicationRefiling
+    export type RefileApplicationMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotFoundResponse | Problem; status?: number }
+    export type RefileApplicationMutationVariables = {applicationId: string;data: ApplicationRefiling}
+
+    /**
+ * @summary Fix and file a rejected application again (US-02, AC-06, Flow 5)
+ */
+export const useRefileApplication = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotFoundResponse | Problem; status?: number },
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refileApplication>>, TError,RefileApplicationMutationVariables, TContext>, fetch?: RequestInit}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof refileApplication>>,
+        TError,
+        RefileApplicationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRefileApplicationMutationOptions(options), queryClient);
+    }
+    export type downloadMyExtractResponse200 = {
+  data: ExtractFileResponse
+  status: 200
+}
+
+export type downloadMyExtractResponse401 = {
+  data: SessionRequiredResponse
+  status: 401
+}
+
+export type downloadMyExtractResponse404 = {
+  data: NotFoundResponse
+  status: 404
+}
+
+export type downloadMyExtractResponseSuccess = (downloadMyExtractResponse200) & {
+  headers: Headers;
+};
+export type downloadMyExtractResponseError = (downloadMyExtractResponse401 | downloadMyExtractResponse404) & {
+  headers: Headers;
+};
+
+export const getDownloadMyExtractUrl = (applicationId: string,
+    filingId: string,) => {
+
+
+
+
+  return `/api/identity/applications/${applicationId}/filings/${filingId}/extract`
+}
+
+/**
+ * @summary Download the extract the person attached to one filing (ADR-0005)
+ */
+export const downloadMyExtract = async (applicationId: string,
+    filingId: string, options?: RequestInit): Promise<downloadMyExtractResponseSuccess> => {
+
+  const res = await fetch(getDownloadMyExtractUrl(applicationId,filingId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+  if (!res.ok) {
+    const errorBody = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+    const err: globalThis.Error & {info?: downloadMyExtractResponseError['data'], status?: number} = new globalThis.Error();
+    const data : downloadMyExtractResponseError['data'] = errorBody ? JSON.parse(errorBody) : {}
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const body = [204, 205, 304].includes(res.status) ? null : await res.blob();
+  const data: downloadMyExtractResponseSuccess['data'] = body as downloadMyExtractResponseSuccess['data']
+  return { data, status: res.status, headers: res.headers } as downloadMyExtractResponseSuccess
+}
+
+
+
+
+
+export const getDownloadMyExtractQueryKey = (applicationId: string,
+    filingId: string,) => {
+    return [
+    `/api/identity/applications/${applicationId}/filings/${filingId}/extract`
+    ] as const;
+    }
+
+
+export const getDownloadMyExtractQueryOptions = <TData = Awaited<ReturnType<typeof downloadMyExtract>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotFoundResponse; status?: number }>(applicationId: string,
+    filingId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof downloadMyExtract>>, TError, TData>>, fetch?: RequestInit}
+) => {
+
+const {query: queryOptions, fetch: fetchOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDownloadMyExtractQueryKey(applicationId,filingId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadMyExtract>>> = ({ signal }) => downloadMyExtract(applicationId,filingId, { signal, ...fetchOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: applicationId !== null && applicationId !== undefined && filingId !== null && filingId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadMyExtract>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type DownloadMyExtractQueryResult = NonNullable<Awaited<ReturnType<typeof downloadMyExtract>>>
+export type DownloadMyExtractQueryError = globalThis.Error & { info?: SessionRequiredResponse | NotFoundResponse; status?: number }
+
+
+export function useDownloadMyExtract<TData = Awaited<ReturnType<typeof downloadMyExtract>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotFoundResponse; status?: number }>(
+ applicationId: string,
+    filingId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof downloadMyExtract>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof downloadMyExtract>>,
+          TError,
+          Awaited<ReturnType<typeof downloadMyExtract>>
+        > , 'initialData'
+      >, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useDownloadMyExtract<TData = Awaited<ReturnType<typeof downloadMyExtract>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotFoundResponse; status?: number }>(
+ applicationId: string,
+    filingId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof downloadMyExtract>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof downloadMyExtract>>,
+          TError,
+          Awaited<ReturnType<typeof downloadMyExtract>>
+        > , 'initialData'
+      >, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useDownloadMyExtract<TData = Awaited<ReturnType<typeof downloadMyExtract>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotFoundResponse; status?: number }>(
+ applicationId: string,
+    filingId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof downloadMyExtract>>, TError, TData>>, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Download the extract the person attached to one filing (ADR-0005)
+ */
+
+export function useDownloadMyExtract<TData = Awaited<ReturnType<typeof downloadMyExtract>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotFoundResponse; status?: number }>(
+ applicationId: string,
+    filingId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof downloadMyExtract>>, TError, TData>>, fetch?: RequestInit}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getDownloadMyExtractQueryOptions(applicationId,filingId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export type listApplicationsForReviewResponse200 = {
+  data: ApplicationPage
+  status: 200
+}
+
+export type listApplicationsForReviewResponse401 = {
+  data: SessionRequiredResponse
+  status: 401
+}
+
+export type listApplicationsForReviewResponse403 = {
+  data: NotOperatorResponse
+  status: 403
+}
+
+export type listApplicationsForReviewResponse422 = {
+  data: ValidationFailedResponse
+  status: 422
+}
+
+export type listApplicationsForReviewResponseSuccess = (listApplicationsForReviewResponse200) & {
+  headers: Headers;
+};
+export type listApplicationsForReviewResponseError = (listApplicationsForReviewResponse401 | listApplicationsForReviewResponse403 | listApplicationsForReviewResponse422) & {
+  headers: Headers;
+};
+
+export const getListApplicationsForReviewUrl = (params?: ListApplicationsForReviewParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/identity/operator/applications?${stringifiedParams}` : `/api/identity/operator/applications`
+}
+
+/**
+ * @summary The оператор's queue, oldest pending first by default (US-03, US-05, AC-16)
+ */
+export const listApplicationsForReview = async (params?: ListApplicationsForReviewParams, options?: RequestInit): Promise<listApplicationsForReviewResponseSuccess> => {
+
+  const res = await fetch(getListApplicationsForReviewUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+
+    const err: globalThis.Error & {info?: listApplicationsForReviewResponseError['data'], status?: number} = new globalThis.Error();
+    const data : listApplicationsForReviewResponseError['data'] = body ? JSON.parse(body) : {}
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: listApplicationsForReviewResponseSuccess['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as listApplicationsForReviewResponseSuccess
+}
+
+
+
+
+
+export const getListApplicationsForReviewQueryKey = (params?: ListApplicationsForReviewParams,) => {
+    return [
+    `/api/identity/operator/applications`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListApplicationsForReviewQueryOptions = <TData = Awaited<ReturnType<typeof listApplicationsForReview>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotOperatorResponse | ValidationFailedResponse; status?: number }>(params?: ListApplicationsForReviewParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listApplicationsForReview>>, TError, TData>>, fetch?: RequestInit}
+) => {
+
+const {query: queryOptions, fetch: fetchOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListApplicationsForReviewQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listApplicationsForReview>>> = ({ signal }) => listApplicationsForReview(params, { signal, ...fetchOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listApplicationsForReview>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListApplicationsForReviewQueryResult = NonNullable<Awaited<ReturnType<typeof listApplicationsForReview>>>
+export type ListApplicationsForReviewQueryError = globalThis.Error & { info?: SessionRequiredResponse | NotOperatorResponse | ValidationFailedResponse; status?: number }
+
+
+export function useListApplicationsForReview<TData = Awaited<ReturnType<typeof listApplicationsForReview>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotOperatorResponse | ValidationFailedResponse; status?: number }>(
+ params: undefined |  ListApplicationsForReviewParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listApplicationsForReview>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listApplicationsForReview>>,
+          TError,
+          Awaited<ReturnType<typeof listApplicationsForReview>>
+        > , 'initialData'
+      >, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListApplicationsForReview<TData = Awaited<ReturnType<typeof listApplicationsForReview>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotOperatorResponse | ValidationFailedResponse; status?: number }>(
+ params?: ListApplicationsForReviewParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listApplicationsForReview>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listApplicationsForReview>>,
+          TError,
+          Awaited<ReturnType<typeof listApplicationsForReview>>
+        > , 'initialData'
+      >, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListApplicationsForReview<TData = Awaited<ReturnType<typeof listApplicationsForReview>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotOperatorResponse | ValidationFailedResponse; status?: number }>(
+ params?: ListApplicationsForReviewParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listApplicationsForReview>>, TError, TData>>, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary The оператор's queue, oldest pending first by default (US-03, US-05, AC-16)
+ */
+
+export function useListApplicationsForReview<TData = Awaited<ReturnType<typeof listApplicationsForReview>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotOperatorResponse | ValidationFailedResponse; status?: number }>(
+ params?: ListApplicationsForReviewParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listApplicationsForReview>>, TError, TData>>, fetch?: RequestInit}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListApplicationsForReviewQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export type getApplicationForReviewResponse200 = {
+  data: ApplicationReview
+  status: 200
+}
+
+export type getApplicationForReviewResponse401 = {
+  data: SessionRequiredResponse
+  status: 401
+}
+
+export type getApplicationForReviewResponse403 = {
+  data: NotOperatorResponse
+  status: 403
+}
+
+export type getApplicationForReviewResponse404 = {
+  data: NotFoundResponse
+  status: 404
+}
+
+export type getApplicationForReviewResponseSuccess = (getApplicationForReviewResponse200) & {
+  headers: Headers;
+};
+export type getApplicationForReviewResponseError = (getApplicationForReviewResponse401 | getApplicationForReviewResponse403 | getApplicationForReviewResponse404) & {
+  headers: Headers;
+};
+
+export const getGetApplicationForReviewUrl = (applicationId: string,) => {
+
+
+
+
+  return `/api/identity/operator/applications/${applicationId}`
+}
+
+/**
+ * @summary One application with filings, checks, decisions, warnings and competing applications (AC-10, AC-11, AC-11b, AC-04c, AC-19b, AC-28b)
+ */
+export const getApplicationForReview = async (applicationId: string, options?: RequestInit): Promise<getApplicationForReviewResponseSuccess> => {
+
+  const res = await fetch(getGetApplicationForReviewUrl(applicationId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+
+    const err: globalThis.Error & {info?: getApplicationForReviewResponseError['data'], status?: number} = new globalThis.Error();
+    const data : getApplicationForReviewResponseError['data'] = body ? JSON.parse(body) : {}
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: getApplicationForReviewResponseSuccess['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as getApplicationForReviewResponseSuccess
+}
+
+
+
+
+
+export const getGetApplicationForReviewQueryKey = (applicationId: string,) => {
+    return [
+    `/api/identity/operator/applications/${applicationId}`
+    ] as const;
+    }
+
+
+export const getGetApplicationForReviewQueryOptions = <TData = Awaited<ReturnType<typeof getApplicationForReview>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotOperatorResponse | NotFoundResponse; status?: number }>(applicationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getApplicationForReview>>, TError, TData>>, fetch?: RequestInit}
+) => {
+
+const {query: queryOptions, fetch: fetchOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetApplicationForReviewQueryKey(applicationId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getApplicationForReview>>> = ({ signal }) => getApplicationForReview(applicationId, { signal, ...fetchOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: applicationId !== null && applicationId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getApplicationForReview>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetApplicationForReviewQueryResult = NonNullable<Awaited<ReturnType<typeof getApplicationForReview>>>
+export type GetApplicationForReviewQueryError = globalThis.Error & { info?: SessionRequiredResponse | NotOperatorResponse | NotFoundResponse; status?: number }
+
+
+export function useGetApplicationForReview<TData = Awaited<ReturnType<typeof getApplicationForReview>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotOperatorResponse | NotFoundResponse; status?: number }>(
+ applicationId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getApplicationForReview>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getApplicationForReview>>,
+          TError,
+          Awaited<ReturnType<typeof getApplicationForReview>>
+        > , 'initialData'
+      >, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetApplicationForReview<TData = Awaited<ReturnType<typeof getApplicationForReview>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotOperatorResponse | NotFoundResponse; status?: number }>(
+ applicationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getApplicationForReview>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getApplicationForReview>>,
+          TError,
+          Awaited<ReturnType<typeof getApplicationForReview>>
+        > , 'initialData'
+      >, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetApplicationForReview<TData = Awaited<ReturnType<typeof getApplicationForReview>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotOperatorResponse | NotFoundResponse; status?: number }>(
+ applicationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getApplicationForReview>>, TError, TData>>, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary One application with filings, checks, decisions, warnings and competing applications (AC-10, AC-11, AC-11b, AC-04c, AC-19b, AC-28b)
+ */
+
+export function useGetApplicationForReview<TData = Awaited<ReturnType<typeof getApplicationForReview>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotOperatorResponse | NotFoundResponse; status?: number }>(
+ applicationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getApplicationForReview>>, TError, TData>>, fetch?: RequestInit}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetApplicationForReviewQueryOptions(applicationId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export type downloadExtractForReviewResponse200 = {
+  data: ExtractFileResponse
+  status: 200
+}
+
+export type downloadExtractForReviewResponse401 = {
+  data: SessionRequiredResponse
+  status: 401
+}
+
+export type downloadExtractForReviewResponse403 = {
+  data: NotOperatorResponse
+  status: 403
+}
+
+export type downloadExtractForReviewResponse404 = {
+  data: NotFoundResponse
+  status: 404
+}
+
+export type downloadExtractForReviewResponseSuccess = (downloadExtractForReviewResponse200) & {
+  headers: Headers;
+};
+export type downloadExtractForReviewResponseError = (downloadExtractForReviewResponse401 | downloadExtractForReviewResponse403 | downloadExtractForReviewResponse404) & {
+  headers: Headers;
+};
+
+export const getDownloadExtractForReviewUrl = (applicationId: string,
+    filingId: string,) => {
+
+
+
+
+  return `/api/identity/operator/applications/${applicationId}/filings/${filingId}/extract`
+}
+
+/**
+ * @summary Download the extract of a filing to check it outside Спільно (ADR-0005)
+ */
+export const downloadExtractForReview = async (applicationId: string,
+    filingId: string, options?: RequestInit): Promise<downloadExtractForReviewResponseSuccess> => {
+
+  const res = await fetch(getDownloadExtractForReviewUrl(applicationId,filingId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+  if (!res.ok) {
+    const errorBody = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+    const err: globalThis.Error & {info?: downloadExtractForReviewResponseError['data'], status?: number} = new globalThis.Error();
+    const data : downloadExtractForReviewResponseError['data'] = errorBody ? JSON.parse(errorBody) : {}
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const body = [204, 205, 304].includes(res.status) ? null : await res.blob();
+  const data: downloadExtractForReviewResponseSuccess['data'] = body as downloadExtractForReviewResponseSuccess['data']
+  return { data, status: res.status, headers: res.headers } as downloadExtractForReviewResponseSuccess
+}
+
+
+
+
+
+export const getDownloadExtractForReviewQueryKey = (applicationId: string,
+    filingId: string,) => {
+    return [
+    `/api/identity/operator/applications/${applicationId}/filings/${filingId}/extract`
+    ] as const;
+    }
+
+
+export const getDownloadExtractForReviewQueryOptions = <TData = Awaited<ReturnType<typeof downloadExtractForReview>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotOperatorResponse | NotFoundResponse; status?: number }>(applicationId: string,
+    filingId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof downloadExtractForReview>>, TError, TData>>, fetch?: RequestInit}
+) => {
+
+const {query: queryOptions, fetch: fetchOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDownloadExtractForReviewQueryKey(applicationId,filingId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadExtractForReview>>> = ({ signal }) => downloadExtractForReview(applicationId,filingId, { signal, ...fetchOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: applicationId !== null && applicationId !== undefined && filingId !== null && filingId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadExtractForReview>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type DownloadExtractForReviewQueryResult = NonNullable<Awaited<ReturnType<typeof downloadExtractForReview>>>
+export type DownloadExtractForReviewQueryError = globalThis.Error & { info?: SessionRequiredResponse | NotOperatorResponse | NotFoundResponse; status?: number }
+
+
+export function useDownloadExtractForReview<TData = Awaited<ReturnType<typeof downloadExtractForReview>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotOperatorResponse | NotFoundResponse; status?: number }>(
+ applicationId: string,
+    filingId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof downloadExtractForReview>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof downloadExtractForReview>>,
+          TError,
+          Awaited<ReturnType<typeof downloadExtractForReview>>
+        > , 'initialData'
+      >, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useDownloadExtractForReview<TData = Awaited<ReturnType<typeof downloadExtractForReview>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotOperatorResponse | NotFoundResponse; status?: number }>(
+ applicationId: string,
+    filingId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof downloadExtractForReview>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof downloadExtractForReview>>,
+          TError,
+          Awaited<ReturnType<typeof downloadExtractForReview>>
+        > , 'initialData'
+      >, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useDownloadExtractForReview<TData = Awaited<ReturnType<typeof downloadExtractForReview>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotOperatorResponse | NotFoundResponse; status?: number }>(
+ applicationId: string,
+    filingId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof downloadExtractForReview>>, TError, TData>>, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Download the extract of a filing to check it outside Спільно (ADR-0005)
+ */
+
+export function useDownloadExtractForReview<TData = Awaited<ReturnType<typeof downloadExtractForReview>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotOperatorResponse | NotFoundResponse; status?: number }>(
+ applicationId: string,
+    filingId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof downloadExtractForReview>>, TError, TData>>, fetch?: RequestInit}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getDownloadExtractForReviewQueryOptions(applicationId,filingId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export type recordExtractCheckResponse201 = {
+  data: ExtractCheck
+  status: 201
+}
+
+export type recordExtractCheckResponse401 = {
+  data: SessionRequiredResponse
+  status: 401
+}
+
+export type recordExtractCheckResponse403 = {
+  data: NotOperatorResponse
+  status: 403
+}
+
+export type recordExtractCheckResponse404 = {
+  data: NotFoundResponse
+  status: 404
+}
+
+export type recordExtractCheckResponse409 = {
+  data: Problem
+  status: 409
+}
+
+export type recordExtractCheckResponse422 = {
+  data: ValidationFailedResponse
+  status: 422
+}
+
+export type recordExtractCheckResponseSuccess = (recordExtractCheckResponse201) & {
+  headers: Headers;
+};
+export type recordExtractCheckResponseError = (recordExtractCheckResponse401 | recordExtractCheckResponse403 | recordExtractCheckResponse404 | recordExtractCheckResponse409 | recordExtractCheckResponse422) & {
+  headers: Headers;
+};
+
+export const getRecordExtractCheckUrl = (applicationId: string,) => {
+
+
+
+
+  return `/api/identity/operator/applications/${applicationId}/checks`
+}
+
+/**
+ * Not refused for the оператор's own filing — a recorded check leads to no decision (ADR-0009).
+ * @summary Record the оператор's check of the extract of the latest filing (AC-03, AC-10, Flow 2)
+ */
+export const recordExtractCheck = async (applicationId: string,
+    newExtractCheck: NewExtractCheck, options?: RequestInit): Promise<recordExtractCheckResponseSuccess> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+const res = await fetch(getRecordExtractCheckUrl(applicationId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(newExtractCheck)
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+
+    const err: globalThis.Error & {info?: recordExtractCheckResponseError['data'], status?: number} = new globalThis.Error();
+    const data : recordExtractCheckResponseError['data'] = body ? JSON.parse(body) : {}
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: recordExtractCheckResponseSuccess['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as recordExtractCheckResponseSuccess
+}
+
+
+
+
+
+export const getRecordExtractCheckMutationKey = () => ['recordExtractCheck'] as const;
+
+export const getRecordExtractCheckMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotOperatorResponse | NotFoundResponse | Problem | ValidationFailedResponse; status?: number },
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordExtractCheck>>, TError,RecordExtractCheckMutationVariables, TContext>, fetch?: RequestInit}
+): UseMutationOptions<Awaited<ReturnType<typeof recordExtractCheck>>, TError,RecordExtractCheckMutationVariables, TContext> => {
+
+const mutationKey = getRecordExtractCheckMutationKey();
+const {mutation: mutationOptions, fetch: fetchOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, fetch: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordExtractCheck>>, RecordExtractCheckMutationVariables> = (props) => {
+          const {applicationId,data} = props ?? {};
+
+          return  recordExtractCheck(applicationId,data,fetchOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordExtractCheckMutationResult = NonNullable<Awaited<ReturnType<typeof recordExtractCheck>>>
+    export type RecordExtractCheckMutationBody = NewExtractCheck
+    export type RecordExtractCheckMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotOperatorResponse | NotFoundResponse | Problem | ValidationFailedResponse; status?: number }
+    export type RecordExtractCheckMutationVariables = {applicationId: string;data: NewExtractCheck}
+
+    /**
+ * @summary Record the оператор's check of the extract of the latest filing (AC-03, AC-10, Flow 2)
+ */
+export const useRecordExtractCheck = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotOperatorResponse | NotFoundResponse | Problem | ValidationFailedResponse; status?: number },
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordExtractCheck>>, TError,RecordExtractCheckMutationVariables, TContext>, fetch?: RequestInit}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof recordExtractCheck>>,
+        TError,
+        RecordExtractCheckMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRecordExtractCheckMutationOptions(options), queryClient);
+    }
+    export type approveApplicationResponse200 = {
+  data: ApplicationDecision
+  status: 200
+}
+
+export type approveApplicationResponse401 = {
+  data: SessionRequiredResponse
+  status: 401
+}
+
+export type approveApplicationResponse403 = {
+  data: NotOperatorResponse
+  status: 403
+}
+
+export type approveApplicationResponse404 = {
+  data: NotFoundResponse
+  status: 404
+}
+
+export type approveApplicationResponse409 = {
+  data: Problem
+  status: 409
+}
+
+export type approveApplicationResponse422 = {
+  data: ValidationFailedResponse
+  status: 422
+}
+
+export type approveApplicationResponseSuccess = (approveApplicationResponse200) & {
+  headers: Headers;
+};
+export type approveApplicationResponseError = (approveApplicationResponse401 | approveApplicationResponse403 | approveApplicationResponse404 | approveApplicationResponse409 | approveApplicationResponse422) & {
+  headers: Headers;
+};
+
+export const getApproveApplicationUrl = (applicationId: string,) => {
+
+
+
+
+  return `/api/identity/operator/applications/${applicationId}/approval`
+}
+
+/**
+ * The оператор's own filing is refused whatever the recorded check says and stays pending (AC-16c, ADR-0009).
+ * For a запит на передачу: an applicant who already has a current roster entry gets no second entry, that
+ * entry takes the position голова правління; only the entry of the голова recorded by an earlier approval
+ * ends (AC-19). A competing запит stays pending and can be approved later as a new transfer (AC-19b), so
+ * `identity.association_already_connected` is answered only for a заявка на підключення (AC-04c).
+ * @summary Approve the latest filing — create the association or change its roster (AC-08, AC-16c, AC-19, AC-19c, Flows 2-3)
+ */
+export const approveApplication = async (applicationId: string,
+    approveApplicationRequest: ApproveApplicationRequest, options?: RequestInit): Promise<approveApplicationResponseSuccess> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+const res = await fetch(getApproveApplicationUrl(applicationId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(approveApplicationRequest)
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+
+    const err: globalThis.Error & {info?: approveApplicationResponseError['data'], status?: number} = new globalThis.Error();
+    const data : approveApplicationResponseError['data'] = body ? JSON.parse(body) : {}
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: approveApplicationResponseSuccess['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as approveApplicationResponseSuccess
+}
+
+
+
+
+
+export const getApproveApplicationMutationKey = () => ['approveApplication'] as const;
+
+export const getApproveApplicationMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotOperatorResponse | NotFoundResponse | Problem | ValidationFailedResponse; status?: number },
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveApplication>>, TError,ApproveApplicationMutationVariables, TContext>, fetch?: RequestInit}
+): UseMutationOptions<Awaited<ReturnType<typeof approveApplication>>, TError,ApproveApplicationMutationVariables, TContext> => {
+
+const mutationKey = getApproveApplicationMutationKey();
+const {mutation: mutationOptions, fetch: fetchOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, fetch: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof approveApplication>>, ApproveApplicationMutationVariables> = (props) => {
+          const {applicationId,data} = props ?? {};
+
+          return  approveApplication(applicationId,data,fetchOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApproveApplicationMutationResult = NonNullable<Awaited<ReturnType<typeof approveApplication>>>
+    export type ApproveApplicationMutationBody = ApproveApplicationRequest
+    export type ApproveApplicationMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotOperatorResponse | NotFoundResponse | Problem | ValidationFailedResponse; status?: number }
+    export type ApproveApplicationMutationVariables = {applicationId: string;data: ApproveApplicationRequest}
+
+    /**
+ * @summary Approve the latest filing — create the association or change its roster (AC-08, AC-16c, AC-19, AC-19c, Flows 2-3)
+ */
+export const useApproveApplication = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotOperatorResponse | NotFoundResponse | Problem | ValidationFailedResponse; status?: number },
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveApplication>>, TError,ApproveApplicationMutationVariables, TContext>, fetch?: RequestInit}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof approveApplication>>,
+        TError,
+        ApproveApplicationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getApproveApplicationMutationOptions(options), queryClient);
+    }
+    export type rejectApplicationResponse200 = {
+  data: ApplicationDecision
+  status: 200
+}
+
+export type rejectApplicationResponse401 = {
+  data: SessionRequiredResponse
+  status: 401
+}
+
+export type rejectApplicationResponse403 = {
+  data: NotOperatorResponse
+  status: 403
+}
+
+export type rejectApplicationResponse404 = {
+  data: NotFoundResponse
+  status: 404
+}
+
+export type rejectApplicationResponse409 = {
+  data: Problem
+  status: 409
+}
+
+export type rejectApplicationResponse422 = {
+  data: Problem
+  status: 422
+}
+
+export type rejectApplicationResponseSuccess = (rejectApplicationResponse200) & {
+  headers: Headers;
+};
+export type rejectApplicationResponseError = (rejectApplicationResponse401 | rejectApplicationResponse403 | rejectApplicationResponse404 | rejectApplicationResponse409 | rejectApplicationResponse422) & {
+  headers: Headers;
+};
+
+export const getRejectApplicationUrl = (applicationId: string,) => {
+
+
+
+
+  return `/api/identity/operator/applications/${applicationId}/rejection`
+}
+
+/**
+ * @summary Reject the latest filing with a reason the applicant will see (AC-13, AC-14, AC-16c, Flow 8)
+ */
+export const rejectApplication = async (applicationId: string,
+    rejectApplicationRequest: RejectApplicationRequest, options?: RequestInit): Promise<rejectApplicationResponseSuccess> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+const res = await fetch(getRejectApplicationUrl(applicationId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(rejectApplicationRequest)
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+
+    const err: globalThis.Error & {info?: rejectApplicationResponseError['data'], status?: number} = new globalThis.Error();
+    const data : rejectApplicationResponseError['data'] = body ? JSON.parse(body) : {}
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: rejectApplicationResponseSuccess['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as rejectApplicationResponseSuccess
+}
+
+
+
+
+
+export const getRejectApplicationMutationKey = () => ['rejectApplication'] as const;
+
+export const getRejectApplicationMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotOperatorResponse | NotFoundResponse | Problem; status?: number },
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rejectApplication>>, TError,RejectApplicationMutationVariables, TContext>, fetch?: RequestInit}
+): UseMutationOptions<Awaited<ReturnType<typeof rejectApplication>>, TError,RejectApplicationMutationVariables, TContext> => {
+
+const mutationKey = getRejectApplicationMutationKey();
+const {mutation: mutationOptions, fetch: fetchOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, fetch: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof rejectApplication>>, RejectApplicationMutationVariables> = (props) => {
+          const {applicationId,data} = props ?? {};
+
+          return  rejectApplication(applicationId,data,fetchOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RejectApplicationMutationResult = NonNullable<Awaited<ReturnType<typeof rejectApplication>>>
+    export type RejectApplicationMutationBody = RejectApplicationRequest
+    export type RejectApplicationMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotOperatorResponse | NotFoundResponse | Problem; status?: number }
+    export type RejectApplicationMutationVariables = {applicationId: string;data: RejectApplicationRequest}
+
+    /**
+ * @summary Reject the latest filing with a reason the applicant will see (AC-13, AC-14, AC-16c, Flow 8)
+ */
+export const useRejectApplication = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotOperatorResponse | NotFoundResponse | Problem; status?: number },
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rejectApplication>>, TError,RejectApplicationMutationVariables, TContext>, fetch?: RequestInit}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof rejectApplication>>,
+        TError,
+        RejectApplicationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRejectApplicationMutationOptions(options), queryClient);
+    }
+    export type listAssociationsForOperatorResponse200 = {
+  data: OperatorAssociationPage
+  status: 200
+}
+
+export type listAssociationsForOperatorResponse401 = {
+  data: SessionRequiredResponse
+  status: 401
+}
+
+export type listAssociationsForOperatorResponse403 = {
+  data: NotOperatorResponse
+  status: 403
+}
+
+export type listAssociationsForOperatorResponse422 = {
+  data: ValidationFailedResponse
+  status: 422
+}
+
+export type listAssociationsForOperatorResponseSuccess = (listAssociationsForOperatorResponse200) & {
+  headers: Headers;
+};
+export type listAssociationsForOperatorResponseError = (listAssociationsForOperatorResponse401 | listAssociationsForOperatorResponse403 | listAssociationsForOperatorResponse422) & {
+  headers: Headers;
+};
+
+export const getListAssociationsForOperatorUrl = (params?: ListAssociationsForOperatorParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/identity/operator/associations?${stringifiedParams}` : `/api/identity/operator/associations`
+}
+
+/**
+ * @summary Every association with its state and whether its голова is confirmed by an extract (US-06)
+ */
+export const listAssociationsForOperator = async (params?: ListAssociationsForOperatorParams, options?: RequestInit): Promise<listAssociationsForOperatorResponseSuccess> => {
+
+  const res = await fetch(getListAssociationsForOperatorUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+
+    const err: globalThis.Error & {info?: listAssociationsForOperatorResponseError['data'], status?: number} = new globalThis.Error();
+    const data : listAssociationsForOperatorResponseError['data'] = body ? JSON.parse(body) : {}
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: listAssociationsForOperatorResponseSuccess['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as listAssociationsForOperatorResponseSuccess
+}
+
+
+
+
+
+export const getListAssociationsForOperatorQueryKey = (params?: ListAssociationsForOperatorParams,) => {
+    return [
+    `/api/identity/operator/associations`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAssociationsForOperatorQueryOptions = <TData = Awaited<ReturnType<typeof listAssociationsForOperator>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotOperatorResponse | ValidationFailedResponse; status?: number }>(params?: ListAssociationsForOperatorParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAssociationsForOperator>>, TError, TData>>, fetch?: RequestInit}
+) => {
+
+const {query: queryOptions, fetch: fetchOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAssociationsForOperatorQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAssociationsForOperator>>> = ({ signal }) => listAssociationsForOperator(params, { signal, ...fetchOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAssociationsForOperator>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListAssociationsForOperatorQueryResult = NonNullable<Awaited<ReturnType<typeof listAssociationsForOperator>>>
+export type ListAssociationsForOperatorQueryError = globalThis.Error & { info?: SessionRequiredResponse | NotOperatorResponse | ValidationFailedResponse; status?: number }
+
+
+export function useListAssociationsForOperator<TData = Awaited<ReturnType<typeof listAssociationsForOperator>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotOperatorResponse | ValidationFailedResponse; status?: number }>(
+ params: undefined |  ListAssociationsForOperatorParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAssociationsForOperator>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listAssociationsForOperator>>,
+          TError,
+          Awaited<ReturnType<typeof listAssociationsForOperator>>
+        > , 'initialData'
+      >, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListAssociationsForOperator<TData = Awaited<ReturnType<typeof listAssociationsForOperator>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotOperatorResponse | ValidationFailedResponse; status?: number }>(
+ params?: ListAssociationsForOperatorParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAssociationsForOperator>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listAssociationsForOperator>>,
+          TError,
+          Awaited<ReturnType<typeof listAssociationsForOperator>>
+        > , 'initialData'
+      >, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListAssociationsForOperator<TData = Awaited<ReturnType<typeof listAssociationsForOperator>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotOperatorResponse | ValidationFailedResponse; status?: number }>(
+ params?: ListAssociationsForOperatorParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAssociationsForOperator>>, TError, TData>>, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Every association with its state and whether its голова is confirmed by an extract (US-06)
+ */
+
+export function useListAssociationsForOperator<TData = Awaited<ReturnType<typeof listAssociationsForOperator>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotOperatorResponse | ValidationFailedResponse; status?: number }>(
+ params?: ListAssociationsForOperatorParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAssociationsForOperator>>, TError, TData>>, fetch?: RequestInit}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListAssociationsForOperatorQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export type disableAssociationResponse200 = {
+  data: AssociationStateChange
+  status: 200
+}
+
+export type disableAssociationResponse401 = {
+  data: SessionRequiredResponse
+  status: 401
+}
+
+export type disableAssociationResponse403 = {
+  data: NotOperatorResponse
+  status: 403
+}
+
+export type disableAssociationResponse404 = {
+  data: NotFoundResponse
+  status: 404
+}
+
+export type disableAssociationResponse409 = {
+  data: Problem
+  status: 409
+}
+
+export type disableAssociationResponse422 = {
+  data: Problem
+  status: 422
+}
+
+export type disableAssociationResponseSuccess = (disableAssociationResponse200) & {
+  headers: Headers;
+};
+export type disableAssociationResponseError = (disableAssociationResponse401 | disableAssociationResponse403 | disableAssociationResponse404 | disableAssociationResponse409 | disableAssociationResponse422) & {
+  headers: Headers;
+};
+
+export const getDisableAssociationUrl = (associationId: string,) => {
+
+
+
+
+  return `/api/identity/operator/associations/${associationId}/disabling`
+}
+
+/**
+ * @summary Disable an association with a reason its members will see (AC-21, AC-22, AC-24)
+ */
+export const disableAssociation = async (associationId: string,
+    disableAssociationRequest: DisableAssociationRequest, options?: RequestInit): Promise<disableAssociationResponseSuccess> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+const res = await fetch(getDisableAssociationUrl(associationId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(disableAssociationRequest)
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+
+    const err: globalThis.Error & {info?: disableAssociationResponseError['data'], status?: number} = new globalThis.Error();
+    const data : disableAssociationResponseError['data'] = body ? JSON.parse(body) : {}
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: disableAssociationResponseSuccess['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as disableAssociationResponseSuccess
+}
+
+
+
+
+
+export const getDisableAssociationMutationKey = () => ['disableAssociation'] as const;
+
+export const getDisableAssociationMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotOperatorResponse | NotFoundResponse | Problem; status?: number },
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof disableAssociation>>, TError,DisableAssociationMutationVariables, TContext>, fetch?: RequestInit}
+): UseMutationOptions<Awaited<ReturnType<typeof disableAssociation>>, TError,DisableAssociationMutationVariables, TContext> => {
+
+const mutationKey = getDisableAssociationMutationKey();
+const {mutation: mutationOptions, fetch: fetchOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, fetch: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof disableAssociation>>, DisableAssociationMutationVariables> = (props) => {
+          const {associationId,data} = props ?? {};
+
+          return  disableAssociation(associationId,data,fetchOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DisableAssociationMutationResult = NonNullable<Awaited<ReturnType<typeof disableAssociation>>>
+    export type DisableAssociationMutationBody = DisableAssociationRequest
+    export type DisableAssociationMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotOperatorResponse | NotFoundResponse | Problem; status?: number }
+    export type DisableAssociationMutationVariables = {associationId: string;data: DisableAssociationRequest}
+
+    /**
+ * @summary Disable an association with a reason its members will see (AC-21, AC-22, AC-24)
+ */
+export const useDisableAssociation = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotOperatorResponse | NotFoundResponse | Problem; status?: number },
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof disableAssociation>>, TError,DisableAssociationMutationVariables, TContext>, fetch?: RequestInit}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof disableAssociation>>,
+        TError,
+        DisableAssociationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDisableAssociationMutationOptions(options), queryClient);
+    }
+    export type enableAssociationResponse200 = {
+  data: AssociationStateChange
+  status: 200
+}
+
+export type enableAssociationResponse401 = {
+  data: SessionRequiredResponse
+  status: 401
+}
+
+export type enableAssociationResponse403 = {
+  data: NotOperatorResponse
+  status: 403
+}
+
+export type enableAssociationResponse404 = {
+  data: NotFoundResponse
+  status: 404
+}
+
+export type enableAssociationResponse409 = {
+  data: Problem
+  status: 409
+}
+
+export type enableAssociationResponseSuccess = (enableAssociationResponse200) & {
+  headers: Headers;
+};
+export type enableAssociationResponseError = (enableAssociationResponse401 | enableAssociationResponse403 | enableAssociationResponse404 | enableAssociationResponse409) & {
+  headers: Headers;
+};
+
+export const getEnableAssociationUrl = (associationId: string,) => {
+
+
+
+
+  return `/api/identity/operator/associations/${associationId}/enabling`
+}
+
+/**
+ * @summary Enable a disabled association; every record is as before (AC-23, AC-24)
+ */
+export const enableAssociation = async (associationId: string, options?: RequestInit): Promise<enableAssociationResponseSuccess> => {
+
+  const res = await fetch(getEnableAssociationUrl(associationId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+
+    const err: globalThis.Error & {info?: enableAssociationResponseError['data'], status?: number} = new globalThis.Error();
+    const data : enableAssociationResponseError['data'] = body ? JSON.parse(body) : {}
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: enableAssociationResponseSuccess['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as enableAssociationResponseSuccess
+}
+
+
+
+
+
+export const getEnableAssociationMutationKey = () => ['enableAssociation'] as const;
+
+export const getEnableAssociationMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotOperatorResponse | NotFoundResponse | Problem; status?: number },
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof enableAssociation>>, TError,EnableAssociationMutationVariables, TContext>, fetch?: RequestInit}
+): UseMutationOptions<Awaited<ReturnType<typeof enableAssociation>>, TError,EnableAssociationMutationVariables, TContext> => {
+
+const mutationKey = getEnableAssociationMutationKey();
+const {mutation: mutationOptions, fetch: fetchOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, fetch: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof enableAssociation>>, EnableAssociationMutationVariables> = (props) => {
+          const {associationId} = props ?? {};
+
+          return  enableAssociation(associationId,fetchOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EnableAssociationMutationResult = NonNullable<Awaited<ReturnType<typeof enableAssociation>>>
+
+    export type EnableAssociationMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotOperatorResponse | NotFoundResponse | Problem; status?: number }
+    export type EnableAssociationMutationVariables = {associationId: string}
+
+    /**
+ * @summary Enable a disabled association; every record is as before (AC-23, AC-24)
+ */
+export const useEnableAssociation = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotOperatorResponse | NotFoundResponse | Problem; status?: number },
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof enableAssociation>>, TError,EnableAssociationMutationVariables, TContext>, fetch?: RequestInit}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof enableAssociation>>,
+        TError,
+        EnableAssociationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getEnableAssociationMutationOptions(options), queryClient);
+    }
+    export type getAssociationCardResponse200 = {
+  data: AssociationCard
+  status: 200
+}
+
+export type getAssociationCardResponse401 = {
+  data: SessionRequiredResponse
+  status: 401
+}
+
+export type getAssociationCardResponse403 = {
+  data: MemberOrDisabledResponse
+  status: 403
+}
+
+export type getAssociationCardResponseSuccess = (getAssociationCardResponse200) & {
+  headers: Headers;
+};
+export type getAssociationCardResponseError = (getAssociationCardResponse401 | getAssociationCardResponse403) & {
+  headers: Headers;
+};
+
+export const getGetAssociationCardUrl = (associationId: string,) => {
+
+
+
+
+  return `/api/identity/associations/${associationId}`
+}
+
+/**
+ * A non-member gets the same 403 whether the association exists or not (AC-07). Not on the allow-list of a
+ * вимкнене ОСББ (ADR-0007, PRD §10): its members get `identity.association_disabled` with the reason (AC-21).
+ * @summary The association card — state, current голова and the chain of confirmation (US-09, AC-29, AC-21)
+ */
+export const getAssociationCard = async (associationId: string, options?: RequestInit): Promise<getAssociationCardResponseSuccess> => {
+
+  const res = await fetch(getGetAssociationCardUrl(associationId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+
+    const err: globalThis.Error & {info?: getAssociationCardResponseError['data'], status?: number} = new globalThis.Error();
+    const data : getAssociationCardResponseError['data'] = body ? JSON.parse(body) : {}
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: getAssociationCardResponseSuccess['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as getAssociationCardResponseSuccess
+}
+
+
+
+
+
+export const getGetAssociationCardQueryKey = (associationId: string,) => {
+    return [
+    `/api/identity/associations/${associationId}`
+    ] as const;
+    }
+
+
+export const getGetAssociationCardQueryOptions = <TData = Awaited<ReturnType<typeof getAssociationCard>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse; status?: number }>(associationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAssociationCard>>, TError, TData>>, fetch?: RequestInit}
+) => {
+
+const {query: queryOptions, fetch: fetchOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAssociationCardQueryKey(associationId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAssociationCard>>> = ({ signal }) => getAssociationCard(associationId, { signal, ...fetchOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: associationId !== null && associationId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAssociationCard>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetAssociationCardQueryResult = NonNullable<Awaited<ReturnType<typeof getAssociationCard>>>
+export type GetAssociationCardQueryError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse; status?: number }
+
+
+export function useGetAssociationCard<TData = Awaited<ReturnType<typeof getAssociationCard>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse; status?: number }>(
+ associationId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAssociationCard>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAssociationCard>>,
+          TError,
+          Awaited<ReturnType<typeof getAssociationCard>>
+        > , 'initialData'
+      >, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetAssociationCard<TData = Awaited<ReturnType<typeof getAssociationCard>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse; status?: number }>(
+ associationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAssociationCard>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAssociationCard>>,
+          TError,
+          Awaited<ReturnType<typeof getAssociationCard>>
+        > , 'initialData'
+      >, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetAssociationCard<TData = Awaited<ReturnType<typeof getAssociationCard>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse; status?: number }>(
+ associationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAssociationCard>>, TError, TData>>, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary The association card — state, current голова and the chain of confirmation (US-09, AC-29, AC-21)
+ */
+
+export function useGetAssociationCard<TData = Awaited<ReturnType<typeof getAssociationCard>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse; status?: number }>(
+ associationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAssociationCard>>, TError, TData>>, fetch?: RequestInit}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetAssociationCardQueryOptions(associationId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export type downloadConfirmationExtractResponse200 = {
+  data: ExtractFileResponse
+  status: 200
+}
+
+export type downloadConfirmationExtractResponse401 = {
+  data: SessionRequiredResponse
+  status: 401
+}
+
+export type downloadConfirmationExtractResponse403 = {
+  data: MemberOrDisabledResponse
+  status: 403
+}
+
+export type downloadConfirmationExtractResponse404 = {
+  data: NotFoundResponse
+  status: 404
+}
+
+export type downloadConfirmationExtractResponseSuccess = (downloadConfirmationExtractResponse200) & {
+  headers: Headers;
+};
+export type downloadConfirmationExtractResponseError = (downloadConfirmationExtractResponse401 | downloadConfirmationExtractResponse403 | downloadConfirmationExtractResponse404) & {
+  headers: Headers;
+};
+
+export const getDownloadConfirmationExtractUrl = (associationId: string,
+    extractId: string,) => {
+
+
+
+
+  return `/api/identity/associations/${associationId}/extracts/${extractId}`
+}
+
+/**
+ * @summary Download an extract an approved decision of this association relied on (AC-20, AC-29)
+ */
+export const downloadConfirmationExtract = async (associationId: string,
+    extractId: string, options?: RequestInit): Promise<downloadConfirmationExtractResponseSuccess> => {
+
+  const res = await fetch(getDownloadConfirmationExtractUrl(associationId,extractId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+  if (!res.ok) {
+    const errorBody = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+    const err: globalThis.Error & {info?: downloadConfirmationExtractResponseError['data'], status?: number} = new globalThis.Error();
+    const data : downloadConfirmationExtractResponseError['data'] = errorBody ? JSON.parse(errorBody) : {}
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const body = [204, 205, 304].includes(res.status) ? null : await res.blob();
+  const data: downloadConfirmationExtractResponseSuccess['data'] = body as downloadConfirmationExtractResponseSuccess['data']
+  return { data, status: res.status, headers: res.headers } as downloadConfirmationExtractResponseSuccess
+}
+
+
+
+
+
+export const getDownloadConfirmationExtractQueryKey = (associationId: string,
+    extractId: string,) => {
+    return [
+    `/api/identity/associations/${associationId}/extracts/${extractId}`
+    ] as const;
+    }
+
+
+export const getDownloadConfirmationExtractQueryOptions = <TData = Awaited<ReturnType<typeof downloadConfirmationExtract>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse; status?: number }>(associationId: string,
+    extractId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof downloadConfirmationExtract>>, TError, TData>>, fetch?: RequestInit}
+) => {
+
+const {query: queryOptions, fetch: fetchOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDownloadConfirmationExtractQueryKey(associationId,extractId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadConfirmationExtract>>> = ({ signal }) => downloadConfirmationExtract(associationId,extractId, { signal, ...fetchOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: associationId !== null && associationId !== undefined && extractId !== null && extractId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadConfirmationExtract>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type DownloadConfirmationExtractQueryResult = NonNullable<Awaited<ReturnType<typeof downloadConfirmationExtract>>>
+export type DownloadConfirmationExtractQueryError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse; status?: number }
+
+
+export function useDownloadConfirmationExtract<TData = Awaited<ReturnType<typeof downloadConfirmationExtract>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse; status?: number }>(
+ associationId: string,
+    extractId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof downloadConfirmationExtract>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof downloadConfirmationExtract>>,
+          TError,
+          Awaited<ReturnType<typeof downloadConfirmationExtract>>
+        > , 'initialData'
+      >, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useDownloadConfirmationExtract<TData = Awaited<ReturnType<typeof downloadConfirmationExtract>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse; status?: number }>(
+ associationId: string,
+    extractId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof downloadConfirmationExtract>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof downloadConfirmationExtract>>,
+          TError,
+          Awaited<ReturnType<typeof downloadConfirmationExtract>>
+        > , 'initialData'
+      >, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useDownloadConfirmationExtract<TData = Awaited<ReturnType<typeof downloadConfirmationExtract>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse; status?: number }>(
+ associationId: string,
+    extractId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof downloadConfirmationExtract>>, TError, TData>>, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Download an extract an approved decision of this association relied on (AC-20, AC-29)
+ */
+
+export function useDownloadConfirmationExtract<TData = Awaited<ReturnType<typeof downloadConfirmationExtract>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse; status?: number }>(
+ associationId: string,
+    extractId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof downloadConfirmationExtract>>, TError, TData>>, fetch?: RequestInit}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getDownloadConfirmationExtractQueryOptions(associationId,extractId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export type getStorageConnectionResponse200 = {
+  data: StorageConnection
+  status: 200
+}
+
+export type getStorageConnectionResponse401 = {
+  data: SessionRequiredResponse
+  status: 401
+}
+
+export type getStorageConnectionResponse403 = {
+  data: MemberOrDisabledResponse
+  status: 403
+}
+
+export type getStorageConnectionResponseSuccess = (getStorageConnectionResponse200) & {
+  headers: Headers;
+};
+export type getStorageConnectionResponseError = (getStorageConnectionResponse401 | getStorageConnectionResponse403) & {
+  headers: Headers;
+};
+
+export const getGetStorageConnectionUrl = (associationId: string,) => {
+
+
+
+
+  return `/api/identity/associations/${associationId}/storage-connection`
+}
+
+/**
+ * @summary Whether the document storage is connected and which account holds the files (AC-27, AC-09)
+ */
+export const getStorageConnection = async (associationId: string, options?: RequestInit): Promise<getStorageConnectionResponseSuccess> => {
+
+  const res = await fetch(getGetStorageConnectionUrl(associationId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+
+    const err: globalThis.Error & {info?: getStorageConnectionResponseError['data'], status?: number} = new globalThis.Error();
+    const data : getStorageConnectionResponseError['data'] = body ? JSON.parse(body) : {}
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: getStorageConnectionResponseSuccess['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as getStorageConnectionResponseSuccess
+}
+
+
+
+
+
+export const getGetStorageConnectionQueryKey = (associationId: string,) => {
+    return [
+    `/api/identity/associations/${associationId}/storage-connection`
+    ] as const;
+    }
+
+
+export const getGetStorageConnectionQueryOptions = <TData = Awaited<ReturnType<typeof getStorageConnection>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse; status?: number }>(associationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStorageConnection>>, TError, TData>>, fetch?: RequestInit}
+) => {
+
+const {query: queryOptions, fetch: fetchOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStorageConnectionQueryKey(associationId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStorageConnection>>> = ({ signal }) => getStorageConnection(associationId, { signal, ...fetchOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: associationId !== null && associationId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStorageConnection>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetStorageConnectionQueryResult = NonNullable<Awaited<ReturnType<typeof getStorageConnection>>>
+export type GetStorageConnectionQueryError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse; status?: number }
+
+
+export function useGetStorageConnection<TData = Awaited<ReturnType<typeof getStorageConnection>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse; status?: number }>(
+ associationId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStorageConnection>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getStorageConnection>>,
+          TError,
+          Awaited<ReturnType<typeof getStorageConnection>>
+        > , 'initialData'
+      >, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetStorageConnection<TData = Awaited<ReturnType<typeof getStorageConnection>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse; status?: number }>(
+ associationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStorageConnection>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getStorageConnection>>,
+          TError,
+          Awaited<ReturnType<typeof getStorageConnection>>
+        > , 'initialData'
+      >, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetStorageConnection<TData = Awaited<ReturnType<typeof getStorageConnection>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse; status?: number }>(
+ associationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStorageConnection>>, TError, TData>>, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Whether the document storage is connected and which account holds the files (AC-27, AC-09)
+ */
+
+export function useGetStorageConnection<TData = Awaited<ReturnType<typeof getStorageConnection>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse; status?: number }>(
+ associationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStorageConnection>>, TError, TData>>, fetch?: RequestInit}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetStorageConnectionQueryOptions(associationId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export type completeStorageConnectionResponse201 = {
+  data: StorageConnection
+  status: 201
+}
+
+export type completeStorageConnectionResponse401 = {
+  data: SessionRequiredResponse
+  status: 401
+}
+
+export type completeStorageConnectionResponse403 = {
+  data: MemberOrDisabledResponse
+  status: 403
+}
+
+export type completeStorageConnectionResponse409 = {
+  data: Problem
+  status: 409
+}
+
+export type completeStorageConnectionResponse422 = {
+  data: ValidationFailedResponse
+  status: 422
+}
+
+export type completeStorageConnectionResponseSuccess = (completeStorageConnectionResponse201) & {
+  headers: Headers;
+};
+export type completeStorageConnectionResponseError = (completeStorageConnectionResponse401 | completeStorageConnectionResponse403 | completeStorageConnectionResponse409 | completeStorageConnectionResponse422) & {
+  headers: Headers;
+};
+
+export const getCompleteStorageConnectionUrl = (associationId: string,) => {
+
+
+
+
+  return `/api/identity/associations/${associationId}/storage-connection`
+}
+
+/**
+ * The SPA's callback route posts the authorization code and state; the state is bound to the session and
+ * the association. When a storage is already connected, the new account replaces the stored one under the
+ * same rules and no file is moved (SAD §8, open question of PRD §8).
+ * @summary Finish the storage consent the SPA received back from Google (ADR-0008, AC-27, AC-28b)
+ */
+export const completeStorageConnection = async (associationId: string,
+    completeStorageConnectionRequest: CompleteStorageConnectionRequest, options?: RequestInit): Promise<completeStorageConnectionResponseSuccess> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+const res = await fetch(getCompleteStorageConnectionUrl(associationId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(completeStorageConnectionRequest)
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+
+    const err: globalThis.Error & {info?: completeStorageConnectionResponseError['data'], status?: number} = new globalThis.Error();
+    const data : completeStorageConnectionResponseError['data'] = body ? JSON.parse(body) : {}
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: completeStorageConnectionResponseSuccess['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as completeStorageConnectionResponseSuccess
+}
+
+
+
+
+
+export const getCompleteStorageConnectionMutationKey = () => ['completeStorageConnection'] as const;
+
+export const getCompleteStorageConnectionMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | Problem | ValidationFailedResponse; status?: number },
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeStorageConnection>>, TError,CompleteStorageConnectionMutationVariables, TContext>, fetch?: RequestInit}
+): UseMutationOptions<Awaited<ReturnType<typeof completeStorageConnection>>, TError,CompleteStorageConnectionMutationVariables, TContext> => {
+
+const mutationKey = getCompleteStorageConnectionMutationKey();
+const {mutation: mutationOptions, fetch: fetchOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, fetch: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof completeStorageConnection>>, CompleteStorageConnectionMutationVariables> = (props) => {
+          const {associationId,data} = props ?? {};
+
+          return  completeStorageConnection(associationId,data,fetchOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CompleteStorageConnectionMutationResult = NonNullable<Awaited<ReturnType<typeof completeStorageConnection>>>
+    export type CompleteStorageConnectionMutationBody = CompleteStorageConnectionRequest
+    export type CompleteStorageConnectionMutationError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | Problem | ValidationFailedResponse; status?: number }
+    export type CompleteStorageConnectionMutationVariables = {associationId: string;data: CompleteStorageConnectionRequest}
+
+    /**
+ * @summary Finish the storage consent the SPA received back from Google (ADR-0008, AC-27, AC-28b)
+ */
+export const useCompleteStorageConnection = <TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | Problem | ValidationFailedResponse; status?: number },
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeStorageConnection>>, TError,CompleteStorageConnectionMutationVariables, TContext>, fetch?: RequestInit}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof completeStorageConnection>>,
+        TError,
+        CompleteStorageConnectionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCompleteStorageConnectionMutationOptions(options), queryClient);
+    }
+    export type startStorageConnectionResponse302 = {
+  data: void
+  status: 302
+}
+
+export type startStorageConnectionResponse401 = {
+  data: SessionRequiredResponse
+  status: 401
+}
+
+export type startStorageConnectionResponse403 = {
+  data: MemberOrDisabledResponse
+  status: 403
+}
+
+;
+export type startStorageConnectionResponseError = (startStorageConnectionResponse302 | startStorageConnectionResponse401 | startStorageConnectionResponse403) & {
+  headers: Headers;
+};
+
+export type startStorageConnectionResponse = (startStorageConnectionResponseError)
+
+export const getStartStorageConnectionUrl = (associationId: string,) => {
+
+
+
+
+  return `/api/identity/associations/${associationId}/storage-connection/authorization`
+}
+
+/**
+ * @summary Redirect a член правління to the storage consent (drive.file, offline) — ADR-0008
+ */
+export const startStorageConnection = async (associationId: string, options?: RequestInit): Promise<startStorageConnectionResponse> => {
+
+  const res = await fetch(getStartStorageConnectionUrl(associationId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+
+    const err: globalThis.Error & {info?: startStorageConnectionResponseError['data'], status?: number} = new globalThis.Error();
+    const data : startStorageConnectionResponseError['data'] = body ? JSON.parse(body) : {}
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: startStorageConnectionResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as startStorageConnectionResponse
+}
+
+
+
+
+
+export const getStartStorageConnectionQueryKey = (associationId: string,) => {
+    return [
+    `/api/identity/associations/${associationId}/storage-connection/authorization`
+    ] as const;
+    }
+
+
+export const getStartStorageConnectionQueryOptions = <TData = Awaited<ReturnType<typeof startStorageConnection>>, TError = globalThis.Error & { info?: void | SessionRequiredResponse | MemberOrDisabledResponse; status?: number }>(associationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof startStorageConnection>>, TError, TData>>, fetch?: RequestInit}
+) => {
+
+const {query: queryOptions, fetch: fetchOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getStartStorageConnectionQueryKey(associationId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof startStorageConnection>>> = ({ signal }) => startStorageConnection(associationId, { signal, ...fetchOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: associationId !== null && associationId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof startStorageConnection>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type StartStorageConnectionQueryResult = NonNullable<Awaited<ReturnType<typeof startStorageConnection>>>
+export type StartStorageConnectionQueryError = globalThis.Error & { info?: void | SessionRequiredResponse | MemberOrDisabledResponse; status?: number }
+
+
+export function useStartStorageConnection<TData = Awaited<ReturnType<typeof startStorageConnection>>, TError = globalThis.Error & { info?: void | SessionRequiredResponse | MemberOrDisabledResponse; status?: number }>(
+ associationId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof startStorageConnection>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof startStorageConnection>>,
+          TError,
+          Awaited<ReturnType<typeof startStorageConnection>>
+        > , 'initialData'
+      >, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useStartStorageConnection<TData = Awaited<ReturnType<typeof startStorageConnection>>, TError = globalThis.Error & { info?: void | SessionRequiredResponse | MemberOrDisabledResponse; status?: number }>(
+ associationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof startStorageConnection>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof startStorageConnection>>,
+          TError,
+          Awaited<ReturnType<typeof startStorageConnection>>
+        > , 'initialData'
+      >, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useStartStorageConnection<TData = Awaited<ReturnType<typeof startStorageConnection>>, TError = globalThis.Error & { info?: void | SessionRequiredResponse | MemberOrDisabledResponse; status?: number }>(
+ associationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof startStorageConnection>>, TError, TData>>, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Redirect a член правління to the storage consent (drive.file, offline) — ADR-0008
+ */
+
+export function useStartStorageConnection<TData = Awaited<ReturnType<typeof startStorageConnection>>, TError = globalThis.Error & { info?: void | SessionRequiredResponse | MemberOrDisabledResponse; status?: number }>(
+ associationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof startStorageConnection>>, TError, TData>>, fetch?: RequestInit}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getStartStorageConnectionQueryOptions(associationId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

@@ -4,7 +4,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING *;
 
 -- name: GetMeeting :one
-SELECT * FROM meetings WHERE id = $1;
+SELECT * FROM meetings WHERE id = sqlc.arg(id) AND association_id = sqlc.arg(association_id);
 
 -- name: ListMeetings :many
 -- Pages newest first by the (created_at, id) keyset; a NULL after_created_at

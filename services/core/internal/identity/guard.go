@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	"github.com/AndriiOpryshko/spilno/services/core/internal/identity/adapters/postgres"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/identity/app"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/identity/domain"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/db"
@@ -19,6 +20,9 @@ import (
 const (
 	operatorPrefix = "/identity/operator/"
 	sessionCookie  = "spilno_session"
+
+	notMemberDetail = "You are not a current member of this association."
+	disabledDetail  = "This association is disabled and read-only."
 )
 
 // Membership is what the guard asks of the roster, on the transaction in ctx.
@@ -65,9 +69,8 @@ func (m *Module) Guard(roster Membership) func(http.Handler) http.Handler {
 }
 
 func (m *Module) serveAssociation(w http.ResponseWriter, r *http.Request, next http.Handler, roster Membership, actor Actor, rawID string) {
-	refuse := func() {
-		writeProblem(w, http.StatusForbidden, "Forbidden", "You are not a current member of this association.", domain.CodeNotCurrentMember)
-	}
+	code, detail := domain.CodeNotCurrentMember, notMemberDetail
+	refuse := func() { writeProblem(w, http.StatusForbidden, "Forbidden", detail, code) }
 	id, err := uuid.Parse(rawID)
 	if err != nil {
 		refuse()
@@ -81,8 +84,22 @@ func (m *Module) serveAssociation(w http.ResponseWriter, r *http.Request, next h
 			return err
 		}
 		actor.Member = ok
-		if d := domain.Decide(actor, domain.AssociationPath, ""); !d.Allowed {
+		if ok {
+			disabled, reason, err := postgres.DisabledState(ctx, id)
+			if err != nil {
+				return err
+			}
+			actor.ReadOnly, actor.DisabledReason = disabled, reason
+		}
+		if d := domain.Decide(actor, domain.AssociationPath, operationID(r)); !d.Allowed {
 			refused = true
+			code, detail = d.Code, notMemberDetail
+			if d.Code == domain.CodeAssociationDisabled {
+				detail = d.Reason
+				if detail == "" {
+					detail = disabledDetail
+				}
+			}
 			return nil
 		}
 		rec := &statusRecorder{ResponseWriter: w}
@@ -99,6 +116,22 @@ func (m *Module) serveAssociation(w http.ResponseWriter, r *http.Request, next h
 	case err != nil:
 		writeProblem(w, http.StatusInternalServerError, "Internal Server Error", "", "")
 	}
+}
+
+// readOnlyOperations are the operations a disabled association still serves, by method and route.
+var readOnlyOperations = map[string]string{
+	"GET /governance/associations/{association_id}/registry/decisions":               "searchRegistry",
+	"GET /governance/associations/{association_id}/registry/protocols/{protocol_id}": "getSignedProtocol",
+	"GET /governance/associations/{association_id}/files/{file_id}":                  "downloadFile",
+}
+
+// operationID names the operation the request routed to when the decision table cares about it.
+func operationID(r *http.Request) string {
+	rc := chi.RouteContext(r.Context())
+	if rc == nil {
+		return ""
+	}
+	return readOnlyOperations[r.Method+" "+rc.RoutePattern()]
 }
 
 func (m *Module) principal(r *http.Request) (domain.Principal, error) {

@@ -143,6 +143,13 @@ func run() error {
 	if !wired {
 		slog.Info("google connection is not configured")
 	}
+	if wired && cfg.DevStorage {
+		slog.Warn("development storage consent is on; never use it in production")
+		idm.EnableStorageConnection(identity.StorageConnectionConfig{
+			Consent: google.DevConsent{ReturnURL: cfg.WebOrigin + "/storage/callback", Account: "osbb-storage@example.test"},
+			Members: gov,
+		})
+	}
 	for _, m := range []module{system.New(pool)} {
 		if err := m.Routes(r); err != nil {
 			return err

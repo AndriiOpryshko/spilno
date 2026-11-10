@@ -60,7 +60,7 @@ description = "Component workshop on :6006 (stories mirror the Figma component v
 run = "pnpm --filter @spilno/web storybook"
 
 [tasks.e2e]
-description = "Playwright against the running stack (core API up with SPILNO_DEV_SIGN_IN=true, SPILNO_OPERATOR_EMAIL=operator@example.test and GOOGLE_* placeholders; see the e2e job in ci.yml)"
+description = "Playwright against the running stack (core API up with SPILNO_DEV_SIGN_IN=true, SPILNO_DEV_STORAGE=true, SPILNO_OPERATOR_EMAIL=operator@example.test and GOOGLE_* placeholders; see the e2e job in ci.yml)"
 run = "pnpm --filter @spilno/web e2e"
 
 [tasks."migrate:new"]

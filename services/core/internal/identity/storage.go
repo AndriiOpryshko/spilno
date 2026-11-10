@@ -15,9 +15,15 @@ import (
 	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/google"
 )
 
+// StorageConsent is the Google consent the connection flow runs (google.Consent, or the development fake).
+type StorageConsent interface {
+	AuthURL(state string) string
+	Complete(ctx context.Context, code string) (google.Grant, error)
+}
+
 // StorageConnectionConfig is what the web flow that connects the association's document storage needs.
 type StorageConnectionConfig struct {
-	Consent google.Consent
+	Consent StorageConsent
 	Members app.StorageMembers
 }
 
@@ -32,7 +38,7 @@ func (m *Module) EnableStorageConnection(cfg StorageConnectionConfig) {
 }
 
 // googleConsent adapts google.Consent to the storage consent port.
-type googleConsent struct{ c google.Consent }
+type googleConsent struct{ c StorageConsent }
 
 func (g googleConsent) AuthURL(state string) string { return g.c.AuthURL(state) }
 

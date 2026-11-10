@@ -15,6 +15,8 @@ type Config struct {
 	OTLPEndpoint string
 	// DevSignIn turns on the development sign-in shim; off unless SPILNO_DEV_SIGN_IN=true.
 	DevSignIn bool
+	// DevStorage swaps the Google storage consent for a fake; off unless SPILNO_DEV_STORAGE=true.
+	DevStorage bool
 	// OperatorEmail is the address whose session is the оператор (SPILNO_OPERATOR_EMAIL).
 	OperatorEmail string
 	// WebOrigin is where the web app is served (SPILNO_WEB_ORIGIN); the storage consent returns to it.
@@ -30,6 +32,7 @@ func Load() Config {
 		MigrationsDatabaseURL: env("MIGRATIONS_DATABASE_URL", dbURL),
 		OTLPEndpoint:          os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"),
 		DevSignIn:             os.Getenv("SPILNO_DEV_SIGN_IN") == "true",
+		DevStorage:            os.Getenv("SPILNO_DEV_STORAGE") == "true",
 		OperatorEmail:         os.Getenv("SPILNO_OPERATOR_EMAIL"),
 		WebOrigin:             env("SPILNO_WEB_ORIGIN", "http://localhost:5180"),
 	}

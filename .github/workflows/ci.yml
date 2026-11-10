@@ -98,6 +98,7 @@ jobs:
           DATABASE_URL: postgres://spilno_app_login:spilno_app_login@postgres:5432/spilno?sslmode=disable
           # The sign-in provider is faked: the dev shim takes the callback code as a verified address.
           SPILNO_DEV_SIGN_IN: "true"
+          SPILNO_DEV_STORAGE: "true"
           SPILNO_OPERATOR_EMAIL: operator@example.test
           # Placeholder Google client and token key (32 bytes, base64): the storage line renders, nothing calls Google.
           GOOGLE_OAUTH_CLIENT_ID: e2e-client.invalid

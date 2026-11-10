@@ -9,7 +9,8 @@ export function OperatorQueue() {
   if (error && (error as { status?: number }).status === 403) {
     return <p className="mx-auto mt-8 max-w-2xl">{uk.operator.notOperator}</p>;
   }
-  const items = data?.data.items ?? [];
+  if (!data) return null;
+  const items = data.data.items;
   return (
     <section className="mx-auto mt-8 flex max-w-2xl flex-col gap-3">
       <h1 className="text-xl font-semibold">{uk.operator.queueTitle}</h1>

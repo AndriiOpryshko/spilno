@@ -1,9 +1,9 @@
 import { useGetApplicationForReview } from '@/api/gen/endpoints/identity/identity';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { uk } from '@/i18n/uk';
 
 import { CheckForm } from './check-form';
+import { DecisionPanel } from './decision-panel';
 import { ExtractSource, NotChecked, SignatureSource } from './source-label';
 
 function Row({ label, children, source }: { label: string; children: React.ReactNode; source: React.ReactNode }) {
@@ -74,7 +74,7 @@ export function ReviewPage({ applicationId }: { applicationId: string }) {
           <CheckForm applicationId={applicationId} filingId={filing.id} />
         </>
       )}
-      <Button type="button">{uk.operator.approve}</Button>
+      {filing && <DecisionPanel applicationId={applicationId} filingId={filing.id} review={review} />}
     </section>
   );
 }

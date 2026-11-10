@@ -43,7 +43,7 @@
 | [T36](./T36-ui-filing-forms.md) | Build the filing forms for a заявка на підключення and a запит на передачу | ui | Andrii Opryshko | L | T35 | done |
 | [T37](./T37-ui-my-applications.md) | Show my applications: status, the оператор's contact, the reason and refiling | ui | Andrii Opryshko | M | T36 | done |
 | [T38](./T38-ui-operator-queue-review.md) | Build the оператор's queue and the review page with sources, warnings and the check form | ui | Andrii Opryshko | L | T36 | done |
-| [T39](./T39-ui-operator-decisions.md) | Add the оператор's decisions: approve, reject and their refusals | ui | Andrii Opryshko | M | T38 | todo |
+| [T39](./T39-ui-operator-decisions.md) | Add the оператор's decisions: approve, reject and their refusals | ui | Andrii Opryshko | M | T38 | done |
 | [T40](./T40-ui-operator-associations.md) | Build the оператор's associations list with disabling and enabling | ui | Andrii Opryshko | M | T35 | done |
 | [T41](./T41-ui-association-card.md) | Build the association card with the confirmation chain and the roster marks | ui | Andrii Opryshko | M | T35 | done |
 | [T42](./T42-ui-storage-and-suspended-notice.md) | Show the storage connection, the connect flow and the «Доступ призупинено» notice | ui | Andrii Opryshko | M | T41 | done |

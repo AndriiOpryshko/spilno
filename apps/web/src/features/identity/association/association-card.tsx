@@ -37,6 +37,13 @@ export function AssociationCard({ card }: { card: Card }) {
                 {t.kind[e.kind]} · {t.decidedOn(formatDate(e.occurred_at))}
               </p>
               {e.reason && <p>{e.reason}</p>}
+              {e.kind === 'transfer_approved' &&
+                e.filed_at &&
+                [t.markAppointed, t.markEnded].map((what) => (
+                  <p key={what} className="text-sm text-muted-foreground">
+                    {t.mark(what, formatDate(e.filed_at as string), formatDate(e.occurred_at))}
+                  </p>
+                ))}
               {e.head_full_name && <p>{e.head_full_name}</p>}
               {e.signer_full_name && <p>{t.signer(e.signer_full_name)}</p>}
               {e.extract_dated_on && <p>{t.extractDated(formatDate(e.extract_dated_on))}</p>}

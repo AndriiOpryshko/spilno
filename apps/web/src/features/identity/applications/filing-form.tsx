@@ -42,6 +42,7 @@ const refusalMessages: Record<string, string> = {
   'identity.term_ended': uk.applications.termEnded,
   'identity.application_already_open': uk.applications.alreadyOpen,
   'identity.association_already_connected': uk.applications.alreadyConnected,
+  'identity.association_not_connected': uk.association.notConnected,
 };
 
 const knownRefusalMessage = (problem?: Problem) => (problem?.code ? refusalMessages[problem.code] : undefined);

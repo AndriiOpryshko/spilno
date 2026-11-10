@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { createFileRoute, Navigate, Outlet } from '@tanstack/react-router';
+import { createFileRoute, Navigate, Outlet, useRouterState } from '@tanstack/react-router';
+import { useEffect, useRef } from 'react';
 
 import { getSession, listMemberships } from '@/api/gen/endpoints/identity/identity';
 import { Sidebar } from '@/components/app-shell';
@@ -15,6 +16,17 @@ function AssociationLayout() {
   const session = useQuery({ queryKey: ['session'], queryFn: () => getSession(), retry: false });
   const memberships = useQuery({ queryKey: ['memberships'], queryFn: () => listMemberships(), enabled: session.isSuccess, retry: false });
   const cases = useQuery({ queryKey: ['cases', associationId], queryFn: listCases, enabled: session.isSuccess });
+
+  // Every navigation inside the association re-reads the roster, so a person removed
+  // by a decision made elsewhere is refused on the next action (AC-19).
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const lastPath = useRef(pathname);
+  const refetchMemberships = memberships.refetch;
+  useEffect(() => {
+    if (lastPath.current === pathname) return;
+    lastPath.current = pathname;
+    void refetchMemberships();
+  }, [pathname, refetchMemberships]);
 
   if (session.isError) return <Navigate to="/sign-in" replace />;
   if (isNoAccessProblem(memberships.error) || isNoAccessProblem(cases.error)) return <Navigate to="/no-access" replace />;

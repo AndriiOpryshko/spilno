@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as NoAccessRouteImport } from './routes/no-access'
 import { Route as SignInRouteImport } from './routes/sign-in'
+import { Route as StatusRouteImport } from './routes/status'
 import { Route as ApplicationsIndexRouteImport } from './routes/applications.index'
 import { Route as ApplicationsApplicationIdRouteImport } from './routes/applications.$applicationId'
 import { Route as ApplicationsNewRouteImport } from './routes/applications.new'
@@ -39,6 +40,11 @@ const NoAccessRoute = NoAccessRouteImport.update({
 const SignInRoute = SignInRouteImport.update({
   id: '/sign-in',
   path: '/sign-in',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StatusRoute = StatusRouteImport.update({
+  id: '/status',
+  path: '/status',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApplicationsIndexRoute = ApplicationsIndexRouteImport.update({
@@ -117,6 +123,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/no-access': typeof NoAccessRoute
   '/sign-in': typeof SignInRoute
+  '/status': typeof StatusRoute
   '/applications/$applicationId': typeof ApplicationsApplicationIdRoute
   '/applications/new': typeof ApplicationsNewRoute
   '/o/$associationId': typeof OAssociationIdRouteWithChildren
@@ -135,6 +142,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/no-access': typeof NoAccessRoute
   '/sign-in': typeof SignInRoute
+  '/status': typeof StatusRoute
   '/applications/$applicationId': typeof ApplicationsApplicationIdRoute
   '/applications/new': typeof ApplicationsNewRoute
   '/o/$associationId': typeof OAssociationIdRouteWithChildren
@@ -154,6 +162,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/no-access': typeof NoAccessRoute
   '/sign-in': typeof SignInRoute
+  '/status': typeof StatusRoute
   '/applications/$applicationId': typeof ApplicationsApplicationIdRoute
   '/applications/new': typeof ApplicationsNewRoute
   '/o/$associationId': typeof OAssociationIdRouteWithChildren
@@ -174,6 +183,7 @@ export interface FileRouteTypes {
     | '/'
     | '/no-access'
     | '/sign-in'
+    | '/status'
     | '/applications/$applicationId'
     | '/applications/new'
     | '/o/$associationId'
@@ -192,6 +202,7 @@ export interface FileRouteTypes {
     | '/'
     | '/no-access'
     | '/sign-in'
+    | '/status'
     | '/applications/$applicationId'
     | '/applications/new'
     | '/o/$associationId'
@@ -210,6 +221,7 @@ export interface FileRouteTypes {
     | '/'
     | '/no-access'
     | '/sign-in'
+    | '/status'
     | '/applications/$applicationId'
     | '/applications/new'
     | '/o/$associationId'
@@ -229,6 +241,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   NoAccessRoute: typeof NoAccessRoute
   SignInRoute: typeof SignInRoute
+  StatusRoute: typeof StatusRoute
   ApplicationsApplicationIdRoute: typeof ApplicationsApplicationIdRoute
   ApplicationsNewRoute: typeof ApplicationsNewRoute
   OAssociationIdRoute: typeof OAssociationIdRouteWithChildren
@@ -262,6 +275,13 @@ declare module '@tanstack/react-router' {
       path: '/sign-in'
       fullPath: '/sign-in'
       preLoaderRoute: typeof SignInRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/status': {
+      id: '/status'
+      path: '/status'
+      fullPath: '/status'
+      preLoaderRoute: typeof StatusRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/applications/': {
@@ -379,6 +399,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   NoAccessRoute: NoAccessRoute,
   SignInRoute: SignInRoute,
+  StatusRoute: StatusRoute,
   ApplicationsApplicationIdRoute: ApplicationsApplicationIdRoute,
   ApplicationsNewRoute: ApplicationsNewRoute,
   OAssociationIdRoute: OAssociationIdRouteWithChildren,

@@ -1,13 +1,13 @@
 import { expect, test } from '@playwright/test';
 
 // verify-ui on the first screen found one console error: /favicon.ico answered 404.
-test('home page loads without console errors and serves its favicon', async ({ page }) => {
+test('status page loads without console errors and serves its favicon', async ({ page }) => {
   const errors: string[] = [];
   page.on('console', (m) => {
     if (m.type() === 'error') errors.push(m.text());
   });
 
-  await page.goto('/');
+  await page.goto('/status');
   await expect(page.getByText('Service health')).toBeVisible();
 
   const href = await page.locator('link[rel="icon"]').getAttribute('href');

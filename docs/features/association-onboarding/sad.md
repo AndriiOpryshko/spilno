@@ -123,8 +123,8 @@ Hexagonal per context, as the repo already does. The feature extends `identity` 
 
 ```
 services/core/internal/identity/
-├── domain/              association state, application and filing, extract check, decision; sentinels for PRD §5.1 identity.* codes
-├── app/                 file, refile, record check, approve, reject, disable, enable, connect storage; operator check
+├── domain/              association state, application and filing, extract check, name comparison, decision; sentinels for PRD §5.1 identity.* codes
+├── app/                 file, refile, record check, approve, reject, disable, enable, connect storage; operator check, own-filing guard
 ├── ports/               Membership (governance), Applications, Associations, Extracts repositories
 ├── adapters/http/       StrictServerInterface; session + association middleware
 ├── adapters/postgres/   queries/ → sqlcgen/
@@ -171,7 +171,7 @@ C4Container
 
 Dropped recommended containers: `files` (case files stay in the association's Drive, board-protocol ADR-0005; extracts live in `db`, ADR-0005), `ai` and `qes` (no AI; the КЕП is checked by hand).
 
-**Roster change on approval** → [ADR-0006](./adr/0006-apply-approvals-to-the-roster-through-a-governance-facade-in-one-transaction.md): identity's approval use case calls `governance.SeatHead` / `EndTerm` inside one transaction carried in `ctx`.
+**Roster change on approval** → [ADR-0006](./adr/0006-apply-approvals-to-the-roster-through-a-governance-facade-in-one-transaction.md): identity's approval use case calls `governance.SeatHead` / `EndTerm` inside one transaction carried in `ctx`. `SeatHead` creates the entry of a person who is not on the roster; for a person with a current entry it appends a revision of that entry with the position голова правління and the decision reference, never a second entry (AC-19, AC-19c) — the entry keeps its own term, the term typed in the запит stays with the filing. `EndTerm` ends the whole entry of the голова recorded by the previous approval and no other member's; it is not called when no голова is recorded (AC-19c) or when that голова is the applicant.
 
 ## 6. Runtime view
 

@@ -33,6 +33,33 @@ type BoardMemberEntry struct {
 	FullName    string
 	SignInEmail string
 	Term        Term
+	Position    Position
+	DecisionID  string
+}
+
+// Position is the seat an entry holds on the board.
+type Position string
+
+const (
+	PositionHead   Position = "head"
+	PositionMember Position = "member"
+)
+
+// PreviousHeadTermEnd is the end date of the outgoing head: the day before the new
+// term starts, never before the entry's own first day.
+func PreviousHeadTermEnd(newTermStart, previousEntryStart time.Time) time.Time {
+	end := newTermStart.AddDate(0, 0, -1)
+	if dateKey(end) < dateKey(previousEntryStart) {
+		return previousEntryStart
+	}
+	return end
+}
+
+// Reseat returns the entry as head under the given decision, keeping its own term.
+func Reseat(entry BoardMemberEntry, decisionID string) BoardMemberEntry {
+	entry.Position = PositionHead
+	entry.DecisionID = decisionID
+	return entry
 }
 
 // Validate names every broken field at once.
@@ -49,6 +76,11 @@ func (e BoardMemberEntry) Validate() error {
 	}
 	if !e.Term.End.IsZero() && !e.Term.Start.IsZero() && dateKey(e.Term.End) < dateKey(e.Term.Start) {
 		issues = append(issues, FieldIssue{"/term_end", "must not be before term_start"})
+	}
+	switch e.Position {
+	case "", PositionHead, PositionMember:
+	default:
+		issues = append(issues, FieldIssue{"/position", "must be head or member"})
 	}
 	if len(issues) == 0 {
 		return nil

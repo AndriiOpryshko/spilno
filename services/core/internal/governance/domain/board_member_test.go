@@ -91,3 +91,76 @@ func TestTerm_CoversDate(t *testing.T) {
 		})
 	}
 }
+
+func TestBoardMemberEntry_Validate_Position(t *testing.T) {
+	base := BoardMemberEntry{FullName: "Test User", Term: Term{Start: day(2026, 1, 1)}}
+
+	for _, p := range []Position{PositionHead, PositionMember} {
+		e := base
+		e.Position = p
+		e.DecisionID = "0198f0a0-0000-7000-8000-000000000001"
+		if err := e.Validate(); err != nil {
+			t.Errorf("position %q: Validate() = %v, want nil", p, err)
+		}
+	}
+
+	e := base
+	e.Position = Position("chair")
+	got := pointersOf(t, e.Validate(), CodeRosterEntryInvalid)
+	if want := []string{"/position"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("pointers = %v, want %v", got, want)
+	}
+}
+
+func TestPositionValues(t *testing.T) {
+	if PositionHead != "head" || PositionMember != "member" {
+		t.Errorf("positions = %q, %q; want head, member", PositionHead, PositionMember)
+	}
+}
+
+func TestPreviousHeadTermEnd(t *testing.T) {
+	tests := []struct {
+		name                       string
+		newTermStart, previousFrom time.Time
+		want                       time.Time
+	}{
+		{"day before the new term start", day(2026, 11, 20), day(2025, 1, 1), day(2026, 11, 19)},
+		{"across a month boundary", day(2026, 12, 1), day(2025, 1, 1), day(2026, 11, 30)},
+		{"never before the entry's first day", day(2026, 11, 20), day(2026, 11, 25), day(2026, 11, 25)},
+		{"new term starts the day the entry began", day(2026, 11, 20), day(2026, 11, 20), day(2026, 11, 20)},
+		{"entry began the day before the new term start", day(2026, 11, 20), day(2026, 11, 19), day(2026, 11, 19)},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := PreviousHeadTermEnd(tc.newTermStart, tc.previousFrom)
+			if dateKey(got) != dateKey(tc.want) {
+				t.Errorf("PreviousHeadTermEnd(%s, %s) = %s, want %s",
+					tc.newTermStart.Format("2006-01-02"), tc.previousFrom.Format("2006-01-02"),
+					got.Format("2006-01-02"), tc.want.Format("2006-01-02"))
+			}
+		})
+	}
+}
+
+func TestReseat(t *testing.T) {
+	term := Term{Start: day(2024, 3, 1), End: day(2027, 3, 1)}
+	entry := BoardMemberEntry{FullName: "Test User", SignInEmail: "user@example.test", Position: PositionMember, Term: term}
+
+	got := Reseat(entry, "0198f0a0-0000-7000-8000-000000000002")
+
+	if got.Position != PositionHead {
+		t.Errorf("Position = %q, want %q", got.Position, PositionHead)
+	}
+	if got.DecisionID != "0198f0a0-0000-7000-8000-000000000002" {
+		t.Errorf("DecisionID = %q, want the decision reference", got.DecisionID)
+	}
+	if got.Term != term {
+		t.Errorf("Term = %v, want the entry's own term %v", got.Term, term)
+	}
+	if got.FullName != entry.FullName || got.SignInEmail != entry.SignInEmail {
+		t.Errorf("identity changed: %+v, want %q / %q", got, entry.FullName, entry.SignInEmail)
+	}
+	if entry.Position != PositionMember || entry.DecisionID != "" {
+		t.Errorf("input entry mutated: %+v", entry)
+	}
+}

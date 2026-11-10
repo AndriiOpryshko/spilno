@@ -17,10 +17,12 @@ import (
 
 type Module struct {
 	handler *identityhttp.Handler
+	pool    *pgxpool.Pool
+	google  *googleState // nil until EnableGoogle
 }
 
-func New(_ *pgxpool.Pool) *Module {
-	return &Module{handler: identityhttp.NewHandler()}
+func New(pool *pgxpool.Pool) *Module {
+	return &Module{handler: identityhttp.NewHandler(), pool: pool}
 }
 
 // Routes attaches the context's routes to r inside their own group, validated

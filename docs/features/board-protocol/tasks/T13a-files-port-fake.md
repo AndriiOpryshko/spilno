@@ -11,7 +11,7 @@ test_files:
   - services/core/internal/governance/adapters/filestest/contract.go
   - services/core/internal/governance/adapters/filesfake/fake_test.go
 estimate: "half a day"
-status: "todo"
+status: "done"
 ---
 
 # T13a — Declare the Files port and an in-memory fake that passes a shared contract test

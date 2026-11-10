@@ -51,6 +51,7 @@ import type {
   ListProtocolsParams,
   Meeting,
   MeetingPage,
+  MemberOrDisabledResponse,
   NewMeeting,
   NotCurrentMemberResponse,
   NotFoundResponse,
@@ -99,6 +100,11 @@ export type createMeetingResponse201 = {
   status: 201
 }
 
+export type createMeetingResponse403 = {
+  data: MemberOrDisabledResponse
+  status: 403
+}
+
 export type createMeetingResponse422 = {
   data: UnprocessableEntityResponse
   status: 422
@@ -107,7 +113,7 @@ export type createMeetingResponse422 = {
 export type createMeetingResponseSuccess = (createMeetingResponse201) & {
   headers: Headers;
 };
-export type createMeetingResponseError = (createMeetingResponse422) & {
+export type createMeetingResponseError = (createMeetingResponse403 | createMeetingResponse422) & {
   headers: Headers;
 };
 
@@ -168,7 +174,7 @@ const res = await fetch(getCreateMeetingUrl(associationId),
 
 export const getCreateMeetingMutationKey = () => ['createMeeting'] as const;
 
-export const getCreateMeetingMutationOptions = <TError = globalThis.Error & { info?: UnprocessableEntityResponse; status?: number },
+export const getCreateMeetingMutationOptions = <TError = globalThis.Error & { info?: MemberOrDisabledResponse | UnprocessableEntityResponse; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMeeting>>, TError,CreateMeetingMutationVariables, TContext>, fetch?: RequestInit}
 ): UseMutationOptions<Awaited<ReturnType<typeof createMeeting>>, TError,CreateMeetingMutationVariables, TContext> => {
 
@@ -197,13 +203,13 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
     export type CreateMeetingMutationResult = NonNullable<Awaited<ReturnType<typeof createMeeting>>>
     export type CreateMeetingMutationBody = NewMeeting
-    export type CreateMeetingMutationError = globalThis.Error & { info?: UnprocessableEntityResponse; status?: number }
+    export type CreateMeetingMutationError = globalThis.Error & { info?: MemberOrDisabledResponse | UnprocessableEntityResponse; status?: number }
     export type CreateMeetingMutationVariables = {associationId: string;data: NewMeeting}
 
     /**
  * @summary Schedule a board meeting
  */
-export const useCreateMeeting = <TError = globalThis.Error & { info?: UnprocessableEntityResponse; status?: number },
+export const useCreateMeeting = <TError = globalThis.Error & { info?: MemberOrDisabledResponse | UnprocessableEntityResponse; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMeeting>>, TError,CreateMeetingMutationVariables, TContext>, fetch?: RequestInit}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof createMeeting>>,
@@ -218,6 +224,11 @@ export const useCreateMeeting = <TError = globalThis.Error & { info?: Unprocessa
   status: 200
 }
 
+export type listMeetingsResponse403 = {
+  data: MemberOrDisabledResponse
+  status: 403
+}
+
 export type listMeetingsResponse422 = {
   data: UnprocessableEntityResponse
   status: 422
@@ -226,7 +237,7 @@ export type listMeetingsResponse422 = {
 export type listMeetingsResponseSuccess = (listMeetingsResponse200) & {
   headers: Headers;
 };
-export type listMeetingsResponseError = (listMeetingsResponse422) & {
+export type listMeetingsResponseError = (listMeetingsResponse403 | listMeetingsResponse422) & {
   headers: Headers;
 };
 
@@ -287,7 +298,7 @@ export const getListMeetingsQueryKey = (associationId: string,
     }
 
 
-export const getListMeetingsQueryOptions = <TData = Awaited<ReturnType<typeof listMeetings>>, TError = globalThis.Error & { info?: UnprocessableEntityResponse; status?: number }>(associationId: string,
+export const getListMeetingsQueryOptions = <TData = Awaited<ReturnType<typeof listMeetings>>, TError = globalThis.Error & { info?: MemberOrDisabledResponse | UnprocessableEntityResponse; status?: number }>(associationId: string,
     params?: ListMeetingsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMeetings>>, TError, TData>>, fetch?: RequestInit}
 ) => {
 
@@ -307,10 +318,10 @@ const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 }
 
 export type ListMeetingsQueryResult = NonNullable<Awaited<ReturnType<typeof listMeetings>>>
-export type ListMeetingsQueryError = globalThis.Error & { info?: UnprocessableEntityResponse; status?: number }
+export type ListMeetingsQueryError = globalThis.Error & { info?: MemberOrDisabledResponse | UnprocessableEntityResponse; status?: number }
 
 
-export function useListMeetings<TData = Awaited<ReturnType<typeof listMeetings>>, TError = globalThis.Error & { info?: UnprocessableEntityResponse; status?: number }>(
+export function useListMeetings<TData = Awaited<ReturnType<typeof listMeetings>>, TError = globalThis.Error & { info?: MemberOrDisabledResponse | UnprocessableEntityResponse; status?: number }>(
  associationId: string,
     params: undefined |  ListMeetingsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMeetings>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
@@ -321,7 +332,7 @@ export function useListMeetings<TData = Awaited<ReturnType<typeof listMeetings>>
       >, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListMeetings<TData = Awaited<ReturnType<typeof listMeetings>>, TError = globalThis.Error & { info?: UnprocessableEntityResponse; status?: number }>(
+export function useListMeetings<TData = Awaited<ReturnType<typeof listMeetings>>, TError = globalThis.Error & { info?: MemberOrDisabledResponse | UnprocessableEntityResponse; status?: number }>(
  associationId: string,
     params?: ListMeetingsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMeetings>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
@@ -332,7 +343,7 @@ export function useListMeetings<TData = Awaited<ReturnType<typeof listMeetings>>
       >, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListMeetings<TData = Awaited<ReturnType<typeof listMeetings>>, TError = globalThis.Error & { info?: UnprocessableEntityResponse; status?: number }>(
+export function useListMeetings<TData = Awaited<ReturnType<typeof listMeetings>>, TError = globalThis.Error & { info?: MemberOrDisabledResponse | UnprocessableEntityResponse; status?: number }>(
  associationId: string,
     params?: ListMeetingsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMeetings>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
@@ -341,7 +352,7 @@ export function useListMeetings<TData = Awaited<ReturnType<typeof listMeetings>>
  * @summary List meetings, newest first, one page at a time
  */
 
-export function useListMeetings<TData = Awaited<ReturnType<typeof listMeetings>>, TError = globalThis.Error & { info?: UnprocessableEntityResponse; status?: number }>(
+export function useListMeetings<TData = Awaited<ReturnType<typeof listMeetings>>, TError = globalThis.Error & { info?: MemberOrDisabledResponse | UnprocessableEntityResponse; status?: number }>(
  associationId: string,
     params?: ListMeetingsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMeetings>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
@@ -364,6 +375,11 @@ export type getMeetingResponse200 = {
   status: 200
 }
 
+export type getMeetingResponse403 = {
+  data: MemberOrDisabledResponse
+  status: 403
+}
+
 export type getMeetingResponse404 = {
   data: NotFoundResponse
   status: 404
@@ -377,7 +393,7 @@ export type getMeetingResponse422 = {
 export type getMeetingResponseSuccess = (getMeetingResponse200) & {
   headers: Headers;
 };
-export type getMeetingResponseError = (getMeetingResponse404 | getMeetingResponse422) & {
+export type getMeetingResponseError = (getMeetingResponse403 | getMeetingResponse404 | getMeetingResponse422) & {
   headers: Headers;
 };
 
@@ -431,7 +447,7 @@ export const getGetMeetingQueryKey = (associationId: string,
     }
 
 
-export const getGetMeetingQueryOptions = <TData = Awaited<ReturnType<typeof getMeeting>>, TError = globalThis.Error & { info?: NotFoundResponse | UnprocessableEntityResponse; status?: number }>(associationId: string,
+export const getGetMeetingQueryOptions = <TData = Awaited<ReturnType<typeof getMeeting>>, TError = globalThis.Error & { info?: MemberOrDisabledResponse | NotFoundResponse | UnprocessableEntityResponse; status?: number }>(associationId: string,
     id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMeeting>>, TError, TData>>, fetch?: RequestInit}
 ) => {
 
@@ -451,10 +467,10 @@ const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 }
 
 export type GetMeetingQueryResult = NonNullable<Awaited<ReturnType<typeof getMeeting>>>
-export type GetMeetingQueryError = globalThis.Error & { info?: NotFoundResponse | UnprocessableEntityResponse; status?: number }
+export type GetMeetingQueryError = globalThis.Error & { info?: MemberOrDisabledResponse | NotFoundResponse | UnprocessableEntityResponse; status?: number }
 
 
-export function useGetMeeting<TData = Awaited<ReturnType<typeof getMeeting>>, TError = globalThis.Error & { info?: NotFoundResponse | UnprocessableEntityResponse; status?: number }>(
+export function useGetMeeting<TData = Awaited<ReturnType<typeof getMeeting>>, TError = globalThis.Error & { info?: MemberOrDisabledResponse | NotFoundResponse | UnprocessableEntityResponse; status?: number }>(
  associationId: string,
     id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMeeting>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
@@ -465,7 +481,7 @@ export function useGetMeeting<TData = Awaited<ReturnType<typeof getMeeting>>, TE
       >, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useGetMeeting<TData = Awaited<ReturnType<typeof getMeeting>>, TError = globalThis.Error & { info?: NotFoundResponse | UnprocessableEntityResponse; status?: number }>(
+export function useGetMeeting<TData = Awaited<ReturnType<typeof getMeeting>>, TError = globalThis.Error & { info?: MemberOrDisabledResponse | NotFoundResponse | UnprocessableEntityResponse; status?: number }>(
  associationId: string,
     id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMeeting>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
@@ -476,7 +492,7 @@ export function useGetMeeting<TData = Awaited<ReturnType<typeof getMeeting>>, TE
       >, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useGetMeeting<TData = Awaited<ReturnType<typeof getMeeting>>, TError = globalThis.Error & { info?: NotFoundResponse | UnprocessableEntityResponse; status?: number }>(
+export function useGetMeeting<TData = Awaited<ReturnType<typeof getMeeting>>, TError = globalThis.Error & { info?: MemberOrDisabledResponse | NotFoundResponse | UnprocessableEntityResponse; status?: number }>(
  associationId: string,
     id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMeeting>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
@@ -485,7 +501,7 @@ export function useGetMeeting<TData = Awaited<ReturnType<typeof getMeeting>>, TE
  * @summary Get one meeting
  */
 
-export function useGetMeeting<TData = Awaited<ReturnType<typeof getMeeting>>, TError = globalThis.Error & { info?: NotFoundResponse | UnprocessableEntityResponse; status?: number }>(
+export function useGetMeeting<TData = Awaited<ReturnType<typeof getMeeting>>, TError = globalThis.Error & { info?: MemberOrDisabledResponse | NotFoundResponse | UnprocessableEntityResponse; status?: number }>(
  associationId: string,
     id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMeeting>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
@@ -514,7 +530,7 @@ export type getAssociationSettingsResponse401 = {
 }
 
 export type getAssociationSettingsResponse403 = {
-  data: NotCurrentMemberResponse
+  data: MemberOrDisabledResponse
   status: 403
 }
 
@@ -577,7 +593,7 @@ export const getGetAssociationSettingsQueryKey = (associationId: string,) => {
     }
 
 
-export const getGetAssociationSettingsQueryOptions = <TData = Awaited<ReturnType<typeof getAssociationSettings>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | Problem; status?: number }>(associationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAssociationSettings>>, TError, TData>>, fetch?: RequestInit}
+export const getGetAssociationSettingsQueryOptions = <TData = Awaited<ReturnType<typeof getAssociationSettings>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | Problem; status?: number }>(associationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAssociationSettings>>, TError, TData>>, fetch?: RequestInit}
 ) => {
 
 const {query: queryOptions, fetch: fetchOptions} = options ?? {};
@@ -596,10 +612,10 @@ const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 }
 
 export type GetAssociationSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getAssociationSettings>>>
-export type GetAssociationSettingsQueryError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | Problem; status?: number }
+export type GetAssociationSettingsQueryError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | Problem; status?: number }
 
 
-export function useGetAssociationSettings<TData = Awaited<ReturnType<typeof getAssociationSettings>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | Problem; status?: number }>(
+export function useGetAssociationSettings<TData = Awaited<ReturnType<typeof getAssociationSettings>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | Problem; status?: number }>(
  associationId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAssociationSettings>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof getAssociationSettings>>,
@@ -609,7 +625,7 @@ export function useGetAssociationSettings<TData = Awaited<ReturnType<typeof getA
       >, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useGetAssociationSettings<TData = Awaited<ReturnType<typeof getAssociationSettings>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | Problem; status?: number }>(
+export function useGetAssociationSettings<TData = Awaited<ReturnType<typeof getAssociationSettings>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | Problem; status?: number }>(
  associationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAssociationSettings>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof getAssociationSettings>>,
@@ -619,7 +635,7 @@ export function useGetAssociationSettings<TData = Awaited<ReturnType<typeof getA
       >, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useGetAssociationSettings<TData = Awaited<ReturnType<typeof getAssociationSettings>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | Problem; status?: number }>(
+export function useGetAssociationSettings<TData = Awaited<ReturnType<typeof getAssociationSettings>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | Problem; status?: number }>(
  associationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAssociationSettings>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
@@ -627,7 +643,7 @@ export function useGetAssociationSettings<TData = Awaited<ReturnType<typeof getA
  * @summary Current association settings (latest saved revision)
  */
 
-export function useGetAssociationSettings<TData = Awaited<ReturnType<typeof getAssociationSettings>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | Problem; status?: number }>(
+export function useGetAssociationSettings<TData = Awaited<ReturnType<typeof getAssociationSettings>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | Problem; status?: number }>(
  associationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAssociationSettings>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
@@ -655,7 +671,7 @@ export type saveAssociationSettingsResponse401 = {
 }
 
 export type saveAssociationSettingsResponse403 = {
-  data: NotCurrentMemberResponse
+  data: MemberOrDisabledResponse
   status: 403
 }
 
@@ -733,7 +749,7 @@ const res = await fetch(getSaveAssociationSettingsUrl(associationId),
 
 export const getSaveAssociationSettingsMutationKey = () => ['saveAssociationSettings'] as const;
 
-export const getSaveAssociationSettingsMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | Problem; status?: number },
+export const getSaveAssociationSettingsMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | Problem; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveAssociationSettings>>, TError,SaveAssociationSettingsMutationVariables, TContext>, fetch?: RequestInit}
 ): UseMutationOptions<Awaited<ReturnType<typeof saveAssociationSettings>>, TError,SaveAssociationSettingsMutationVariables, TContext> => {
 
@@ -762,13 +778,13 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
     export type SaveAssociationSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof saveAssociationSettings>>>
     export type SaveAssociationSettingsMutationBody = AssociationSettingsInput
-    export type SaveAssociationSettingsMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | Problem; status?: number }
+    export type SaveAssociationSettingsMutationError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | Problem; status?: number }
     export type SaveAssociationSettingsMutationVariables = {associationId: string;data: AssociationSettingsInput}
 
     /**
  * @summary Save a new revision of the association settings (AC-42, Flow 12)
  */
-export const useSaveAssociationSettings = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | Problem; status?: number },
+export const useSaveAssociationSettings = <TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | Problem; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveAssociationSettings>>, TError,SaveAssociationSettingsMutationVariables, TContext>, fetch?: RequestInit}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof saveAssociationSettings>>,
@@ -789,7 +805,7 @@ export type listBoardMembersResponse401 = {
 }
 
 export type listBoardMembersResponse403 = {
-  data: NotCurrentMemberResponse
+  data: MemberOrDisabledResponse
   status: 403
 }
 
@@ -862,7 +878,7 @@ export const getListBoardMembersQueryKey = (associationId: string,
     }
 
 
-export const getListBoardMembersQueryOptions = <TData = Awaited<ReturnType<typeof listBoardMembers>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | ValidationFailedResponse; status?: number }>(associationId: string,
+export const getListBoardMembersQueryOptions = <TData = Awaited<ReturnType<typeof listBoardMembers>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | ValidationFailedResponse; status?: number }>(associationId: string,
     params?: ListBoardMembersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBoardMembers>>, TError, TData>>, fetch?: RequestInit}
 ) => {
 
@@ -882,10 +898,10 @@ const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 }
 
 export type ListBoardMembersQueryResult = NonNullable<Awaited<ReturnType<typeof listBoardMembers>>>
-export type ListBoardMembersQueryError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | ValidationFailedResponse; status?: number }
+export type ListBoardMembersQueryError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | ValidationFailedResponse; status?: number }
 
 
-export function useListBoardMembers<TData = Awaited<ReturnType<typeof listBoardMembers>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | ValidationFailedResponse; status?: number }>(
+export function useListBoardMembers<TData = Awaited<ReturnType<typeof listBoardMembers>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | ValidationFailedResponse; status?: number }>(
  associationId: string,
     params: undefined |  ListBoardMembersParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBoardMembers>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
@@ -896,7 +912,7 @@ export function useListBoardMembers<TData = Awaited<ReturnType<typeof listBoardM
       >, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListBoardMembers<TData = Awaited<ReturnType<typeof listBoardMembers>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | ValidationFailedResponse; status?: number }>(
+export function useListBoardMembers<TData = Awaited<ReturnType<typeof listBoardMembers>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | ValidationFailedResponse; status?: number }>(
  associationId: string,
     params?: ListBoardMembersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBoardMembers>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
@@ -907,7 +923,7 @@ export function useListBoardMembers<TData = Awaited<ReturnType<typeof listBoardM
       >, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListBoardMembers<TData = Awaited<ReturnType<typeof listBoardMembers>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | ValidationFailedResponse; status?: number }>(
+export function useListBoardMembers<TData = Awaited<ReturnType<typeof listBoardMembers>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | ValidationFailedResponse; status?: number }>(
  associationId: string,
     params?: ListBoardMembersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBoardMembers>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
@@ -916,7 +932,7 @@ export function useListBoardMembers<TData = Awaited<ReturnType<typeof listBoardM
  * @summary Board roster with terms, newest entry first (US-01)
  */
 
-export function useListBoardMembers<TData = Awaited<ReturnType<typeof listBoardMembers>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | ValidationFailedResponse; status?: number }>(
+export function useListBoardMembers<TData = Awaited<ReturnType<typeof listBoardMembers>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | ValidationFailedResponse; status?: number }>(
  associationId: string,
     params?: ListBoardMembersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBoardMembers>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
@@ -945,7 +961,7 @@ export type createBoardMemberResponse401 = {
 }
 
 export type createBoardMemberResponse403 = {
-  data: NotCurrentMemberResponse
+  data: MemberOrDisabledResponse
   status: 403
 }
 
@@ -1018,7 +1034,7 @@ const res = await fetch(getCreateBoardMemberUrl(associationId),
 
 export const getCreateBoardMemberMutationKey = () => ['createBoardMember'] as const;
 
-export const getCreateBoardMemberMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | Problem; status?: number },
+export const getCreateBoardMemberMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | Problem; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBoardMember>>, TError,CreateBoardMemberMutationVariables, TContext>, fetch?: RequestInit}
 ): UseMutationOptions<Awaited<ReturnType<typeof createBoardMember>>, TError,CreateBoardMemberMutationVariables, TContext> => {
 
@@ -1047,13 +1063,13 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
     export type CreateBoardMemberMutationResult = NonNullable<Awaited<ReturnType<typeof createBoardMember>>>
     export type CreateBoardMemberMutationBody = BoardMemberInput
-    export type CreateBoardMemberMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | Problem; status?: number }
+    export type CreateBoardMemberMutationError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | Problem; status?: number }
     export type CreateBoardMemberMutationVariables = {associationId: string;data: BoardMemberInput}
 
     /**
  * @summary Add a person to the board roster for one term (AC-02, Flow 12)
  */
-export const useCreateBoardMember = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | Problem; status?: number },
+export const useCreateBoardMember = <TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | Problem; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBoardMember>>, TError,CreateBoardMemberMutationVariables, TContext>, fetch?: RequestInit}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof createBoardMember>>,
@@ -1074,7 +1090,7 @@ export type updateBoardMemberResponse401 = {
 }
 
 export type updateBoardMemberResponse403 = {
-  data: NotCurrentMemberResponse
+  data: MemberOrDisabledResponse
   status: 403
 }
 
@@ -1154,7 +1170,7 @@ const res = await fetch(getUpdateBoardMemberUrl(associationId,boardMemberId),
 
 export const getUpdateBoardMemberMutationKey = () => ['updateBoardMember'] as const;
 
-export const getUpdateBoardMemberMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | Problem; status?: number },
+export const getUpdateBoardMemberMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | Problem; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateBoardMember>>, TError,UpdateBoardMemberMutationVariables, TContext>, fetch?: RequestInit}
 ): UseMutationOptions<Awaited<ReturnType<typeof updateBoardMember>>, TError,UpdateBoardMemberMutationVariables, TContext> => {
 
@@ -1183,13 +1199,13 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
     export type UpdateBoardMemberMutationResult = NonNullable<Awaited<ReturnType<typeof updateBoardMember>>>
     export type UpdateBoardMemberMutationBody = BoardMemberInput
-    export type UpdateBoardMemberMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | Problem; status?: number }
+    export type UpdateBoardMemberMutationError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | Problem; status?: number }
     export type UpdateBoardMemberMutationVariables = {associationId: string;boardMemberId: string;data: BoardMemberInput}
 
     /**
  * @summary Save a new revision of a roster entry (e.g. the term ends) (AC-02, Flow 12)
  */
-export const useUpdateBoardMember = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | Problem; status?: number },
+export const useUpdateBoardMember = <TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | Problem; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateBoardMember>>, TError,UpdateBoardMemberMutationVariables, TContext>, fetch?: RequestInit}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof updateBoardMember>>,
@@ -1210,7 +1226,7 @@ export type listCasesResponse401 = {
 }
 
 export type listCasesResponse403 = {
-  data: NotCurrentMemberResponse
+  data: MemberOrDisabledResponse
   status: 403
 }
 
@@ -1283,7 +1299,7 @@ export const getListCasesQueryKey = (associationId: string,
     }
 
 
-export const getListCasesQueryOptions = <TData = Awaited<ReturnType<typeof listCases>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | ValidationFailedResponse; status?: number }>(associationId: string,
+export const getListCasesQueryOptions = <TData = Awaited<ReturnType<typeof listCases>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | ValidationFailedResponse; status?: number }>(associationId: string,
     params?: ListCasesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCases>>, TError, TData>>, fetch?: RequestInit}
 ) => {
 
@@ -1303,10 +1319,10 @@ const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 }
 
 export type ListCasesQueryResult = NonNullable<Awaited<ReturnType<typeof listCases>>>
-export type ListCasesQueryError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | ValidationFailedResponse; status?: number }
+export type ListCasesQueryError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | ValidationFailedResponse; status?: number }
 
 
-export function useListCases<TData = Awaited<ReturnType<typeof listCases>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | ValidationFailedResponse; status?: number }>(
+export function useListCases<TData = Awaited<ReturnType<typeof listCases>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | ValidationFailedResponse; status?: number }>(
  associationId: string,
     params: undefined |  ListCasesParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCases>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
@@ -1317,7 +1333,7 @@ export function useListCases<TData = Awaited<ReturnType<typeof listCases>>, TErr
       >, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListCases<TData = Awaited<ReturnType<typeof listCases>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | ValidationFailedResponse; status?: number }>(
+export function useListCases<TData = Awaited<ReturnType<typeof listCases>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | ValidationFailedResponse; status?: number }>(
  associationId: string,
     params?: ListCasesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCases>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
@@ -1328,7 +1344,7 @@ export function useListCases<TData = Awaited<ReturnType<typeof listCases>>, TErr
       >, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListCases<TData = Awaited<ReturnType<typeof listCases>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | ValidationFailedResponse; status?: number }>(
+export function useListCases<TData = Awaited<ReturnType<typeof listCases>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | ValidationFailedResponse; status?: number }>(
  associationId: string,
     params?: ListCasesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCases>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
@@ -1337,7 +1353,7 @@ export function useListCases<TData = Awaited<ReturnType<typeof listCases>>, TErr
  * @summary List справи, newest first
  */
 
-export function useListCases<TData = Awaited<ReturnType<typeof listCases>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | ValidationFailedResponse; status?: number }>(
+export function useListCases<TData = Awaited<ReturnType<typeof listCases>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | ValidationFailedResponse; status?: number }>(
  associationId: string,
     params?: ListCasesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCases>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
@@ -1366,7 +1382,7 @@ export type createCaseResponse401 = {
 }
 
 export type createCaseResponse403 = {
-  data: NotCurrentMemberResponse
+  data: MemberOrDisabledResponse
   status: 403
 }
 
@@ -1439,7 +1455,7 @@ const res = await fetch(getCreateCaseUrl(associationId),
 
 export const getCreateCaseMutationKey = () => ['createCase'] as const;
 
-export const getCreateCaseMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | ValidationFailedResponse; status?: number },
+export const getCreateCaseMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | ValidationFailedResponse; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCase>>, TError,CreateCaseMutationVariables, TContext>, fetch?: RequestInit}
 ): UseMutationOptions<Awaited<ReturnType<typeof createCase>>, TError,CreateCaseMutationVariables, TContext> => {
 
@@ -1468,13 +1484,13 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
     export type CreateCaseMutationResult = NonNullable<Awaited<ReturnType<typeof createCase>>>
     export type CreateCaseMutationBody = CaseInput
-    export type CreateCaseMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | ValidationFailedResponse; status?: number }
+    export type CreateCaseMutationError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | ValidationFailedResponse; status?: number }
     export type CreateCaseMutationVariables = {associationId: string;data: CaseInput}
 
     /**
  * @summary Open a справа (US-02)
  */
-export const useCreateCase = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | ValidationFailedResponse; status?: number },
+export const useCreateCase = <TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | ValidationFailedResponse; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCase>>, TError,CreateCaseMutationVariables, TContext>, fetch?: RequestInit}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof createCase>>,
@@ -1495,7 +1511,7 @@ export type getCaseResponse401 = {
 }
 
 export type getCaseResponse403 = {
-  data: NotCurrentMemberResponse
+  data: MemberOrDisabledResponse
   status: 403
 }
 
@@ -1561,7 +1577,7 @@ export const getGetCaseQueryKey = (associationId: string,
     }
 
 
-export const getGetCaseQueryOptions = <TData = Awaited<ReturnType<typeof getCase>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse; status?: number }>(associationId: string,
+export const getGetCaseQueryOptions = <TData = Awaited<ReturnType<typeof getCase>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse; status?: number }>(associationId: string,
     caseId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCase>>, TError, TData>>, fetch?: RequestInit}
 ) => {
 
@@ -1581,10 +1597,10 @@ const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 }
 
 export type GetCaseQueryResult = NonNullable<Awaited<ReturnType<typeof getCase>>>
-export type GetCaseQueryError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse; status?: number }
+export type GetCaseQueryError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse; status?: number }
 
 
-export function useGetCase<TData = Awaited<ReturnType<typeof getCase>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse; status?: number }>(
+export function useGetCase<TData = Awaited<ReturnType<typeof getCase>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse; status?: number }>(
  associationId: string,
     caseId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCase>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
@@ -1595,7 +1611,7 @@ export function useGetCase<TData = Awaited<ReturnType<typeof getCase>>, TError =
       >, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useGetCase<TData = Awaited<ReturnType<typeof getCase>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse; status?: number }>(
+export function useGetCase<TData = Awaited<ReturnType<typeof getCase>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse; status?: number }>(
  associationId: string,
     caseId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCase>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
@@ -1606,7 +1622,7 @@ export function useGetCase<TData = Awaited<ReturnType<typeof getCase>>, TError =
       >, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useGetCase<TData = Awaited<ReturnType<typeof getCase>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse; status?: number }>(
+export function useGetCase<TData = Awaited<ReturnType<typeof getCase>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse; status?: number }>(
  associationId: string,
     caseId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCase>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
@@ -1615,7 +1631,7 @@ export function useGetCase<TData = Awaited<ReturnType<typeof getCase>>, TError =
  * @summary One справа with all its document versions (AC-03, AC-19)
  */
 
-export function useGetCase<TData = Awaited<ReturnType<typeof getCase>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse; status?: number }>(
+export function useGetCase<TData = Awaited<ReturnType<typeof getCase>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse; status?: number }>(
  associationId: string,
     caseId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCase>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
@@ -1644,13 +1660,18 @@ export type addCaseDocumentResponse401 = {
 }
 
 export type addCaseDocumentResponse403 = {
-  data: NotCurrentMemberResponse
+  data: MemberOrDisabledResponse
   status: 403
 }
 
 export type addCaseDocumentResponse404 = {
   data: NotFoundResponse
   status: 404
+}
+
+export type addCaseDocumentResponse409 = {
+  data: Problem
+  status: 409
 }
 
 export type addCaseDocumentResponse422 = {
@@ -1666,7 +1687,7 @@ export type addCaseDocumentResponse503 = {
 export type addCaseDocumentResponseSuccess = (addCaseDocumentResponse201) & {
   headers: Headers;
 };
-export type addCaseDocumentResponseError = (addCaseDocumentResponse401 | addCaseDocumentResponse403 | addCaseDocumentResponse404 | addCaseDocumentResponse422 | addCaseDocumentResponse503) & {
+export type addCaseDocumentResponseError = (addCaseDocumentResponse401 | addCaseDocumentResponse403 | addCaseDocumentResponse404 | addCaseDocumentResponse409 | addCaseDocumentResponse422 | addCaseDocumentResponse503) & {
   headers: Headers;
 };
 
@@ -1726,7 +1747,7 @@ if(caseDocumentUpload.document_date !== undefined) {
 
 export const getAddCaseDocumentMutationKey = () => ['addCaseDocument'] as const;
 
-export const getAddCaseDocumentMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | Problem | StorageUnavailableResponse; status?: number },
+export const getAddCaseDocumentMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | Problem | StorageUnavailableResponse; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addCaseDocument>>, TError,AddCaseDocumentMutationVariables, TContext>, fetch?: RequestInit}
 ): UseMutationOptions<Awaited<ReturnType<typeof addCaseDocument>>, TError,AddCaseDocumentMutationVariables, TContext> => {
 
@@ -1755,13 +1776,13 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
     export type AddCaseDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof addCaseDocument>>>
     export type AddCaseDocumentMutationBody = CaseDocumentUpload
-    export type AddCaseDocumentMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | Problem | StorageUnavailableResponse; status?: number }
+    export type AddCaseDocumentMutationError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | Problem | StorageUnavailableResponse; status?: number }
     export type AddCaseDocumentMutationVariables = {associationId: string;caseId: string;data: CaseDocumentUpload}
 
     /**
  * @summary Upload a document, or a newer version of one, into a справа (US-04, AC-09, Flow 3, Flow 8)
  */
-export const useAddCaseDocument = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | Problem | StorageUnavailableResponse; status?: number },
+export const useAddCaseDocument = <TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | Problem | StorageUnavailableResponse; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addCaseDocument>>, TError,AddCaseDocumentMutationVariables, TContext>, fetch?: RequestInit}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof addCaseDocument>>,
@@ -1947,7 +1968,7 @@ export type createAssistantTurnResponse401 = {
 }
 
 export type createAssistantTurnResponse403 = {
-  data: NotCurrentMemberResponse
+  data: MemberOrDisabledResponse
   status: 403
 }
 
@@ -2038,7 +2059,7 @@ if(assistantTurnInput.files !== undefined) {
 
 export const getCreateAssistantTurnMutationKey = () => ['createAssistantTurn'] as const;
 
-export const getCreateAssistantTurnMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | Problem | StorageUnavailableResponse; status?: number },
+export const getCreateAssistantTurnMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | Problem | StorageUnavailableResponse; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAssistantTurn>>, TError,CreateAssistantTurnMutationVariables, TContext>, fetch?: RequestInit}
 ): UseMutationOptions<Awaited<ReturnType<typeof createAssistantTurn>>, TError,CreateAssistantTurnMutationVariables, TContext> => {
 
@@ -2067,13 +2088,13 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
     export type CreateAssistantTurnMutationResult = NonNullable<Awaited<ReturnType<typeof createAssistantTurn>>>
     export type CreateAssistantTurnMutationBody = AssistantTurnInput
-    export type CreateAssistantTurnMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | Problem | StorageUnavailableResponse; status?: number }
+    export type CreateAssistantTurnMutationError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | Problem | StorageUnavailableResponse; status?: number }
     export type CreateAssistantTurnMutationVariables = {associationId: string;meetingId: string;data: AssistantTurnInput}
 
     /**
  * @summary Ask the помічник протоколу for a draft of the meeting's protocol, or refine it (US-12, Flow 1)
  */
-export const useCreateAssistantTurn = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | Problem | StorageUnavailableResponse; status?: number },
+export const useCreateAssistantTurn = <TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | Problem | StorageUnavailableResponse; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAssistantTurn>>, TError,CreateAssistantTurnMutationVariables, TContext>, fetch?: RequestInit}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof createAssistantTurn>>,
@@ -2094,7 +2115,7 @@ export type addAgendaItemFromCaseResponse401 = {
 }
 
 export type addAgendaItemFromCaseResponse403 = {
-  data: NotCurrentMemberResponse
+  data: MemberOrDisabledResponse
   status: 403
 }
 
@@ -2179,7 +2200,7 @@ const res = await fetch(getAddAgendaItemFromCaseUrl(associationId,meetingId),
 
 export const getAddAgendaItemFromCaseMutationKey = () => ['addAgendaItemFromCase'] as const;
 
-export const getAddAgendaItemFromCaseMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | Problem | ValidationFailedResponse; status?: number },
+export const getAddAgendaItemFromCaseMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | Problem | ValidationFailedResponse; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addAgendaItemFromCase>>, TError,AddAgendaItemFromCaseMutationVariables, TContext>, fetch?: RequestInit}
 ): UseMutationOptions<Awaited<ReturnType<typeof addAgendaItemFromCase>>, TError,AddAgendaItemFromCaseMutationVariables, TContext> => {
 
@@ -2208,13 +2229,13 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
     export type AddAgendaItemFromCaseMutationResult = NonNullable<Awaited<ReturnType<typeof addAgendaItemFromCase>>>
     export type AddAgendaItemFromCaseMutationBody = AgendaItemFromCaseInput
-    export type AddAgendaItemFromCaseMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | Problem | ValidationFailedResponse; status?: number }
+    export type AddAgendaItemFromCaseMutationError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | Problem | ValidationFailedResponse; status?: number }
     export type AddAgendaItemFromCaseMutationVariables = {associationId: string;meetingId: string;data: AgendaItemFromCaseInput}
 
     /**
  * @summary Open the meeting's draft from a справа, or add the справа as an agenda item (US-02, AC-03c)
  */
-export const useAddAgendaItemFromCase = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | Problem | ValidationFailedResponse; status?: number },
+export const useAddAgendaItemFromCase = <TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | Problem | ValidationFailedResponse; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addAgendaItemFromCase>>, TError,AddAgendaItemFromCaseMutationVariables, TContext>, fetch?: RequestInit}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof addAgendaItemFromCase>>,
@@ -2235,7 +2256,7 @@ export type getJobResponse401 = {
 }
 
 export type getJobResponse403 = {
-  data: NotCurrentMemberResponse
+  data: MemberOrDisabledResponse
   status: 403
 }
 
@@ -2301,7 +2322,7 @@ export const getGetJobQueryKey = (associationId: string,
     }
 
 
-export const getGetJobQueryOptions = <TData = Awaited<ReturnType<typeof getJob>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse; status?: number }>(associationId: string,
+export const getGetJobQueryOptions = <TData = Awaited<ReturnType<typeof getJob>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse; status?: number }>(associationId: string,
     jobId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getJob>>, TError, TData>>, fetch?: RequestInit}
 ) => {
 
@@ -2321,10 +2342,10 @@ const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 }
 
 export type GetJobQueryResult = NonNullable<Awaited<ReturnType<typeof getJob>>>
-export type GetJobQueryError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse; status?: number }
+export type GetJobQueryError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse; status?: number }
 
 
-export function useGetJob<TData = Awaited<ReturnType<typeof getJob>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse; status?: number }>(
+export function useGetJob<TData = Awaited<ReturnType<typeof getJob>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse; status?: number }>(
  associationId: string,
     jobId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getJob>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
@@ -2335,7 +2356,7 @@ export function useGetJob<TData = Awaited<ReturnType<typeof getJob>>, TError = g
       >, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useGetJob<TData = Awaited<ReturnType<typeof getJob>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse; status?: number }>(
+export function useGetJob<TData = Awaited<ReturnType<typeof getJob>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse; status?: number }>(
  associationId: string,
     jobId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getJob>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
@@ -2346,7 +2367,7 @@ export function useGetJob<TData = Awaited<ReturnType<typeof getJob>>, TError = g
       >, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useGetJob<TData = Awaited<ReturnType<typeof getJob>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse; status?: number }>(
+export function useGetJob<TData = Awaited<ReturnType<typeof getJob>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse; status?: number }>(
  associationId: string,
     jobId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getJob>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
@@ -2355,7 +2376,7 @@ export function useGetJob<TData = Awaited<ReturnType<typeof getJob>>, TError = g
  * @summary Status of a proposal or print-copy job, polled about every 2 s (SAD §4, Flows 1, 4, 8)
  */
 
-export function useGetJob<TData = Awaited<ReturnType<typeof getJob>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse; status?: number }>(
+export function useGetJob<TData = Awaited<ReturnType<typeof getJob>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse; status?: number }>(
  associationId: string,
     jobId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getJob>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
@@ -2384,7 +2405,7 @@ export type retryJobResponse401 = {
 }
 
 export type retryJobResponse403 = {
-  data: NotCurrentMemberResponse
+  data: MemberOrDisabledResponse
   status: 403
 }
 
@@ -2449,7 +2470,7 @@ export const retryJob = async (associationId: string,
 
 export const getRetryJobMutationKey = () => ['retryJob'] as const;
 
-export const getRetryJobMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | Problem; status?: number },
+export const getRetryJobMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | Problem; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryJob>>, TError,RetryJobMutationVariables, TContext>, fetch?: RequestInit}
 ): UseMutationOptions<Awaited<ReturnType<typeof retryJob>>, TError,RetryJobMutationVariables, TContext> => {
 
@@ -2478,13 +2499,13 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
     export type RetryJobMutationResult = NonNullable<Awaited<ReturnType<typeof retryJob>>>
 
-    export type RetryJobMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | Problem; status?: number }
+    export type RetryJobMutationError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | Problem; status?: number }
     export type RetryJobMutationVariables = {associationId: string;jobId: number}
 
     /**
  * @summary Retry a failed job (Flow 8 "retry offered")
  */
-export const useRetryJob = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | Problem; status?: number },
+export const useRetryJob = <TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | Problem; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryJob>>, TError,RetryJobMutationVariables, TContext>, fetch?: RequestInit}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof retryJob>>,
@@ -2505,7 +2526,7 @@ export type listProtocolsResponse401 = {
 }
 
 export type listProtocolsResponse403 = {
-  data: NotCurrentMemberResponse
+  data: MemberOrDisabledResponse
   status: 403
 }
 
@@ -2578,7 +2599,7 @@ export const getListProtocolsQueryKey = (associationId: string,
     }
 
 
-export const getListProtocolsQueryOptions = <TData = Awaited<ReturnType<typeof listProtocols>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | ValidationFailedResponse; status?: number }>(associationId: string,
+export const getListProtocolsQueryOptions = <TData = Awaited<ReturnType<typeof listProtocols>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | ValidationFailedResponse; status?: number }>(associationId: string,
     params?: ListProtocolsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProtocols>>, TError, TData>>, fetch?: RequestInit}
 ) => {
 
@@ -2598,10 +2619,10 @@ const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 }
 
 export type ListProtocolsQueryResult = NonNullable<Awaited<ReturnType<typeof listProtocols>>>
-export type ListProtocolsQueryError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | ValidationFailedResponse; status?: number }
+export type ListProtocolsQueryError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | ValidationFailedResponse; status?: number }
 
 
-export function useListProtocols<TData = Awaited<ReturnType<typeof listProtocols>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | ValidationFailedResponse; status?: number }>(
+export function useListProtocols<TData = Awaited<ReturnType<typeof listProtocols>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | ValidationFailedResponse; status?: number }>(
  associationId: string,
     params: undefined |  ListProtocolsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProtocols>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
@@ -2612,7 +2633,7 @@ export function useListProtocols<TData = Awaited<ReturnType<typeof listProtocols
       >, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListProtocols<TData = Awaited<ReturnType<typeof listProtocols>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | ValidationFailedResponse; status?: number }>(
+export function useListProtocols<TData = Awaited<ReturnType<typeof listProtocols>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | ValidationFailedResponse; status?: number }>(
  associationId: string,
     params?: ListProtocolsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProtocols>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
@@ -2623,7 +2644,7 @@ export function useListProtocols<TData = Awaited<ReturnType<typeof listProtocols
       >, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListProtocols<TData = Awaited<ReturnType<typeof listProtocols>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | ValidationFailedResponse; status?: number }>(
+export function useListProtocols<TData = Awaited<ReturnType<typeof listProtocols>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | ValidationFailedResponse; status?: number }>(
  associationId: string,
     params?: ListProtocolsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProtocols>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
@@ -2632,7 +2653,7 @@ export function useListProtocols<TData = Awaited<ReturnType<typeof listProtocols
  * @summary List protocol drafts and protocols, newest first, optionally by state
  */
 
-export function useListProtocols<TData = Awaited<ReturnType<typeof listProtocols>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | ValidationFailedResponse; status?: number }>(
+export function useListProtocols<TData = Awaited<ReturnType<typeof listProtocols>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | ValidationFailedResponse; status?: number }>(
  associationId: string,
     params?: ListProtocolsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProtocols>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
@@ -2661,7 +2682,7 @@ export type getProtocolResponse401 = {
 }
 
 export type getProtocolResponse403 = {
-  data: NotCurrentMemberResponse
+  data: MemberOrDisabledResponse
   status: 403
 }
 
@@ -2727,7 +2748,7 @@ export const getGetProtocolQueryKey = (associationId: string,
     }
 
 
-export const getGetProtocolQueryOptions = <TData = Awaited<ReturnType<typeof getProtocol>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse; status?: number }>(associationId: string,
+export const getGetProtocolQueryOptions = <TData = Awaited<ReturnType<typeof getProtocol>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse; status?: number }>(associationId: string,
     protocolId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getProtocol>>, TError, TData>>, fetch?: RequestInit}
 ) => {
 
@@ -2747,10 +2768,10 @@ const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 }
 
 export type GetProtocolQueryResult = NonNullable<Awaited<ReturnType<typeof getProtocol>>>
-export type GetProtocolQueryError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse; status?: number }
+export type GetProtocolQueryError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse; status?: number }
 
 
-export function useGetProtocol<TData = Awaited<ReturnType<typeof getProtocol>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse; status?: number }>(
+export function useGetProtocol<TData = Awaited<ReturnType<typeof getProtocol>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse; status?: number }>(
  associationId: string,
     protocolId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getProtocol>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
@@ -2761,7 +2782,7 @@ export function useGetProtocol<TData = Awaited<ReturnType<typeof getProtocol>>, 
       >, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useGetProtocol<TData = Awaited<ReturnType<typeof getProtocol>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse; status?: number }>(
+export function useGetProtocol<TData = Awaited<ReturnType<typeof getProtocol>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse; status?: number }>(
  associationId: string,
     protocolId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getProtocol>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
@@ -2772,7 +2793,7 @@ export function useGetProtocol<TData = Awaited<ReturnType<typeof getProtocol>>, 
       >, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useGetProtocol<TData = Awaited<ReturnType<typeof getProtocol>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse; status?: number }>(
+export function useGetProtocol<TData = Awaited<ReturnType<typeof getProtocol>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse; status?: number }>(
  associationId: string,
     protocolId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getProtocol>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
@@ -2781,7 +2802,7 @@ export function useGetProtocol<TData = Awaited<ReturnType<typeof getProtocol>>, 
  * @summary Open a draft with its meeting, roster in force, documents, slots, poll rounds and print copies (AC-03)
  */
 
-export function useGetProtocol<TData = Awaited<ReturnType<typeof getProtocol>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse; status?: number }>(
+export function useGetProtocol<TData = Awaited<ReturnType<typeof getProtocol>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse; status?: number }>(
  associationId: string,
     protocolId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getProtocol>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
@@ -2810,7 +2831,7 @@ export type listAssistantTurnsResponse401 = {
 }
 
 export type listAssistantTurnsResponse403 = {
-  data: NotCurrentMemberResponse
+  data: MemberOrDisabledResponse
   status: 403
 }
 
@@ -2891,7 +2912,7 @@ export const getListAssistantTurnsQueryKey = (associationId: string,
     }
 
 
-export const getListAssistantTurnsQueryOptions = <TData = Awaited<ReturnType<typeof listAssistantTurns>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | ValidationFailedResponse; status?: number }>(associationId: string,
+export const getListAssistantTurnsQueryOptions = <TData = Awaited<ReturnType<typeof listAssistantTurns>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | ValidationFailedResponse; status?: number }>(associationId: string,
     protocolId: string,
     params?: ListAssistantTurnsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAssistantTurns>>, TError, TData>>, fetch?: RequestInit}
 ) => {
@@ -2912,10 +2933,10 @@ const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 }
 
 export type ListAssistantTurnsQueryResult = NonNullable<Awaited<ReturnType<typeof listAssistantTurns>>>
-export type ListAssistantTurnsQueryError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | ValidationFailedResponse; status?: number }
+export type ListAssistantTurnsQueryError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | ValidationFailedResponse; status?: number }
 
 
-export function useListAssistantTurns<TData = Awaited<ReturnType<typeof listAssistantTurns>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | ValidationFailedResponse; status?: number }>(
+export function useListAssistantTurns<TData = Awaited<ReturnType<typeof listAssistantTurns>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | ValidationFailedResponse; status?: number }>(
  associationId: string,
     protocolId: string,
     params: undefined |  ListAssistantTurnsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAssistantTurns>>, TError, TData>> & Pick<
@@ -2927,7 +2948,7 @@ export function useListAssistantTurns<TData = Awaited<ReturnType<typeof listAssi
       >, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListAssistantTurns<TData = Awaited<ReturnType<typeof listAssistantTurns>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | ValidationFailedResponse; status?: number }>(
+export function useListAssistantTurns<TData = Awaited<ReturnType<typeof listAssistantTurns>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | ValidationFailedResponse; status?: number }>(
  associationId: string,
     protocolId: string,
     params?: ListAssistantTurnsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAssistantTurns>>, TError, TData>> & Pick<
@@ -2939,7 +2960,7 @@ export function useListAssistantTurns<TData = Awaited<ReturnType<typeof listAssi
       >, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListAssistantTurns<TData = Awaited<ReturnType<typeof listAssistantTurns>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | ValidationFailedResponse; status?: number }>(
+export function useListAssistantTurns<TData = Awaited<ReturnType<typeof listAssistantTurns>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | ValidationFailedResponse; status?: number }>(
  associationId: string,
     protocolId: string,
     params?: ListAssistantTurnsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAssistantTurns>>, TError, TData>>, fetch?: RequestInit}
@@ -2949,7 +2970,7 @@ export function useListAssistantTurns<TData = Awaited<ReturnType<typeof listAssi
  * @summary The conversation kept with the draft, newest first (AC-26)
  */
 
-export function useListAssistantTurns<TData = Awaited<ReturnType<typeof listAssistantTurns>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | ValidationFailedResponse; status?: number }>(
+export function useListAssistantTurns<TData = Awaited<ReturnType<typeof listAssistantTurns>>, TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | ValidationFailedResponse; status?: number }>(
  associationId: string,
     protocolId: string,
     params?: ListAssistantTurnsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAssistantTurns>>, TError, TData>>, fetch?: RequestInit}
@@ -2979,7 +3000,7 @@ export type saveAgendaItemWordingResponse401 = {
 }
 
 export type saveAgendaItemWordingResponse403 = {
-  data: NotCurrentMemberResponse
+  data: MemberOrDisabledResponse
   status: 403
 }
 
@@ -3069,7 +3090,7 @@ const res = await fetch(getSaveAgendaItemWordingUrl(associationId,protocolId,age
 
 export const getSaveAgendaItemWordingMutationKey = () => ['saveAgendaItemWording'] as const;
 
-export const getSaveAgendaItemWordingMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | ProtocolEditConflictResponse | ValidationFailedResponse; status?: number },
+export const getSaveAgendaItemWordingMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | ProtocolEditConflictResponse | ValidationFailedResponse; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveAgendaItemWording>>, TError,SaveAgendaItemWordingMutationVariables, TContext>, fetch?: RequestInit}
 ): UseMutationOptions<Awaited<ReturnType<typeof saveAgendaItemWording>>, TError,SaveAgendaItemWordingMutationVariables, TContext> => {
 
@@ -3098,13 +3119,13 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
     export type SaveAgendaItemWordingMutationResult = NonNullable<Awaited<ReturnType<typeof saveAgendaItemWording>>>
     export type SaveAgendaItemWordingMutationBody = AgendaItemWordingInput
-    export type SaveAgendaItemWordingMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | ProtocolEditConflictResponse | ValidationFailedResponse; status?: number }
+    export type SaveAgendaItemWordingMutationError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | ProtocolEditConflictResponse | ValidationFailedResponse; status?: number }
     export type SaveAgendaItemWordingMutationVariables = {associationId: string;protocolId: string;agendaItemId: string;data: AgendaItemWordingInput}
 
     /**
  * @summary Reword an agenda item's subject and text (AC-29, AC-05d, AC-14b, Flows 1, 3)
  */
-export const useSaveAgendaItemWording = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | ProtocolEditConflictResponse | ValidationFailedResponse; status?: number },
+export const useSaveAgendaItemWording = <TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | ProtocolEditConflictResponse | ValidationFailedResponse; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveAgendaItemWording>>, TError,SaveAgendaItemWordingMutationVariables, TContext>, fetch?: RequestInit}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof saveAgendaItemWording>>,
@@ -3125,7 +3146,7 @@ export type addDecisionSlotResponse401 = {
 }
 
 export type addDecisionSlotResponse403 = {
-  data: NotCurrentMemberResponse
+  data: MemberOrDisabledResponse
   status: 403
 }
 
@@ -3212,7 +3233,7 @@ const res = await fetch(getAddDecisionSlotUrl(associationId,protocolId,agendaIte
 
 export const getAddDecisionSlotMutationKey = () => ['addDecisionSlot'] as const;
 
-export const getAddDecisionSlotMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | ProtocolEditConflictResponse | ValidationFailedResponse; status?: number },
+export const getAddDecisionSlotMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | ProtocolEditConflictResponse | ValidationFailedResponse; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addDecisionSlot>>, TError,AddDecisionSlotMutationVariables, TContext>, fetch?: RequestInit}
 ): UseMutationOptions<Awaited<ReturnType<typeof addDecisionSlot>>, TError,AddDecisionSlotMutationVariables, TContext> => {
 
@@ -3241,13 +3262,13 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
     export type AddDecisionSlotMutationResult = NonNullable<Awaited<ReturnType<typeof addDecisionSlot>>>
     export type AddDecisionSlotMutationBody = DecisionSlotInput
-    export type AddDecisionSlotMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | ProtocolEditConflictResponse | ValidationFailedResponse; status?: number }
+    export type AddDecisionSlotMutationError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | ProtocolEditConflictResponse | ValidationFailedResponse; status?: number }
     export type AddDecisionSlotMutationVariables = {associationId: string;protocolId: string;agendaItemId: string;data: DecisionSlotInput}
 
     /**
  * @summary Turn a typed fact into a слот рішення by hand (ADR-0011 highlight offer, AC-28)
  */
-export const useAddDecisionSlot = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | ProtocolEditConflictResponse | ValidationFailedResponse; status?: number },
+export const useAddDecisionSlot = <TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | ProtocolEditConflictResponse | ValidationFailedResponse; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addDecisionSlot>>, TError,AddDecisionSlotMutationVariables, TContext>, fetch?: RequestInit}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof addDecisionSlot>>,
@@ -3268,7 +3289,7 @@ export type confirmDecisionSlotResponse401 = {
 }
 
 export type confirmDecisionSlotResponse403 = {
-  data: NotCurrentMemberResponse
+  data: MemberOrDisabledResponse
   status: 403
 }
 
@@ -3355,7 +3376,7 @@ const res = await fetch(getConfirmDecisionSlotUrl(associationId,protocolId,slotI
 
 export const getConfirmDecisionSlotMutationKey = () => ['confirmDecisionSlot'] as const;
 
-export const getConfirmDecisionSlotMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | ProtocolEditConflictResponse | ValidationFailedResponse; status?: number },
+export const getConfirmDecisionSlotMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | ProtocolEditConflictResponse | ValidationFailedResponse; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmDecisionSlot>>, TError,ConfirmDecisionSlotMutationVariables, TContext>, fetch?: RequestInit}
 ): UseMutationOptions<Awaited<ReturnType<typeof confirmDecisionSlot>>, TError,ConfirmDecisionSlotMutationVariables, TContext> => {
 
@@ -3384,13 +3405,13 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
     export type ConfirmDecisionSlotMutationResult = NonNullable<Awaited<ReturnType<typeof confirmDecisionSlot>>>
     export type ConfirmDecisionSlotMutationBody = SlotConfirmationInput
-    export type ConfirmDecisionSlotMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | ProtocolEditConflictResponse | ValidationFailedResponse; status?: number }
+    export type ConfirmDecisionSlotMutationError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | ProtocolEditConflictResponse | ValidationFailedResponse; status?: number }
     export type ConfirmDecisionSlotMutationVariables = {associationId: string;protocolId: string;slotId: string;data: SlotConfirmationInput}
 
     /**
  * @summary Confirm one value of a slot — the proposed one or an alternative beside it (AC-21, AC-22, AC-28b)
  */
-export const useConfirmDecisionSlot = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | ProtocolEditConflictResponse | ValidationFailedResponse; status?: number },
+export const useConfirmDecisionSlot = <TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | ProtocolEditConflictResponse | ValidationFailedResponse; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmDecisionSlot>>, TError,ConfirmDecisionSlotMutationVariables, TContext>, fetch?: RequestInit}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof confirmDecisionSlot>>,
@@ -3411,7 +3432,7 @@ export type correctDecisionSlotResponse401 = {
 }
 
 export type correctDecisionSlotResponse403 = {
-  data: NotCurrentMemberResponse
+  data: MemberOrDisabledResponse
   status: 403
 }
 
@@ -3498,7 +3519,7 @@ const res = await fetch(getCorrectDecisionSlotUrl(associationId,protocolId,slotI
 
 export const getCorrectDecisionSlotMutationKey = () => ['correctDecisionSlot'] as const;
 
-export const getCorrectDecisionSlotMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | ProtocolEditConflictResponse | ValidationFailedResponse; status?: number },
+export const getCorrectDecisionSlotMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | ProtocolEditConflictResponse | ValidationFailedResponse; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof correctDecisionSlot>>, TError,CorrectDecisionSlotMutationVariables, TContext>, fetch?: RequestInit}
 ): UseMutationOptions<Awaited<ReturnType<typeof correctDecisionSlot>>, TError,CorrectDecisionSlotMutationVariables, TContext> => {
 
@@ -3527,13 +3548,13 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
     export type CorrectDecisionSlotMutationResult = NonNullable<Awaited<ReturnType<typeof correctDecisionSlot>>>
     export type CorrectDecisionSlotMutationBody = SlotCorrectionInput
-    export type CorrectDecisionSlotMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | ProtocolEditConflictResponse | ValidationFailedResponse; status?: number }
+    export type CorrectDecisionSlotMutationError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | ProtocolEditConflictResponse | ValidationFailedResponse; status?: number }
     export type CorrectDecisionSlotMutationVariables = {associationId: string;protocolId: string;slotId: string;data: SlotCorrectionInput}
 
     /**
  * @summary Correct a slot by hand; a corrected value counts as confirmed (AC-21)
  */
-export const useCorrectDecisionSlot = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | ProtocolEditConflictResponse | ValidationFailedResponse; status?: number },
+export const useCorrectDecisionSlot = <TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | ProtocolEditConflictResponse | ValidationFailedResponse; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof correctDecisionSlot>>, TError,CorrectDecisionSlotMutationVariables, TContext>, fetch?: RequestInit}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof correctDecisionSlot>>,
@@ -3554,7 +3575,7 @@ export type startPollRoundResponse401 = {
 }
 
 export type startPollRoundResponse403 = {
-  data: NotCurrentMemberResponse
+  data: MemberOrDisabledResponse
   status: 403
 }
 
@@ -3634,7 +3655,7 @@ const res = await fetch(getStartPollRoundUrl(associationId,protocolId),
 
 export const getStartPollRoundMutationKey = () => ['startPollRound'] as const;
 
-export const getStartPollRoundMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | ProtocolEditConflictResponse; status?: number },
+export const getStartPollRoundMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | ProtocolEditConflictResponse; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startPollRound>>, TError,StartPollRoundMutationVariables, TContext>, fetch?: RequestInit}
 ): UseMutationOptions<Awaited<ReturnType<typeof startPollRound>>, TError,StartPollRoundMutationVariables, TContext> => {
 
@@ -3663,13 +3684,13 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
     export type StartPollRoundMutationResult = NonNullable<Awaited<ReturnType<typeof startPollRound>>>
     export type StartPollRoundMutationBody = ProtocolRevisionInput
-    export type StartPollRoundMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | ProtocolEditConflictResponse; status?: number }
+    export type StartPollRoundMutationError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | ProtocolEditConflictResponse; status?: number }
     export type StartPollRoundMutationVariables = {associationId: string;protocolId: string;data: ProtocolRevisionInput}
 
     /**
  * @summary Freeze the wording as the next round of the попереднє голосування (чернетка → готовий до голосування) (AC-30, Flow 2)
  */
-export const useStartPollRound = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | ProtocolEditConflictResponse; status?: number },
+export const useStartPollRound = <TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | ProtocolEditConflictResponse; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startPollRound>>, TError,StartPollRoundMutationVariables, TContext>, fetch?: RequestInit}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof startPollRound>>,
@@ -3833,7 +3854,7 @@ export type returnProtocolToDraftResponse401 = {
 }
 
 export type returnProtocolToDraftResponse403 = {
-  data: NotCurrentMemberResponse
+  data: MemberOrDisabledResponse
   status: 403
 }
 
@@ -3915,7 +3936,7 @@ const res = await fetch(getReturnProtocolToDraftUrl(associationId,protocolId),
 
 export const getReturnProtocolToDraftMutationKey = () => ['returnProtocolToDraft'] as const;
 
-export const getReturnProtocolToDraftMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | ProtocolEditConflictResponse; status?: number },
+export const getReturnProtocolToDraftMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | ProtocolEditConflictResponse; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof returnProtocolToDraft>>, TError,ReturnProtocolToDraftMutationVariables, TContext>, fetch?: RequestInit}
 ): UseMutationOptions<Awaited<ReturnType<typeof returnProtocolToDraft>>, TError,ReturnProtocolToDraftMutationVariables, TContext> => {
 
@@ -3944,13 +3965,13 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
     export type ReturnProtocolToDraftMutationResult = NonNullable<Awaited<ReturnType<typeof returnProtocolToDraft>>>
     export type ReturnProtocolToDraftMutationBody = ProtocolRevisionInput
-    export type ReturnProtocolToDraftMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | ProtocolEditConflictResponse; status?: number }
+    export type ReturnProtocolToDraftMutationError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | ProtocolEditConflictResponse; status?: number }
     export type ReturnProtocolToDraftMutationVariables = {associationId: string;protocolId: string;data: ProtocolRevisionInput}
 
     /**
  * @summary «Повернути в чернетку» (готовий до голосування / готовий до підпису → чернетка) (AC-05d, AC-14b, Flow 3)
  */
-export const useReturnProtocolToDraft = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | ProtocolEditConflictResponse; status?: number },
+export const useReturnProtocolToDraft = <TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | ProtocolEditConflictResponse; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof returnProtocolToDraft>>, TError,ReturnProtocolToDraftMutationVariables, TContext>, fetch?: RequestInit}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof returnProtocolToDraft>>,
@@ -3971,7 +3992,7 @@ export type markProtocolReadyForSigningResponse401 = {
 }
 
 export type markProtocolReadyForSigningResponse403 = {
-  data: NotCurrentMemberResponse
+  data: MemberOrDisabledResponse
   status: 403
 }
 
@@ -4051,7 +4072,7 @@ const res = await fetch(getMarkProtocolReadyForSigningUrl(associationId,protocol
 
 export const getMarkProtocolReadyForSigningMutationKey = () => ['markProtocolReadyForSigning'] as const;
 
-export const getMarkProtocolReadyForSigningMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | Problem; status?: number },
+export const getMarkProtocolReadyForSigningMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | Problem; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markProtocolReadyForSigning>>, TError,MarkProtocolReadyForSigningMutationVariables, TContext>, fetch?: RequestInit}
 ): UseMutationOptions<Awaited<ReturnType<typeof markProtocolReadyForSigning>>, TError,MarkProtocolReadyForSigningMutationVariables, TContext> => {
 
@@ -4080,13 +4101,13 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
     export type MarkProtocolReadyForSigningMutationResult = NonNullable<Awaited<ReturnType<typeof markProtocolReadyForSigning>>>
     export type MarkProtocolReadyForSigningMutationBody = ProtocolRevisionInput
-    export type MarkProtocolReadyForSigningMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | Problem; status?: number }
+    export type MarkProtocolReadyForSigningMutationError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | Problem; status?: number }
     export type MarkProtocolReadyForSigningMutationVariables = {associationId: string;protocolId: string;data: ProtocolRevisionInput}
 
     /**
  * @summary Mark готовий до підпису — freeze the text, reserve the number, render the print copy (AC-04, AC-21, AC-14c, AC-33, Flow 4)
  */
-export const useMarkProtocolReadyForSigning = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | Problem; status?: number },
+export const useMarkProtocolReadyForSigning = <TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | Problem; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markProtocolReadyForSigning>>, TError,MarkProtocolReadyForSigningMutationVariables, TContext>, fetch?: RequestInit}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof markProtocolReadyForSigning>>,
@@ -4107,7 +4128,7 @@ export type lockProtocolWithSignedCopyResponse401 = {
 }
 
 export type lockProtocolWithSignedCopyResponse403 = {
-  data: NotCurrentMemberResponse
+  data: MemberOrDisabledResponse
   status: 403
 }
 
@@ -4189,7 +4210,7 @@ formData.append(`meeting_facts`, JSON.stringify(signedCopyUpload.meeting_facts))
 
 export const getLockProtocolWithSignedCopyMutationKey = () => ['lockProtocolWithSignedCopy'] as const;
 
-export const getLockProtocolWithSignedCopyMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | Problem | StorageUnavailableResponse; status?: number },
+export const getLockProtocolWithSignedCopyMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | Problem | StorageUnavailableResponse; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof lockProtocolWithSignedCopy>>, TError,LockProtocolWithSignedCopyMutationVariables, TContext>, fetch?: RequestInit}
 ): UseMutationOptions<Awaited<ReturnType<typeof lockProtocolWithSignedCopy>>, TError,LockProtocolWithSignedCopyMutationVariables, TContext> => {
 
@@ -4218,13 +4239,13 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
     export type LockProtocolWithSignedCopyMutationResult = NonNullable<Awaited<ReturnType<typeof lockProtocolWithSignedCopy>>>
     export type LockProtocolWithSignedCopyMutationBody = SignedCopyUpload
-    export type LockProtocolWithSignedCopyMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | Problem | StorageUnavailableResponse; status?: number }
+    export type LockProtocolWithSignedCopyMutationError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | Problem | StorageUnavailableResponse; status?: number }
     export type LockProtocolWithSignedCopyMutationVariables = {associationId: string;protocolId: string;data: SignedCopyUpload}
 
     /**
  * @summary Upload the signed scan with the meeting facts and lock (готовий до підпису → підписаний) (AC-14, AC-34, AC-15, AC-40, AC-16, Flow 5)
  */
-export const useLockProtocolWithSignedCopy = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | Problem | StorageUnavailableResponse; status?: number },
+export const useLockProtocolWithSignedCopy = <TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | Problem | StorageUnavailableResponse; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof lockProtocolWithSignedCopy>>, TError,LockProtocolWithSignedCopyMutationVariables, TContext>, fetch?: RequestInit}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof lockProtocolWithSignedCopy>>,
@@ -4245,7 +4266,7 @@ export type withdrawProtocolResponse401 = {
 }
 
 export type withdrawProtocolResponse403 = {
-  data: NotCurrentMemberResponse
+  data: MemberOrDisabledResponse
   status: 403
 }
 
@@ -4330,7 +4351,7 @@ const res = await fetch(getWithdrawProtocolUrl(associationId,protocolId),
 
 export const getWithdrawProtocolMutationKey = () => ['withdrawProtocol'] as const;
 
-export const getWithdrawProtocolMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | Problem; status?: number },
+export const getWithdrawProtocolMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | Problem; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof withdrawProtocol>>, TError,WithdrawProtocolMutationVariables, TContext>, fetch?: RequestInit}
 ): UseMutationOptions<Awaited<ReturnType<typeof withdrawProtocol>>, TError,WithdrawProtocolMutationVariables, TContext> => {
 
@@ -4359,13 +4380,13 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
     export type WithdrawProtocolMutationResult = NonNullable<Awaited<ReturnType<typeof withdrawProtocol>>>
     export type WithdrawProtocolMutationBody = WithdrawalInput
-    export type WithdrawProtocolMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | Problem; status?: number }
+    export type WithdrawProtocolMutationError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | Problem; status?: number }
     export type WithdrawProtocolMutationVariables = {associationId: string;protocolId: string;data: WithdrawalInput}
 
     /**
  * @summary Close a draft as знятий з розгляду with a reason (AC-35, AC-36, AC-37, AC-38, Flow 9)
  */
-export const useWithdrawProtocol = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | Problem; status?: number },
+export const useWithdrawProtocol = <TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | Problem; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof withdrawProtocol>>, TError,WithdrawProtocolMutationVariables, TContext>, fetch?: RequestInit}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof withdrawProtocol>>,
@@ -4386,7 +4407,7 @@ export type copyWithdrawnProtocolResponse401 = {
 }
 
 export type copyWithdrawnProtocolResponse403 = {
-  data: NotCurrentMemberResponse
+  data: MemberOrDisabledResponse
   status: 403
 }
 
@@ -4451,7 +4472,7 @@ export const copyWithdrawnProtocol = async (associationId: string,
 
 export const getCopyWithdrawnProtocolMutationKey = () => ['copyWithdrawnProtocol'] as const;
 
-export const getCopyWithdrawnProtocolMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | Problem; status?: number },
+export const getCopyWithdrawnProtocolMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | Problem; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof copyWithdrawnProtocol>>, TError,CopyWithdrawnProtocolMutationVariables, TContext>, fetch?: RequestInit}
 ): UseMutationOptions<Awaited<ReturnType<typeof copyWithdrawnProtocol>>, TError,CopyWithdrawnProtocolMutationVariables, TContext> => {
 
@@ -4480,13 +4501,13 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
     export type CopyWithdrawnProtocolMutationResult = NonNullable<Awaited<ReturnType<typeof copyWithdrawnProtocol>>>
 
-    export type CopyWithdrawnProtocolMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | Problem; status?: number }
+    export type CopyWithdrawnProtocolMutationError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | Problem; status?: number }
     export type CopyWithdrawnProtocolMutationVariables = {associationId: string;protocolId: string}
 
     /**
  * @summary Start a new draft copied from a withdrawn one (AC-39)
  */
-export const useCopyWithdrawnProtocol = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | Problem; status?: number },
+export const useCopyWithdrawnProtocol = <TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | Problem; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof copyWithdrawnProtocol>>, TError,CopyWithdrawnProtocolMutationVariables, TContext>, fetch?: RequestInit}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof copyWithdrawnProtocol>>,

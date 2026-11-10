@@ -11,10 +11,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/go-chi/chi/v5"
@@ -22,10 +25,348 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
-// Association defines model for Association.
-type Association struct {
-	Id   openapi_types.UUID `json:"id"`
-	Name string             `json:"name"`
+// Defines values for ApplicationKind.
+const (
+	ApplicationKindConnection ApplicationKind = "connection"
+	ApplicationKindTransfer   ApplicationKind = "transfer"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationKind enum.
+func (e ApplicationKind) Valid() bool {
+	switch e {
+	case ApplicationKindConnection:
+		return true
+	case ApplicationKindTransfer:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationState.
+const (
+	ApplicationStateApproved ApplicationState = "approved"
+	ApplicationStatePending  ApplicationState = "pending"
+	ApplicationStateRejected ApplicationState = "rejected"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationState enum.
+func (e ApplicationState) Valid() bool {
+	switch e {
+	case ApplicationStateApproved:
+		return true
+	case ApplicationStatePending:
+		return true
+	case ApplicationStateRejected:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AssociationEventKind.
+const (
+	AssociationEventKindConnected        AssociationEventKind = "connected"
+	AssociationEventKindDisabled         AssociationEventKind = "disabled"
+	AssociationEventKindEnabled          AssociationEventKind = "enabled"
+	AssociationEventKindTransferApproved AssociationEventKind = "transfer_approved"
+)
+
+// Valid indicates whether the value is a known member of the AssociationEventKind enum.
+func (e AssociationEventKind) Valid() bool {
+	switch e {
+	case AssociationEventKindConnected:
+		return true
+	case AssociationEventKindDisabled:
+		return true
+	case AssociationEventKindEnabled:
+		return true
+	case AssociationEventKindTransferApproved:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AssociationState.
+const (
+	AssociationStateConnected AssociationState = "connected"
+	AssociationStateDisabled  AssociationState = "disabled"
+)
+
+// Valid indicates whether the value is a known member of the AssociationState enum.
+func (e AssociationState) Valid() bool {
+	switch e {
+	case AssociationStateConnected:
+		return true
+	case AssociationStateDisabled:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for BoardPosition.
+const (
+	BoardPositionHead   BoardPosition = "head"
+	BoardPositionMember BoardPosition = "member"
+)
+
+// Valid indicates whether the value is a known member of the BoardPosition enum.
+func (e BoardPosition) Valid() bool {
+	switch e {
+	case BoardPositionHead:
+		return true
+	case BoardPositionMember:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DecisionOutcome.
+const (
+	DecisionOutcomeApproved DecisionOutcome = "approved"
+	DecisionOutcomeRejected DecisionOutcome = "rejected"
+)
+
+// Valid indicates whether the value is a known member of the DecisionOutcome enum.
+func (e DecisionOutcome) Valid() bool {
+	switch e {
+	case DecisionOutcomeApproved:
+		return true
+	case DecisionOutcomeRejected:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReviewWarningKind.
+const (
+	ReviewWarningKindExtractAge   ReviewWarningKind = "extract_age"
+	ReviewWarningKindNameMismatch ReviewWarningKind = "name_mismatch"
+)
+
+// Valid indicates whether the value is a known member of the ReviewWarningKind enum.
+func (e ReviewWarningKind) Valid() bool {
+	switch e {
+	case ReviewWarningKindExtractAge:
+		return true
+	case ReviewWarningKindNameMismatch:
+		return true
+	default:
+		return false
+	}
+}
+
+// Application applications row + its latest filing's name and date + the latest rejection reason.
+type Application struct {
+	AssociationId   *openapi_types.UUID `json:"association_id"`
+	AssociationName string              `json:"association_name"`
+	CreatedAt       time.Time           `json:"created_at"`
+	Edrpou          string              `json:"edrpou"`
+
+	// FiledAt created_at of the latest filing (AC-05 «очікує розгляду з …»).
+	FiledAt time.Time          `json:"filed_at"`
+	Id      openapi_types.UUID `json:"id"`
+
+	// Kind applications.kind — заявка на підключення / запит на передачу.
+	Kind            ApplicationKind `json:"kind"`
+	RejectionReason *string         `json:"rejection_reason"`
+
+	// State applications.state (PRD §10) — очікує · схвалена · відхилена.
+	State ApplicationState `json:"state"`
+}
+
+// ApplicationDecision defines model for ApplicationDecision.
+type ApplicationDecision struct {
+	AssociationId    *openapi_types.UUID `json:"association_id"`
+	DecidedAt        time.Time           `json:"decided_at"`
+	FilingId         openapi_types.UUID  `json:"filing_id"`
+	Id               openapi_types.UUID  `json:"id"`
+	Outcome          DecisionOutcome     `json:"outcome"`
+	Reason           *string             `json:"reason"`
+	ReliedOnDocument *string             `json:"relied_on_document"`
+}
+
+// ApplicationDetail The applicant's view; filings and decisions newest first.
+type ApplicationDetail struct {
+	// Application applications row + its latest filing's name and date + the latest rejection reason.
+	Application Application           `json:"application"`
+	Decisions   []ApplicationDecision `json:"decisions"`
+	Filings     []ApplicationFiling   `json:"filings"`
+}
+
+// ApplicationFiling defines model for ApplicationFiling.
+type ApplicationFiling struct {
+	ApplicantFullName  string    `json:"applicant_full_name"`
+	AssociationAddress string    `json:"association_address"`
+	AssociationName    string    `json:"association_name"`
+	CreatedAt          time.Time `json:"created_at"`
+
+	// Extract application_extracts metadata; the content is served only by the download operations.
+	Extract ExtractRef         `json:"extract"`
+	Id      openapi_types.UUID `json:"id"`
+
+	// Position application_filings.position and board_member_revisions.position — голова правління / член правління.
+	Position  BoardPosition       `json:"position"`
+	TermEnd   *openapi_types.Date `json:"term_end"`
+	TermStart openapi_types.Date  `json:"term_start"`
+}
+
+// ApplicationKind applications.kind — заявка на підключення / запит на передачу.
+type ApplicationKind string
+
+// ApplicationPage defines model for ApplicationPage.
+type ApplicationPage struct {
+	Items      []Application `json:"items"`
+	NextCursor *string       `json:"next_cursor"`
+}
+
+// ApplicationRefiling multipart body of refileApplication; a new filing of the same application (AC-06), under the same field
+// rules as NewApplication (AC-02, AC-30).
+type ApplicationRefiling struct {
+	// ApplicantFullName The applicant's own ПІБ; compared with the signer and the керівник the оператор records (AC-11).
+	ApplicantFullName  string `json:"applicant_full_name"`
+	AssociationAddress string `json:"association_address"`
+	AssociationName    string `json:"association_name"`
+
+	// Extract The new КЕП-signed витяг з ЄДР, one file ≤ 5 MB, in the same forms as in NewApplication.
+	Extract openapi_types.File `json:"extract"`
+
+	// Position application_filings.position and board_member_revisions.position — голова правління / член правління.
+	Position BoardPosition `json:"position"`
+
+	// TermEnd Optional. A date earlier than the filing date answers identity.term_ended; the filing date itself is still in force (AC-30).
+	TermEnd *openapi_types.Date `json:"term_end,omitempty"`
+
+	// TermStart Not later than the filing date (Europe/Kyiv); a later date is named in identity.application_invalid (AC-02).
+	TermStart openapi_types.Date `json:"term_start"`
+}
+
+// ApplicationReview The оператор's view (AC-10). Values entered by the applicant and recorded by the оператор are told apart by where they sit (filings vs checks).
+type ApplicationReview struct {
+	ApplicantEmail openapi_types.Email `json:"applicant_email"`
+
+	// Application applications row + its latest filing's name and date + the latest rejection reason.
+	Application Application    `json:"application"`
+	Checks      []ExtractCheck `json:"checks"`
+
+	// CompetingApplicationIds Other pending applications for the same ЄДРПОУ (AC-04c, AC-19b).
+	CompetingApplicationIds []openapi_types.UUID  `json:"competing_application_ids"`
+	Decisions               []ApplicationDecision `json:"decisions"`
+	Filings                 []ApplicationFiling   `json:"filings"`
+
+	// StorageAccountEmail For a запит на передачу — the account that holds the association's files (AC-28b); null otherwise.
+	StorageAccountEmail *openapi_types.Email `json:"storage_account_email"`
+	Warnings            []ReviewWarning      `json:"warnings"`
+}
+
+// ApplicationState applications.state (PRD §10) — очікує · схвалена · відхилена.
+type ApplicationState string
+
+// ApproveApplicationRequest defines model for ApproveApplicationRequest.
+type ApproveApplicationRequest struct {
+	// FilingId The filing shown to the оператор; a newer filing answers identity.application_not_pending.
+	FilingId openapi_types.UUID `json:"filing_id"`
+
+	// ReliedOnDocument Required when розбіжність імен is open (AC-12) — a typed reference to the document, no file is uploaded.
+	ReliedOnDocument *string `json:"relied_on_document,omitempty"`
+}
+
+// AssociationCard defines model for AssociationCard.
+type AssociationCard struct {
+	Address         *string `json:"address"`
+	ConnectedByHand bool    `json:"connected_by_hand"`
+	Edrpou          *string `json:"edrpou"`
+
+	// HeadFullName The roster entry with position head, if any (null for the association set up by hand until AC-19c).
+	HeadFullName *string `json:"head_full_name"`
+
+	// History Newest first (AC-29).
+	History []AssociationEvent `json:"history"`
+	Id      openapi_types.UUID `json:"id"`
+	Name    string             `json:"name"`
+
+	// State associations.state — підключене ОСББ / вимкнене ОСББ.
+	State AssociationState `json:"state"`
+}
+
+// AssociationEvent One step of the chain on the card — an approval (with the extract it relied on) or a state change.
+// A roster entry's `decision_id` (`BoardMember`, governance) matches `decision_id` here, which gives the
+// «за запитом на передачу від <filed_at>, схвалено оператором <occurred_at>» mark and the extract of AC-20.
+type AssociationEvent struct {
+	// DecisionId application_decisions.id of an approval; null for a state change.
+	DecisionId     *openapi_types.UUID `json:"decision_id"`
+	ExtractDatedOn *openapi_types.Date `json:"extract_dated_on"`
+	ExtractId      *openapi_types.UUID `json:"extract_id"`
+
+	// FiledAt created_at of the filing the approval decided; null for a state change.
+	FiledAt        *time.Time           `json:"filed_at"`
+	HeadFullName   *string              `json:"head_full_name"`
+	Kind           AssociationEventKind `json:"kind"`
+	OccurredAt     time.Time            `json:"occurred_at"`
+	Reason         *string              `json:"reason"`
+	SignerFullName *string              `json:"signer_full_name"`
+}
+
+// AssociationEventKind defines model for AssociationEventKind.
+type AssociationEventKind string
+
+// AssociationState associations.state — підключене ОСББ / вимкнене ОСББ.
+type AssociationState string
+
+// AssociationStateChange association_state_changes row.
+type AssociationStateChange struct {
+	AssociationId openapi_types.UUID `json:"association_id"`
+	ChangedAt     time.Time          `json:"changed_at"`
+	Reason        *string            `json:"reason"`
+
+	// State associations.state — підключене ОСББ / вимкнене ОСББ.
+	State AssociationState `json:"state"`
+}
+
+// BoardPosition application_filings.position and board_member_revisions.position — голова правління / член правління.
+type BoardPosition string
+
+// CompleteStorageConnectionRequest defines model for CompleteStorageConnectionRequest.
+type CompleteStorageConnectionRequest struct {
+	Code  string `json:"code"`
+	State string `json:"state"`
+}
+
+// DecisionOutcome defines model for DecisionOutcome.
+type DecisionOutcome string
+
+// DisableAssociationRequest defines model for DisableAssociationRequest.
+type DisableAssociationRequest struct {
+	// Reason Shown to the members; empty → identity.reason_required (AC-22).
+	Reason string `json:"reason"`
+}
+
+// ExtractCheck defines model for ExtractCheck.
+type ExtractCheck struct {
+	CheckedAt      time.Time          `json:"checked_at"`
+	ExtractDatedOn openapi_types.Date `json:"extract_dated_on"`
+	ExtractEdrpou  string             `json:"extract_edrpou"`
+	FilingId       openapi_types.UUID `json:"filing_id"`
+	HeadFullName   string             `json:"head_full_name"`
+	Id             openapi_types.UUID `json:"id"`
+	SignatureValid bool               `json:"signature_valid"`
+	SignedOn       openapi_types.Date `json:"signed_on"`
+	SignerFullName string             `json:"signer_full_name"`
+}
+
+// ExtractRef application_extracts metadata; the content is served only by the download operations.
+type ExtractRef struct {
+	Id           openapi_types.UUID `json:"id"`
+	MediaType    string             `json:"media_type"`
+	OriginalName string             `json:"original_name"`
+
+	// Sha256 Hex of the 32-byte SHA-256 of the stored content.
+	Sha256    string `json:"sha256"`
+	SizeBytes int64  `json:"size_bytes"`
 }
 
 // FieldError defines model for FieldError.
@@ -34,13 +375,90 @@ type FieldError struct {
 	Pointer string `json:"pointer"`
 }
 
-// Principal defines model for Principal.
+// Membership defines model for Membership.
+type Membership struct {
+	AssociationId   openapi_types.UUID `json:"association_id"`
+	AssociationName string             `json:"association_name"`
+
+	// AssociationState associations.state — підключене ОСББ / вимкнене ОСББ.
+	AssociationState AssociationState   `json:"association_state"`
+	BoardMemberId    openapi_types.UUID `json:"board_member_id"`
+
+	// Position application_filings.position and board_member_revisions.position — голова правління / член правління.
+	Position BoardPosition `json:"position"`
+}
+
+// MembershipPage defines model for MembershipPage.
+type MembershipPage struct {
+	Items      []Membership `json:"items"`
+	NextCursor *string      `json:"next_cursor"`
+}
+
+// NewApplication multipart body of fileApplication; application + its first filing + the extract. `position` is always
+// `head`: the applicant does not choose it, and `member` is named in `identity.application_invalid` (AC-02).
+type NewApplication struct {
+	// ApplicantFullName The applicant's own ПІБ; compared with the signer and the керівник the оператор records (AC-11).
+	ApplicantFullName  string `json:"applicant_full_name"`
+	AssociationAddress string `json:"association_address"`
+
+	// AssociationId Only for a запит filed from the card of the association set up by hand (AC-19c).
+	AssociationId   *openapi_types.UUID `json:"association_id,omitempty"`
+	AssociationName string              `json:"association_name"`
+	Edrpou          string              `json:"edrpou"`
+
+	// Extract The КЕП-signed витяг з ЄДР as one file ≤ 5 MB: a PDF with the signature inside it, or a signed container
+	// that holds the PDF (`.p7s`, ASiC-E); a signature sent as a second, separate file is not accepted
+	// (PRD §6). Kept unchanged, never parsed (ADR-0005).
+	Extract openapi_types.File `json:"extract"`
+
+	// Kind applications.kind — заявка на підключення / запит на передачу.
+	Kind ApplicationKind `json:"kind"`
+
+	// Position application_filings.position and board_member_revisions.position — голова правління / член правління.
+	Position BoardPosition `json:"position"`
+
+	// TermEnd Optional. A date earlier than the filing date answers identity.term_ended; the filing date itself is still in force (AC-30).
+	TermEnd *openapi_types.Date `json:"term_end,omitempty"`
+
+	// TermStart Not later than the filing date (Europe/Kyiv); a later date is named in identity.application_invalid (AC-02).
+	TermStart openapi_types.Date `json:"term_start"`
+}
+
+// NewExtractCheck defines model for NewExtractCheck.
+type NewExtractCheck struct {
+	ExtractDatedOn openapi_types.Date `json:"extract_dated_on"`
+	ExtractEdrpou  string             `json:"extract_edrpou"`
+	FilingId       openapi_types.UUID `json:"filing_id"`
+	HeadFullName   string             `json:"head_full_name"`
+	SignatureValid bool               `json:"signature_valid"`
+	SignedOn       openapi_types.Date `json:"signed_on"`
+	SignerFullName string             `json:"signer_full_name"`
+}
+
+// OperatorAssociation defines model for OperatorAssociation.
+type OperatorAssociation struct {
+	// ConnectedByHand confirmed_by_decision_id is null — «підключено вручну, без витягу».
+	ConnectedByHand bool               `json:"connected_by_hand"`
+	CreatedAt       time.Time          `json:"created_at"`
+	Edrpou          *string            `json:"edrpou"`
+	Id              openapi_types.UUID `json:"id"`
+	Name            string             `json:"name"`
+
+	// State associations.state — підключене ОСББ / вимкнене ОСББ.
+	State AssociationState `json:"state"`
+}
+
+// OperatorAssociationPage defines model for OperatorAssociationPage.
+type OperatorAssociationPage struct {
+	Items      []OperatorAssociation `json:"items"`
+	NextCursor *string               `json:"next_cursor"`
+}
+
+// Principal Changed — the signed-in person only; associations from listMemberships (ADR-0004). `is_operator` = the session address equals the configured оператор (ADR-0001); the same person may also have memberships, and neither grant widens the other (ADR-0009).
 type Principal struct {
-	AccountId     openapi_types.UUID  `json:"account_id"`
-	Association   Association         `json:"association"`
-	BoardMemberId openapi_types.UUID  `json:"board_member_id"`
-	Email         openapi_types.Email `json:"email"`
-	FullName      string              `json:"full_name"`
+	AccountId  openapi_types.UUID  `json:"account_id"`
+	Email      openapi_types.Email `json:"email"`
+	IsOperator bool                `json:"is_operator"`
 }
 
 // Problem RFC 9457 problem details (internal/platform/httpapi). `code` is an extension member
@@ -56,8 +474,42 @@ type Problem struct {
 	Type     string        `json:"type"`
 }
 
+// RejectApplicationRequest defines model for RejectApplicationRequest.
+type RejectApplicationRequest struct {
+	FilingId openapi_types.UUID `json:"filing_id"`
+
+	// Reason Shown to the applicant; empty → identity.reason_required (AC-13).
+	Reason string `json:"reason"`
+}
+
+// ReviewWarning defines model for ReviewWarning.
+type ReviewWarning struct {
+	// Detail Which values differ, or the extract's date (AC-11, AC-11b).
+	Detail string `json:"detail"`
+
+	// Kind розбіжність імен — the applicant's typed full name, the signer and the керівник differ after ignoring letter case, extra spaces, the form of the apostrophe and the order of the words (AC-11) — or an extract older than 30 days (AC-11b); advisory only.
+	Kind ReviewWarningKind `json:"kind"`
+}
+
+// ReviewWarningKind розбіжність імен — the applicant's typed full name, the signer and the керівник differ after ignoring letter case, extra spaces, the form of the apostrophe and the order of the words (AC-11) — or an extract older than 30 days (AC-11b); advisory only.
+type ReviewWarningKind string
+
+// StorageConnection defines model for StorageConnection.
+type StorageConnection struct {
+	Connected           bool                 `json:"connected"`
+	ConnectedAt         *time.Time           `json:"connected_at"`
+	ConnectedByMemberId *openapi_types.UUID  `json:"connected_by_member_id"`
+	GoogleAccountEmail  *openapi_types.Email `json:"google_account_email"`
+}
+
 // AgendaItemId defines model for AgendaItemId.
 type AgendaItemId = openapi_types.UUID
+
+// ApplicationId defines model for ApplicationId.
+type ApplicationId = openapi_types.UUID
+
+// ApplicationStateFilter applications.state (PRD §10) — очікує · схвалена · відхилена.
+type ApplicationStateFilter = ApplicationState
 
 // AssociationId defines model for AssociationId.
 type AssociationId = openapi_types.UUID
@@ -68,11 +520,23 @@ type BoardMemberId = openapi_types.UUID
 // CaseId defines model for CaseId.
 type CaseId = openapi_types.UUID
 
+// Cursor defines model for Cursor.
+type Cursor = string
+
+// ExtractId defines model for ExtractId.
+type ExtractId = openapi_types.UUID
+
 // FileId defines model for FileId.
 type FileId = openapi_types.UUID
 
+// FilingId defines model for FilingId.
+type FilingId = openapi_types.UUID
+
 // JobId defines model for JobId.
 type JobId = int64
+
+// Limit defines model for Limit.
+type Limit = int
 
 // MeetingId defines model for MeetingId.
 type MeetingId = openapi_types.UUID
@@ -86,15 +550,69 @@ type RoundNumber = int32
 // SlotId defines model for SlotId.
 type SlotId = openapi_types.UUID
 
-// NotCurrentMember RFC 9457 problem details (internal/platform/httpapi). `code` is an extension member
+// MemberOrDisabled RFC 9457 problem details (internal/platform/httpapi). `code` is an extension member
 // `<context>.<error_name>`; it is set by a context and absent on a 422 from the shared request validator.
 // Delta to the repo schema: adds `code`.
-type NotCurrentMember = Problem
+type MemberOrDisabled = Problem
+
+// NotFound RFC 9457 problem details (internal/platform/httpapi). `code` is an extension member
+// `<context>.<error_name>`; it is set by a context and absent on a 422 from the shared request validator.
+// Delta to the repo schema: adds `code`.
+type NotFound = Problem
+
+// NotOperator RFC 9457 problem details (internal/platform/httpapi). `code` is an extension member
+// `<context>.<error_name>`; it is set by a context and absent on a 422 from the shared request validator.
+// Delta to the repo schema: adds `code`.
+type NotOperator = Problem
 
 // SessionRequired RFC 9457 problem details (internal/platform/httpapi). `code` is an extension member
 // `<context>.<error_name>`; it is set by a context and absent on a 422 from the shared request validator.
 // Delta to the repo schema: adds `code`.
 type SessionRequired = Problem
+
+// ValidationFailed RFC 9457 problem details (internal/platform/httpapi). `code` is an extension member
+// `<context>.<error_name>`; it is set by a context and absent on a 422 from the shared request validator.
+// Delta to the repo schema: adds `code`.
+type ValidationFailed = Problem
+
+// ListMyApplicationsParams defines parameters for ListMyApplications.
+type ListMyApplicationsParams struct {
+	// Limit Page size.
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Cursor Opaque cursor from a previous page's next_cursor; omit for the first page.
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
+
+// ListMembershipsParams defines parameters for ListMemberships.
+type ListMembershipsParams struct {
+	// Limit Page size.
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Cursor Opaque cursor from a previous page's next_cursor; omit for the first page.
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
+
+// ListApplicationsForReviewParams defines parameters for ListApplicationsForReview.
+type ListApplicationsForReviewParams struct {
+	// State Defaults to pending (the queue); pending is ordered oldest first, the others newest first.
+	State *ApplicationStateFilter `form:"state,omitempty" json:"state,omitempty"`
+
+	// Limit Page size.
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Cursor Opaque cursor from a previous page's next_cursor; omit for the first page.
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
+
+// ListAssociationsForOperatorParams defines parameters for ListAssociationsForOperator.
+type ListAssociationsForOperatorParams struct {
+	// Limit Page size.
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Cursor Opaque cursor from a previous page's next_cursor; omit for the first page.
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
 
 // CompleteSignInParams defines parameters for CompleteSignIn.
 type CompleteSignInParams struct {
@@ -102,9 +620,90 @@ type CompleteSignInParams struct {
 	State string `form:"state" json:"state"`
 }
 
+// FileApplicationMultipartRequestBody defines body for FileApplication for multipart/form-data ContentType.
+type FileApplicationMultipartRequestBody = NewApplication
+
+// RefileApplicationMultipartRequestBody defines body for RefileApplication for multipart/form-data ContentType.
+type RefileApplicationMultipartRequestBody = ApplicationRefiling
+
+// CompleteStorageConnectionJSONRequestBody defines body for CompleteStorageConnection for application/json ContentType.
+type CompleteStorageConnectionJSONRequestBody = CompleteStorageConnectionRequest
+
+// ApproveApplicationJSONRequestBody defines body for ApproveApplication for application/json ContentType.
+type ApproveApplicationJSONRequestBody = ApproveApplicationRequest
+
+// RecordExtractCheckJSONRequestBody defines body for RecordExtractCheck for application/json ContentType.
+type RecordExtractCheckJSONRequestBody = NewExtractCheck
+
+// RejectApplicationJSONRequestBody defines body for RejectApplication for application/json ContentType.
+type RejectApplicationJSONRequestBody = RejectApplicationRequest
+
+// DisableAssociationJSONRequestBody defines body for DisableAssociation for application/json ContentType.
+type DisableAssociationJSONRequestBody = DisableAssociationRequest
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// GetSession The signed-in person, their roster entry and the association
+	// ListMyApplications The signed-in person's заявки and запити, newest first (US-02, AC-05)
+	// (GET /identity/applications)
+	ListMyApplications(w http.ResponseWriter, r *http.Request, params ListMyApplicationsParams)
+	// FileApplication File a заявка на підключення or a запит на передачу with the signed extract (US-01, US-04, Flows 1 and 6)
+	// (POST /identity/applications)
+	FileApplication(w http.ResponseWriter, r *http.Request)
+	// GetMyApplication One of the person's applications with every filing and decision (AC-05, AC-06, AC-14)
+	// (GET /identity/applications/{application_id})
+	GetMyApplication(w http.ResponseWriter, r *http.Request, applicationId ApplicationId)
+	// RefileApplication Fix and file a rejected application again (US-02, AC-06, Flow 5)
+	// (POST /identity/applications/{application_id}/filings)
+	RefileApplication(w http.ResponseWriter, r *http.Request, applicationId ApplicationId)
+	// DownloadMyExtract Download the extract the person attached to one filing (ADR-0005)
+	// (GET /identity/applications/{application_id}/filings/{filing_id}/extract)
+	DownloadMyExtract(w http.ResponseWriter, r *http.Request, applicationId ApplicationId, filingId FilingId)
+	// GetAssociationCard The association card — state, current голова and the chain of confirmation (US-09, AC-29, AC-21)
+	// (GET /identity/associations/{association_id})
+	GetAssociationCard(w http.ResponseWriter, r *http.Request, associationId AssociationId)
+	// DownloadConfirmationExtract Download an extract an approved decision of this association relied on (AC-20, AC-29)
+	// (GET /identity/associations/{association_id}/extracts/{extract_id})
+	DownloadConfirmationExtract(w http.ResponseWriter, r *http.Request, associationId AssociationId, extractId ExtractId)
+	// GetStorageConnection Whether the document storage is connected and which account holds the files (AC-27, AC-09)
+	// (GET /identity/associations/{association_id}/storage-connection)
+	GetStorageConnection(w http.ResponseWriter, r *http.Request, associationId AssociationId)
+	// CompleteStorageConnection Finish the storage consent the SPA received back from Google (ADR-0008, AC-27, AC-28b)
+	// (POST /identity/associations/{association_id}/storage-connection)
+	CompleteStorageConnection(w http.ResponseWriter, r *http.Request, associationId AssociationId)
+	// StartStorageConnection Redirect a член правління to the storage consent (drive.file, offline) — ADR-0008
+	// (GET /identity/associations/{association_id}/storage-connection/authorization)
+	StartStorageConnection(w http.ResponseWriter, r *http.Request, associationId AssociationId)
+	// ListMemberships Associations whose roster has the signed-in person with a term covering today (AC-04d)
+	// (GET /identity/memberships)
+	ListMemberships(w http.ResponseWriter, r *http.Request, params ListMembershipsParams)
+	// ListApplicationsForReview The оператор's queue, oldest pending first by default (US-03, US-05, AC-16)
+	// (GET /identity/operator/applications)
+	ListApplicationsForReview(w http.ResponseWriter, r *http.Request, params ListApplicationsForReviewParams)
+	// GetApplicationForReview One application with filings, checks, decisions, warnings and competing applications (AC-10, AC-11, AC-11b, AC-04c, AC-19b, AC-28b)
+	// (GET /identity/operator/applications/{application_id})
+	GetApplicationForReview(w http.ResponseWriter, r *http.Request, applicationId ApplicationId)
+	// ApproveApplication Approve the latest filing — create the association or change its roster (AC-08, AC-16c, AC-19, AC-19c, Flows 2-3)
+	// (POST /identity/operator/applications/{application_id}/approval)
+	ApproveApplication(w http.ResponseWriter, r *http.Request, applicationId ApplicationId)
+	// RecordExtractCheck Record the оператор's check of the extract of the latest filing (AC-03, AC-10, Flow 2)
+	// (POST /identity/operator/applications/{application_id}/checks)
+	RecordExtractCheck(w http.ResponseWriter, r *http.Request, applicationId ApplicationId)
+	// DownloadExtractForReview Download the extract of a filing to check it outside Спільно (ADR-0005)
+	// (GET /identity/operator/applications/{application_id}/filings/{filing_id}/extract)
+	DownloadExtractForReview(w http.ResponseWriter, r *http.Request, applicationId ApplicationId, filingId FilingId)
+	// RejectApplication Reject the latest filing with a reason the applicant will see (AC-13, AC-14, AC-16c, Flow 8)
+	// (POST /identity/operator/applications/{application_id}/rejection)
+	RejectApplication(w http.ResponseWriter, r *http.Request, applicationId ApplicationId)
+	// ListAssociationsForOperator Every association with its state and whether its голова is confirmed by an extract (US-06)
+	// (GET /identity/operator/associations)
+	ListAssociationsForOperator(w http.ResponseWriter, r *http.Request, params ListAssociationsForOperatorParams)
+	// DisableAssociation Disable an association with a reason its members will see (AC-21, AC-22, AC-24)
+	// (POST /identity/operator/associations/{association_id}/disabling)
+	DisableAssociation(w http.ResponseWriter, r *http.Request, associationId AssociationId)
+	// EnableAssociation Enable a disabled association; every record is as before (AC-23, AC-24)
+	// (POST /identity/operator/associations/{association_id}/enabling)
+	EnableAssociation(w http.ResponseWriter, r *http.Request, associationId AssociationId)
+	// GetSession The signed-in person; associations come from listMemberships (ADR-0004)
 	// (GET /identity/session)
 	GetSession(w http.ResponseWriter, r *http.Request)
 	// StartSignIn Redirect to the identity provider (OIDC authorization code + PKCE)
@@ -122,7 +721,127 @@ type ServerInterface interface {
 
 type Unimplemented struct{}
 
-// GetSession The signed-in person, their roster entry and the association
+// ListMyApplications The signed-in person's заявки and запити, newest first (US-02, AC-05)
+// (GET /identity/applications)
+func (_ Unimplemented) ListMyApplications(w http.ResponseWriter, r *http.Request, params ListMyApplicationsParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// FileApplication File a заявка на підключення or a запит на передачу with the signed extract (US-01, US-04, Flows 1 and 6)
+// (POST /identity/applications)
+func (_ Unimplemented) FileApplication(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetMyApplication One of the person's applications with every filing and decision (AC-05, AC-06, AC-14)
+// (GET /identity/applications/{application_id})
+func (_ Unimplemented) GetMyApplication(w http.ResponseWriter, r *http.Request, applicationId ApplicationId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// RefileApplication Fix and file a rejected application again (US-02, AC-06, Flow 5)
+// (POST /identity/applications/{application_id}/filings)
+func (_ Unimplemented) RefileApplication(w http.ResponseWriter, r *http.Request, applicationId ApplicationId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// DownloadMyExtract Download the extract the person attached to one filing (ADR-0005)
+// (GET /identity/applications/{application_id}/filings/{filing_id}/extract)
+func (_ Unimplemented) DownloadMyExtract(w http.ResponseWriter, r *http.Request, applicationId ApplicationId, filingId FilingId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetAssociationCard The association card — state, current голова and the chain of confirmation (US-09, AC-29, AC-21)
+// (GET /identity/associations/{association_id})
+func (_ Unimplemented) GetAssociationCard(w http.ResponseWriter, r *http.Request, associationId AssociationId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// DownloadConfirmationExtract Download an extract an approved decision of this association relied on (AC-20, AC-29)
+// (GET /identity/associations/{association_id}/extracts/{extract_id})
+func (_ Unimplemented) DownloadConfirmationExtract(w http.ResponseWriter, r *http.Request, associationId AssociationId, extractId ExtractId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetStorageConnection Whether the document storage is connected and which account holds the files (AC-27, AC-09)
+// (GET /identity/associations/{association_id}/storage-connection)
+func (_ Unimplemented) GetStorageConnection(w http.ResponseWriter, r *http.Request, associationId AssociationId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// CompleteStorageConnection Finish the storage consent the SPA received back from Google (ADR-0008, AC-27, AC-28b)
+// (POST /identity/associations/{association_id}/storage-connection)
+func (_ Unimplemented) CompleteStorageConnection(w http.ResponseWriter, r *http.Request, associationId AssociationId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// StartStorageConnection Redirect a член правління to the storage consent (drive.file, offline) — ADR-0008
+// (GET /identity/associations/{association_id}/storage-connection/authorization)
+func (_ Unimplemented) StartStorageConnection(w http.ResponseWriter, r *http.Request, associationId AssociationId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListMemberships Associations whose roster has the signed-in person with a term covering today (AC-04d)
+// (GET /identity/memberships)
+func (_ Unimplemented) ListMemberships(w http.ResponseWriter, r *http.Request, params ListMembershipsParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListApplicationsForReview The оператор's queue, oldest pending first by default (US-03, US-05, AC-16)
+// (GET /identity/operator/applications)
+func (_ Unimplemented) ListApplicationsForReview(w http.ResponseWriter, r *http.Request, params ListApplicationsForReviewParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetApplicationForReview One application with filings, checks, decisions, warnings and competing applications (AC-10, AC-11, AC-11b, AC-04c, AC-19b, AC-28b)
+// (GET /identity/operator/applications/{application_id})
+func (_ Unimplemented) GetApplicationForReview(w http.ResponseWriter, r *http.Request, applicationId ApplicationId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ApproveApplication Approve the latest filing — create the association or change its roster (AC-08, AC-16c, AC-19, AC-19c, Flows 2-3)
+// (POST /identity/operator/applications/{application_id}/approval)
+func (_ Unimplemented) ApproveApplication(w http.ResponseWriter, r *http.Request, applicationId ApplicationId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// RecordExtractCheck Record the оператор's check of the extract of the latest filing (AC-03, AC-10, Flow 2)
+// (POST /identity/operator/applications/{application_id}/checks)
+func (_ Unimplemented) RecordExtractCheck(w http.ResponseWriter, r *http.Request, applicationId ApplicationId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// DownloadExtractForReview Download the extract of a filing to check it outside Спільно (ADR-0005)
+// (GET /identity/operator/applications/{application_id}/filings/{filing_id}/extract)
+func (_ Unimplemented) DownloadExtractForReview(w http.ResponseWriter, r *http.Request, applicationId ApplicationId, filingId FilingId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// RejectApplication Reject the latest filing with a reason the applicant will see (AC-13, AC-14, AC-16c, Flow 8)
+// (POST /identity/operator/applications/{application_id}/rejection)
+func (_ Unimplemented) RejectApplication(w http.ResponseWriter, r *http.Request, applicationId ApplicationId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListAssociationsForOperator Every association with its state and whether its голова is confirmed by an extract (US-06)
+// (GET /identity/operator/associations)
+func (_ Unimplemented) ListAssociationsForOperator(w http.ResponseWriter, r *http.Request, params ListAssociationsForOperatorParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// DisableAssociation Disable an association with a reason its members will see (AC-21, AC-22, AC-24)
+// (POST /identity/operator/associations/{association_id}/disabling)
+func (_ Unimplemented) DisableAssociation(w http.ResponseWriter, r *http.Request, associationId AssociationId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// EnableAssociation Enable a disabled association; every record is as before (AC-23, AC-24)
+// (POST /identity/operator/associations/{association_id}/enabling)
+func (_ Unimplemented) EnableAssociation(w http.ResponseWriter, r *http.Request, associationId AssociationId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetSession The signed-in person; associations come from listMemberships (ADR-0004)
 // (GET /identity/session)
 func (_ Unimplemented) GetSession(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
@@ -154,6 +873,634 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// ListMyApplications operation middleware
+func (siw *ServerInterfaceWrapper) ListMyApplications(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListMyApplicationsParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListMyApplications(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// FileApplication operation middleware
+func (siw *ServerInterfaceWrapper) FileApplication(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.FileApplication(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetMyApplication operation middleware
+func (siw *ServerInterfaceWrapper) GetMyApplication(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "application_id" -------------
+	var applicationId ApplicationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "application_id", chi.URLParam(r, "application_id"), &applicationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "application_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetMyApplication(w, r, applicationId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RefileApplication operation middleware
+func (siw *ServerInterfaceWrapper) RefileApplication(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "application_id" -------------
+	var applicationId ApplicationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "application_id", chi.URLParam(r, "application_id"), &applicationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "application_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RefileApplication(w, r, applicationId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DownloadMyExtract operation middleware
+func (siw *ServerInterfaceWrapper) DownloadMyExtract(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "application_id" -------------
+	var applicationId ApplicationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "application_id", chi.URLParam(r, "application_id"), &applicationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "application_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "filing_id" -------------
+	var filingId FilingId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "filing_id", chi.URLParam(r, "filing_id"), &filingId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "filing_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DownloadMyExtract(w, r, applicationId, filingId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAssociationCard operation middleware
+func (siw *ServerInterfaceWrapper) GetAssociationCard(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "association_id" -------------
+	var associationId AssociationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "association_id", chi.URLParam(r, "association_id"), &associationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "association_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAssociationCard(w, r, associationId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DownloadConfirmationExtract operation middleware
+func (siw *ServerInterfaceWrapper) DownloadConfirmationExtract(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "association_id" -------------
+	var associationId AssociationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "association_id", chi.URLParam(r, "association_id"), &associationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "association_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "extract_id" -------------
+	var extractId ExtractId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "extract_id", chi.URLParam(r, "extract_id"), &extractId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "extract_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DownloadConfirmationExtract(w, r, associationId, extractId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetStorageConnection operation middleware
+func (siw *ServerInterfaceWrapper) GetStorageConnection(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "association_id" -------------
+	var associationId AssociationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "association_id", chi.URLParam(r, "association_id"), &associationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "association_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetStorageConnection(w, r, associationId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CompleteStorageConnection operation middleware
+func (siw *ServerInterfaceWrapper) CompleteStorageConnection(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "association_id" -------------
+	var associationId AssociationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "association_id", chi.URLParam(r, "association_id"), &associationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "association_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CompleteStorageConnection(w, r, associationId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// StartStorageConnection operation middleware
+func (siw *ServerInterfaceWrapper) StartStorageConnection(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "association_id" -------------
+	var associationId AssociationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "association_id", chi.URLParam(r, "association_id"), &associationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "association_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StartStorageConnection(w, r, associationId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListMemberships operation middleware
+func (siw *ServerInterfaceWrapper) ListMemberships(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListMembershipsParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListMemberships(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListApplicationsForReview operation middleware
+func (siw *ServerInterfaceWrapper) ListApplicationsForReview(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListApplicationsForReviewParams
+
+	// ------------- Optional query parameter "state" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "state", r.URL.Query(), &params.State, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "state"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "state", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListApplicationsForReview(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetApplicationForReview operation middleware
+func (siw *ServerInterfaceWrapper) GetApplicationForReview(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "application_id" -------------
+	var applicationId ApplicationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "application_id", chi.URLParam(r, "application_id"), &applicationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "application_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetApplicationForReview(w, r, applicationId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ApproveApplication operation middleware
+func (siw *ServerInterfaceWrapper) ApproveApplication(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "application_id" -------------
+	var applicationId ApplicationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "application_id", chi.URLParam(r, "application_id"), &applicationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "application_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ApproveApplication(w, r, applicationId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RecordExtractCheck operation middleware
+func (siw *ServerInterfaceWrapper) RecordExtractCheck(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "application_id" -------------
+	var applicationId ApplicationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "application_id", chi.URLParam(r, "application_id"), &applicationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "application_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RecordExtractCheck(w, r, applicationId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DownloadExtractForReview operation middleware
+func (siw *ServerInterfaceWrapper) DownloadExtractForReview(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "application_id" -------------
+	var applicationId ApplicationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "application_id", chi.URLParam(r, "application_id"), &applicationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "application_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "filing_id" -------------
+	var filingId FilingId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "filing_id", chi.URLParam(r, "filing_id"), &filingId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "filing_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DownloadExtractForReview(w, r, applicationId, filingId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RejectApplication operation middleware
+func (siw *ServerInterfaceWrapper) RejectApplication(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "application_id" -------------
+	var applicationId ApplicationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "application_id", chi.URLParam(r, "application_id"), &applicationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "application_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RejectApplication(w, r, applicationId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAssociationsForOperator operation middleware
+func (siw *ServerInterfaceWrapper) ListAssociationsForOperator(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListAssociationsForOperatorParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAssociationsForOperator(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DisableAssociation operation middleware
+func (siw *ServerInterfaceWrapper) DisableAssociation(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "association_id" -------------
+	var associationId AssociationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "association_id", chi.URLParam(r, "association_id"), &associationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "association_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DisableAssociation(w, r, associationId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// EnableAssociation operation middleware
+func (siw *ServerInterfaceWrapper) EnableAssociation(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "association_id" -------------
+	var associationId AssociationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "association_id", chi.URLParam(r, "association_id"), &associationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "association_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.EnableAssociation(w, r, associationId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // GetSession operation middleware
 func (siw *ServerInterfaceWrapper) GetSession(w http.ResponseWriter, r *http.Request) {
@@ -368,13 +1715,1574 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/identity/session", wrapper.GetSession)
 	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/identity/memberships", wrapper.ListMemberships)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/identity/applications", wrapper.ListMyApplications)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/identity/applications", wrapper.FileApplication)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/identity/applications/{application_id}", wrapper.GetMyApplication)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/identity/applications/{application_id}/filings", wrapper.RefileApplication)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/identity/applications/{application_id}/filings/{filing_id}/extract", wrapper.DownloadMyExtract)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/identity/operator/applications", wrapper.ListApplicationsForReview)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/identity/operator/applications/{application_id}", wrapper.GetApplicationForReview)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/identity/operator/applications/{application_id}/filings/{filing_id}/extract", wrapper.DownloadExtractForReview)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/identity/operator/applications/{application_id}/checks", wrapper.RecordExtractCheck)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/identity/operator/applications/{application_id}/approval", wrapper.ApproveApplication)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/identity/operator/applications/{application_id}/rejection", wrapper.RejectApplication)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/identity/operator/associations", wrapper.ListAssociationsForOperator)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/identity/operator/associations/{association_id}/disabling", wrapper.DisableAssociation)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/identity/operator/associations/{association_id}/enabling", wrapper.EnableAssociation)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/identity/associations/{association_id}", wrapper.GetAssociationCard)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/identity/associations/{association_id}/extracts/{extract_id}", wrapper.DownloadConfirmationExtract)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/identity/associations/{association_id}/storage-connection", wrapper.GetStorageConnection)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/identity/associations/{association_id}/storage-connection", wrapper.CompleteStorageConnection)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/identity/associations/{association_id}/storage-connection/authorization", wrapper.StartStorageConnection)
+	})
 
 	return r
 }
 
-type NotCurrentMemberApplicationProblemPlusJSONResponse Problem
+type ExtractFileResponseHeaders struct {
+	ContentDisposition  *string
+	XContentTypeOptions *string
+}
+type ExtractFileApplicationoctetStreamResponse struct {
+	Body io.Reader
+
+	Headers       ExtractFileResponseHeaders
+	ContentLength int64
+}
+
+type MemberOrDisabledApplicationProblemPlusJSONResponse Problem
+
+type NotFoundApplicationProblemPlusJSONResponse Problem
+
+type NotOperatorApplicationProblemPlusJSONResponse Problem
 
 type SessionRequiredApplicationProblemPlusJSONResponse Problem
+
+type ValidationFailedApplicationProblemPlusJSONResponse Problem
+
+type ListMyApplicationsRequestObject struct {
+	Params ListMyApplicationsParams
+}
+
+type ListMyApplicationsResponseObject interface {
+	VisitListMyApplicationsResponse(w http.ResponseWriter) error
+}
+
+type ListMyApplications200JSONResponse ApplicationPage
+
+func (response ListMyApplications200JSONResponse) VisitListMyApplicationsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListMyApplications401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response ListMyApplications401ApplicationProblemPlusJSONResponse) VisitListMyApplicationsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListMyApplications422ApplicationProblemPlusJSONResponse struct {
+	ValidationFailedApplicationProblemPlusJSONResponse
+}
+
+func (response ListMyApplications422ApplicationProblemPlusJSONResponse) VisitListMyApplicationsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type FileApplicationRequestObject struct {
+	Body *multipart.Reader
+}
+
+type FileApplicationResponseObject interface {
+	VisitFileApplicationResponse(w http.ResponseWriter) error
+}
+
+type FileApplication201JSONResponse Application
+
+func (response FileApplication201JSONResponse) VisitFileApplicationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type FileApplication401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response FileApplication401ApplicationProblemPlusJSONResponse) VisitFileApplicationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type FileApplication409ApplicationProblemPlusJSONResponse Problem
+
+func (response FileApplication409ApplicationProblemPlusJSONResponse) VisitFileApplicationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type FileApplication422ApplicationProblemPlusJSONResponse Problem
+
+func (response FileApplication422ApplicationProblemPlusJSONResponse) VisitFileApplicationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetMyApplicationRequestObject struct {
+	ApplicationId ApplicationId `json:"application_id"`
+}
+
+type GetMyApplicationResponseObject interface {
+	VisitGetMyApplicationResponse(w http.ResponseWriter) error
+}
+
+type GetMyApplication200JSONResponse ApplicationDetail
+
+func (response GetMyApplication200JSONResponse) VisitGetMyApplicationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetMyApplication401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response GetMyApplication401ApplicationProblemPlusJSONResponse) VisitGetMyApplicationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetMyApplication404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
+}
+
+func (response GetMyApplication404ApplicationProblemPlusJSONResponse) VisitGetMyApplicationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RefileApplicationRequestObject struct {
+	ApplicationId ApplicationId `json:"application_id"`
+	Body          *multipart.Reader
+}
+
+type RefileApplicationResponseObject interface {
+	VisitRefileApplicationResponse(w http.ResponseWriter) error
+}
+
+type RefileApplication201JSONResponse Application
+
+func (response RefileApplication201JSONResponse) VisitRefileApplicationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RefileApplication401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response RefileApplication401ApplicationProblemPlusJSONResponse) VisitRefileApplicationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RefileApplication404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
+}
+
+func (response RefileApplication404ApplicationProblemPlusJSONResponse) VisitRefileApplicationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RefileApplication409ApplicationProblemPlusJSONResponse Problem
+
+func (response RefileApplication409ApplicationProblemPlusJSONResponse) VisitRefileApplicationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RefileApplication422ApplicationProblemPlusJSONResponse Problem
+
+func (response RefileApplication422ApplicationProblemPlusJSONResponse) VisitRefileApplicationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DownloadMyExtractRequestObject struct {
+	ApplicationId ApplicationId `json:"application_id"`
+	FilingId      FilingId      `json:"filing_id"`
+}
+
+type DownloadMyExtractResponseObject interface {
+	VisitDownloadMyExtractResponse(w http.ResponseWriter) error
+}
+
+type DownloadMyExtract200ApplicationoctetStreamResponse struct {
+	ExtractFileApplicationoctetStreamResponse
+}
+
+func (response DownloadMyExtract200ApplicationoctetStreamResponse) VisitDownloadMyExtractResponse(w http.ResponseWriter) error {
+
+	w.Header().Set("Content-Type", "application/octet-stream")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	if response.Headers.ContentDisposition != nil {
+		w.Header().Set("Content-Disposition", fmt.Sprint(*response.Headers.ContentDisposition))
+	}
+	if response.Headers.XContentTypeOptions != nil {
+		w.Header().Set("X-Content-Type-Options", fmt.Sprint(*response.Headers.XContentTypeOptions))
+	}
+	w.WriteHeader(200)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
+}
+
+type DownloadMyExtract401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response DownloadMyExtract401ApplicationProblemPlusJSONResponse) VisitDownloadMyExtractResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DownloadMyExtract404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
+}
+
+func (response DownloadMyExtract404ApplicationProblemPlusJSONResponse) VisitDownloadMyExtractResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAssociationCardRequestObject struct {
+	AssociationId AssociationId `json:"association_id"`
+}
+
+type GetAssociationCardResponseObject interface {
+	VisitGetAssociationCardResponse(w http.ResponseWriter) error
+}
+
+type GetAssociationCard200JSONResponse AssociationCard
+
+func (response GetAssociationCard200JSONResponse) VisitGetAssociationCardResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAssociationCard401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response GetAssociationCard401ApplicationProblemPlusJSONResponse) VisitGetAssociationCardResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAssociationCard403ApplicationProblemPlusJSONResponse struct {
+	MemberOrDisabledApplicationProblemPlusJSONResponse
+}
+
+func (response GetAssociationCard403ApplicationProblemPlusJSONResponse) VisitGetAssociationCardResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DownloadConfirmationExtractRequestObject struct {
+	AssociationId AssociationId `json:"association_id"`
+	ExtractId     ExtractId     `json:"extract_id"`
+}
+
+type DownloadConfirmationExtractResponseObject interface {
+	VisitDownloadConfirmationExtractResponse(w http.ResponseWriter) error
+}
+
+type DownloadConfirmationExtract200ApplicationoctetStreamResponse struct {
+	ExtractFileApplicationoctetStreamResponse
+}
+
+func (response DownloadConfirmationExtract200ApplicationoctetStreamResponse) VisitDownloadConfirmationExtractResponse(w http.ResponseWriter) error {
+
+	w.Header().Set("Content-Type", "application/octet-stream")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	if response.Headers.ContentDisposition != nil {
+		w.Header().Set("Content-Disposition", fmt.Sprint(*response.Headers.ContentDisposition))
+	}
+	if response.Headers.XContentTypeOptions != nil {
+		w.Header().Set("X-Content-Type-Options", fmt.Sprint(*response.Headers.XContentTypeOptions))
+	}
+	w.WriteHeader(200)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
+}
+
+type DownloadConfirmationExtract401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response DownloadConfirmationExtract401ApplicationProblemPlusJSONResponse) VisitDownloadConfirmationExtractResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DownloadConfirmationExtract403ApplicationProblemPlusJSONResponse struct {
+	MemberOrDisabledApplicationProblemPlusJSONResponse
+}
+
+func (response DownloadConfirmationExtract403ApplicationProblemPlusJSONResponse) VisitDownloadConfirmationExtractResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DownloadConfirmationExtract404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
+}
+
+func (response DownloadConfirmationExtract404ApplicationProblemPlusJSONResponse) VisitDownloadConfirmationExtractResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetStorageConnectionRequestObject struct {
+	AssociationId AssociationId `json:"association_id"`
+}
+
+type GetStorageConnectionResponseObject interface {
+	VisitGetStorageConnectionResponse(w http.ResponseWriter) error
+}
+
+type GetStorageConnection200JSONResponse StorageConnection
+
+func (response GetStorageConnection200JSONResponse) VisitGetStorageConnectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetStorageConnection401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response GetStorageConnection401ApplicationProblemPlusJSONResponse) VisitGetStorageConnectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetStorageConnection403ApplicationProblemPlusJSONResponse struct {
+	MemberOrDisabledApplicationProblemPlusJSONResponse
+}
+
+func (response GetStorageConnection403ApplicationProblemPlusJSONResponse) VisitGetStorageConnectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CompleteStorageConnectionRequestObject struct {
+	AssociationId AssociationId `json:"association_id"`
+	Body          *CompleteStorageConnectionJSONRequestBody
+}
+
+type CompleteStorageConnectionResponseObject interface {
+	VisitCompleteStorageConnectionResponse(w http.ResponseWriter) error
+}
+
+type CompleteStorageConnection201JSONResponse StorageConnection
+
+func (response CompleteStorageConnection201JSONResponse) VisitCompleteStorageConnectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CompleteStorageConnection401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response CompleteStorageConnection401ApplicationProblemPlusJSONResponse) VisitCompleteStorageConnectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CompleteStorageConnection403ApplicationProblemPlusJSONResponse struct {
+	MemberOrDisabledApplicationProblemPlusJSONResponse
+}
+
+func (response CompleteStorageConnection403ApplicationProblemPlusJSONResponse) VisitCompleteStorageConnectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CompleteStorageConnection409ApplicationProblemPlusJSONResponse Problem
+
+func (response CompleteStorageConnection409ApplicationProblemPlusJSONResponse) VisitCompleteStorageConnectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CompleteStorageConnection422ApplicationProblemPlusJSONResponse struct {
+	ValidationFailedApplicationProblemPlusJSONResponse
+}
+
+func (response CompleteStorageConnection422ApplicationProblemPlusJSONResponse) VisitCompleteStorageConnectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartStorageConnectionRequestObject struct {
+	AssociationId AssociationId `json:"association_id"`
+}
+
+type StartStorageConnectionResponseObject interface {
+	VisitStartStorageConnectionResponse(w http.ResponseWriter) error
+}
+
+type StartStorageConnection302ResponseHeaders struct {
+	Location *string
+}
+
+type StartStorageConnection302Response struct {
+	Headers StartStorageConnection302ResponseHeaders
+}
+
+func (response StartStorageConnection302Response) VisitStartStorageConnectionResponse(w http.ResponseWriter) error {
+	if response.Headers.Location != nil {
+		w.Header().Set("Location", fmt.Sprint(*response.Headers.Location))
+	}
+	w.WriteHeader(302)
+	return nil
+}
+
+type StartStorageConnection401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response StartStorageConnection401ApplicationProblemPlusJSONResponse) VisitStartStorageConnectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartStorageConnection403ApplicationProblemPlusJSONResponse struct {
+	MemberOrDisabledApplicationProblemPlusJSONResponse
+}
+
+func (response StartStorageConnection403ApplicationProblemPlusJSONResponse) VisitStartStorageConnectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListMembershipsRequestObject struct {
+	Params ListMembershipsParams
+}
+
+type ListMembershipsResponseObject interface {
+	VisitListMembershipsResponse(w http.ResponseWriter) error
+}
+
+type ListMemberships200JSONResponse MembershipPage
+
+func (response ListMemberships200JSONResponse) VisitListMembershipsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListMemberships401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response ListMemberships401ApplicationProblemPlusJSONResponse) VisitListMembershipsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListMemberships422ApplicationProblemPlusJSONResponse struct {
+	ValidationFailedApplicationProblemPlusJSONResponse
+}
+
+func (response ListMemberships422ApplicationProblemPlusJSONResponse) VisitListMembershipsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListApplicationsForReviewRequestObject struct {
+	Params ListApplicationsForReviewParams
+}
+
+type ListApplicationsForReviewResponseObject interface {
+	VisitListApplicationsForReviewResponse(w http.ResponseWriter) error
+}
+
+type ListApplicationsForReview200JSONResponse ApplicationPage
+
+func (response ListApplicationsForReview200JSONResponse) VisitListApplicationsForReviewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListApplicationsForReview401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response ListApplicationsForReview401ApplicationProblemPlusJSONResponse) VisitListApplicationsForReviewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListApplicationsForReview403ApplicationProblemPlusJSONResponse struct {
+	NotOperatorApplicationProblemPlusJSONResponse
+}
+
+func (response ListApplicationsForReview403ApplicationProblemPlusJSONResponse) VisitListApplicationsForReviewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListApplicationsForReview422ApplicationProblemPlusJSONResponse struct {
+	ValidationFailedApplicationProblemPlusJSONResponse
+}
+
+func (response ListApplicationsForReview422ApplicationProblemPlusJSONResponse) VisitListApplicationsForReviewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetApplicationForReviewRequestObject struct {
+	ApplicationId ApplicationId `json:"application_id"`
+}
+
+type GetApplicationForReviewResponseObject interface {
+	VisitGetApplicationForReviewResponse(w http.ResponseWriter) error
+}
+
+type GetApplicationForReview200JSONResponse ApplicationReview
+
+func (response GetApplicationForReview200JSONResponse) VisitGetApplicationForReviewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetApplicationForReview401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response GetApplicationForReview401ApplicationProblemPlusJSONResponse) VisitGetApplicationForReviewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetApplicationForReview403ApplicationProblemPlusJSONResponse struct {
+	NotOperatorApplicationProblemPlusJSONResponse
+}
+
+func (response GetApplicationForReview403ApplicationProblemPlusJSONResponse) VisitGetApplicationForReviewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetApplicationForReview404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
+}
+
+func (response GetApplicationForReview404ApplicationProblemPlusJSONResponse) VisitGetApplicationForReviewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ApproveApplicationRequestObject struct {
+	ApplicationId ApplicationId `json:"application_id"`
+	Body          *ApproveApplicationJSONRequestBody
+}
+
+type ApproveApplicationResponseObject interface {
+	VisitApproveApplicationResponse(w http.ResponseWriter) error
+}
+
+type ApproveApplication200JSONResponse ApplicationDecision
+
+func (response ApproveApplication200JSONResponse) VisitApproveApplicationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ApproveApplication401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response ApproveApplication401ApplicationProblemPlusJSONResponse) VisitApproveApplicationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ApproveApplication403ApplicationProblemPlusJSONResponse struct {
+	NotOperatorApplicationProblemPlusJSONResponse
+}
+
+func (response ApproveApplication403ApplicationProblemPlusJSONResponse) VisitApproveApplicationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ApproveApplication404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
+}
+
+func (response ApproveApplication404ApplicationProblemPlusJSONResponse) VisitApproveApplicationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ApproveApplication409ApplicationProblemPlusJSONResponse Problem
+
+func (response ApproveApplication409ApplicationProblemPlusJSONResponse) VisitApproveApplicationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ApproveApplication422ApplicationProblemPlusJSONResponse struct {
+	ValidationFailedApplicationProblemPlusJSONResponse
+}
+
+func (response ApproveApplication422ApplicationProblemPlusJSONResponse) VisitApproveApplicationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RecordExtractCheckRequestObject struct {
+	ApplicationId ApplicationId `json:"application_id"`
+	Body          *RecordExtractCheckJSONRequestBody
+}
+
+type RecordExtractCheckResponseObject interface {
+	VisitRecordExtractCheckResponse(w http.ResponseWriter) error
+}
+
+type RecordExtractCheck201JSONResponse ExtractCheck
+
+func (response RecordExtractCheck201JSONResponse) VisitRecordExtractCheckResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RecordExtractCheck401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response RecordExtractCheck401ApplicationProblemPlusJSONResponse) VisitRecordExtractCheckResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RecordExtractCheck403ApplicationProblemPlusJSONResponse struct {
+	NotOperatorApplicationProblemPlusJSONResponse
+}
+
+func (response RecordExtractCheck403ApplicationProblemPlusJSONResponse) VisitRecordExtractCheckResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RecordExtractCheck404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
+}
+
+func (response RecordExtractCheck404ApplicationProblemPlusJSONResponse) VisitRecordExtractCheckResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RecordExtractCheck409ApplicationProblemPlusJSONResponse Problem
+
+func (response RecordExtractCheck409ApplicationProblemPlusJSONResponse) VisitRecordExtractCheckResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RecordExtractCheck422ApplicationProblemPlusJSONResponse struct {
+	ValidationFailedApplicationProblemPlusJSONResponse
+}
+
+func (response RecordExtractCheck422ApplicationProblemPlusJSONResponse) VisitRecordExtractCheckResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DownloadExtractForReviewRequestObject struct {
+	ApplicationId ApplicationId `json:"application_id"`
+	FilingId      FilingId      `json:"filing_id"`
+}
+
+type DownloadExtractForReviewResponseObject interface {
+	VisitDownloadExtractForReviewResponse(w http.ResponseWriter) error
+}
+
+type DownloadExtractForReview200ApplicationoctetStreamResponse struct {
+	ExtractFileApplicationoctetStreamResponse
+}
+
+func (response DownloadExtractForReview200ApplicationoctetStreamResponse) VisitDownloadExtractForReviewResponse(w http.ResponseWriter) error {
+
+	w.Header().Set("Content-Type", "application/octet-stream")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	if response.Headers.ContentDisposition != nil {
+		w.Header().Set("Content-Disposition", fmt.Sprint(*response.Headers.ContentDisposition))
+	}
+	if response.Headers.XContentTypeOptions != nil {
+		w.Header().Set("X-Content-Type-Options", fmt.Sprint(*response.Headers.XContentTypeOptions))
+	}
+	w.WriteHeader(200)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
+}
+
+type DownloadExtractForReview401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response DownloadExtractForReview401ApplicationProblemPlusJSONResponse) VisitDownloadExtractForReviewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DownloadExtractForReview403ApplicationProblemPlusJSONResponse struct {
+	NotOperatorApplicationProblemPlusJSONResponse
+}
+
+func (response DownloadExtractForReview403ApplicationProblemPlusJSONResponse) VisitDownloadExtractForReviewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DownloadExtractForReview404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
+}
+
+func (response DownloadExtractForReview404ApplicationProblemPlusJSONResponse) VisitDownloadExtractForReviewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RejectApplicationRequestObject struct {
+	ApplicationId ApplicationId `json:"application_id"`
+	Body          *RejectApplicationJSONRequestBody
+}
+
+type RejectApplicationResponseObject interface {
+	VisitRejectApplicationResponse(w http.ResponseWriter) error
+}
+
+type RejectApplication200JSONResponse ApplicationDecision
+
+func (response RejectApplication200JSONResponse) VisitRejectApplicationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RejectApplication401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response RejectApplication401ApplicationProblemPlusJSONResponse) VisitRejectApplicationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RejectApplication403ApplicationProblemPlusJSONResponse struct {
+	NotOperatorApplicationProblemPlusJSONResponse
+}
+
+func (response RejectApplication403ApplicationProblemPlusJSONResponse) VisitRejectApplicationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RejectApplication404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
+}
+
+func (response RejectApplication404ApplicationProblemPlusJSONResponse) VisitRejectApplicationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RejectApplication409ApplicationProblemPlusJSONResponse Problem
+
+func (response RejectApplication409ApplicationProblemPlusJSONResponse) VisitRejectApplicationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RejectApplication422ApplicationProblemPlusJSONResponse Problem
+
+func (response RejectApplication422ApplicationProblemPlusJSONResponse) VisitRejectApplicationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAssociationsForOperatorRequestObject struct {
+	Params ListAssociationsForOperatorParams
+}
+
+type ListAssociationsForOperatorResponseObject interface {
+	VisitListAssociationsForOperatorResponse(w http.ResponseWriter) error
+}
+
+type ListAssociationsForOperator200JSONResponse OperatorAssociationPage
+
+func (response ListAssociationsForOperator200JSONResponse) VisitListAssociationsForOperatorResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAssociationsForOperator401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response ListAssociationsForOperator401ApplicationProblemPlusJSONResponse) VisitListAssociationsForOperatorResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAssociationsForOperator403ApplicationProblemPlusJSONResponse struct {
+	NotOperatorApplicationProblemPlusJSONResponse
+}
+
+func (response ListAssociationsForOperator403ApplicationProblemPlusJSONResponse) VisitListAssociationsForOperatorResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAssociationsForOperator422ApplicationProblemPlusJSONResponse struct {
+	ValidationFailedApplicationProblemPlusJSONResponse
+}
+
+func (response ListAssociationsForOperator422ApplicationProblemPlusJSONResponse) VisitListAssociationsForOperatorResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DisableAssociationRequestObject struct {
+	AssociationId AssociationId `json:"association_id"`
+	Body          *DisableAssociationJSONRequestBody
+}
+
+type DisableAssociationResponseObject interface {
+	VisitDisableAssociationResponse(w http.ResponseWriter) error
+}
+
+type DisableAssociation200JSONResponse AssociationStateChange
+
+func (response DisableAssociation200JSONResponse) VisitDisableAssociationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DisableAssociation401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response DisableAssociation401ApplicationProblemPlusJSONResponse) VisitDisableAssociationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DisableAssociation403ApplicationProblemPlusJSONResponse struct {
+	NotOperatorApplicationProblemPlusJSONResponse
+}
+
+func (response DisableAssociation403ApplicationProblemPlusJSONResponse) VisitDisableAssociationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DisableAssociation404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
+}
+
+func (response DisableAssociation404ApplicationProblemPlusJSONResponse) VisitDisableAssociationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DisableAssociation409ApplicationProblemPlusJSONResponse Problem
+
+func (response DisableAssociation409ApplicationProblemPlusJSONResponse) VisitDisableAssociationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DisableAssociation422ApplicationProblemPlusJSONResponse Problem
+
+func (response DisableAssociation422ApplicationProblemPlusJSONResponse) VisitDisableAssociationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type EnableAssociationRequestObject struct {
+	AssociationId AssociationId `json:"association_id"`
+}
+
+type EnableAssociationResponseObject interface {
+	VisitEnableAssociationResponse(w http.ResponseWriter) error
+}
+
+type EnableAssociation200JSONResponse AssociationStateChange
+
+func (response EnableAssociation200JSONResponse) VisitEnableAssociationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type EnableAssociation401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response EnableAssociation401ApplicationProblemPlusJSONResponse) VisitEnableAssociationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type EnableAssociation403ApplicationProblemPlusJSONResponse struct {
+	NotOperatorApplicationProblemPlusJSONResponse
+}
+
+func (response EnableAssociation403ApplicationProblemPlusJSONResponse) VisitEnableAssociationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type EnableAssociation404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
+}
+
+func (response EnableAssociation404ApplicationProblemPlusJSONResponse) VisitEnableAssociationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type EnableAssociation409ApplicationProblemPlusJSONResponse Problem
+
+func (response EnableAssociation409ApplicationProblemPlusJSONResponse) VisitEnableAssociationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
 
 type GetSessionRequestObject struct {
 }
@@ -409,22 +3317,6 @@ func (response GetSession401ApplicationProblemPlusJSONResponse) VisitGetSessionR
 	}
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(401)
-	_, err := buf.WriteTo(w)
-	return err
-}
-
-type GetSession403ApplicationProblemPlusJSONResponse struct {
-	NotCurrentMemberApplicationProblemPlusJSONResponse
-}
-
-func (response GetSession403ApplicationProblemPlusJSONResponse) VisitGetSessionResponse(w http.ResponseWriter) error {
-
-	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(response); err != nil {
-		return err
-	}
-	w.Header().Set("Content-Type", "application/problem+json")
-	w.WriteHeader(403)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -494,22 +3386,6 @@ func (response CompleteSignIn401ApplicationProblemPlusJSONResponse) VisitComplet
 	return err
 }
 
-type CompleteSignIn403ApplicationProblemPlusJSONResponse struct {
-	NotCurrentMemberApplicationProblemPlusJSONResponse
-}
-
-func (response CompleteSignIn403ApplicationProblemPlusJSONResponse) VisitCompleteSignInResponse(w http.ResponseWriter) error {
-
-	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(response); err != nil {
-		return err
-	}
-	w.Header().Set("Content-Type", "application/problem+json")
-	w.WriteHeader(403)
-	_, err := buf.WriteTo(w)
-	return err
-}
-
 type SignOutRequestObject struct {
 }
 
@@ -551,7 +3427,67 @@ func (response SignOut401ApplicationProblemPlusJSONResponse) VisitSignOutRespons
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
-	// GetSession The signed-in person, their roster entry and the association
+	// ListMyApplications The signed-in person's заявки and запити, newest first (US-02, AC-05)
+	// (GET /identity/applications)
+	ListMyApplications(ctx context.Context, request ListMyApplicationsRequestObject) (ListMyApplicationsResponseObject, error)
+	// FileApplication File a заявка на підключення or a запит на передачу with the signed extract (US-01, US-04, Flows 1 and 6)
+	// (POST /identity/applications)
+	FileApplication(ctx context.Context, request FileApplicationRequestObject) (FileApplicationResponseObject, error)
+	// GetMyApplication One of the person's applications with every filing and decision (AC-05, AC-06, AC-14)
+	// (GET /identity/applications/{application_id})
+	GetMyApplication(ctx context.Context, request GetMyApplicationRequestObject) (GetMyApplicationResponseObject, error)
+	// RefileApplication Fix and file a rejected application again (US-02, AC-06, Flow 5)
+	// (POST /identity/applications/{application_id}/filings)
+	RefileApplication(ctx context.Context, request RefileApplicationRequestObject) (RefileApplicationResponseObject, error)
+	// DownloadMyExtract Download the extract the person attached to one filing (ADR-0005)
+	// (GET /identity/applications/{application_id}/filings/{filing_id}/extract)
+	DownloadMyExtract(ctx context.Context, request DownloadMyExtractRequestObject) (DownloadMyExtractResponseObject, error)
+	// GetAssociationCard The association card — state, current голова and the chain of confirmation (US-09, AC-29, AC-21)
+	// (GET /identity/associations/{association_id})
+	GetAssociationCard(ctx context.Context, request GetAssociationCardRequestObject) (GetAssociationCardResponseObject, error)
+	// DownloadConfirmationExtract Download an extract an approved decision of this association relied on (AC-20, AC-29)
+	// (GET /identity/associations/{association_id}/extracts/{extract_id})
+	DownloadConfirmationExtract(ctx context.Context, request DownloadConfirmationExtractRequestObject) (DownloadConfirmationExtractResponseObject, error)
+	// GetStorageConnection Whether the document storage is connected and which account holds the files (AC-27, AC-09)
+	// (GET /identity/associations/{association_id}/storage-connection)
+	GetStorageConnection(ctx context.Context, request GetStorageConnectionRequestObject) (GetStorageConnectionResponseObject, error)
+	// CompleteStorageConnection Finish the storage consent the SPA received back from Google (ADR-0008, AC-27, AC-28b)
+	// (POST /identity/associations/{association_id}/storage-connection)
+	CompleteStorageConnection(ctx context.Context, request CompleteStorageConnectionRequestObject) (CompleteStorageConnectionResponseObject, error)
+	// StartStorageConnection Redirect a член правління to the storage consent (drive.file, offline) — ADR-0008
+	// (GET /identity/associations/{association_id}/storage-connection/authorization)
+	StartStorageConnection(ctx context.Context, request StartStorageConnectionRequestObject) (StartStorageConnectionResponseObject, error)
+	// ListMemberships Associations whose roster has the signed-in person with a term covering today (AC-04d)
+	// (GET /identity/memberships)
+	ListMemberships(ctx context.Context, request ListMembershipsRequestObject) (ListMembershipsResponseObject, error)
+	// ListApplicationsForReview The оператор's queue, oldest pending first by default (US-03, US-05, AC-16)
+	// (GET /identity/operator/applications)
+	ListApplicationsForReview(ctx context.Context, request ListApplicationsForReviewRequestObject) (ListApplicationsForReviewResponseObject, error)
+	// GetApplicationForReview One application with filings, checks, decisions, warnings and competing applications (AC-10, AC-11, AC-11b, AC-04c, AC-19b, AC-28b)
+	// (GET /identity/operator/applications/{application_id})
+	GetApplicationForReview(ctx context.Context, request GetApplicationForReviewRequestObject) (GetApplicationForReviewResponseObject, error)
+	// ApproveApplication Approve the latest filing — create the association or change its roster (AC-08, AC-16c, AC-19, AC-19c, Flows 2-3)
+	// (POST /identity/operator/applications/{application_id}/approval)
+	ApproveApplication(ctx context.Context, request ApproveApplicationRequestObject) (ApproveApplicationResponseObject, error)
+	// RecordExtractCheck Record the оператор's check of the extract of the latest filing (AC-03, AC-10, Flow 2)
+	// (POST /identity/operator/applications/{application_id}/checks)
+	RecordExtractCheck(ctx context.Context, request RecordExtractCheckRequestObject) (RecordExtractCheckResponseObject, error)
+	// DownloadExtractForReview Download the extract of a filing to check it outside Спільно (ADR-0005)
+	// (GET /identity/operator/applications/{application_id}/filings/{filing_id}/extract)
+	DownloadExtractForReview(ctx context.Context, request DownloadExtractForReviewRequestObject) (DownloadExtractForReviewResponseObject, error)
+	// RejectApplication Reject the latest filing with a reason the applicant will see (AC-13, AC-14, AC-16c, Flow 8)
+	// (POST /identity/operator/applications/{application_id}/rejection)
+	RejectApplication(ctx context.Context, request RejectApplicationRequestObject) (RejectApplicationResponseObject, error)
+	// ListAssociationsForOperator Every association with its state and whether its голова is confirmed by an extract (US-06)
+	// (GET /identity/operator/associations)
+	ListAssociationsForOperator(ctx context.Context, request ListAssociationsForOperatorRequestObject) (ListAssociationsForOperatorResponseObject, error)
+	// DisableAssociation Disable an association with a reason its members will see (AC-21, AC-22, AC-24)
+	// (POST /identity/operator/associations/{association_id}/disabling)
+	DisableAssociation(ctx context.Context, request DisableAssociationRequestObject) (DisableAssociationResponseObject, error)
+	// EnableAssociation Enable a disabled association; every record is as before (AC-23, AC-24)
+	// (POST /identity/operator/associations/{association_id}/enabling)
+	EnableAssociation(ctx context.Context, request EnableAssociationRequestObject) (EnableAssociationResponseObject, error)
+	// GetSession The signed-in person; associations come from listMemberships (ADR-0004)
 	// (GET /identity/session)
 	GetSession(ctx context.Context, request GetSessionRequestObject) (GetSessionResponseObject, error)
 	// StartSignIn Redirect to the identity provider (OIDC authorization code + PKCE)
@@ -602,6 +3538,576 @@ type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
 	options     StrictHTTPServerOptions
+}
+
+// ListMyApplications operation middleware
+func (sh *strictHandler) ListMyApplications(w http.ResponseWriter, r *http.Request, params ListMyApplicationsParams) {
+	var request ListMyApplicationsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListMyApplications(ctx, request.(ListMyApplicationsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListMyApplications")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListMyApplicationsResponseObject); ok {
+		if err := validResponse.VisitListMyApplicationsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// FileApplication operation middleware
+func (sh *strictHandler) FileApplication(w http.ResponseWriter, r *http.Request) {
+	var request FileApplicationRequestObject
+
+	if reader, err := r.MultipartReader(); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode multipart body: %w", err))
+		return
+	} else {
+		request.Body = reader
+	}
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.FileApplication(ctx, request.(FileApplicationRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "FileApplication")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(FileApplicationResponseObject); ok {
+		if err := validResponse.VisitFileApplicationResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetMyApplication operation middleware
+func (sh *strictHandler) GetMyApplication(w http.ResponseWriter, r *http.Request, applicationId ApplicationId) {
+	var request GetMyApplicationRequestObject
+
+	request.ApplicationId = applicationId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetMyApplication(ctx, request.(GetMyApplicationRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetMyApplication")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetMyApplicationResponseObject); ok {
+		if err := validResponse.VisitGetMyApplicationResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RefileApplication operation middleware
+func (sh *strictHandler) RefileApplication(w http.ResponseWriter, r *http.Request, applicationId ApplicationId) {
+	var request RefileApplicationRequestObject
+
+	request.ApplicationId = applicationId
+
+	if reader, err := r.MultipartReader(); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode multipart body: %w", err))
+		return
+	} else {
+		request.Body = reader
+	}
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RefileApplication(ctx, request.(RefileApplicationRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RefileApplication")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RefileApplicationResponseObject); ok {
+		if err := validResponse.VisitRefileApplicationResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DownloadMyExtract operation middleware
+func (sh *strictHandler) DownloadMyExtract(w http.ResponseWriter, r *http.Request, applicationId ApplicationId, filingId FilingId) {
+	var request DownloadMyExtractRequestObject
+
+	request.ApplicationId = applicationId
+	request.FilingId = filingId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DownloadMyExtract(ctx, request.(DownloadMyExtractRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DownloadMyExtract")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DownloadMyExtractResponseObject); ok {
+		if err := validResponse.VisitDownloadMyExtractResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetAssociationCard operation middleware
+func (sh *strictHandler) GetAssociationCard(w http.ResponseWriter, r *http.Request, associationId AssociationId) {
+	var request GetAssociationCardRequestObject
+
+	request.AssociationId = associationId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAssociationCard(ctx, request.(GetAssociationCardRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAssociationCard")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetAssociationCardResponseObject); ok {
+		if err := validResponse.VisitGetAssociationCardResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DownloadConfirmationExtract operation middleware
+func (sh *strictHandler) DownloadConfirmationExtract(w http.ResponseWriter, r *http.Request, associationId AssociationId, extractId ExtractId) {
+	var request DownloadConfirmationExtractRequestObject
+
+	request.AssociationId = associationId
+	request.ExtractId = extractId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DownloadConfirmationExtract(ctx, request.(DownloadConfirmationExtractRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DownloadConfirmationExtract")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DownloadConfirmationExtractResponseObject); ok {
+		if err := validResponse.VisitDownloadConfirmationExtractResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetStorageConnection operation middleware
+func (sh *strictHandler) GetStorageConnection(w http.ResponseWriter, r *http.Request, associationId AssociationId) {
+	var request GetStorageConnectionRequestObject
+
+	request.AssociationId = associationId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetStorageConnection(ctx, request.(GetStorageConnectionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetStorageConnection")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetStorageConnectionResponseObject); ok {
+		if err := validResponse.VisitGetStorageConnectionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CompleteStorageConnection operation middleware
+func (sh *strictHandler) CompleteStorageConnection(w http.ResponseWriter, r *http.Request, associationId AssociationId) {
+	var request CompleteStorageConnectionRequestObject
+
+	request.AssociationId = associationId
+
+	var body CompleteStorageConnectionJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CompleteStorageConnection(ctx, request.(CompleteStorageConnectionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CompleteStorageConnection")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CompleteStorageConnectionResponseObject); ok {
+		if err := validResponse.VisitCompleteStorageConnectionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// StartStorageConnection operation middleware
+func (sh *strictHandler) StartStorageConnection(w http.ResponseWriter, r *http.Request, associationId AssociationId) {
+	var request StartStorageConnectionRequestObject
+
+	request.AssociationId = associationId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.StartStorageConnection(ctx, request.(StartStorageConnectionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "StartStorageConnection")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(StartStorageConnectionResponseObject); ok {
+		if err := validResponse.VisitStartStorageConnectionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListMemberships operation middleware
+func (sh *strictHandler) ListMemberships(w http.ResponseWriter, r *http.Request, params ListMembershipsParams) {
+	var request ListMembershipsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListMemberships(ctx, request.(ListMembershipsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListMemberships")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListMembershipsResponseObject); ok {
+		if err := validResponse.VisitListMembershipsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListApplicationsForReview operation middleware
+func (sh *strictHandler) ListApplicationsForReview(w http.ResponseWriter, r *http.Request, params ListApplicationsForReviewParams) {
+	var request ListApplicationsForReviewRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListApplicationsForReview(ctx, request.(ListApplicationsForReviewRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListApplicationsForReview")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListApplicationsForReviewResponseObject); ok {
+		if err := validResponse.VisitListApplicationsForReviewResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetApplicationForReview operation middleware
+func (sh *strictHandler) GetApplicationForReview(w http.ResponseWriter, r *http.Request, applicationId ApplicationId) {
+	var request GetApplicationForReviewRequestObject
+
+	request.ApplicationId = applicationId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetApplicationForReview(ctx, request.(GetApplicationForReviewRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetApplicationForReview")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetApplicationForReviewResponseObject); ok {
+		if err := validResponse.VisitGetApplicationForReviewResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ApproveApplication operation middleware
+func (sh *strictHandler) ApproveApplication(w http.ResponseWriter, r *http.Request, applicationId ApplicationId) {
+	var request ApproveApplicationRequestObject
+
+	request.ApplicationId = applicationId
+
+	var body ApproveApplicationJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ApproveApplication(ctx, request.(ApproveApplicationRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ApproveApplication")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ApproveApplicationResponseObject); ok {
+		if err := validResponse.VisitApproveApplicationResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RecordExtractCheck operation middleware
+func (sh *strictHandler) RecordExtractCheck(w http.ResponseWriter, r *http.Request, applicationId ApplicationId) {
+	var request RecordExtractCheckRequestObject
+
+	request.ApplicationId = applicationId
+
+	var body RecordExtractCheckJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RecordExtractCheck(ctx, request.(RecordExtractCheckRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RecordExtractCheck")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RecordExtractCheckResponseObject); ok {
+		if err := validResponse.VisitRecordExtractCheckResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DownloadExtractForReview operation middleware
+func (sh *strictHandler) DownloadExtractForReview(w http.ResponseWriter, r *http.Request, applicationId ApplicationId, filingId FilingId) {
+	var request DownloadExtractForReviewRequestObject
+
+	request.ApplicationId = applicationId
+	request.FilingId = filingId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DownloadExtractForReview(ctx, request.(DownloadExtractForReviewRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DownloadExtractForReview")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DownloadExtractForReviewResponseObject); ok {
+		if err := validResponse.VisitDownloadExtractForReviewResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RejectApplication operation middleware
+func (sh *strictHandler) RejectApplication(w http.ResponseWriter, r *http.Request, applicationId ApplicationId) {
+	var request RejectApplicationRequestObject
+
+	request.ApplicationId = applicationId
+
+	var body RejectApplicationJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RejectApplication(ctx, request.(RejectApplicationRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RejectApplication")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RejectApplicationResponseObject); ok {
+		if err := validResponse.VisitRejectApplicationResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListAssociationsForOperator operation middleware
+func (sh *strictHandler) ListAssociationsForOperator(w http.ResponseWriter, r *http.Request, params ListAssociationsForOperatorParams) {
+	var request ListAssociationsForOperatorRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListAssociationsForOperator(ctx, request.(ListAssociationsForOperatorRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListAssociationsForOperator")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListAssociationsForOperatorResponseObject); ok {
+		if err := validResponse.VisitListAssociationsForOperatorResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DisableAssociation operation middleware
+func (sh *strictHandler) DisableAssociation(w http.ResponseWriter, r *http.Request, associationId AssociationId) {
+	var request DisableAssociationRequestObject
+
+	request.AssociationId = associationId
+
+	var body DisableAssociationJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DisableAssociation(ctx, request.(DisableAssociationRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DisableAssociation")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DisableAssociationResponseObject); ok {
+		if err := validResponse.VisitDisableAssociationResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// EnableAssociation operation middleware
+func (sh *strictHandler) EnableAssociation(w http.ResponseWriter, r *http.Request, associationId AssociationId) {
+	var request EnableAssociationRequestObject
+
+	request.AssociationId = associationId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.EnableAssociation(ctx, request.(EnableAssociationRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "EnableAssociation")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(EnableAssociationResponseObject); ok {
+		if err := validResponse.VisitEnableAssociationResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
 }
 
 // GetSession operation middleware
@@ -707,50 +4213,200 @@ func (sh *strictHandler) SignOut(w http.ResponseWriter, r *http.Request) {
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
+	"7H3rbhzHueCrFHoPYBLuufAiiSJh7DK6JF7HkmA6J4s1tWSxu4bTUU/1uKuG1IQgIFknN8BIkLNeBVhg",
+	"T042i7M/8odWpFixbBrwE/TsI/hJFl9duqu7q2d6hkNK8lF+xCLZdfvqq+9+OXK8qNePKKGcOetHDrmP",
+	"e/2QiH9v9vth4GEeRHQzjAn2h7f7hMJfDnA4IPAPL/KJs+4EPqE84MMmzobsYDlmJ4JBruMTjoPQWXeS",
+	"P6PkSXIyeohGj5K/Jc/Q6DOUfJGcjH6XPEm+TE5Q8nVygka/TJ6h5F+SPyW/T37vuA7jmA+Ys77avuo6",
+	"POAhrGvsEKnlkFqOD/vwBd6LBnx9L8T0nnN87JojrosNfUB+RjxO/NyxjGOIHxmLvECeKvCddToIQzf3",
+	"W4p7sJreL/r2L8n/Tp6NHo4+SU6TJ8nz5O8o+f3oUfI0eZ58nZwmX377wnEdLyaYE38Hc2fdWW4vX24s",
+	"LTWW2h+2r6632+vt9n91XIf4cT8aOOvO0vLK6qXLV9Yc1+kE4YRRsEunrf7XEP93Bf5vTf8I//Pa7SXH",
+	"de4FFL72IkqJJ47sOrGACpwsJpgBFJzRI7i256NPRr9L/jp6hEaPk69Hv5ZH+zJ5Nnowepw8Sb5Onidf",
+	"uih5CoccPUq+Sp4lX48+gVv9ZvQgOUXJafL56EFyknydfD36Hdz1M3HhyVPxu1N11QDNWF/NMWCPF7Ag",
+	"osxZ/6jqQuAbvwSY5Q+X2hlgOkEY0P2dWvDxJXxqfduR30YD7kW93OZd5yWAMCZhQPydiO74kTfoEcol",
+	"kI7vahAoQEpEp3ynMwjDFI1LuPvfk9PkhfjxBCV/FIs/SV6MHsstOPnHgH0/JozBRF81UfI/k+ejPyRP",
+	"XJQ8GT1KXjRRbvoTFy05F/aY7vMYexzedK1bJfJWe8QP8I6mKBltaPXveexKgwX7FPNBTAAB4mA/oDgF",
+	"5cGQD3G32fc7zf4VBsjdxcuXLhtrz/o/mCv4OdnZG3Ig10trqyvL7WPXmQa1+xELJJFzugQDrnIS93YI",
+	"Td+U+JlxHKdQba802kvO8d0CNX2XHuAw8Gtzh0B9bzKGP8IbSJ4lT0aPRw9GnwBafwOIN/qdySCeryNJ",
+	"FF1k7M51SBxHsUTrdMregHG0R9Aa8oP9gDNx5oByEjvrTktO4xy7xRE0EqNCzEmMeBdTxLsEyYeDfMxJ",
+	"fh5jG8d3Jf0SrGp52c6qsrNP5lK3In6HUD+g+7VBSyO+01djTPD+6+jx6NfJM/lmBUTR6Jejx6PPRr81",
+	"4XsKPz6RnPnR6BfwRpMXYthpHT4MsMtWn3zAO3if5I4WcNIbR+b/ffFdeWbNEjVgAc0ouc93vEHMolgR",
+	"9wJgLWjzBqKVEM0D7wNyEJBDm1BI+Q7pyRc1YCRuLP0nJTM3OWHccd8Ij7VB7jpel3j34LHfdYUiQjhI",
+	"Zzk+4as/mxLgGynmjRQzHykGsDKK8T7ZwZ4XDbLHLQce4pgqNNMCTxwdkByh+HgA796kFDMoGTaB3ZHy",
+	"vkCYLwF1BZdO/gr8ePQp6AmjX8CvPk9OpeqAvvunx2gFMPRx8hS1l5rtlSacVhK3DDeVNn9NPloyQWgz",
+	"34QcuOOlI0354t8MjV1LEMk3sJfky+TF6LejXwkp4hn67oHQ+J8Ice/r0ePRJ6NPRw9BJnkK6s1f02f6",
+	"XFoKfp2cwi+NyU/g0FI6BKXn71JYBOh8A/qVNCEk3yh58mlyMvrV6FGl9JKdMLUimCeskmGyYddwXDAg",
+	"zEA80iV39oY7XQzY28EhI3YyDph+VnLXDQD5h0pkluR1p666u5xRoh1f0CzxAjXNaq8Zf5+GTE3mT/M4",
+	"ep5viWuOPG8Qx6W1lz5sr623L6m1Cxwt2KckPttegAbVgk9bwnw2vqJ5b3bgAgpfDxjeC6egBb4eYJKA",
+	"z5JT2MnoUfKNtFY8T76AH8RehAqxjkYPgSiMHqDRb8TzPYXffJm8AAPG6JEcVryu7N2uZO/2ZhTvBb4/",
+	"1txXPuC1LqYFjaMootW5CvFixVQFhFluf7i0nCFrZvyZ8dhwrBTWhTPdoBdzpCvWI+WlukrMuhXx6TkN",
+	"6LA1uMzoN9L2NY7RlJmEVHRHjzSbKI0sIl0FswBVdzpGsQXA+glVUK4NDQHjnUE6zoRHCgppTE+egFL/",
+	"aXKafAUWRiALJ8Bj65xHLIPMZSpOdF0xCyUO+WdGvWWnynybJ7/naL5dzplvsT5ZEd0rLasGWOw+hTc2",
+	"6xlt1seuc0MKEtdAXcy/GvhNBdIU9KWJUkqFtjwt7OchntRaDy+J9VLFbUdZYHk8IPLXpeNedeYktBh3",
+	"Evnk/YD1MPe6YwmaBjP8fqenR5ik7J81nkm6BaLEo9FnqXagUK+gCwgaLzSe0S+S57BHGFCg86m+UDIw",
+	"A+4+Gz0UZF8h9WnytIpaqjMjOAMyzlBBJ98nvT0Ss27Qn8LKWZdVn93YUGIxBYl4L8Kxv9MTh6i3tT27",
+	"Rl5prtSIc4sQn11Pn/0YLNJA36EwJCMVJh79KWe1lsZuBGQIlOXR4+RvQukEOfW3QjwYfSKw4nPANgsN",
+	"W0fSMZ38TeKWqzzUv1JM9v/9fvRg9Ai+zaPrA9PeXoVRGgJInAcZ56nAqVvksJIavoaU7mVRL5BKQd2j",
+	"XD7SsUgnpFH5tXoO1VrPV8nJ6LeSBL1IngMCAKY8F0s/hn9KrHw+X0XnVsRv90mMeTT5JJH+0DzD/0qe",
+	"ia3LB6CPM3p0hj3pDRki5hgyaDF/SFSwmETboJLYDN1SqJqGis5Nna4icRoKtw/pZt4zUHlJ+oJ2okNq",
+	"GsPLepC0jp3AP15ASI1UaMxgGsEeTxXnOxFc9YEUvzLn3ui3o88K5CqnpT5LPk+eVREwfT4UHVKU32wF",
+	"XtyJA+oFfRzm5WNlf60n+sjLG++ICViG6tKUBqt/ICRbMNsGMfE3tetg7IVIaXgnVoMKQovBGpTRQz74",
+	"0SMB/dEfRn+QWujnYIdMnuflEyE6V7ivA4aMNQ2Ps9xQtbdZHtIcXHEXeWgoeeXiYHEiPpxEFF8WaEAb",
+	"Og9T/wWrVnCYLcJYkF302Btm8lv7Ff9ZyNp/T57KS85RhaUMyj+heMC7URz8vArEriNIzOfqGOJ84DN4",
+	"PvokeZ6Rzy0tH9yKpMAzafP6e2lCUiNy0qEkhqNfC6ubJeREmIPAj/AQLPf/I/kjGj1OFYUMt9OvhIHl",
+	"k+SkikKmR5AGo3RLVqAUbz450VxNaiZiL0/Fw8mjjwEy6dHalAT1DolZRHE4HmoFJ1hfDypxnNPRQ/F6",
+	"nwsWKXD1BHYpBeDsKZ9YnrKyx5nmNg1Oc45JUZ/qfEhtFhmbrXjKasS1zEudB0ZqnVQSh/5F2axgyBw5",
+	"gWUGJWk/ivbDkt/RidjeXpGXwRk+JHHvBvUnoL/2fBZxXqg4p8mXkvg+EaIM8P6/CWryacnp9jftT3si",
+	"30ryPHkyepheYd6kmmKhuNzRQxmxpZ9WjjxV3SmcDul9W2/x2HX6OMY9whWH2twn1MfvctJ7V8AkoM66",
+	"08e8m0l1WHyyA0LmTiDNWpr+KTXD65IeFoQ8invitgcDMzKL8dgSHVK9YC5yYX4LCrvxzSDkUlHxCfPi",
+	"oK9U7OukgwchZ4hHOvIKLUDA2scDMiCLG+kvA4ai2Ccx8VEU+oRx1Alixl0R3RbxLokZouQw/UPTceUh",
+	"Px6QeJidUkq/5mH+ISYdZ935D60smrwl/8paxWMUbeLv+uUjfdglyLBOiA3GhEWD2CNoj4QR3Yfjphss",
+	"3ELeonK2W/gBGEGkYFR57UVDydlWvIYZqVzKw4zMYQmlpBThfruPPx4QJHUY1ImjHsKoH5ODIBow1Mf7",
+	"5C2GDDVnA0W9gKNOFKsIyZhx8VkV6shhOdzpBfTHhO7zrrO+ZNursnZUQsRwMp8NKDeDsBru4JaeyxIB",
+	"3R+3iJImz7bMf472Ktf4WbRXe4GA8surjgtXFPQGPfOCAsrJPonFcj8OegEvIxMo+wiie6qQIRTjzJV9",
+	"Scqc9eW26/TwfbVquz1xD+8TETtWeeye/PvZYXsnjnjkRWHlSn31wdmX+iAaUP/WQJunLGvF8MUOHSiT",
+	"VL0rXVmefKVbYVT94lgYnfm5HcNg1o8ok8lG6pXDG1QyGVemYDNULfI44Q3GY4J78LdsPTXgfeIH+MNy",
+	"jFtuoHU3ZQakCAvCDA36YYR94rvwA6YIc469Lhhq0WHAu2j3vzSuyQ00YPHGbTEPQzRiNOh0dl1EyQGJ",
+	"UUDDgBK0sLV5HX37f9cQHJctNpUtVQk2eqbrAcsM6WlqFhwsXX0DgtIJXMs724UovW0n97LK2GXfcgmq",
+	"DC5RncMGudTNcTs2Y0gqLrAfR3sh6b39M5Y7FCt6SH1jKptwoce1bCEsx65jsdhOmqlkEYaj1RNx7shT",
+	"2RBpd4wReVdI06AUChEnYKbM8xZDccREAkLk4yFaYLhH0F7kDwW7xeB+YgHd36bGIBdtXmu0ryxuoN2x",
+	"QTtyZYzkPlDUQViI8clXyZcqUseIsoC4OCoy62IxzTaNBpwFPlFy2X7AeDxEMcE+vA5f/Fpa8Bte1B8i",
+	"Pzqk8IDQwub1D0APurIBG11eEvtdvrTYRJmrDMRUpSQrMXSbwnMsWTHjKCTwMQAQM/i8S2KyDu+z9G3U",
+	"6cjNSpDuE87Q+KsJg3tkm2I6jChx7XNSc8qAZfAEGNCId0Ho7kUxQQub1xpLl/dcpM5/dbG5TR1pt78J",
+	"NHz6JwP/zFSp1UyVuhVxJOe0a1JzQOpbEWIDr5uJ5IEEhYFqTafslZiBJuT8FTVecLrcXB7vbRoOxcHK",
+	"uEew1yVM/HEPe/cAwQKPoIVdq6tlVyD60uXFDYQ1wvQyjN8PDgjgMTrEQ4DlQoYmjt14NwMoS2a9SeAs",
+	"Lns8J9QRjj6ktmNCrLjDXXn8f4Tvxflu4mAm9iL+aTEi92O4ID5E25nUBsoO7GLbgSetiGzexFz6ttra",
+	"nO0ddeTmz+1RKvO0WgcdpCtvIJA9hmgvju4RijoBCX0EMoMPuLYrAbPbNO63mP6tQpqFKILDOxJqAWHK",
+	"rVLciXEjwMQO0dso4Eyk08H+hJIDeiQwNCCVPuYEvS3ekvomTSFB0loOElLfWLYcNVElcX6kRRXXAfuo",
+	"c/fYFjlxBMqG1kKX2209Wg8+zrshjcVg7w0e9IhjGaPdkrnp1ywfZkHPRSUqWxa4tAEiCUbBWdqXwG15",
+	"CtZUcBGMPtPBDn8FS5wML/0Cfffg3759IWTNepsfB1XjMxlJXdsE9B58fmxLEsoBaandbo+7QuWAncHy",
+	"lJG/jxxxInGA9K7csvWohC5uagFL781yoBzK3E0hF+3Bd06xFoGMHJz40Ob3CMzIw7r4bHi7amBGzc/S",
+	"+MPxl6lBdFt9fuw6M2GOLcwwN8GlceNtCGRabfRh0s1ZF7QgmXEdE3FFcq+pSLIwqGpf91sMQXbjhqIh",
+	"UmZP8+tKJuACzuXZQs33V6jhkAZ+1J4gfSHHGQONYzzM0HKmaaVBrjxp4Z7zcQ16PfNIEy5NrTPl87bl",
+	"NdZgVdY0xiocrxh3vnwxy2Acd0/KJvQB6UxBTkyTybjJhV3/jv742EwaLBxjLBk1UwurxplWlxL1sHAX",
+	"2/25VmwwjpvbinGaDNrTMKT3FFevFuyawDd1Kl+heI89pQK1JqboAbkhFMySH+VzinmMKeuQ2LlbAqq1",
+	"mkD+IaVUYVryYKM2uSivo9qcQqycHz3hDj4gnZRq5O+hNwh50Mcxl/agqINi+NbMSwVFk5JDLSYq2VHY",
+	"kIxblOLj5UUXDahP4uwboSRs03gQErBKoVvkcLM4bFkotSttYcuoSbvGcyUIIUv+mPwy+f0GgovB4KoU",
+	"BtbUohSnBqZipESVou5Fsc+kBWZJiL9FkjbWAVWbmk4xSxVtnTCFQTWns3aXgQ6YIWNbGtJOl3Pif4GS",
+	"f0o+S/7VRREVZU8I+u43/wddQu//wNWmHoklUdwT6BHQAoY0z400Fx2Wkpc20aZUIwmOw6CiagvClB2C",
+	"k9sSLrFR+jjgjIQdMAIwHoQhnLETgbFrQWF9UZOyHTnPHoqmED6mxAxauDGAF9V6bxgcCLuR/FbujWUK",
+	"/LjyOuqh1tlrUeI5H7akcXgi6dPlN6aUcYvvX4m68vm3F5voHyFyhiFCuYiD2JP2vfQQgrpImpH9tURU",
+	"cEwQj0IfYUmEh+gQTM/w8RCxgKMFLVkfKFu2dPJUkUgV+2PID/I3OVq1smyV2WYWx3XtjZpcMZd0YGGL",
+	"Y8p3lB4thJqkUSk5a5GOJBDkRVKh5I/JvyR/lpi86klD6tU9Ac904xOlwuJuXyddpLJGRRGuN4VfaJKM",
+	"JWQ2gfRyNqA+HHWj0GdFI/5bTFB/yT2X1/YWNxBINzJW6DBgJEdXxuOsTXjOymvUhJakCz+Vw6bU2orP",
+	"zdTj1Fsw8cLY3TjkrrqcCQRuS9uvxgjYMh134c4H4Cteai+qWH7DzPftF5ApZyY7ncDvzHQ4+VtTrs6K",
+	"c+WSXFXqZ4V8XV31ZAp9Nmc+KtNu+WfEuiAG8shKepVYS2L9dYmlV1RCy2FqFZWw24bKZvZAyKVdQu1Z",
+	"ZZ9CKLeI0xYhd30iBeal5UXldoWFgc10SEyoR/Rh9aIuuIKE2BVkoQcFyXWyzFl4DBnwrahZLmYyjaFi",
+	"kpHB9vgtCT9pmMJeFIUE08k2dNvExbQ0G64pHxyh4LgWGoaWWBAMd1HQET7vBUHvNFcyQxIZ4WjQB94P",
+	"e0cDyoNQ8ibPqmWM2a8uw1ISEA1DnCTBV/NsbyxjMcpEHAAmW/hKTZNKbVtQPat8oRyC3Syi5MjMKp8K",
+	"nNr2XrhmG0JlsJ2A8xJC04mbtylBjJO+1q29Lg6oDgrwcCyNI1gkRcXRAQ7RQqrK6tCigCNJc1BEF5Fg",
+	"35LqyxIMzW26mUPVtxjaNSr17KKFXSM+dddF+9EBiSmmHllEIq+UFEeAoOqiw27gdZXfmXfJNv32L6Ig",
+	"ZCY8QHJrhQChCkxtD9rtFU+7QMRPxC0ypNMSCRcTy7FGyR05/NsXqIfje6mOr+EUdUSgSNtmachVLhrD",
+	"UHf0h6wZ+DCjcTUbKH3nhRuoZBu2l1zOv53GlGhWS5rGkzON81BxTaXzSLRUrod6MCjbdeuR4PrksJZD",
+	"sfB0tVcxV8OprjV6NgdkKQ+5/hkL9E45IM29uzmsLvgZlV+pRP9KW3LzsdEl7KxDFLUhuGCVJb5hlN0x",
+	"BEmjLBSR1YnsImWRCZRfbvaFFoXL6UPFSLVWdRSbxbSc33CdbWaVlqYJhyhV8pHvSsRGzB7ZYGzTrNp0",
+	"vlg/FwZfcn5qlp55zrMD2ZA0byAcS/SVjtdMxTtgLbl8DR3EY3wjEO2vZhGBci5bK811s/zVRDZVk1Ku",
+	"ZsWyaxEEKXFSSlObTc2SOWFHk8zJ6V1Oo0WIufVY29UU3fQG6airbqo4XgONZoNDhuF59NgyFUx5LWwD",
+	"kV6fD9F3v/xnVJXqLEXw5aJ0b76ZKrCprdgAVizmMc1FG8WPpnS91hBRLIOmiWeaIlCkrrQwfWxJqbqI",
+	"TcM0ao3UgEV9xj/W7WsGjRR3aWXl2S4trL9wQZZrdk1sGYOH4GyfOdpvRy3LUI9w7GOOpVtFuauEL4XE",
+	"B0LdCYfavJ5Gh6cB5qzMFWteuFnkuMjZLJ8XCh3nb/LSJdv1q8rHRaLyI3Jfy9gryw0oZ4y2frTZWL50",
+	"Wf8aFFHia1iIE2LOSQyj/9tH7cZV3OjcPbq8evwPdrTLqiTbMrR0rtSl5dXltbW2NamnhIT54+egl1sx",
+	"PbYNcW6Cq/gGBJGWHe9+GqtkcQaqeNqjCc9Ff5jmM9s2kaUPnFMI3VnDZCy1tqaVoiwFuc4vHmaSyDbB",
+	"P6glunJmbLqf8dc4j0CObLaLj+PIu8PrhHCUAziyH1QEtbQEKh3+bdNC0kS7GrC7IhUlPMRDtk13gVXs",
+	"rhecnH5EmCpGEUWMoIC7Qi7e1ckvpn95d5yDeTf1ML+JAZlqFpuxSqSbdIpOPKH7y1zs1LKoWMoYe/SC",
+	"YYqeC0WbcLYq0dAYtlbieHeP1uzcbo6hLpPDXCCApRToso4wunP9Zh7zZBWXgIrcN3g00lYmp4aN4oCS",
+	"eJsWPKowz8IuJGVCHtBWcK1xY3FDDZRTMpCOILUUMeJF1HcRI30cY05SP5DIcvM80ufE36bKK3h5sYne",
+	"I32eFe3VmaZ9HDOSJdxdUg90XuH7b0J5Xp9QnnEJDhcU2mMpWjmFjHYuOutshGneiu0kG83L0V9n8ytf",
+	"jCJrQy9LpcmpbWYWZ3TBmRLRThD35CeGeV68YPCcgNXw279YDNSn4DF7MHo0+hUUwnMRlFNMvjB40ejR",
+	"ty+MiEnjbuefdWYz675GfmCtWNicvRPC28fUIz2LlmGZ9uLVjVxNzSmMN9Kh4acxYSprP6Cqqpow1GyY",
+	"giaTomgYMJ7pVywVNFYXm2jXqLy5i96RE6t0X8VdEPl4gEOmrUOdYH8Acn5JdNfTLi1uZHGBams9PEQ4",
+	"ZBHq4gNipFMzqcxQEog4w/0YizIdPqEsq3SVy7EuKS5GLdIa7+IM4Zu5GqVl4l7UwrN9ueka5hR21JAp",
+	"w+VIppvX0NXVS1eQyppG0r7C0IIwuFActvoh5nCoVpfzPu4HcLngApA6JgXtk1BxrxL823RXevaF1H5f",
+	"efWb8nci0VgQevnr3Q0UKJugiKHFSI0S14f3hFAMKINWl5czBYh1hUoYq3Rnleccxc1tep2EHGvLfkz6",
+	"EZKPdB3Qjqmt2zRV7TIxxQDc+Pndt7e3m/CPnbtvW8WBMfYtnW9ek4oYVjRboA5lHFOPWFfSiedHJZtf",
+	"mod+VBURO8n4Jv6qp0mXsqHZuHKps8YI1gjYq+HiScXY2k6epZVZnDz56l2VDp98DOt00MnwLX/en4pw",
+	"ngMZ2+4HnQ6JhXJqWIjeYkoXEUYQGUa9tLdoCyucSUnMHUuqiXY9ZIwVtzxH6aSTAi7T4GbDpCTDLUHM",
+	"FKqWW8uSJKGIcEcUd9mnEQADhQQIBPIwI66ELGJ97BEmJwWETY0z/YjxOOp3SbqIqL6o/35o2qTEvqNY",
+	"0VQZ8xT6Wp9caSMfD/XHEIaN/YOARfFQ8GfT2wwHNLtraPkZBB2bs9VaGnUWwdmum+RLqR5NG0dUVWN1",
+	"mvAoe53Vo9nj1ksu8SyYxLpW5TEK4Cm/CCDuxBvEAR9uwTOTIFd1Wa5F0b3AYlDdAg9b3BA2qrTIihJ2",
+	"VhY30I8474Ol0UVbMDdx0Rbuka2Ak3d+jO+ntfo8OX1W9K0fhDTaUTNmxBj3g/fIUBYkCWgnsmwooPuh",
+	"dAIKxNbRtF4kLF/xQeCRJrohapSkLkCwc8YBYYjcxx4Ph8JCx/E+vGB4iAFnaA+qHGmX2n2+gSLcDxrA",
+	"y/cJRfuEwlwwBfa6+qO3lAtSVbeEaQSrwPvKQCYZpjqu3OPmnXcd1zkgMZMHajeXmm3hPuwTivuBs+6s",
+	"iF8JO0JXXFKrE4gwzJYpOreO8ibg45YGCpPSR1bf9iM7tc0+aeVLqB4Dqk+7aOso8I/ns3IWeDphceER",
+	"avSySvMva+3WUcE5dXZIuBMH5KvJTrl94DoXDTKxZutIlZ29CBCp8rdn22dL51KwV3bHIrOqdaQKy14E",
+	"ZFWB2yn3+bNoj7WOZNnYi9ilLF57lk22YsJlPsWruFVVifaiH7Je9mXQ/GztrAzvcUtWZ2+k6vE5X1ZW",
+	"IXg+u2csAKWcN/ggpq/0AXS9uotGuXTd1pFRFPkiaIhRpHk+e84ha+so31jguMXCiLMLPtfkr3MdEi4E",
+	"DqDTKqvG9x8SF04A5o/VUJ33tdx4PwrDhqh+zl73/beOzCrux62DiJNXj5aYtejnBIOYYH/Y6ESxCM65",
+	"eLIxr1PA82/wqOHHuMNfyzMYtbpfz/0D+20dqb4Exy3lqk8DAV6pl6RaK5zT0aUP4Ht+aAjK82N8KN3d",
+	"ryy66sr4rVy1mQsUwNMNvI6SOCN8jnqy9ve1zBIrMPU+ETQ7NTxD1xPnxxDdMNw0P3Wn3IRsilPHeiSj",
+	"Oo7vFjqiLLfbYyqdWxtoFI42vnFGoWhi/eru5ZHHttoI0AZK+7pkxMZbLFfsSRR3X20vVa2XQqNcid51",
+	"VpeXJ48rVY4Xhxz0ejgeqvDgYsDLW8ysZ/lcuO6MogjP3Vx5XLTwky1dCLF9adFxHY73mQxekvgGXp37",
+	"DRVh0QCfibgaceyPxvTcvKuO+FGuTrxwPoFfsexlgR0ot+4VVxUi0V6VXOX3NOAUcxRRj6gONrWi/Ne3",
+	"qfTc+MqLmvlTVWCPW/K+Gn5XnFVZkUE4wrspcxTgr5zEPSTiSVUMdVaBH5yj1RG2omJOmgqxKSci1B8b",
+	"Q7xNdRDxriWKeDcNDkabdFgOjILoIxGbPbnilptvFbJNxavAPBe/H8UixFu4eK/AogLKSINBV0uDOBka",
+	"qQJqYiMBS+PCdeORbRqTA4JDFc7QXvUgcCdPYHd15I1IxRPFjPC4lGZVCSyfmmBJSsj1o6nMSkAf5kPq",
+	"mdkbFTDTLG+/ooLX8zT6Zj5fRnWjIoz/IPKHBcqZZtu0wOvb8DEXVI5QL9L2inLKgSXboO93XJT7xT2P",
+	"XWmkB8n/8YD6TcJZ0MQs8Brk7Z8HfUGBjK4U1hSZWfroWzNUnOSrJiRAPB/9IXniQhTqo+RFE+WmP3HR",
+	"ki0ofOqe6Drs1FlaXlm9dPnKmhETvu7IELC9gOJ4iAqdquBPRFfiX88X/s0SDXQivRmHL3uztlca7aX6",
+	"PTQKqVnHx8fFRmbHJVa8NCUrVs91Ki6shszEiG1MGB6ISobIlWiOYvMNZ7TlbPy4fXXWtl/Zdzs4FEYB",
+	"CGik08BuU467DcOK6VpqylygSt2WYmrea+nYwuSicdQsE0OzMXPSjO9MnCVrBDyXhjwfKn4OiJAexTWk",
+	"NqQgiLpYk/8MlajMHTQRCqiHbJKXa+CKeUrls1VUJIhg1zC9gEDTkO/OiE9KfpkGld5VQ+YC3Pcz4eUw",
+	"jui+FMEgQFnJRL7Z/8gmeS0KIMmljJ4+zYIoezOTRGqVYq9XKTSfdumnoWlC6l1yEfxn1UU3w+iQoSUh",
+	"fVyetxDcvpr7ZvzTdh0rMHNkxbVPln/KrrWldiaUj7szxy3K7JUKaOsoN94/NjTSgnifE/rymlSaDAd9",
+	"4Iw67yzrEogiSpolEeqHJK/lOmdWQdPCLlO8ONnQ5AM9cib+J+eoom8mrAROB5whVRrwjFxvdfK4tMdf",
+	"/smCjjxOPZY7la270mKnWZ8W1flJqp6XxX+WVuf++FbtGuh05phc4/Tju/VfQ8uopny2Nau0ZqPurKwB",
+	"bMnER/GAIryPg1LfA7RZn+IediOmOO0hZts0pTWoRzA97AoCXtJHx5I7pZavyq6CRCaKF4j6Ni1R9aKy",
+	"BSdjXCDQmvzJpm59UOww8UbhetkK1zjlqkHJYUnBOgdlytav5HurUck3oHQqk6kYBhpJKATtznVg8TEn",
+	"F8lr5qWSGTW0p4H9rYin4D9nhezl6U6iYAdGWujJoYSHKdojmiy7SNtNVbNlk20cYoYs7OCNeiQOW9Bz",
+	"7gspSFlerZBXrNqwzF+WOgq6dAHykUVlqXhN7gxazYUqI1r8EkHKOu7RYNtW19l1Vc3t/aGq+FChVIyn",
+	"Y2osqLUvSz7XB8kVojbNIqILP/ERj3T5GGmx1hVXXgNZvFbMuBlzmiHOON9ttRaLaERVAoZswp5qq6vt",
+	"FfBCKLdQvrYRuR8wzkwXSRtcJLd053wCBCM6bIQBE5Wu8Tat7maf9qB3UdpaY11ohHJfDDY2sX9+ahqR",
+	"mZ6yNuiS1VHxQ8KL7RXOrGd7qklDXb4pVp1CDiqNtNsNceyfUaZZmTxOpsvcjlVdWJsX10SWtPS+KBXh",
+	"ItXYP1/QV2dkqqL9HWSGDEnecVXwjmX1n6W5P+eV3DfC/CR3qjKSqvhDVrB6huc/NjJibDiGLu3ZOsqK",
+	"ih9P5ALXDLC+EvxgJnybEyMxknvT3gPEsOgIaxC4cw1sTttDSArTVkj5CmLj3FjUtCFGCjemRWjVt6nh",
+	"5VKfrdj8Q8LLedJnp+G1FaDy4vVJuW1shRNIf4FkmYeXTtl/aogDOp8PqWvLuasEOZctTXRTs6z6ntHB",
+	"TAbGtK9+L2n5OBPn1p3NtxjycBjuYe8eiqMBJxCLowQwPODdKA5+rhgoaKkAUcFAVd0drmrViZxrXVkj",
+	"LepDfRkYZJytiX4qY0qMC9OexIKfEawk+t5i0g+xR5hZMhmk67Q/7TYV4qLqTCviXdIaiT1BTxe2NkGs",
+	"W3Nl6y1holTkVQp8a1YxrbIK/1hD55hHnhWWUQa6HJhFnnpqmVMVs9SH4if1t9oPfWIXgXMxy71CRCw1",
+	"CkmU3ZUp/K1d1JGlNJQWoRrYKoRrviRxYlbTXLHboFRGcVi1jyL4N+W4O3rY3GIIfihKX6TvOBDOR3F0",
+	"KLkQ7FOIncsBfQ4RnDcDGrBuSiuAzHgwkEpNfevOJoqJRwIgC4LyiYg1tVWtCK65KGMO0OXy1ZSt8kal",
+	"SjyoDBw9k2jUytGuSkFpi+N4sqi00l629VX0g5h4XPMWEI4DX2CPvlLmxYSI1tLgvVDlI34cZSW2U8Lr",
+	"dDnvs/VWS4GHNdWfmpww3opaEZxnWZzqP3phQERRtXfgjw35I1Df5cuCEMtfi3865mPJStDEgaUI6/FL",
+	"lp5SgI4P69SsvPB8Fvw4OCDNjrRDdzphQImsUqRfzfdeHzYqCo5PFDC+ew2yBArHGss0CvX46zOL0sCx",
+	"KQLGlnSNto4shpW6a196ssCmWQJTOvNVZ0bwzFhrZyonoHDfeJD2IlrvRT4eKse9fyEZAzmk1qUi6+fB",
+	"mFkwN6NYtWY/g+FZVHu9GYRclCh8FZ/IxwMyIK9OBo15VVp8hdadUlEn5y/C3oq4rnI7z9wbS7N+AXlX",
+	"1L5jPPWpy1ybvSHySQcPQhWAuCIDEGUI1NLlCxDbzDqrs761cSF/Zb+B0R3eeHpnDtIT80yB32rl49nC",
+	"QtRYq9og94Lg/y4ej88YvVcKK1T+UlfFkrmpaZe5SHeTFzaLtJ98/m2L9Ji2qs2p/rMn/tte9VRS194F",
+	"qik5fD//WMB676WlG9eeb1SghThBoUDl5Q0YRHYMmOgDj7louSG9gV4Ui5qEgAGI4aG8cMbhX5qeiXu+",
+	"7Llalr4KBqmbtWKy13NSEQgihfh87e7KdTgXrlYaqe4i8peuCMrfpvILju8po1uaojehA+aGzByDIXIK",
+	"FcyaG5bCQ+Stpel4+gphdV0E9apKetMvw4BEHnriAcnomtSHIlMDBQDAmqg706qZ9xZdxKJtWjuuMmAq",
+	"FlO3qsu68tQK9kyz7ix2xk2557qRlJOIORCeHW0dr0PTC4tn1sEpaHvlHDUsjDNkNYs7nng23Xp0Uw+Y",
+	"MZJczmJjWHpmaWBM/XbamWz67QKOVDsCEcWl8DEm/qvO5f79xA1qPzYY4rOSyZMm1X1sIp+8r8ccu44e",
+	"v0MJ8Vn9B6nnuAXDrutRx5poRPFOdEh3cL6V3NgZ9d3fPqS5cFazPYuwrsj478mGYz0KctbUmLlZjcdy",
+	"WZHVneeobq5CdifNhZYZ6ZhKlw+EDiJ9I0I0iwZgB9O34qY8U/W+T0MtdXy+4VtUnQlMtqR5wNzs2Iqw",
+	"iC0AK8u6/IHFTRKSEomJYtWgXwQvKX4vOM+ai1IJA/if+o+nU7WWGyuvgPRYNmpX4rxh+rMjsfGB/Vkb",
+	"H1Q9VXeOIZvzVBBbUps4P3EX4ui0NKuLc48XfwErcVHYDQkGl3sEr9bIUjLbrBRTSmB8rjHYWSQhT7cW",
+	"G0vOiq3IjqfJGy+MPA9/aq1DzHiC8vaL3YDgHvW1bhg6ayxVm15/wN+IMFOIMPPik4VkkwL7mhsfki+y",
+	"igDIZ67UPIMJl7mWLNsh2U5bBd8vv5Isp+q+50rAzxJHryMfJ5j/Xp3wyTka2awh+CJ/RuEZjxRSBhxF",
+	"Ay56XiR/Ekr5i9GnovXe+cXjvwR72ezx+jUxVSbUzFY2sVLaKHL9QqOoMzF9ueGJ5LmyO1V9Cj1minOw",
+	"etROpNf2irPmz1dbPfTMb9j+FJaLuavvFyNJCEVYduWbrAUsBDxvml08Y25ioRdbjVeNWYZmm9oqPh9g",
+	"3RBxCHJLzZKc9DPicYvgo1z+clSh6/4htJ5mRLVgU9LRaqaqCylp7bWSktwaurslT7F4z25NIcsIwRgf",
+	"smB8eDOKU5ryOtTwLJyxFq0odrStj//VM4yPSDB2+VqGH8i6mMYxsrowMtRdZhTI/AP4bc6rJXMPZDdo",
+	"7dkySyO90rEIYyM/ZTDdPGqxV8p/KlzR+PwsAfa6A6gzeghi/+gBGv0mOU2eJqdo9BD8cslJ8nT0yOK/",
+	"rB9ZX97xuYp+aUDjFP4NtUVf9nOeLdNTxGWlE9iFB9PDxVBlku33WlQ0noygFTsDKu3wU92YgPZP0pFz",
+	"EVk2tTCnsOGlimMqBPT8hTGF+8WSg3lRzMzvzgliyzLQZlmWilhefTXlrzE4dz7yVZk1EHrenOEGtTGG",
+	"M9FSsenpHuYN+jIoaTmOJKOmqijXG5r6Mmlq6tsrkh+JL+BdVlTXvNsNVcBP+lSEws3QHulEsaI+K68t",
+	"2SlQEbWLytIf8jn4si1/+u6VJ1EFzEedjoaX9GbT6FCFtWWdjEWlfYjnUmlCAfWCPg7B6xhGdJ/Eaevg",
+	"iOYzUm2VObbSfsZnpDTpRiYi7J30y2kQNBtjz95WYX/pNs5ALiY2SdjIKYAQHEFkZl2YT4dJje/zRe8i",
+	"5snkwuqiM6r3dRPdGeyFgddEkKGmoh3vvHftBoLUjE6gusFL/Y8ZXbTht7HKpmJlLJJJb8E+fffMmW75",
+	"RGxC/X4UUP76ZLwZDcud9Y/uWtPR1Kn19aXHRwu3371+zZaL/ra4JTsKWVGhpTPdJ+JEGoK7mmEHtHvI",
+	"Z/Ao/PCRaOguo2lTkiS6O0SxIF5YEa6NUjq8wLYh2iNAo4TfKn00u4VXszs2O13jWUEEyxBhYq45PBVI",
+	"cYmHWXd3+MApqrLm1fcCqpvjL5Vv3i1vwMxht6+p8WvWRe/WeWyKuOlgzI30IWs8FDnCUVTvkbVyz6EE",
+	"BWeL8EZVX/7xffdTBif77jcdo2ppoff+OxLAPLpHqPgn2UB3MO++08qa+2+oRTZyi4zdvZGvOkteepFK",
+	"TwwrtHGdswprP6H3aHRIXUTu94NYxt6KihJDogm7qgwV8ywpXUnXY4iXyjNXI1wzIs+ogWHDrbpEKxoI",
+	"cNsVI3j0tweWykmr1QgfR4fIJyERVTYkUiEvJFiEIOdQPY+0lViXIdn7+H5jc5+8054Xvp1FPrkuzoi4",
+	"IQOxVKarAD0bMk56rS7BIdCWo8LVH2kgaqh8dBeIjRQJJLkdxKHiueutVhh5OOxGjK+vtdfaQsFVC5cv",
+	"Jz4IPILkyhJnBpQHPYIC2omaBnEUWxS+hwLnMhTHTiAaqTFjnPqVZeCWRl4FHpYVQSvLjul8KeTKE/4g",
+	"gkpruju2ni2Is6wnY56s7RtEJvz/AQA=",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

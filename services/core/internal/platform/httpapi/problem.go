@@ -52,6 +52,7 @@ func init() {
 // violations become 422; unknown routes 404; wrong method 405.
 func RequestValidator(spec *openapi3.T) func(http.Handler) http.Handler {
 	spec.Servers = nil // avoid Host matching; see nethttp-middleware README
+	registerFilePartDecoders(spec)
 	return middleware.OapiRequestValidatorWithOptions(spec, &middleware.Options{
 		Options: openapi3filter.Options{
 			MultiError:         true,
@@ -59,6 +60,32 @@ func RequestValidator(spec *openapi3.T) func(http.Handler) http.Handler {
 		},
 		ErrorHandlerWithOpts: validationErrorHandler,
 	})
+}
+
+// registerFilePartDecoders lets the validator read the file parts the spec
+// declares: kin-openapi decodes a multipart part only when a decoder is
+// registered for its content type, and out of the box that leaves a PDF or a
+// signed container answered with 422 before the handler runs.
+func registerFilePartDecoders(spec *openapi3.T) {
+	for _, item := range spec.Paths.Map() {
+		for _, op := range item.Operations() {
+			if op.RequestBody == nil || op.RequestBody.Value == nil {
+				continue
+			}
+			form := op.RequestBody.Value.Content.Get("multipart/form-data")
+			if form == nil {
+				continue
+			}
+			for _, enc := range form.Encoding {
+				for _, ct := range strings.Split(enc.ContentType, ",") {
+					ct = strings.TrimSpace(ct)
+					if ct != "" && openapi3filter.RegisteredBodyDecoder(ct) == nil {
+						openapi3filter.RegisterBodyDecoder(ct, openapi3filter.FileBodyDecoder)
+					}
+				}
+			}
+		}
+	}
 }
 
 func validationErrorHandler(_ context.Context, err error, w http.ResponseWriter, r *http.Request, opts middleware.ErrorHandlerOpts) {

@@ -169,3 +169,9 @@ Closed since run 1: «Sequences for refile, reject, disable/enable, storage conn
 - **Handler methods to add (identity):** ListMemberships, ListMyApplications, FileApplication, GetMyApplication, RefileApplication, DownloadMyExtract, ListApplicationsForReview, GetApplicationForReview, DownloadExtractForReview, RecordExtractCheck, ApproveApplication, RejectApplication, ListAssociationsForOperator, DisableAssociation, EnableAssociation, GetAssociationCard, DownloadConfirmationExtract, GetStorageConnection, CompleteStorageConnection, StartStorageConnection (GetSession exists, its response changes).
 - **Problem codes handlers must set in `code`:** every `identity.*` code of PRD §5.1 listed in `x-problem-types` (16 with `identity.operator_own_application`, new in run 3), plus `governance.drive_not_connected` on the governance side.
 - **Async:** no River job (SAD §4 target surfaces have no worker), so no `events.md`.
+
+## F. Merge into services/core/api/openapi.yaml (implement-tasks, T02)
+
+Merged per §E: the 19 new `identity` paths and the changed `getSession` (20 new operations in all, the stubs of `identity/adapters/http/handler.go` answer 501), the new parameters, responses, examples and schemas, `Principal` as `{account_id, email, is_operator}`, `completeSignIn` without its 403, `BoardMember` with `position` and `decision_id` (its examples updated). Every moved governance and finance operation answers 403 through `MemberOrDisabled`, except the allow-list `searchRegistry`, `getSignedProtocol` and `downloadFile`, which keep `NotCurrentMember` (ADR-0007); the finance and meeting operations that had no 4xx security responses gained the 403. `addCaseDocument` and `createAssistantTurn` gained 409 `governance.drive_not_connected` with the example `DriveNotConnected`. `info.version` is unchanged.
+
+spectral (`spectral:oas`): 0 errors on the merged file.

@@ -43,6 +43,9 @@ var liveColumns = [][2]string{
 	{"contracts", "association_id"},
 }
 
+// goneColumns are columns a later migration drops; they must be absent after Up (AC-04d, AC-05).
+var goneColumns = [][2]string{{"accounts", "association_id"}}
+
 func TestMigrationsRoundtrip(t *testing.T) {
 	ctx := context.Background()
 	pool := testdb.New(t)
@@ -104,6 +107,23 @@ func assertSchema(t *testing.T, pool *pgxpool.Pool) {
 		}
 	}
 	assertAppRole(t, pool)
+	for _, c := range goneColumns {
+		var n int
+		if err := pool.QueryRow(context.Background(), `SELECT count(*) FROM information_schema.columns
+			WHERE table_schema = 'public' AND table_name = $1 AND column_name = $2`, c[0], c[1]).Scan(&n); err != nil {
+			t.Fatalf("column %s.%s: %v", c[0], c[1], err)
+		}
+		if n != 0 {
+			t.Errorf("column %s.%s must be dropped", c[0], c[1])
+		}
+	}
+	var idx *string
+	if err := pool.QueryRow(context.Background(), `SELECT to_regclass('public.idx_accounts_association_id')::text`).Scan(&idx); err != nil {
+		t.Fatalf("to_regclass idx_accounts_association_id: %v", err)
+	}
+	if idx != nil {
+		t.Errorf("index idx_accounts_association_id must be dropped")
+	}
 	for _, c := range liveColumns {
 		var n int
 		if err := pool.QueryRow(context.Background(), `SELECT count(*) FROM information_schema.columns

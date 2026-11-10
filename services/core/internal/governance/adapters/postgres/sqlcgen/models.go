@@ -60,12 +60,11 @@ func (ns NullRiverJobState) Value() (driver.Value, error) {
 }
 
 type Account struct {
-	ID            pgtype.UUID
-	AssociationID pgtype.UUID
-	OidcIssuer    string
-	OidcSubject   string
-	Email         string
-	CreatedAt     pgtype.Timestamptz
+	ID          pgtype.UUID
+	OidcIssuer  string
+	OidcSubject string
+	Email       string
+	CreatedAt   pgtype.Timestamptz
 }
 
 type AgendaItem struct {

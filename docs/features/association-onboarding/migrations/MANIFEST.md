@@ -17,18 +17,23 @@ schema diff empty except the column position of `accounts.association_id` after 
 | 7 | `NNNNN_index_board_member_revisions_sign_in_email.sql` | PR 1 | - | - (NO TRANSACTION) |
 | 8 | `NNNNN_add_contracts_association_id.sql` | PR 1 | - | expand |
 | 9 | `NNNNN_create_app_role.sql` | PR 1 | 1, 5 | - |
-| 10 | `NNNNN_backfill_associations_state.sql` | PR 2 | 2 | backfill — [note](./backfill-associations-state.md) |
-| 11 | `NNNNN_backfill_board_member_revisions_position.sql` | PR 2 | 6 | backfill — [note](./backfill-board-member-revisions-position.md) |
-| 12 | `NNNNN_backfill_contracts_association_id.sql` | PR 2 | 8 | backfill — [note](./backfill-contracts-association-id.md) |
-| 13 | `NNNNN_contract_associations_state.sql` | PR 3 | 10 | contract |
-| 14 | `NNNNN_contract_board_member_revisions_position.sql` | PR 3 | 11 | contract |
-| 15 | `NNNNN_contract_contracts_association_id.sql` | PR 3 | 12 | contract |
-| 16 | `NNNNN_index_contracts_association_created.sql` | PR 3 | 15 | - (NO TRANSACTION) |
-| 17 | `NNNNN_enable_rls_governance.sql` | PR 3 | 9 | - |
-| 18 | `NNNNN_enable_rls_finance.sql` | PR 3 | 9, 15 | - |
-| 19 | `NNNNN_enable_rls_identity.sql` | PR 3 | 9 | - |
-| 20 | `NNNNN_drop_accounts_association_id.sql` | PR 4 | the release that stops reading it | contract (drop column) |
+| 10 | `NNNNN_drop_accounts_association_id.sql` | PR 4 | the release that stops reading it (already out: no Go code touches `accounts.association_id`) | contract (drop column) - promoted early, see below |
+| 11 | `NNNNN_backfill_associations_state.sql` | PR 2 | 2 | backfill — [note](./backfill-associations-state.md) |
+| 12 | `NNNNN_backfill_board_member_revisions_position.sql` | PR 2 | 6 | backfill — [note](./backfill-board-member-revisions-position.md) |
+| 13 | `NNNNN_backfill_contracts_association_id.sql` | PR 2 | 8 | backfill — [note](./backfill-contracts-association-id.md) |
+| 14 | `NNNNN_contract_associations_state.sql` | PR 3 | 11 | contract |
+| 15 | `NNNNN_contract_board_member_revisions_position.sql` | PR 3 | 12 | contract |
+| 16 | `NNNNN_contract_contracts_association_id.sql` | PR 3 | 13 | contract |
+| 17 | `NNNNN_index_contracts_association_created.sql` | PR 3 | 16 | - (NO TRANSACTION) |
+| 18 | `NNNNN_enable_rls_governance.sql` | PR 3 | 9 | - |
+| 19 | `NNNNN_enable_rls_finance.sql` | PR 3 | 9, 16 | - |
+| 20 | `NNNNN_enable_rls_identity.sql` | PR 3 | 9 | - |
 
 PR 3 ships together with the app change that connects as a login role in `spilno_app` and runs every
 association-scoped request through `platform/db.InAssociation` (ADR-0003); before that change, enabling
 row-level security would hide every row from the app.
+
+**Order changed (T06):** row 10 was row 20. `accounts.association_id` is `NOT NULL`, so a person off every roster
+cannot get an account row (AC-05) until it is dropped; and the drop was last only «after the release that stops
+reading it», which is already out (no Go code reads or writes it). Left last, the order loops: RLS (T20) needs the
+middleware (T19), which needs sign-in (T18), which needs this drop. Dependencies of the later rows were renumbered.

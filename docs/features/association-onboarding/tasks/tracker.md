@@ -10,7 +10,7 @@
 | [T03](./T03-identity-problem-codes.md) | Register the identity problem codes of PRD §5.1 and governance.drive_not_connected | infra | Andrii Opryshko | S | — | done |
 | [T04](./T04-in-association-transaction.md) | Add platform/db.InAssociation: a transaction that carries the association and the actor | infra | Andrii Opryshko | M | — | done |
 | [T05](./T05-promote-expand-migrations.md) | Promote the expand migrations: application tables, association and roster columns, the app role | migration | Andrii Opryshko | M | — | done |
-| [T06](./T06-promote-drop-accounts-association.md) | Promote the drop of accounts.association_id ahead of the manifest order | migration | Andrii Opryshko | S | T05 | todo |
+| [T06](./T06-promote-drop-accounts-association.md) | Promote the drop of accounts.association_id ahead of the manifest order | migration | Andrii Opryshko | S | T05 | done |
 | [T07](./T07-roster-position-domain.md) | Give roster entries a position and a decision reference, with the date rules of a transfer | domain | Andrii Opryshko | M | — | done |
 | [T08](./T08-filing-validation-domain.md) | Validate a filing: every field at once, the term rules and the extract file | domain | Andrii Opryshko | M | T03 | todo |
 | [T09](./T09-application-lifecycle-domain.md) | Model the application lifecycle and the guards of a decision | domain | Andrii Opryshko | M | T03 | todo |

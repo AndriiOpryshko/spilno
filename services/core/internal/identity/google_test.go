@@ -103,9 +103,9 @@ func insertOperator(t *testing.T, pool *pgxpool.Pool) uuid.UUID {
 		t.Fatal(err)
 	}
 	_, err = pool.Exec(t.Context(),
-		`INSERT INTO accounts (id, association_id, oidc_issuer, oidc_subject, email)
-		 VALUES ($1, $2, $3, $4, $5)`,
-		id.String(), testAssociation.String(), "https://issuer.example.test", "operator-subject", "operator@example.test")
+		`INSERT INTO accounts (id, oidc_issuer, oidc_subject, email)
+		 VALUES ($1, $2, $3, $4)`,
+		id.String(), "https://issuer.example.test", "operator-subject", "operator@example.test")
 	if err != nil {
 		t.Fatalf("insert the operator account: %v", err)
 	}

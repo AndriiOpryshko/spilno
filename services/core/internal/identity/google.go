@@ -3,9 +3,14 @@ package identity
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
 	"golang.org/x/oauth2"
+
+	"github.com/AndriiOpryshko/spilno/services/core/internal/identity/adapters/postgres"
+	"github.com/AndriiOpryshko/spilno/services/core/internal/identity/app"
+	"github.com/AndriiOpryshko/spilno/services/core/internal/identity/ports"
 )
 
 // GoogleConfig is what the context needs to keep and use the association's Google connection.
@@ -33,17 +38,60 @@ var (
 	ErrGoogleTokenUnreadable   = errors.New("identity: stored google token cannot be decrypted")
 )
 
+// googleState is what EnableGoogle sets up.
+type googleState struct {
+	connections *app.GoogleConnections
+	oauth       *oauth2.Config
+}
+
 // EnableGoogle turns the Google connection on; without it the two methods below refuse to work.
 func (m *Module) EnableGoogle(cfg GoogleConfig) error {
-	return errors.New("not implemented")
+	if cfg.OAuth == nil || cfg.OAuth.ClientID == "" || cfg.OAuth.ClientSecret == "" || cfg.OAuth.Endpoint.TokenURL == "" {
+		return ErrGoogleConfigInvalid
+	}
+	cipher, err := app.NewTokenCipher(cfg.KeyID, cfg.Key)
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrGoogleConfigInvalid, err)
+	}
+	m.google = &googleState{
+		connections: app.NewGoogleConnections(postgres.NewGoogleConnections(m.pool), cipher),
+		oauth:       cfg.OAuth,
+	}
+	return nil
 }
 
 // ConnectGoogle stores the connection of c.AssociationID, replacing the one it had.
 func (m *Module) ConnectGoogle(ctx context.Context, c GoogleConnection) error {
-	return errors.New("not implemented")
+	if m.google == nil {
+		return ErrGoogleNotConfigured
+	}
+	err := m.google.connections.Connect(ctx, app.NewGoogleConnection{
+		AssociationID:     c.AssociationID,
+		AccountEmail:      c.AccountEmail,
+		RefreshToken:      c.RefreshToken,
+		Scopes:            c.Scopes,
+		DriveRootFolderID: c.DriveRootFolderID,
+		AuthorizedBy:      c.AuthorizedBy,
+	})
+	if errors.Is(err, app.ErrInvalidGoogleConnection) {
+		return ErrGoogleConnectionInvalid
+	}
+	return err
 }
 
 // GoogleTokenSource returns a token source for the association's Google account.
 func (m *Module) GoogleTokenSource(ctx context.Context, associationID uuid.UUID) (oauth2.TokenSource, error) {
-	return nil, errors.New("not implemented")
+	if m.google == nil {
+		return nil, ErrGoogleNotConfigured
+	}
+	refreshToken, err := m.google.connections.RefreshToken(ctx, associationID)
+	switch {
+	case errors.Is(err, ports.ErrGoogleConnectionNotFound):
+		return nil, ErrGoogleNotConnected
+	case errors.Is(err, app.ErrUnknownKey), errors.Is(err, app.ErrTokenUnreadable):
+		return nil, fmt.Errorf("%w: %w", ErrGoogleTokenUnreadable, err)
+	case err != nil:
+		return nil, err
+	}
+	return m.google.oauth.TokenSource(ctx, &oauth2.Token{RefreshToken: refreshToken}), nil
 }

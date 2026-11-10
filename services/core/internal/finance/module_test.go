@@ -2,11 +2,13 @@ package finance_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/AndriiOpryshko/spilno/services/core/internal/finance"
@@ -240,4 +242,66 @@ func TestUnknownRouteIsProblem(t *testing.T) {
 	srv := newServer(t)
 
 	do(t, "GET", srv.URL+"/finance/associations/"+assocID+"/nope", "", http.StatusNotFound, nil)
+}
+
+const otherAssocID = "0191a000-0000-7000-8000-00000000000b"
+
+// AC-04d, AC-07: a contract belongs to the association in its path; under
+// another association it is neither listed nor opened, and the answer matches
+// the one for a missing id.
+func TestContractsAreScopedToTheAssociationInThePath(t *testing.T) {
+	pool := testdb.New(t)
+	r := httpapi.NewRouter()
+	if err := finance.New(pool).Routes(r); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(r)
+	t.Cleanup(srv.Close)
+
+	var created contract
+	do(t, "POST", srv.URL+"/finance/associations/"+assocID+"/contracts",
+		`{"counterparty":"Kyivteploenergo","amount_cents":125000,"currency":"UAH","signed_at":"2026-01-15"}`,
+		http.StatusCreated, &created)
+
+	var stored *string
+	if err := pool.QueryRow(context.Background(),
+		`SELECT association_id::text FROM contracts WHERE id = $1`, created.ID).Scan(&stored); err != nil {
+		t.Fatal(err)
+	}
+	if stored == nil || *stored != assocID {
+		t.Errorf("stored association_id = %v, want %s", stored, assocID)
+	}
+
+	var inA struct {
+		Items []contract `json:"items"`
+	}
+	do(t, "GET", srv.URL+"/finance/associations/"+assocID+"/contracts", "", http.StatusOK, &inA)
+	if len(inA.Items) != 1 {
+		t.Errorf("list under A: %d items, want 1", len(inA.Items))
+	}
+	do(t, "GET", srv.URL+"/finance/associations/"+assocID+"/contracts/"+created.ID, "", http.StatusOK, nil)
+
+	var inB struct {
+		Items []contract `json:"items"`
+	}
+	do(t, "GET", srv.URL+"/finance/associations/"+otherAssocID+"/contracts", "", http.StatusOK, &inB)
+	if len(inB.Items) != 0 {
+		t.Errorf("list under B: %d items, want 0", len(inB.Items))
+	}
+
+	body := func(url string) string {
+		var raw map[string]any
+		do(t, "GET", url, "", http.StatusNotFound, &raw)
+		delete(raw, "instance")
+		b, _ := json.Marshal(raw)
+		return string(b)
+	}
+	missing := "0b0e6f2a-5c1d-4c4e-9b8a-0f6c2d1e3a4b"
+	// The detail names the requested id, so compare with the id masked out.
+	norm := func(s, id string) string { return strings.ReplaceAll(s, id, "<id>") }
+	gotB := norm(body(srv.URL+"/finance/associations/"+otherAssocID+"/contracts/"+created.ID), created.ID)
+	gotMissing := norm(body(srv.URL+"/finance/associations/"+otherAssocID+"/contracts/"+missing), missing)
+	if gotB != gotMissing {
+		t.Errorf("get under B = %s, want the body of a missing id %s", gotB, gotMissing)
+	}
 }

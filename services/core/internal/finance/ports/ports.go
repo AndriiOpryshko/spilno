@@ -26,3 +26,17 @@ type ContractRepository interface {
 	// descending, starting strictly after the key (from the top when nil).
 	List(ctx context.Context, after *ContractKey, limit int) ([]domain.Contract, error)
 }
+
+type associationKey struct{}
+
+// WithAssociation scopes the repository calls made with the returned context
+// to one association.
+func WithAssociation(ctx context.Context, id uuid.UUID) context.Context {
+	return context.WithValue(ctx, associationKey{}, id)
+}
+
+// AssociationFrom returns the association set by WithAssociation.
+func AssociationFrom(ctx context.Context) uuid.UUID {
+	id, _ := ctx.Value(associationKey{}).(uuid.UUID)
+	return id
+}

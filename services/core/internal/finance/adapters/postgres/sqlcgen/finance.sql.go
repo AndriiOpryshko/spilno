@@ -12,17 +12,18 @@ import (
 )
 
 const createContract = `-- name: CreateContract :one
-INSERT INTO contracts (counterparty, amount_cents, currency, signed_at, ends_at)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO contracts (counterparty, amount_cents, currency, signed_at, ends_at, association_id)
+VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING id, counterparty, amount_cents, currency, signed_at, ends_at, created_at, updated_at, association_id
 `
 
 type CreateContractParams struct {
-	Counterparty string
-	AmountCents  int64
-	Currency     string
-	SignedAt     pgtype.Date
-	EndsAt       pgtype.Date
+	Counterparty  string
+	AmountCents   int64
+	Currency      string
+	SignedAt      pgtype.Date
+	EndsAt        pgtype.Date
+	AssociationID pgtype.UUID
 }
 
 func (q *Queries) CreateContract(ctx context.Context, arg CreateContractParams) (Contract, error) {
@@ -32,6 +33,7 @@ func (q *Queries) CreateContract(ctx context.Context, arg CreateContractParams) 
 		arg.Currency,
 		arg.SignedAt,
 		arg.EndsAt,
+		arg.AssociationID,
 	)
 	var i Contract
 	err := row.Scan(
@@ -49,11 +51,16 @@ func (q *Queries) CreateContract(ctx context.Context, arg CreateContractParams) 
 }
 
 const getContract = `-- name: GetContract :one
-SELECT id, counterparty, amount_cents, currency, signed_at, ends_at, created_at, updated_at, association_id FROM contracts WHERE id = $1
+SELECT id, counterparty, amount_cents, currency, signed_at, ends_at, created_at, updated_at, association_id FROM contracts WHERE id = $1 AND association_id = $2
 `
 
-func (q *Queries) GetContract(ctx context.Context, id pgtype.UUID) (Contract, error) {
-	row := q.db.QueryRow(ctx, getContract, id)
+type GetContractParams struct {
+	ID            pgtype.UUID
+	AssociationID pgtype.UUID
+}
+
+func (q *Queries) GetContract(ctx context.Context, arg GetContractParams) (Contract, error) {
+	row := q.db.QueryRow(ctx, getContract, arg.ID, arg.AssociationID)
 	var i Contract
 	err := row.Scan(
 		&i.ID,
@@ -71,13 +78,15 @@ func (q *Queries) GetContract(ctx context.Context, id pgtype.UUID) (Contract, er
 
 const listContracts = `-- name: ListContracts :many
 SELECT id, counterparty, amount_cents, currency, signed_at, ends_at, created_at, updated_at, association_id FROM contracts
-WHERE $1::timestamptz IS NULL
-   OR (created_at, id) < ($1::timestamptz, $2::uuid)
+WHERE association_id = $1
+  AND ($2::timestamptz IS NULL
+   OR (created_at, id) < ($2::timestamptz, $3::uuid))
 ORDER BY created_at DESC, id DESC
-LIMIT $3
+LIMIT $4
 `
 
 type ListContractsParams struct {
+	AssociationID  pgtype.UUID
 	AfterCreatedAt pgtype.Timestamptz
 	AfterID        pgtype.UUID
 	RowLimit       int32
@@ -86,7 +95,12 @@ type ListContractsParams struct {
 // Pages newest first by the (created_at, id) keyset; a NULL after_created_at
 // starts from the top.
 func (q *Queries) ListContracts(ctx context.Context, arg ListContractsParams) ([]Contract, error) {
-	rows, err := q.db.Query(ctx, listContracts, arg.AfterCreatedAt, arg.AfterID, arg.RowLimit)
+	rows, err := q.db.Query(ctx, listContracts,
+		arg.AssociationID,
+		arg.AfterCreatedAt,
+		arg.AfterID,
+		arg.RowLimit,
+	)
 	if err != nil {
 		return nil, err
 	}

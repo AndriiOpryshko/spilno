@@ -45,7 +45,7 @@ func newCardEnv(t *testing.T) *cardEnv {
 	idm := identity.New(pool)
 	idm.EnableApprovals(identity.ApprovalConfig{SeatHead: func(ctx context.Context, association uuid.UUID, fullName, signInEmail string, termStart time.Time, decisionID uuid.UUID) (uuid.UUID, error) {
 		return gov.SeatHead(ctx, association, governance.Person{FullName: fullName, SignInEmail: signInEmail}, governance.Term{Start: termStart}, decisionID)
-	}})
+	}, EndTerm: gov.EndTerm})
 	idm.EnableMemberships(identity.MembershipsConfig{
 		MembershipsOf: func(ctx context.Context, email string, date time.Time) ([]identity.RosterSeat, error) {
 			ms, err := gov.MembershipsOf(ctx, email, date)
@@ -58,7 +58,7 @@ func newCardEnv(t *testing.T) *cardEnv {
 		CurrentMemberID: gov.CurrentMemberID,
 	})
 	people := map[string]identity.ProviderIdentity{}
-	for p, email := range map[string]string{"first": "first@example.test", "multi": "multi@example.test", "solo": "solo@example.test", "nobody": "nobody@example.test", "operator": guardOperatorEmail} {
+	for p, email := range map[string]string{"first": "first@example.test", "second": "second@example.test", "multi": "multi@example.test", "solo": "solo@example.test", "nobody": "nobody@example.test", "operator": guardOperatorEmail} {
 		people[p] = identity.ProviderIdentity{Issuer: "https://accounts.example.test", Subject: "sub-" + p, Email: email, EmailVerified: true}
 	}
 	idm.EnableSignIn(identity.SignInConfig{Provider: &signInFake{people: people}, OperatorEmail: guardOperatorEmail})
@@ -339,5 +339,81 @@ func TestCard_ExtractDownloadsForMembersOnly(t *testing.T) {
 	}
 	if status, _, body := e.do(t, "first", http.MethodGet, "/identity/associations/"+assoc+"/extracts/"+uuid.NewString(), ""); status != http.StatusNotFound {
 		t.Errorf("unknown extract = %d %s, want 404", status, body)
+	}
+}
+
+func cardKinds(v cardView) []string {
+	kinds := []string{}
+	for _, h := range v.History {
+		kinds = append(kinds, h.Kind)
+	}
+	return kinds
+}
+
+// AC-29, AC-20: after a запит на передачу is approved the history has the connection and the
+// transfer, the transfer with its decision id, the filing date and the extract id; the card names
+// the new голова with the extract that confirmed them.
+func TestCard_ATransferAppearsInTheHistoryWithItsConfirmation(t *testing.T) {
+	e := newCardEnv(t)
+	assoc, firstDecision, _ := cardApproved(t, e)
+	f := transferApprovalFile(t, e.reviewEnv, "second", fileAppEdrpou, "", "2026-11-05")
+	approvalRecordCheck(t, e.reviewEnv, f, true, fileAppEdrpou, "Test User")
+	if status, body := approvalApprove(e.reviewEnv, t, "operator", f, ""); status != http.StatusOK {
+		t.Fatalf("approve transfer = %d: %s", status, body)
+	}
+	decision := transferApprovalDecision(t, e.reviewEnv, f)
+	extract := approvalScalar[string](t, e.reviewEnv, `SELECT extract_id::text FROM application_filings WHERE id = $1`, f.filing)
+	filedAt := approvalScalar[time.Time](t, e.reviewEnv, `SELECT created_at FROM application_filings WHERE id = $1`, f.filing)
+
+	card := cardGet(t, e, "second", assoc)
+	if card.HeadFullName == nil || *card.HeadFullName != "Test User" {
+		t.Errorf("head_full_name = %v, want the new голова", card.HeadFullName)
+	}
+	if got := cardKinds(card); len(got) != 2 || got[0] != "transfer_approved" || got[1] != "connected" {
+		t.Fatalf("history kinds = %v, want [transfer_approved connected] newest first", got)
+	}
+	ev := card.History[0]
+	if ev.DecisionID == nil || *ev.DecisionID != decision || ev.ExtractID == nil || *ev.ExtractID != extract || ev.FiledAt == nil {
+		t.Fatalf("transfer event = %+v, want decision %s and extract %s and a filing date", ev, decision, extract)
+	}
+	if got, _ := time.Parse(time.RFC3339, *ev.FiledAt); got.Sub(filedAt).Abs() > time.Millisecond {
+		t.Errorf("transfer filed_at = %s, want %s", *ev.FiledAt, filedAt)
+	}
+	if card.History[1].DecisionID == nil || *card.History[1].DecisionID != firstDecision {
+		t.Errorf("connection event = %+v, want decision %s", card.History[1], firstDecision)
+	}
+	// The extract of the transfer downloads for the new голова.
+	if status, _, body := e.do(t, "second", http.MethodGet, "/identity/associations/"+assoc+"/extracts/"+extract, ""); status != http.StatusOK || !bytes.Equal(body, fileAppPDF(256)) {
+		t.Errorf("download of the transfer extract = %d with %d bytes, want 200 and 256 bytes", status, len(body))
+	}
+}
+
+// AC-29: a disabling shows its reason and date, the enabling after it; the transfer stays in the list.
+func TestCard_ADisablingAndEnablingAfterATransferAreDated(t *testing.T) {
+	e := newCardEnv(t)
+	assoc, _, _ := cardApproved(t, e)
+	f := transferApprovalFile(t, e.reviewEnv, "second", fileAppEdrpou, "", "2026-11-05")
+	approvalRecordCheck(t, e.reviewEnv, f, true, fileAppEdrpou, "Test User")
+	if status, body := approvalApprove(e.reviewEnv, t, "operator", f, ""); status != http.StatusOK {
+		t.Fatalf("approve transfer = %d: %s", status, body)
+	}
+	if status, _, body := e.do(t, "operator", http.MethodPost, "/identity/operator/associations/"+assoc+"/disabling", `{"reason":"Unpaid dues"}`); status != http.StatusOK && status != http.StatusCreated {
+		t.Fatalf("disable = %d: %s", status, body)
+	}
+	disabledAt := approvalScalar[time.Time](t, e.reviewEnv, `SELECT now()`)
+	if status, _, body := e.do(t, "operator", http.MethodPost, "/identity/operator/associations/"+assoc+"/enabling", ""); status != http.StatusOK && status != http.StatusCreated {
+		t.Fatalf("enable = %d: %s", status, body)
+	}
+	card := cardGet(t, e, "second", assoc)
+	if got := cardKinds(card); len(got) != 4 || got[0] != "enabled" || got[1] != "disabled" || got[2] != "transfer_approved" || got[3] != "connected" {
+		t.Fatalf("history kinds = %v, want [enabled disabled transfer_approved connected]", got)
+	}
+	dis := card.History[1]
+	occurred, err := time.Parse(time.RFC3339, dis.OccurredAt)
+	if dis.Reason == nil || *dis.Reason != "Unpaid dues" || err != nil || occurred.After(disabledAt.Add(time.Second)) || occurred.Before(disabledAt.Add(-time.Minute)) {
+		t.Errorf("disabling event = %+v, want reason Unpaid dues dated just now", dis)
+	}
+	if card.State != "connected" {
+		t.Errorf("state = %s, want connected after the enabling", card.State)
 	}
 }

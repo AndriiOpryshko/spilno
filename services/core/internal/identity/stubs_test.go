@@ -19,20 +19,16 @@ func TestNewOperationsAreStubbed(t *testing.T) {
 	const jsonCT = "application/json"
 	disableBody := `{"reason":"test reason"}`
 
-	as := "/identity/associations/" + assoc
 	tests := []struct {
 		name, method, path, ct string
 		body                   []byte
 	}{
-		{"listMemberships", "GET", "/identity/memberships", "", nil},
 		{"listAssociationsForOperator", "GET", "/identity/operator/associations", "", nil},
 		{"disableAssociation", "POST", "/identity/operator/associations/" + assoc + "/disabling", jsonCT, []byte(disableBody)},
 		{"enableAssociation", "POST", "/identity/operator/associations/" + assoc + "/enabling", "", nil},
-		{"getAssociationCard", "GET", as, "", nil},
-		{"downloadConfirmationExtract", "GET", as + "/extracts/" + uuid.NewString(), "", nil},
 	}
-	if len(tests) != 6 {
-		t.Fatalf("table has %d operations, want the 6 stubbed ones", len(tests))
+	if len(tests) != 3 {
+		t.Fatalf("table has %d operations, want the 3 stubbed ones", len(tests))
 	}
 
 	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}

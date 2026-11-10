@@ -24,6 +24,8 @@ type Handler struct {
 	storage      *app.StorageConnections // nil until EnableStorageConnections
 	rejections   *app.Rejections         // nil until EnableRejections
 	approvals    *app.Approvals          // nil until EnableApprovals
+	cards        *app.Cards              // nil until EnableCards
+	memberships  *app.Memberships        // nil until EnableMemberships
 }
 
 var _ gen.StrictServerInterface = (*Handler)(nil)
@@ -125,16 +127,4 @@ func (h *Handler) SignOut(ctx context.Context, _ gen.SignOutRequestObject) (gen.
 		return nil, err
 	}
 	return gen.SignOut204Response{Headers: gen.SignOut204ResponseHeaders{SetCookie: cookieHeader("", -1)}}, nil
-}
-
-func (h *Handler) GetAssociationCard(_ context.Context, _ gen.GetAssociationCardRequestObject) (gen.GetAssociationCardResponseObject, error) {
-	return nil, httpapi.ErrNotImplemented
-}
-
-func (h *Handler) DownloadConfirmationExtract(_ context.Context, _ gen.DownloadConfirmationExtractRequestObject) (gen.DownloadConfirmationExtractResponseObject, error) {
-	return nil, httpapi.ErrNotImplemented
-}
-
-func (h *Handler) ListMemberships(_ context.Context, _ gen.ListMembershipsRequestObject) (gen.ListMembershipsResponseObject, error) {
-	return nil, httpapi.ErrNotImplemented
 }

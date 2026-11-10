@@ -117,6 +117,17 @@ func run() error {
 	idm.EnableApprovals(identity.ApprovalConfig{SeatHead: func(ctx context.Context, association uuid.UUID, fullName, signInEmail string, termStart time.Time, decisionID uuid.UUID) (uuid.UUID, error) {
 		return gov.SeatHead(ctx, association, governance.Person{FullName: fullName, SignInEmail: signInEmail}, governance.Term{Start: termStart}, decisionID)
 	}, EndTerm: gov.EndTerm})
+	idm.EnableMemberships(identity.MembershipsConfig{
+		MembershipsOf: func(ctx context.Context, email string, date time.Time) ([]identity.RosterSeat, error) {
+			ms, err := gov.MembershipsOf(ctx, email, date)
+			out := make([]identity.RosterSeat, 0, len(ms))
+			for _, m := range ms {
+				out = append(out, identity.RosterSeat{AssociationID: m.AssociationID, Position: m.Position})
+			}
+			return out, err
+		},
+		CurrentMemberID: gov.CurrentMemberID,
+	})
 	gcfg, err := config.LoadGoogle()
 	if err != nil {
 		return err

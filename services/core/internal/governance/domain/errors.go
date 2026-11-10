@@ -37,6 +37,10 @@ const (
 // cannot be reached; the request changes nothing (sad §6 Flow 8).
 const CodeStorageUnavailable = "governance.storage_unavailable"
 
+// CodeDriveNotConnected is answered when the association has no connected
+// Google Drive storage; each is listed in ErrorRegistry.
+const CodeDriveNotConnected = "governance.drive_not_connected"
+
 // DomainError is a rule violation identified only by its problem code.
 type DomainError struct {
 	Code string
@@ -90,4 +94,5 @@ var ErrorRegistry = []ErrorDef{
 	{"governance.register_start_locked", http.StatusConflict},
 	{CodeTransitionDenied, http.StatusConflict},
 	{CodeStorageUnavailable, http.StatusServiceUnavailable},
+	{CodeDriveNotConnected, http.StatusConflict},
 }

@@ -21,7 +21,6 @@ func TestNewOperationsAreStubbed(t *testing.T) {
 		pdf    = "%PDF-1.4 test"
 	)
 	approveBody := `{"filing_id":"` + filing + `","relied_on_document":"test document"}`
-	rejectBody := `{"filing_id":"` + filing + `","reason":"test reason"}`
 	disableBody := `{"reason":"test reason"}`
 
 	op := "/identity/operator/applications/" + app
@@ -32,15 +31,14 @@ func TestNewOperationsAreStubbed(t *testing.T) {
 	}{
 		{"listMemberships", "GET", "/identity/memberships", "", nil},
 		{"approveApplication", "POST", op + "/approval", jsonCT, []byte(approveBody)},
-		{"rejectApplication", "POST", op + "/rejection", jsonCT, []byte(rejectBody)},
 		{"listAssociationsForOperator", "GET", "/identity/operator/associations", "", nil},
 		{"disableAssociation", "POST", "/identity/operator/associations/" + assoc + "/disabling", jsonCT, []byte(disableBody)},
 		{"enableAssociation", "POST", "/identity/operator/associations/" + assoc + "/enabling", "", nil},
 		{"getAssociationCard", "GET", as, "", nil},
 		{"downloadConfirmationExtract", "GET", as + "/extracts/" + uuid.NewString(), "", nil},
 	}
-	if len(tests) != 8 {
-		t.Fatalf("table has %d operations, want the 8 stubbed ones", len(tests))
+	if len(tests) != 7 {
+		t.Fatalf("table has %d operations, want the 7 stubbed ones", len(tests))
 	}
 
 	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}

@@ -32,6 +32,7 @@ func New(pool *pgxpool.Pool) *Module {
 	h.EnableApplications(applications)
 	h.EnableAssociationStates(app.NewAssociationStates(postgres.NewAssociations(pool)))
 	h.EnableReviews(app.NewReviews(postgres.NewReviews(pool)))
+	h.EnableRejections(app.NewRejections(postgres.NewRejections(pool)))
 	return &Module{handler: h, pool: pool, applications: applications}
 }
 

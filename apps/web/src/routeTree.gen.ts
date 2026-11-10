@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as NoAccessRouteImport } from './routes/no-access'
 import { Route as SignInRouteImport } from './routes/sign-in'
+import { Route as ApplicationsNewRouteImport } from './routes/applications.new'
 import { Route as CasesIndexRouteImport } from './routes/cases.index'
 import { Route as OAssociationIdRouteImport } from './routes/o.$associationId'
 import { Route as CasesCaseIdProtocolRouteImport } from './routes/cases.$caseId.protocol'
@@ -31,6 +32,11 @@ const NoAccessRoute = NoAccessRouteImport.update({
 const SignInRoute = SignInRouteImport.update({
   id: '/sign-in',
   path: '/sign-in',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApplicationsNewRoute = ApplicationsNewRouteImport.update({
+  id: '/applications/new',
+  path: '/applications/new',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CasesIndexRoute = CasesIndexRouteImport.update({
@@ -65,6 +71,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/no-access': typeof NoAccessRoute
   '/sign-in': typeof SignInRoute
+  '/applications/new': typeof ApplicationsNewRoute
   '/o/$associationId': typeof OAssociationIdRouteWithChildren
   '/cases/': typeof CasesIndexRoute
   '/cases/$caseId/protocol': typeof CasesCaseIdProtocolRoute
@@ -75,6 +82,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/no-access': typeof NoAccessRoute
   '/sign-in': typeof SignInRoute
+  '/applications/new': typeof ApplicationsNewRoute
   '/o/$associationId': typeof OAssociationIdRouteWithChildren
   '/cases': typeof CasesIndexRoute
   '/cases/$caseId/protocol': typeof CasesCaseIdProtocolRoute
@@ -86,6 +94,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/no-access': typeof NoAccessRoute
   '/sign-in': typeof SignInRoute
+  '/applications/new': typeof ApplicationsNewRoute
   '/o/$associationId': typeof OAssociationIdRouteWithChildren
   '/cases/': typeof CasesIndexRoute
   '/cases/$caseId/protocol': typeof CasesCaseIdProtocolRoute
@@ -98,6 +107,7 @@ export interface FileRouteTypes {
     | '/'
     | '/no-access'
     | '/sign-in'
+    | '/applications/new'
     | '/o/$associationId'
     | '/cases/'
     | '/cases/$caseId/protocol'
@@ -108,6 +118,7 @@ export interface FileRouteTypes {
     | '/'
     | '/no-access'
     | '/sign-in'
+    | '/applications/new'
     | '/o/$associationId'
     | '/cases'
     | '/cases/$caseId/protocol'
@@ -118,6 +129,7 @@ export interface FileRouteTypes {
     | '/'
     | '/no-access'
     | '/sign-in'
+    | '/applications/new'
     | '/o/$associationId'
     | '/cases/'
     | '/cases/$caseId/protocol'
@@ -129,6 +141,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   NoAccessRoute: typeof NoAccessRoute
   SignInRoute: typeof SignInRoute
+  ApplicationsNewRoute: typeof ApplicationsNewRoute
   OAssociationIdRoute: typeof OAssociationIdRouteWithChildren
   CasesIndexRoute: typeof CasesIndexRoute
   CasesCaseIdProtocolRoute: typeof CasesCaseIdProtocolRoute
@@ -155,6 +168,13 @@ declare module '@tanstack/react-router' {
       path: '/sign-in'
       fullPath: '/sign-in'
       preLoaderRoute: typeof SignInRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/applications/new': {
+      id: '/applications/new'
+      path: '/applications/new'
+      fullPath: '/applications/new'
+      preLoaderRoute: typeof ApplicationsNewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/cases/': {
@@ -214,6 +234,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   NoAccessRoute: NoAccessRoute,
   SignInRoute: SignInRoute,
+  ApplicationsNewRoute: ApplicationsNewRoute,
   OAssociationIdRoute: OAssociationIdRouteWithChildren,
   CasesIndexRoute: CasesIndexRoute,
   CasesCaseIdProtocolRoute: CasesCaseIdProtocolRoute,

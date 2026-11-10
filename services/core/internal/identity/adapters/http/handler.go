@@ -125,22 +125,6 @@ func (h *Handler) SignOut(ctx context.Context, _ gen.SignOutRequestObject) (gen.
 	return gen.SignOut204Response{Headers: gen.SignOut204ResponseHeaders{SetCookie: cookieHeader("", -1)}}, nil
 }
 
-func (h *Handler) ListMyApplications(_ context.Context, _ gen.ListMyApplicationsRequestObject) (gen.ListMyApplicationsResponseObject, error) {
-	return nil, httpapi.ErrNotImplemented
-}
-
-func (h *Handler) GetMyApplication(_ context.Context, _ gen.GetMyApplicationRequestObject) (gen.GetMyApplicationResponseObject, error) {
-	return nil, httpapi.ErrNotImplemented
-}
-
-func (h *Handler) RefileApplication(_ context.Context, _ gen.RefileApplicationRequestObject) (gen.RefileApplicationResponseObject, error) {
-	return nil, httpapi.ErrNotImplemented
-}
-
-func (h *Handler) DownloadMyExtract(_ context.Context, _ gen.DownloadMyExtractRequestObject) (gen.DownloadMyExtractResponseObject, error) {
-	return nil, httpapi.ErrNotImplemented
-}
-
 func (h *Handler) GetAssociationCard(_ context.Context, _ gen.GetAssociationCardRequestObject) (gen.GetAssociationCardResponseObject, error) {
 	return nil, httpapi.ErrNotImplemented
 }

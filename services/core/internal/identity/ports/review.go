@@ -2,14 +2,10 @@ package ports
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"github.com/google/uuid"
 )
-
-// ErrApplicationNotFound is returned when no application (or filing of it) has the id.
-var ErrApplicationNotFound = errors.New("identity: application not found")
 
 // ReviewApplication is an application with its latest filing's name and date.
 type ReviewApplication struct {

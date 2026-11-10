@@ -3,10 +3,7 @@ package identity_test
 import (
 	"bytes"
 	"encoding/json"
-	"mime/multipart"
 	"net/http"
-	"net/textproto"
-	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -27,12 +24,6 @@ func TestNewOperationsAreStubbed(t *testing.T) {
 	rejectBody := `{"filing_id":"` + filing + `","reason":"test reason"}`
 	disableBody := `{"reason":"test reason"}`
 
-	refile, refileCT := multipartBody(t, map[string]string{
-		"association_name": "Test Association", "association_address": "Test Street 1",
-		"applicant_full_name": "Test User", "position": "head", "term_start": "2026-03-01",
-	}, pdf)
-
-	a := "/identity/applications/" + app
 	op := "/identity/operator/applications/" + app
 	as := "/identity/associations/" + assoc
 	tests := []struct {
@@ -40,10 +31,6 @@ func TestNewOperationsAreStubbed(t *testing.T) {
 		body                   []byte
 	}{
 		{"listMemberships", "GET", "/identity/memberships", "", nil},
-		{"listMyApplications", "GET", "/identity/applications", "", nil},
-		{"getMyApplication", "GET", a, "", nil},
-		{"refileApplication", "POST", a + "/filings", refileCT, refile},
-		{"downloadMyExtract", "GET", a + "/filings/" + filing + "/extract", "", nil},
 		{"approveApplication", "POST", op + "/approval", jsonCT, []byte(approveBody)},
 		{"rejectApplication", "POST", op + "/rejection", jsonCT, []byte(rejectBody)},
 		{"listAssociationsForOperator", "GET", "/identity/operator/associations", "", nil},
@@ -52,8 +39,8 @@ func TestNewOperationsAreStubbed(t *testing.T) {
 		{"getAssociationCard", "GET", as, "", nil},
 		{"downloadConfirmationExtract", "GET", as + "/extracts/" + uuid.NewString(), "", nil},
 	}
-	if len(tests) != 12 {
-		t.Fatalf("table has %d operations, want the 12 stubbed ones", len(tests))
+	if len(tests) != 8 {
+		t.Fatalf("table has %d operations, want the 8 stubbed ones", len(tests))
 	}
 
 	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
@@ -89,30 +76,4 @@ func TestNewOperationsAreStubbed(t *testing.T) {
 			}
 		})
 	}
-}
-
-func multipartBody(t *testing.T, fields map[string]string, extract string) ([]byte, string) {
-	t.Helper()
-	var buf bytes.Buffer
-	w := multipart.NewWriter(&buf)
-	for k, v := range fields {
-		if err := w.WriteField(k, v); err != nil {
-			t.Fatal(err)
-		}
-	}
-	// CreateFormFile would declare application/octet-stream, which the contract does not list for the extract.
-	h := textproto.MIMEHeader{}
-	h.Set("Content-Disposition", `form-data; name="extract"; filename="extract.pdf"`)
-	h.Set("Content-Type", "application/pdf")
-	fw, err := w.CreatePart(h)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := fw.Write([]byte(extract)); err != nil {
-		t.Fatal(err)
-	}
-	if err := w.Close(); err != nil {
-		t.Fatal(err)
-	}
-	return buf.Bytes(), strings.TrimSpace(w.FormDataContentType())
 }

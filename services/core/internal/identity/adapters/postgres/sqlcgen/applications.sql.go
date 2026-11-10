@@ -124,6 +124,52 @@ func (q *Queries) FindOpenApplicationOfAccount(ctx context.Context, arg FindOpen
 	return id, err
 }
 
+const getApplicationOfAccount = `-- name: GetApplicationOfAccount :one
+SELECT a.id, a.kind, a.edrpou, a.association_id, a.state, a.created_at,
+       f.association_name, f.created_at AS filed_at,
+       (SELECT d.reason FROM application_decisions d
+         WHERE d.application_id = a.id AND d.outcome = 'rejected'
+         ORDER BY d.created_at DESC, d.id DESC LIMIT 1) AS rejection_reason
+FROM applications a
+JOIN LATERAL (SELECT x.association_name, x.created_at FROM application_filings x
+               WHERE x.application_id = a.id ORDER BY x.created_at DESC, x.id DESC LIMIT 1) f ON true
+WHERE a.id = $1 AND a.account_id = $2
+`
+
+type GetApplicationOfAccountParams struct {
+	ID        pgtype.UUID
+	AccountID pgtype.UUID
+}
+
+type GetApplicationOfAccountRow struct {
+	ID              pgtype.UUID
+	Kind            string
+	Edrpou          string
+	AssociationID   pgtype.UUID
+	State           string
+	CreatedAt       pgtype.Timestamptz
+	AssociationName string
+	FiledAt         pgtype.Timestamptz
+	RejectionReason pgtype.Text
+}
+
+func (q *Queries) GetApplicationOfAccount(ctx context.Context, arg GetApplicationOfAccountParams) (GetApplicationOfAccountRow, error) {
+	row := q.db.QueryRow(ctx, getApplicationOfAccount, arg.ID, arg.AccountID)
+	var i GetApplicationOfAccountRow
+	err := row.Scan(
+		&i.ID,
+		&i.Kind,
+		&i.Edrpou,
+		&i.AssociationID,
+		&i.State,
+		&i.CreatedAt,
+		&i.AssociationName,
+		&i.FiledAt,
+		&i.RejectionReason,
+	)
+	return i, err
+}
+
 const getAssociationByEdrpou = `-- name: GetAssociationByEdrpou :one
 SELECT id FROM associations WHERE edrpou = $1
 `
@@ -133,4 +179,259 @@ func (q *Queries) GetAssociationByEdrpou(ctx context.Context, edrpou pgtype.Text
 	var id pgtype.UUID
 	err := row.Scan(&id)
 	return id, err
+}
+
+const getExtract = `-- name: GetExtract :one
+SELECT e.original_name, e.media_type, e.content, e.sha256
+FROM application_filings f
+JOIN applications a ON a.id = f.application_id
+JOIN application_extracts e ON e.id = f.extract_id
+WHERE f.id = $1 AND a.id = $2 AND a.account_id = $3
+`
+
+type GetExtractParams struct {
+	FilingID      pgtype.UUID
+	ApplicationID pgtype.UUID
+	AccountID     pgtype.UUID
+}
+
+type GetExtractRow struct {
+	OriginalName string
+	MediaType    string
+	Content      []byte
+	Sha256       []byte
+}
+
+func (q *Queries) GetExtract(ctx context.Context, arg GetExtractParams) (GetExtractRow, error) {
+	row := q.db.QueryRow(ctx, getExtract, arg.FilingID, arg.ApplicationID, arg.AccountID)
+	var i GetExtractRow
+	err := row.Scan(
+		&i.OriginalName,
+		&i.MediaType,
+		&i.Content,
+		&i.Sha256,
+	)
+	return i, err
+}
+
+const listApplicationsOfAccount = `-- name: ListApplicationsOfAccount :many
+SELECT a.id, a.kind, a.edrpou, a.association_id, a.state, a.created_at,
+       f.association_name, f.created_at AS filed_at,
+       (SELECT d.reason FROM application_decisions d
+         WHERE d.application_id = a.id AND d.outcome = 'rejected'
+         ORDER BY d.created_at DESC, d.id DESC LIMIT 1) AS rejection_reason
+FROM applications a
+JOIN LATERAL (SELECT x.association_name, x.created_at FROM application_filings x
+               WHERE x.application_id = a.id ORDER BY x.created_at DESC, x.id DESC LIMIT 1) f ON true
+WHERE a.account_id = $1
+  AND (NOT $2::boolean OR (a.created_at, a.id) < ($3::timestamptz, $4::uuid))
+ORDER BY a.created_at DESC, a.id DESC
+LIMIT $5
+`
+
+type ListApplicationsOfAccountParams struct {
+	AccountID       pgtype.UUID
+	HasCursor       bool
+	CursorCreatedAt pgtype.Timestamptz
+	CursorID        pgtype.UUID
+	PageSize        int32
+}
+
+type ListApplicationsOfAccountRow struct {
+	ID              pgtype.UUID
+	Kind            string
+	Edrpou          string
+	AssociationID   pgtype.UUID
+	State           string
+	CreatedAt       pgtype.Timestamptz
+	AssociationName string
+	FiledAt         pgtype.Timestamptz
+	RejectionReason pgtype.Text
+}
+
+func (q *Queries) ListApplicationsOfAccount(ctx context.Context, arg ListApplicationsOfAccountParams) ([]ListApplicationsOfAccountRow, error) {
+	rows, err := q.db.Query(ctx, listApplicationsOfAccount,
+		arg.AccountID,
+		arg.HasCursor,
+		arg.CursorCreatedAt,
+		arg.CursorID,
+		arg.PageSize,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListApplicationsOfAccountRow
+	for rows.Next() {
+		var i ListApplicationsOfAccountRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Kind,
+			&i.Edrpou,
+			&i.AssociationID,
+			&i.State,
+			&i.CreatedAt,
+			&i.AssociationName,
+			&i.FiledAt,
+			&i.RejectionReason,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listDecisions = `-- name: ListDecisions :many
+SELECT id, filing_id, association_id, outcome, reason, relied_on_document, created_at
+FROM application_decisions
+WHERE application_id = $1
+ORDER BY created_at DESC, id DESC
+`
+
+type ListDecisionsRow struct {
+	ID               pgtype.UUID
+	FilingID         pgtype.UUID
+	AssociationID    pgtype.UUID
+	Outcome          string
+	Reason           pgtype.Text
+	ReliedOnDocument pgtype.Text
+	CreatedAt        pgtype.Timestamptz
+}
+
+func (q *Queries) ListDecisions(ctx context.Context, applicationID pgtype.UUID) ([]ListDecisionsRow, error) {
+	rows, err := q.db.Query(ctx, listDecisions, applicationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListDecisionsRow
+	for rows.Next() {
+		var i ListDecisionsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.FilingID,
+			&i.AssociationID,
+			&i.Outcome,
+			&i.Reason,
+			&i.ReliedOnDocument,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listFilings = `-- name: ListFilings :many
+SELECT f.id, f.association_name, f.association_address, f.applicant_full_name, f.position,
+       f.term_start, f.term_end, f.created_at,
+       e.id AS extract_id, e.media_type, e.original_name, e.sha256, e.size_bytes
+FROM application_filings f
+JOIN application_extracts e ON e.id = f.extract_id
+WHERE f.application_id = $1
+ORDER BY f.created_at DESC, f.id DESC
+`
+
+type ListFilingsRow struct {
+	ID                 pgtype.UUID
+	AssociationName    string
+	AssociationAddress string
+	ApplicantFullName  string
+	Position           string
+	TermStart          pgtype.Date
+	TermEnd            pgtype.Date
+	CreatedAt          pgtype.Timestamptz
+	ExtractID          pgtype.UUID
+	MediaType          string
+	OriginalName       string
+	Sha256             []byte
+	SizeBytes          int64
+}
+
+func (q *Queries) ListFilings(ctx context.Context, applicationID pgtype.UUID) ([]ListFilingsRow, error) {
+	rows, err := q.db.Query(ctx, listFilings, applicationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListFilingsRow
+	for rows.Next() {
+		var i ListFilingsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.AssociationName,
+			&i.AssociationAddress,
+			&i.ApplicantFullName,
+			&i.Position,
+			&i.TermStart,
+			&i.TermEnd,
+			&i.CreatedAt,
+			&i.ExtractID,
+			&i.MediaType,
+			&i.OriginalName,
+			&i.Sha256,
+			&i.SizeBytes,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const lockApplicationOfAccount = `-- name: LockApplicationOfAccount :one
+SELECT id, kind, edrpou, state, created_at FROM applications
+WHERE id = $1 AND account_id = $2
+FOR UPDATE
+`
+
+type LockApplicationOfAccountParams struct {
+	ID        pgtype.UUID
+	AccountID pgtype.UUID
+}
+
+type LockApplicationOfAccountRow struct {
+	ID        pgtype.UUID
+	Kind      string
+	Edrpou    string
+	State     string
+	CreatedAt pgtype.Timestamptz
+}
+
+func (q *Queries) LockApplicationOfAccount(ctx context.Context, arg LockApplicationOfAccountParams) (LockApplicationOfAccountRow, error) {
+	row := q.db.QueryRow(ctx, lockApplicationOfAccount, arg.ID, arg.AccountID)
+	var i LockApplicationOfAccountRow
+	err := row.Scan(
+		&i.ID,
+		&i.Kind,
+		&i.Edrpou,
+		&i.State,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const updateApplicationState = `-- name: UpdateApplicationState :exec
+UPDATE applications SET state = $1 WHERE id = $2
+`
+
+type UpdateApplicationStateParams struct {
+	State string
+	ID    pgtype.UUID
+}
+
+func (q *Queries) UpdateApplicationState(ctx context.Context, arg UpdateApplicationStateParams) error {
+	_, err := q.db.Exec(ctx, updateApplicationState, arg.State, arg.ID)
+	return err
 }

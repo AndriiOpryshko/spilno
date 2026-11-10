@@ -17,6 +17,7 @@ import { Route as CasesIndexRouteImport } from './routes/cases.index'
 import { Route as OAssociationIdRouteImport } from './routes/o.$associationId'
 import { Route as OperatorAssociationsRouteImport } from './routes/operator.associations'
 import { Route as CasesCaseIdProtocolRouteImport } from './routes/cases.$caseId.protocol'
+import { Route as OAssociationIdAssociationRouteImport } from './routes/o.$associationId.association'
 import { Route as OAssociationIdCasesIndexRouteImport } from './routes/o.$associationId.cases.index'
 import { Route as OAssociationIdCasesCaseIdProtocolRouteImport } from './routes/o.$associationId.cases.$caseId.protocol'
 
@@ -60,6 +61,12 @@ const CasesCaseIdProtocolRoute = CasesCaseIdProtocolRouteImport.update({
   path: '/cases/$caseId/protocol',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OAssociationIdAssociationRoute =
+  OAssociationIdAssociationRouteImport.update({
+    id: '/association',
+    path: '/association',
+    getParentRoute: () => OAssociationIdRoute,
+  } as any)
 const OAssociationIdCasesIndexRoute =
   OAssociationIdCasesIndexRouteImport.update({
     id: '/cases/',
@@ -82,6 +89,7 @@ export interface FileRoutesByFullPath {
   '/operator/associations': typeof OperatorAssociationsRoute
   '/cases/': typeof CasesIndexRoute
   '/cases/$caseId/protocol': typeof CasesCaseIdProtocolRoute
+  '/o/$associationId/association': typeof OAssociationIdAssociationRoute
   '/o/$associationId/cases/': typeof OAssociationIdCasesIndexRoute
   '/o/$associationId/cases/$caseId/protocol': typeof OAssociationIdCasesCaseIdProtocolRoute
 }
@@ -94,6 +102,7 @@ export interface FileRoutesByTo {
   '/operator/associations': typeof OperatorAssociationsRoute
   '/cases': typeof CasesIndexRoute
   '/cases/$caseId/protocol': typeof CasesCaseIdProtocolRoute
+  '/o/$associationId/association': typeof OAssociationIdAssociationRoute
   '/o/$associationId/cases': typeof OAssociationIdCasesIndexRoute
   '/o/$associationId/cases/$caseId/protocol': typeof OAssociationIdCasesCaseIdProtocolRoute
 }
@@ -107,6 +116,7 @@ export interface FileRoutesById {
   '/operator/associations': typeof OperatorAssociationsRoute
   '/cases/': typeof CasesIndexRoute
   '/cases/$caseId/protocol': typeof CasesCaseIdProtocolRoute
+  '/o/$associationId/association': typeof OAssociationIdAssociationRoute
   '/o/$associationId/cases/': typeof OAssociationIdCasesIndexRoute
   '/o/$associationId/cases/$caseId/protocol': typeof OAssociationIdCasesCaseIdProtocolRoute
 }
@@ -121,6 +131,7 @@ export interface FileRouteTypes {
     | '/operator/associations'
     | '/cases/'
     | '/cases/$caseId/protocol'
+    | '/o/$associationId/association'
     | '/o/$associationId/cases/'
     | '/o/$associationId/cases/$caseId/protocol'
   fileRoutesByTo: FileRoutesByTo
@@ -133,6 +144,7 @@ export interface FileRouteTypes {
     | '/operator/associations'
     | '/cases'
     | '/cases/$caseId/protocol'
+    | '/o/$associationId/association'
     | '/o/$associationId/cases'
     | '/o/$associationId/cases/$caseId/protocol'
   id:
@@ -145,6 +157,7 @@ export interface FileRouteTypes {
     | '/operator/associations'
     | '/cases/'
     | '/cases/$caseId/protocol'
+    | '/o/$associationId/association'
     | '/o/$associationId/cases/'
     | '/o/$associationId/cases/$caseId/protocol'
   fileRoutesById: FileRoutesById
@@ -218,6 +231,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CasesCaseIdProtocolRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/o/$associationId/association': {
+      id: '/o/$associationId/association'
+      path: '/association'
+      fullPath: '/o/$associationId/association'
+      preLoaderRoute: typeof OAssociationIdAssociationRouteImport
+      parentRoute: typeof OAssociationIdRoute
+    }
     '/o/$associationId/cases/': {
       id: '/o/$associationId/cases/'
       path: '/cases'
@@ -236,11 +256,13 @@ declare module '@tanstack/react-router' {
 }
 
 interface OAssociationIdRouteChildren {
+  OAssociationIdAssociationRoute: typeof OAssociationIdAssociationRoute
   OAssociationIdCasesIndexRoute: typeof OAssociationIdCasesIndexRoute
   OAssociationIdCasesCaseIdProtocolRoute: typeof OAssociationIdCasesCaseIdProtocolRoute
 }
 
 const OAssociationIdRouteChildren: OAssociationIdRouteChildren = {
+  OAssociationIdAssociationRoute: OAssociationIdAssociationRoute,
   OAssociationIdCasesIndexRoute: OAssociationIdCasesIndexRoute,
   OAssociationIdCasesCaseIdProtocolRoute:
     OAssociationIdCasesCaseIdProtocolRoute,

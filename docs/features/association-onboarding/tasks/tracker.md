@@ -18,7 +18,7 @@
 | [T11](./T11-association-state-access-matrix.md) | Model the association state and the access matrix of PRD §10 | domain | Andrii Opryshko | M | T03 | done |
 | [T12](./T12-two-database-roles.md) | Run goose as the owner and serve as spilno_app; give tests an app-role pool with two associations | infra | Andrii Opryshko | M | T05 | done |
 | [T13](./T13-finance-contracts-association.md) | Scope finance contracts to the association in the path | app | Andrii Opryshko | S | T01, T04, T05 | done |
-| [T14](./T14-roster-read-facade.md) | Serve the roster facade: the current member, a person's memberships and the members' sign-in addresses | infra | Andrii Opryshko | L | T04, T05, T07 | todo |
+| [T14](./T14-roster-read-facade.md) | Serve the roster facade: the current member, a person's memberships and the members' sign-in addresses | infra | Andrii Opryshko | L | T04, T05, T07 | done |
 | [T15](./T15-seat-head-end-term.md) | Seat a голова and end a term through the governance facade inside the caller's transaction | app | Andrii Opryshko | M | T14 | todo |
 | [T16](./T16-promote-backfills.md) | Promote the backfills: association state, roster positions and the contracts' association | migration | Andrii Opryshko | S | T06, T13, T14 | todo |
 | [T17](./T17-promote-not-null-contracts.md) | Promote the NOT NULL steps and the contracts index | migration | Andrii Opryshko | S | T16 | todo |

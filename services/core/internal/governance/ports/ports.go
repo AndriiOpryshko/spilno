@@ -26,3 +26,20 @@ type MeetingRepository interface {
 	// descending, starting strictly after the key (from the top when nil).
 	List(ctx context.Context, associationID uuid.UUID, after *MeetingKey, limit int) ([]domain.Meeting, error)
 }
+
+// Membership is a person's current seat on one association's board.
+type Membership struct {
+	AssociationID uuid.UUID
+	Position      string // "head" or "member"
+}
+
+// RosterReader reads the board roster on the transaction in ctx (db.InAssociation).
+type RosterReader interface {
+	// CurrentMember reports the association's member whose sign-in address is email
+	// and whose term covers date.
+	CurrentMember(ctx context.Context, association uuid.UUID, email string, date time.Time) (Membership, bool, error)
+	// MembershipsOf returns every association whose current board holds email on date.
+	MembershipsOf(ctx context.Context, email string, date time.Time) ([]Membership, error)
+	// MemberSignInAddresses returns the sign-in addresses of the association's members whose term covers date.
+	MemberSignInAddresses(ctx context.Context, association uuid.UUID, date time.Time) ([]string, error)
+}

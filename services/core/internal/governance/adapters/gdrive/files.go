@@ -66,23 +66,9 @@ type fileResource struct {
 
 // Upload streams body into the association's folder.
 func (f *Files) Upload(ctx context.Context, name, mediaType string, body io.Reader) (ports.StoredFile, error) {
-	meta, err := json.Marshal(map[string]any{
-		"name":     name,
-		"mimeType": mediaType,
-		"parents":  []string{f.cfg.FolderID},
-	})
-	if err != nil {
-		return ports.StoredFile{}, fmt.Errorf("gdrive: encode the upload metadata: %w", err)
-	}
-	sessionURL := f.cfg.UploadURL + "/files?uploadType=resumable&fields=" + url.QueryEscape(uploadFields)
-	opened, err := f.send(ctx, http.MethodPost, sessionURL, jsonContentType, bytes.NewReader(meta))
+	session, err := f.openSession(ctx, name, mediaType)
 	if err != nil {
 		return ports.StoredFile{}, err
-	}
-	discard(opened)
-	session := opened.Header.Get("Location")
-	if session == "" {
-		return ports.StoredFile{}, answerError(opened, "no Location of the upload session")
 	}
 
 	src := &hashingReader{r: body, hash: sha256.New()}
@@ -114,6 +100,30 @@ func (f *Files) Upload(ctx context.Context, name, mediaType string, body io.Read
 		Size:      size,
 		MediaType: mediaType,
 	}, nil
+}
+
+// openSession starts a resumable upload of a file with that name and media
+// type in the association's folder and returns the URL its bytes are PUT to.
+func (f *Files) openSession(ctx context.Context, name, mediaType string) (string, error) {
+	meta, err := json.Marshal(map[string]any{
+		"name":     name,
+		"mimeType": mediaType,
+		"parents":  []string{f.cfg.FolderID},
+	})
+	if err != nil {
+		return "", fmt.Errorf("gdrive: encode the upload metadata: %w", err)
+	}
+	sessionURL := f.cfg.UploadURL + "/files?uploadType=resumable&fields=" + url.QueryEscape(uploadFields)
+	opened, err := f.send(ctx, http.MethodPost, sessionURL, jsonContentType, bytes.NewReader(meta))
+	if err != nil {
+		return "", err
+	}
+	discard(opened)
+	session := opened.Header.Get("Location")
+	if session == "" {
+		return "", answerError(opened, "no Location of the upload session")
+	}
+	return session, nil
 }
 
 // Open streams back the stored bytes; the caller closes the reader.
@@ -211,17 +221,24 @@ func (f *Files) send(ctx context.Context, method, rawURL, contentType string, bo
 		return resp, nil
 	}
 	discard(resp)
-	switch {
-	case resp.StatusCode == http.StatusNotFound:
-		return nil, ports.ErrFileNotFound
-	case resp.StatusCode == http.StatusUnauthorized,
-		resp.StatusCode == http.StatusForbidden,
-		resp.StatusCode == http.StatusRequestTimeout,
-		resp.StatusCode == http.StatusTooManyRequests,
-		resp.StatusCode >= 500:
-		return nil, &domain.DomainError{Code: domain.CodeStorageUnavailable}
+	return nil, statusError(resp)
+}
+
+// statusError is the error the port names for an answer outside 2xx: the file
+// is not there, Drive cannot be used right now, or Drive said something the
+// adapter does not expect.
+func statusError(resp *http.Response) error {
+	switch status := resp.StatusCode; {
+	case status == http.StatusNotFound:
+		return ports.ErrFileNotFound
+	case status == http.StatusUnauthorized,
+		status == http.StatusForbidden,
+		status == http.StatusRequestTimeout,
+		status == http.StatusTooManyRequests,
+		status >= 500:
+		return &domain.DomainError{Code: domain.CodeStorageUnavailable}
 	default:
-		return nil, answerError(resp, "unexpected status")
+		return answerError(resp, "unexpected status")
 	}
 }
 

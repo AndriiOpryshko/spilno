@@ -25,7 +25,7 @@
 | [T18](./T18-sign-in-any-verified-person.md) | Sign in any verified person, keep the session in Postgres and tell the оператор | app | Andrii Opryshko | L | T02, T03, T06 | done |
 | [T19](./T19-association-and-operator-guards.md) | Guard association paths with the session, the roster and a scoped transaction, and operator paths with the оператор flag | wiring | Andrii Opryshko | L | T04, T11, T14, T18 | done |
 | [T20](./T20-promote-row-level-security.md) | Promote row-level security for the governance, finance and identity tables | migration | Andrii Opryshko | M | T12, T13, T17, T19 | done |
-| [T21](./T21-isolation-release-check.md) | Add the release-blocking isolation test over every association-scoped operation of the contract | tests | Andrii Opryshko | M | T02, T20 | todo |
+| [T21](./T21-isolation-release-check.md) | Add the release-blocking isolation test over every association-scoped operation of the contract | tests | Andrii Opryshko | M | T02, T20 | done |
 | [T22](./T22-file-connection-application.md) | File a заявка на підключення and keep the signed extract unchanged | ports | Andrii Opryshko | L | T05, T08, T12, T18 | todo |
 | [T23](./T23-follow-and-refile-application.md) | Let the applicant follow and refile their application | ports | Andrii Opryshko | M | T09, T22 | todo |
 | [T24](./T24-operator-queue-review-check.md) | Serve the оператор's queue and review page, and record the check of the extract | ports | Andrii Opryshko | L | T10, T19, T22 | todo |

@@ -12,7 +12,7 @@ files_hint:
   - "services/core/cmd/google-connect/"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "in_progress"
 ---
 
 # T12 — Store the association's Google connection and expose GoogleTokenSource

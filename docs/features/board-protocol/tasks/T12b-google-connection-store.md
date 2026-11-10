@@ -14,7 +14,7 @@ stubs:
 test_files:
   - services/core/internal/identity/google_test.go
 estimate: "half a day"
-status: "todo"
+status: "done"
 ---
 
 # T12b — Store the association's Google connection and hand out its token source

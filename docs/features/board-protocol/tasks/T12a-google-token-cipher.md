@@ -10,7 +10,7 @@ test_cmd: "cd services/core && go test -count=1 ./internal/identity/app/"
 stub: services/core/internal/identity/app/token_cipher.go
 test_file: services/core/internal/identity/app/token_cipher_test.go
 estimate: "60-90 min"
-status: "todo"
+status: "done"
 ---
 
 # T12a — Seal and open the Google refresh token with AES-256-GCM

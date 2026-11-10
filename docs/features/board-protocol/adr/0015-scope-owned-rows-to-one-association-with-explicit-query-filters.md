@@ -10,6 +10,8 @@ ticket: ""
 
 # 0015 — Scope owned rows to one association with an association_id column and explicit query filters, without RLS
 
+> Superseded in part by [association-onboarding ADR-0003](../../association-onboarding/adr/0003-enforce-association-isolation-with-postgres-row-level-security.md): isolation is enforced by Postgres row-level security instead of waiting for a second association.
+
 - **Status:** Accepted
 - **Date:** 2026-10-25
 - **Deciders:** Andrii Opryshko (Architect), with Claude during the Stage 1 rescope

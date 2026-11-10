@@ -47,6 +47,10 @@ These override the baseline above; each names the decision behind it.
   `message` → `detail`, `details` → `errors[]` (`{pointer, detail}`). Validation is `422` and names every broken field
   at once; `400` is only for a body that cannot be decoded. A `422` produced by the shared request validator carries
   no `code`; a `422`/`409` produced by a context carries its `code`.
+- **Association-scoped paths** are `/<context>/associations/{association_id}/...`; the association comes from the
+  path (association-onboarding ADR-0002). The shared `MemberOrDisabled` 403 is either
+  `identity.not_current_member` (checked first) or `identity.association_disabled` (a вимкнене ОСББ, on every
+  operation except the registry reads and the signed-copy download, ADR-0007).
 - **Auth is a session cookie**, not a bearer token (board-protocol ADR-0003): global `SessionCookie`; a public
   operation (`/system/health`, the sign-in redirect and callback) declares `security: []`. No session → `401
   identity.session_required`; a session whose person is not a current член правління → `403

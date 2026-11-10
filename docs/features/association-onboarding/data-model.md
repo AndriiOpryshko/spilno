@@ -356,6 +356,7 @@ Row-level security with the own-entry clause (ADR-0003). `idx_board_member_revis
 | `identity.association_already_connected` | conflict | `uq_associations_edrpou` | approve of a competing заявка hits the same key (AC-04c) |
 | `identity.application_already_open` | conflict | `uq_applications_account_edrpou_pending` | |
 | `identity.application_not_pending` | conflict | `uq_application_decisions_filing_id` + state check in Go | |
+| `identity.operator_own_application` | invariant | app only | `applications.account_id` vs the acting оператор's account (AC-16c) |
 | `identity.association_state_unchanged` | conflict | app only | compares `associations.state` |
 | `identity.application_invalid` | validation | app only | `VARCHAR` bounds back the lengths |
 | `identity.signature_not_checked` | invariant | app only | needs a check row with `signature_valid = true` |

@@ -39,6 +39,8 @@ Traceability and deliberate decisions:
 
 ## 3. Non-goals
 
+> **Amended by [association-onboarding](../association-onboarding/PRD.md) (2026-11-10):** the bullet on onboarding other associations no longer holds: associations are connected through an application reviewed by the оператор, and an association's data is scoped by its id in the path.
+
 - General-meeting protocols and co-owner e-voting — covered by existing services (idea-brief §5).
 - Running the vote in the system (live meeting, remote participation, written polls, signing inside the system) — the vote and signing happen outside; the in-system попереднє голосування is an informal internal poll, labelled as not the meeting's vote and not a substitute for it (AC-41), and the signed result is accepted as a scan.
 - Access for co-owners or the ревізійна комісія, and onboarding other associations — the first release serves one association (records carry the association, but there is no multi-association scope) and its current board (idea-brief §5).
@@ -264,6 +266,8 @@ Traceability and deliberate decisions:
 **Then** the system lists the matching decisions and opens each with its signed copy, meeting facts, cited documents and poll history labelled as informal
 
 ### AC-19 (US-07) — authorization
+
+> **Amended by [association-onboarding](../association-onboarding/PRD.md):** the check is made against the roster of the association in the path; a person who is not a current член правління of it, or whose association does not exist, gets the same `identity.not_current_member`.
 **Given** a person whose board term has ended, or who was never a член правління
 **When** they try to open the реєстр протоколів or a справа
 **Then** the system denies access and does not reveal whether any protocol or case exists

@@ -12,10 +12,10 @@
 | [T05](./T05-stage-lock-integrity-migrations.md) | Promote the print-copy, meeting-facts, snapshot, trigger and integrity-run migrations | migration | Andrii Opryshko | M | T04 | done |
 | [T06](./T06-problem-codes-registry.md) | Add problem `code` and `urn:problem:` types to httpapi with a governance error registry | infra | Andrii Opryshko | M | — | done |
 | [T07](./T07-merge-contract-identity-skeleton.md) | Merge the contract delta, add the identity context skeleton and regenerate server and client | wiring | Andrii Opryshko | L | — | done |
-| [T08](./T08-identity-oidc-sessions.md) | Sign in with Google OIDC and keep sessions in Postgres | app | Andrii Opryshko | L | T01, T06, T07, T02, T09 | todo |
+| [T08](./T08-identity-oidc-sessions.md) | Sign in with Google OIDC and keep sessions in Postgres | app | Andrii Opryshko | L | T01, T06, T07, T02, T09 | replaced (association-onboarding) |
 | [T09](./T09-settings-roster-domain.md) | Model association settings and roster entries with all-fields validation | domain | Andrii Opryshko | M | — | done |
 | [T10](./T10-settings-roster-endpoints.md) | Serve settings and roster: use cases, Postgres repositories, handlers and CurrentMember | ports | Andrii Opryshko | L | T02, T06, T07, T09 | todo |
-| [T11](./T11-require-session-current-member.md) | Require a session and a current член правління on the governance and finance routes | wiring | Andrii Opryshko | M | T08, T10 | todo |
+| [T11](./T11-require-session-current-member.md) | Require a session and a current член правління on the governance and finance routes | wiring | Andrii Opryshko | M | T08, T10 | replaced (association-onboarding) |
 | [T12](./T12-google-connection-token-source.md) | Store the association's Google connection and expose GoogleTokenSource | infra | Andrii Opryshko | M | T01, T07 | in_progress |
 | [T12a](./T12a-google-token-cipher.md) | Seal and open the Google refresh token with AES-256-GCM | infra | Andrii Opryshko | S | — | done |
 | [T12b](./T12b-google-connection-store.md) | Store the association's Google connection and hand out its token source | infra | Andrii Opryshko | M | T01, T07, T12a | done |
@@ -46,7 +46,7 @@
 | [T31](./T31-registry-search.md) | Search the реєстр протоколів and open a signed protocol | ports | Andrii Opryshko | L | T29 | todo |
 | [T32](./T32-nightly-integrity-check.md) | Run the nightly integrity check of snapshots and clean up orphan files | app | Andrii Opryshko | M | T14, T29, T30 | todo |
 | [T33](./T33-nightly-backup-runbook.md) | Back up Postgres nightly off the VM and write the restore-drill runbook | infra | Andrii Opryshko | M | — | todo |
-| [T34](./T34-ui-sign-in-session.md) | Add the sign-in page, the session guard and 401/403 handling | ui | Andrii Opryshko | M | T07 | todo |
+| [T34](./T34-ui-sign-in-session.md) | Add the sign-in page, the session guard and 401/403 handling | ui | Andrii Opryshko | M | T07 | replaced (association-onboarding) |
 | [T35](./T35-ui-settings-roster.md) | Build the association settings and roster screens | ui | Andrii Opryshko | L | T07 | todo |
 | [T36](./T36-ui-cases-documents.md) | Move the cases list and case screen to generated hooks with document upload | ui | Andrii Opryshko | M | T07 | todo |
 | [T37](./T37-ui-protocol-on-hooks.md) | Move the protocol screen to generated hooks: agenda, slots and revision conflicts | ui | Andrii Opryshko | L | T07 | todo |

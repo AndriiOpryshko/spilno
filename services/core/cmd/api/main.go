@@ -41,6 +41,10 @@ func run() error {
 	defer stop()
 
 	cfg := config.Load()
+	google, err := config.LoadGoogle()
+	if err != nil {
+		return err
+	}
 	logger, shutdownOTel, err := observability.Setup(ctx, cfg.ServiceName, cfg.OTLPEndpoint != "")
 	if err != nil {
 		return err
@@ -63,12 +67,26 @@ func run() error {
 		return err
 	}
 
+	identityModule := identity.New(pool)
+	if google != nil {
+		err := identityModule.EnableGoogle(identity.GoogleConfig{
+			KeyID: google.TokenKeyID,
+			Key:   google.TokenKey,
+			OAuth: google.OAuth(""),
+		})
+		if err != nil {
+			return err
+		}
+	} else {
+		slog.Info("google connection is not configured")
+	}
+
 	r := httpapi.NewRouter()
 	modules := []module{
 		system.New(pool),
 		finance.New(pool),
 		governance.New(pool),
-		identity.New(pool),
+		identityModule,
 	}
 	for _, m := range modules {
 		if err := m.Routes(r); err != nil {

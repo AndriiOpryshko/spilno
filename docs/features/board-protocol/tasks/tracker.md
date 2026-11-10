@@ -21,8 +21,9 @@
 | [T12b](./T12b-google-connection-store.md) | Store the association's Google connection and hand out its token source | infra | Andrii Opryshko | M | T01, T07, T12a | done |
 | [T12c](./T12c-google-consent.md) | Turn one Google consent into a grant: refresh token, account email and the spilno folder | infra | Andrii Opryshko | M | — | done |
 | [T12d](./T12d-google-config.md) | Read the Google configuration from the environment and enable the connection in the API | infra | Andrii Opryshko | S | T12b | done |
-| [T13](./T13-drive-files-adapter.md) | Implement the Drive Files adapter with sha256 checks and an in-memory fake | infra | Andrii Opryshko | M | T12 | todo |
+| [T13](./T13-drive-files-adapter.md) | Implement the Drive Files adapter with sha256 checks and an in-memory fake | infra | Andrii Opryshko | M | T12 | in_progress |
 | [T13a](./T13a-files-port-fake.md) | Declare the Files port and an in-memory fake that passes a shared contract test | infra | Andrii Opryshko | M | — | done |
+| [T13b](./T13b-drive-files-adapter.md) | Implement the Files port on Google Drive and pass the shared contract on a fake Drive | infra | Andrii Opryshko | L | T13a | in_progress |
 | [T14](./T14-river-worker-jobs.md) | Wire the River client, the cmd/worker binary and the job status endpoints | wiring | Andrii Opryshko | L | T04, T07, T11 | todo |
 | [T15](./T15-protocol-lifecycle-domain.md) | Model the protocol lifecycle: states, revision, transitions and refusals | domain | Andrii Opryshko | L | — | done |
 | [T16](./T16-agenda-slots-domain.md) | Model agenda items and слоти рішення: confirm, correct, needs review and readiness | domain | Andrii Opryshko | M | T15 | done |

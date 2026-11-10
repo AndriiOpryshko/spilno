@@ -9,7 +9,7 @@ files_hint:
   - "services/core/internal/governance/adapters/gdrive/"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "in_progress"
 ---
 
 # T13 — Implement the Drive Files adapter with sha256 checks and an in-memory fake

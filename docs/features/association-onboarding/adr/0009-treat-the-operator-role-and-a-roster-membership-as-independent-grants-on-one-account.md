@@ -30,16 +30,15 @@ The product owner is the one оператор and also heads the association set
 
 1. **Two independent grants on one account.** The association middleware asks only `governance.CurrentMember` and never looks at the operator role; operator paths ask only whether the session address equals `SPILNO_OPERATOR_EMAIL`; approve and reject refuse an application whose applicant account is the acting оператор's with `identity.operator_own_application`.
 2. **A dedicated operator address** that stands on no roster and files nothing; an оператор who is also a член правління enters their association with another address.
-3. **Both roles on one account without the own-filing rule.**
 
 ## Decision outcome
 
-**Chosen:** Option 1 (product owner, 2026-11-10: «одна адреса, дві ролі»). One person keeps one account; isolation still rests on the roster alone, so the operator role cannot turn into a bypass; the own-filing refusal keeps the check of a proof of office independent of the person it confirms. Option 2 needs a second account and a rule the system would have to police on every roster edit and every filing. Option 3 lets the оператор confirm themself.
+**Chosen:** Option 1 (product owner, 2026-11-10: «одна адреса, дві ролі»). One person keeps one account; isolation still rests on the roster alone, so the operator role cannot turn into a bypass; the own-filing refusal keeps the check of a proof of office independent of the person it confirms. Option 2 needs a second account and a rule the system would have to police on every roster edit and every filing.
 
 Shape:
 - Association paths: session → `CurrentMember(association, email, today)` → association state → actor. An оператор off the roster gets `identity.not_current_member` like anyone, with the same body for a missing id.
 - Operator paths (`/identity/operator/...`): the session address equals `SPILNO_OPERATOR_EMAIL`, else `identity.not_operator`. These use cases read applications, extracts and the list of associations, never an association-owned table, except the storage account address of [ADR-0003](./0003-enforce-association-isolation-with-postgres-row-level-security.md).
-- Approve and reject compare the application's applicant account with the acting account and refuse a match; the filing stays очікує. Recording the check is not refused: it leads to no decision.
+- Approve and reject compare the application's applicant account with the acting account and refuse a match; the filing stays очікує. Recording the check is not refused: it leads to no decision. The comparison is by account: a second sign-in account of the same person is not recognised (SAD §11).
 - Web: after sign-in the same person sees the association picker and the `/operator/` section.
 
 ### Consequences

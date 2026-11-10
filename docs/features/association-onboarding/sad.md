@@ -194,6 +194,8 @@ sequenceDiagram
         I->>D: is the code connected, or pending by this person
         alt code connected
             I-->>W: refused, already connected, offer a transfer request
+        else pending by this person
+            I-->>W: refused, you already have an application for this association, the open one is shown
         else free or pending by someone else
             I->>D: insert application, filing and extract in one transaction
             I-->>W: filed, waiting for the operator
@@ -240,9 +242,11 @@ sequenceDiagram
     I->>I: refuse the оператор's own filing
     I->>I: check recorded, codes equal, document named if needed
     I->>D: begin with the association set
+    I->>D: set the association's ЄДРПОУ from the запит if it has none
     opt a голова recorded by an earlier approval who is not the applicant
         I->>G: end the term of the recorded голова on the day before the new term start
         G->>D: insert a roster revision with term end and decision reference
+        Note over I,G: the term end is never earlier than the first day of that entry
     end
     I->>G: seat the new голова from the typed term start
     alt the applicant has a current roster entry
@@ -288,7 +292,7 @@ sequenceDiagram
 
 ### Flow 5: following and refiling an application
 
-Covers US-02 — AC-05, AC-06, AC-30.
+Covers US-02 — AC-05, AC-06, AC-30, and on a refile AC-02, AC-04.
 
 ```mermaid
 sequenceDiagram
@@ -309,6 +313,12 @@ sequenceDiagram
     alt not rejected
         S-->>UI: refused, a decision was already taken or none is due
         UI-->>U: «Рішення за цією заявкою вже ухвалено»
+    else invalid fields
+        S-->>UI: refused with every broken field named
+        UI-->>U: «Перевірте поля заявки» with the fields
+    else code connected meanwhile, for a заявка
+        S-->>UI: refused, already connected
+        UI-->>U: «Це ОСББ вже підключене» with the transfer request form
     else term already ended
         S-->>UI: refused, the term has ended
         UI-->>U: «Строк повноважень голови вже завершився»
@@ -319,6 +329,7 @@ sequenceDiagram
         UI-->>U: refiled, the rejected version stays in the history
     end
     Note over U,UI: Postcondition: the rejected filing and its reason are kept
+    Note over S,D: a refiled запит needs no second check of AC-18, an association is never removed
 ```
 
 ### Flow 6: filing a запит на передачу
@@ -477,7 +488,7 @@ sequenceDiagram
         UI->>S: complete the storage connection with code and state
         S->>X: exchange the code for a refresh token, read the account address
         X-->>S: token and address
-        S->>D: read the sign-in addresses of the members of this association
+        S->>S: ask governance through module.go for the members' sign-in addresses
         alt the address is a member's sign-in address
             S-->>UI: refused, a personal account
             UI-->>M: «Це особистий акаунт члена правління — підключіть акаунт ОСББ»
@@ -559,11 +570,11 @@ sequenceDiagram
 | US-08 | `Flow 10: connecting the document storage`, `Flow 11: attaching a document while the storage is not connected` | flow | |
 | US-09 | `Flow 12: my associations, the association card and the roster` | flow | |
 | AC-01 | `Flow 1: filing a заявка на підключення` | flow | |
-| AC-02 | `Flow 1: filing a заявка на підключення`, `Flow 6: filing a запит на передачу` | branch | Flow 1 `alt invalid fields or term ended`, a term start later than the filing date being one of the broken fields; Flow 6 `alt invalid fields` |
+| AC-02 | `Flow 1: filing a заявка на підключення`, `Flow 6: filing a запит на передачу` | branch | Flow 1 `alt invalid fields or term ended`, a term start later than the filing date being one of the broken fields; Flow 6 `alt invalid fields`; Flow 5 `else invalid fields` on a refile |
 | AC-03 | `Flow 2: the оператор records the check and approves a заявка` | flow | refused at the guard step `check recorded, codes equal, document named if needed` when no check is recorded |
 | AC-03b | `Flow 2: the оператор records the check and approves a заявка` | flow | refused at the same guard step, `codes equal` |
-| AC-04 | `Flow 1: filing a заявка на підключення` | branch | `alt code connected` |
-| AC-04b | `Flow 1: filing a заявка на підключення` | branch | found by the check `is the code connected, or pending by this person`; the valid path is `else free or pending by someone else` |
+| AC-04 | `Flow 1: filing a заявка на підключення`, `Flow 5: following and refiling an application` | branch | Flow 1 `alt code connected`; Flow 5 `else code connected meanwhile, for a заявка` |
+| AC-04b | `Flow 1: filing a заявка на підключення` | branch | `else pending by this person`, found by the check `is the code connected, or pending by this person` |
 | AC-04c | `Flow 1: filing a заявка на підключення`, `Flow 2: the оператор records the check and approves a заявка`, `Flow 7: the оператор opens an application for review` | branch | Flow 1 `else free or pending by someone else` accepts the second заявка; Flow 2 step `begin, code still free, insert the association` refuses the later approval; Flow 7 `opt competing application or request` |
 | AC-04d | `Flow 12: my associations, the association card and the roster` | flow | |
 | AC-05 | `Flow 5: following and refiling an application` | flow | |
@@ -586,7 +597,7 @@ sequenceDiagram
 | AC-18b | `Flow 3: approving a запит на передачу` | flow | refused at the guard step `check recorded, codes equal, document named if needed`, as AC-03 / AC-03b in Flow 2 |
 | AC-19 | `Flow 3: approving a запит на передачу` | flow | `alt the applicant has a current roster entry` re-seats without a second entry; `opt a голова recorded by an earlier approval who is not the applicant` ends that entry only |
 | AC-19b | `Flow 3: approving a запит на передачу`, `Flow 7: the оператор opens an application for review` | flow | Flow 3 ends with `approved, competing requests stay waiting`; Flow 7 `opt competing application or request` shows them side by side; approving the competing запит later runs Flow 3 again as a new transfer |
-| AC-19c | `Flow 6: filing a запит на передачу`, `Flow 3: approving a запит на передачу` | flow | filed through Flow 6 `opt from the card of the association set up by hand`, approved through Flow 3 with no term to end and the entry re-seated; not decidable while its голова is the оператор (AC-16c) |
+| AC-19c | `Flow 6: filing a запит на передачу`, `Flow 3: approving a запит на передачу` | flow | filed through Flow 6 `opt from the card of the association set up by hand`, approved through Flow 3 with no term to end, the step `set the association's ЄДРПОУ from the запит if it has none` and the entry re-seated; not decidable while its голова is the оператор (AC-16c) |
 | AC-20 | `Flow 12: my associations, the association card and the roster` | flow | |
 | AC-21 | `Flow 9: disabling and enabling an association` | flow | what the members see next is Flow 4 `else member and association disabled` |
 | AC-22 | `Flow 9: disabling and enabling an association` | branch | `alt disable with an empty reason` |
@@ -603,7 +614,7 @@ sequenceDiagram
 
 Coverage: 9/9 user stories · 42/42 ACs — 0 non-runtime N/A.
 
-**Flags:** Flow 1–4 predate this pass: they are titled with a bold line instead of a `###` heading and use the container aliases of §5 (`W`, `I`, `G`, `D`) instead of generic participants; they are kept as written. No new participant, no decision worth an ADR. Reconciled 2026-11-10 by ao-architecture with the clarified PRD: Flows 2, 3 and 8 refuse the оператор's own filing (AC-16c), Flow 3 re-seats an applicant who is on the roster (AC-19), Flow 4 no longer names the оператор (AC-16b), Flow 6 has the invalid-fields branch (AC-02).
+**Flags:** Flow 1–4 predate this pass: they are titled with a bold line instead of a `###` heading and use the container aliases of §5 (`W`, `I`, `G`, `D`) instead of generic participants; they are kept as written. No new participant, no decision worth an ADR. Reconciled 2026-11-10 by ao-architecture with the clarified PRD: Flows 2, 3 and 8 refuse the оператор's own filing (AC-16c), Flow 3 re-seats an applicant who is on the roster (AC-19), Flow 4 no longer names the оператор (AC-16b), Flow 6 has the invalid-fields branch (AC-02). After the critic: Flow 1 refuses a duplicate by the same person in its own branch (AC-04b), Flow 3 records the ЄДРПОУ of the hand-made association (AC-19c) and never ends an entry before its first day, Flow 5 repeats the filing checks (PRD §10), Flow 10 asks governance for the members' addresses through `module.go`.
 
 ## 7. Deployment view
 
@@ -630,17 +641,17 @@ Same VM and compose topology as board-protocol SAD §7 (`caddy`, `core-api`, `wo
 |---|---|---|
 | Errors | problem+json; codes from PRD §5.1: `identity.application_invalid`, `identity.signature_not_checked`, `identity.extract_code_mismatch`, `identity.association_already_connected`, `identity.application_already_open`, `identity.mismatch_needs_document`, `identity.reason_required`, `identity.application_not_pending`, `identity.not_operator`, `identity.operator_own_application`, `identity.association_not_connected`, `identity.association_state_unchanged`, `identity.association_disabled`, `identity.term_ended`, `identity.storage_account_personal`, `governance.drive_not_connected` (planned); `identity.not_current_member` (existing) also answers another association's object and another person's application, so existence is not revealed | `internal/platform/httpapi`, PRD §5.1 |
 | Authentication | OIDC sign-in for any verified address; server-side session; no session → `identity.session_required` | board-protocol ADR-0003, ADR-0004 |
-| Authorization | PRD §10 matrix. Association-scoped paths: middleware → session → `governance.CurrentMember(association, email, today Europe/Kyiv)` (a non-member gets `identity.not_current_member` whatever the state, AC-07) → association state → actor. Applicant paths (`/identity/applications`): own records by account. Operator paths (`/identity/operator/...`): session address equals `SPILNO_OPERATOR_EMAIL`, else `identity.not_operator`. The two grants are independent: the оператор role is asked on operator paths only and adds nothing on an association path, where an оператор off the roster gets `identity.not_current_member` like anyone and an оператор on the roster is a member with a member's rights (AC-16b); approve and reject refuse an application whose applicant account is the acting оператор's with `identity.operator_own_application` (AC-16c) | ADR-0001, ADR-0002, ADR-0004, ADR-0009 |
+| Authorization | PRD §10 matrix. Association-scoped paths: middleware → session → `governance.CurrentMember(association, email, today Europe/Kyiv)` (a non-member gets `identity.not_current_member` whatever the state, AC-07) → association state → actor. Applicant paths (`/identity/applications`): own records by account. Operator paths (`/identity/operator/...`): session address equals `SPILNO_OPERATOR_EMAIL`, else `identity.not_operator`. The two grants are independent: the оператор role is asked on operator paths only and adds nothing on an association path, where an оператор off the roster gets `identity.not_current_member` like anyone and an оператор on the roster is a member with a member's rights (AC-16b); approve and reject refuse an application whose applicant account is the acting оператор's with `identity.operator_own_application` (AC-16c) — the guard compares accounts, a second sign-in account of the same person is not recognised (§11) | ADR-0001, ADR-0002, ADR-0004, ADR-0009 |
 | Association scope | path parameter `association_id`, never the body; RLS on every association-owned table; explicit filters kept | ADR-0002, ADR-0003 |
 | Disabled association | actor carries `read_only`; only the registry read and signed-copy download operations pass; everything else `identity.association_disabled` with the reason | ADR-0007 |
 | Validation | OpenAPI validator (422) + `domain.Validate()` naming every broken field of a заявка or a запит at once (ЄДРПОУ 8 digits, name, address, the applicant's full name, position голова правління only, term start present and not later than the filing date, extract attached); the document relied on is a typed reference of up to 500 characters, no file (AC-12) | CLAUDE.md, PRD AC-02 |
 | Name comparison | `identity/domain`: the applicant's typed full name, the signer and the керівник are the same person when equal after ignoring letter case, extra spaces, the form of the apostrophe and the order of the words; any other difference is a розбіжність імен. Computed from the stored values when the check is recorded and on every read (Flows 2, 7); nothing levelled is stored | PRD AC-11 |
 | IDs | UUID v7 generated app-side for new tables; cross-context references by id only | `.claude/rules/migrations.md`, repo ADR 0002 |
-| Migrations | goose; new identity tables; `associations` + ЄДРПОУ (unique, nullable), address, state; `board_member_revisions` + position, decision reference; `finance.contracts` + `association_id` in 3 steps; `accounts.association_id` dropped in 3 steps; RLS policies and roles | ADR-0003, ADR-0004, ADR-0005, ADR-0006 |
+| Migrations | goose; new identity tables; `associations` + ЄДРПОУ (unique, nullable), address, state; `board_member_revisions` + position, decision reference (a re-seat stores no date of its own: «голова from <date>» is the `term_start` of the filing that the referenced decision decided, AC-19; no further column); `finance.contracts` + `association_id` in 3 steps; `accounts.association_id` dropped in 3 steps; RLS policies and roles | ADR-0003, ADR-0004, ADR-0005, ADR-0006 |
 | Audit / immutability | filings, checks, decisions and state changes are insert-only rows with author and time; the extract table is insert-only by privilege (no trigger); a decided application changes only by a new filing or decision | ADR-0005, PRD §6 Integrity |
 | Files | extract: one file ≤ 5 MB — a PDF with the signature inside or a signed container that holds the PDF (`.p7s`, ASiC-E), never a separate signature file — content-sniffed, stored as uploaded with sha256, downloaded only by the оператор and the applicant as attachment; case files unchanged (board-protocol ADR-0005) | ADR-0005, PRD §6 |
 | Storage connection | in-app OAuth consent by a current член правління; refused when the Google address is a member's sign-in address; a later connection replaces the record and moves no files until the open question of §11 is closed | ADR-0008, PRD §8 |
-| Dates | terms are calendar dates in Europe/Kyiv; a term start later than the filing date is refused (AC-02), so the day before the new term start is always before the approval; a term end earlier than the filing date is refused, a term that ends on the filing date is in force and a missing term end is accepted (AC-30); the previous голова's whole entry ends the day before the new term start (AC-19) | PRD AC-02, AC-19, AC-30 |
+| Dates | terms are calendar dates in Europe/Kyiv; a term start later than the filing date is refused (AC-02), so the day before the new term start is always before the approval; a term end earlier than the filing date is refused, a term that ends on the filing date is in force and a missing term end is accepted (AC-30); the previous голова's whole entry ends the day before the new term start (AC-19), but never earlier than the first day of that entry — reachable when a competing запит with an earlier term start is approved later (AC-19b); product owner 2026-11-10, PRD AC-19 to be completed with this rule | PRD AC-02, AC-19, AC-19b, AC-30 |
 | Observability | OTel spans; metrics in §7; logs never carry the extract, the РНОКПП or the reason text | repo convention |
 | i18n | UI in Ukrainian; messages of PRD §5.1 verbatim | CONTEXT.md |
 | Lifecycle | PRD §10 states in `identity/domain`: заявка / запит Очікує → Схвалена (Flows 2, 3; AC-08, AC-19), Очікує → Відхилена with a reason (AC-14), neither by the оператор who filed it (AC-16c); Відхилена → Очікує by the same applicant with a new filing (AC-06); ОСББ — → Підключене (Flow 2), Підключене ↔ Вимкнене by the оператор with a reason, an insert-only state change (AC-21, AC-23); a запит may come from a person on the roster, whose entry is re-seated (AC-17, AC-19); a competing запит stays Очікує after another is approved, and approving it later is a new transfer (AC-19b); a запит for the hand-made association has no term to end, its extract's ЄДРПОУ is compared with the one typed in the запит, and it stays Очікує while its голова is the оператор (AC-19c, AC-16c); refused transitions answer the PRD §5.1 codes. Sequences in §6 | PRD §10; ADR-0006, ADR-0007, ADR-0009 |
@@ -652,12 +663,12 @@ Same VM and compose topology as board-protocol SAD §7 (`caddy`, `core-api`, `wo
 |---|---|---|---|---|
 | [0001](./adr/0001-serve-the-operator-back-office-as-an-operator-only-section-of-the-web-app.md) | Serve the operator back office as an operator-only section of the web app | accepted, superseded in part by 0009 | §4 | ✓ / ✓ / ✓ / – |
 | [0002](./adr/0002-put-the-association-id-in-every-association-scoped-path.md) | Put the association id in every association-scoped path | accepted | §4 | ✓ / ✓ / ✓ / – |
-| [0003](./adr/0003-enforce-association-isolation-with-postgres-row-level-security.md) | Enforce association isolation with Postgres row-level security | accepted | §4 | ✓ / ✓ / ✓ / ✓ |
+| [0003](./adr/0003-enforce-association-isolation-with-postgres-row-level-security.md) | Enforce association isolation with Postgres row-level security | accepted, clarified 2026-11-10 | §4 | ✓ / ✓ / ✓ / ✓ |
 | [0004](./adr/0004-let-any-verified-person-sign-in-and-derive-memberships-from-rosters.md) | Let any verified person sign in and derive memberships from rosters | accepted | §4 | ✓ / ✓ / ✓ / ✓ |
 | [0005](./adr/0005-check-the-signed-extract-manually-and-keep-the-uploaded-file-in-identity.md) | Check the signed extract manually and keep the uploaded file in identity | accepted | §4 | ✓ / – / ✓ / ✓ |
 | [0006](./adr/0006-apply-approvals-to-the-roster-through-a-governance-facade-in-one-transaction.md) | Apply approvals to the roster through a governance facade in one transaction | accepted, amended 2026-11-10 | §5 | ✓ / ✓ / ✓ / ✓ |
 | [0007](./adr/0007-enforce-a-disabled-association-as-read-only-in-the-identity-middleware.md) | Enforce a disabled association as read-only in the identity middleware | accepted | §8 | – / ✓ / ✓ / ✓ |
-| [0008](./adr/0008-let-a-board-member-connect-the-association-storage-in-the-web-app.md) | Let a board member connect the association storage in the web app | accepted | §8 | – / ✓ / ✓ / ✓ |
+| [0008](./adr/0008-let-a-board-member-connect-the-association-storage-in-the-web-app.md) | Let a board member connect the association storage in the web app | accepted, open question noted 2026-11-10 | §8 | – / ✓ / ✓ / ✓ |
 | [0009](./adr/0009-treat-the-operator-role-and-a-roster-membership-as-independent-grants-on-one-account.md) | Treat the operator role and a roster membership as independent grants on one account | accepted | §4 | – / ✓ / ✓ / – |
 
 ADR files: `docs/features/association-onboarding/adr/NNNN-<decision>.md`. Repo-level ADRs stay in `docs/adr/`.
@@ -698,6 +709,8 @@ ADR files: `docs/features/association-onboarding/adr/NNNN-<decision>.md`. Repo-l
 | Brownfield: sign-in itself (T08) is not built; this feature builds it on the changed rules | Medium | T08 is replaced by this feature's sign-in task; board-protocol ADR-0003 kept for the flow; the token cipher of T12a is merged and reused by ADR-0008 | Andrii Opryshko |
 | The оператор role and a board membership sit on one sign-in account: one taken-over account holds the queue and that association's records | Medium | the role opens nothing on association paths (AC-16b); the оператор's own filing is refused (AC-16c); every decision records who made it and when; the required security review covers the оператор's account (PRD §6.1) | Andrii Opryshko (оператор) |
 | The association set up by hand cannot get its витяг з ЄДР while its голова is the single оператор: nobody may decide that запит (AC-16c) | Low | accepted: the card keeps «підключено вручну, без витягу» and PRD §7 leaves it outside the KPI; it resolves when another person heads it, or with a second оператор (ADR-0001, ADR-0009) | Andrii Opryshko |
+| The own-filing guard compares accounts, not people: an оператор who files from a second sign-in account is not recognised as the applicant (AC-16c says «the person who is the оператор») | Low | the оператор is one known person and every decision records the оператор and the applicant's address; a second оператор or a registry of the оператор's addresses would close it; in the scope of the security review (PRD §6.1) | Andrii Opryshko (оператор) |
+| A previous голова whose entry began on the day a later competing запит is approved keeps that one day: the term end is never earlier than the entry's first day (§8 Dates), so «access ends at the moment of approval» (AC-19) holds from the next day in this one case | Low | the оператор disables the association for the day if it matters (AC-21); PRD AC-19 to be completed with the rule by `/sdlc:clarify-prd` | Andrii Opryshko |
 | After a disputed transfer the other члени правління keep their entries and may change the roster, the new голова's entry included (AC-19, PRD §6.1) | Medium | the оператор disables the association while the dispute lasts (AC-21); a new запит на передачу restores the голова | Andrii Opryshko (оператор) |
 | The data model, the API contract delta and its sync report predate the 2026-11-10 clarification: the contract has no `identity.operator_own_application` and no refusal of a term start after the filing date | Medium | `/ao-api-forge association-onboarding --reconcile` and a drift check of `data-model.md` before `/sdlc:break-tasks`; no new table or column follows from this pass | Andrii Opryshko |
 | Open architectural decision: how many associations actually wait to join (Reach) | Open question | Resolve before 2026-12-01; sizing only, no design change below ~20 associations | Andrii Opryshko |

@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/AndriiOpryshko/spilno/services/core/internal/identity/adapters/http/gen"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/identity/app"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/identity/domain"
@@ -51,12 +53,21 @@ func (h *Handler) FileApplication(ctx context.Context, req gen.FileApplicationRe
 		}
 		fields[part.FormName()] = string(b)
 	}
-	if fields["kind"] != string(domain.FilingConnection) {
+	kind := domain.FilingKind(fields["kind"])
+	if kind != domain.FilingConnection && kind != domain.FilingTransfer {
 		return nil, httpapi.ErrNotImplemented
+	}
+	var assocID *uuid.UUID
+	if kind == domain.FilingTransfer && fields["association_id"] != "" {
+		id, err := uuid.Parse(fields["association_id"])
+		if err != nil {
+			id = uuid.Nil
+		}
+		assocID = &id
 	}
 
 	f := domain.Filing{
-		Kind: domain.FilingConnection, Edrpou: fields["edrpou"], Name: fields["association_name"],
+		Kind: kind, Edrpou: fields["edrpou"], Name: fields["association_name"],
 		Address: fields["association_address"], ApplicantName: fields["applicant_full_name"],
 		Position: fields["position"], Extract: extract,
 	}
@@ -66,7 +77,7 @@ func (h *Handler) FileApplication(ctx context.Context, req gen.FileApplicationRe
 			f.TermEnd = &t
 		}
 	}
-	out, err := h.applications.File(ctx, app.FileInput{AccountID: p.AccountID, Filing: f})
+	out, err := h.applications.File(ctx, app.FileInput{AccountID: p.AccountID, Email: p.Email, AssociationID: assocID, Filing: f})
 	var fe *domain.CodedFieldsError
 	var ce *domain.CodedError
 	switch {

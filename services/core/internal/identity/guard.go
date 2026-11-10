@@ -32,6 +32,7 @@ var errServerFailure = errors.New("identity: handler answered 5xx")
 // оператор; any other path with {association_id} needs a current roster entry there and runs in
 // db.InAssociation; every other path passes through.
 func (m *Module) Guard(roster Membership) func(http.Handler) http.Handler {
+	m.applications.UseRoster(roster)
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			operator := strings.HasPrefix(r.URL.Path, operatorPrefix)

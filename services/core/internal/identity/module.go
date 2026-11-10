@@ -22,13 +22,16 @@ type Module struct {
 	pool    *pgxpool.Pool
 	google  *googleState // nil until EnableGoogle
 	signIn  *app.SignIn  // nil until EnableSignIn
+
+	applications *app.Applications
 }
 
 func New(pool *pgxpool.Pool) *Module {
 	h := identityhttp.NewHandler()
-	h.EnableApplications(app.NewApplications(postgres.NewApplications(pool)))
+	applications := app.NewApplications(postgres.NewApplications(pool))
+	h.EnableApplications(applications)
 	h.EnableAssociationStates(app.NewAssociationStates(postgres.NewAssociations(pool)))
-	return &Module{handler: h, pool: pool}
+	return &Module{handler: h, pool: pool, applications: applications}
 }
 
 // Routes attaches the context's routes to r inside their own group, validated

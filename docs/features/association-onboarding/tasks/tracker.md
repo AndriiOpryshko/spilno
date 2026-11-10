@@ -44,7 +44,7 @@
 | [T37](./T37-ui-my-applications.md) | Show my applications: status, the оператор's contact, the reason and refiling | ui | Andrii Opryshko | M | T36 | todo |
 | [T38](./T38-ui-operator-queue-review.md) | Build the оператор's queue and the review page with sources, warnings and the check form | ui | Andrii Opryshko | L | T36 | todo |
 | [T39](./T39-ui-operator-decisions.md) | Add the оператор's decisions: approve, reject and their refusals | ui | Andrii Opryshko | M | T38 | todo |
-| [T40](./T40-ui-operator-associations.md) | Build the оператор's associations list with disabling and enabling | ui | Andrii Opryshko | M | T35 | todo |
+| [T40](./T40-ui-operator-associations.md) | Build the оператор's associations list with disabling and enabling | ui | Andrii Opryshko | M | T35 | done |
 | [T41](./T41-ui-association-card.md) | Build the association card with the confirmation chain and the roster marks | ui | Andrii Opryshko | M | T35 | todo |
 | [T42](./T42-ui-storage-and-suspended-notice.md) | Show the storage connection, the connect flow and the «Доступ призупинено» notice | ui | Andrii Opryshko | M | T41 | todo |
 | [T43](./T43-visual-baselines.md) | Add visual-regression checks for the filing form, the review page and the association card | tests | Andrii Opryshko | S | T36, T38, T41 | todo |

@@ -46,7 +46,7 @@ type googleState struct {
 
 // EnableGoogle turns the Google connection on; without it the two methods below refuse to work.
 func (m *Module) EnableGoogle(cfg GoogleConfig) error {
-	if cfg.OAuth == nil || cfg.OAuth.ClientID == "" || cfg.OAuth.ClientSecret == "" || cfg.OAuth.Endpoint.TokenURL == "" {
+	if !oauthClientComplete(cfg.OAuth) {
 		return ErrGoogleConfigInvalid
 	}
 	cipher, err := app.NewTokenCipher(cfg.KeyID, cfg.Key)
@@ -58,6 +58,12 @@ func (m *Module) EnableGoogle(cfg GoogleConfig) error {
 		oauth:       cfg.OAuth,
 	}
 	return nil
+}
+
+// oauthClientComplete reports whether c has what a refresh token exchange needs:
+// the client id, the client secret and the token endpoint.
+func oauthClientComplete(c *oauth2.Config) bool {
+	return c != nil && c.ClientID != "" && c.ClientSecret != "" && c.Endpoint.TokenURL != ""
 }
 
 // ConnectGoogle stores the connection of c.AssociationID, replacing the one it had.

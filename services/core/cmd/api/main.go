@@ -82,6 +82,7 @@ func run() error {
 
 	r := httpapi.NewRouter()
 	idm := identity.New(pool)
+	_ = idm.RegisterMetrics()
 	if cfg.DevSignIn {
 		// Development and e2e only: signs in as the operator address, or a fixed test person.
 		email := cfg.OperatorEmail

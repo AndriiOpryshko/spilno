@@ -20,6 +20,7 @@ type Handler struct {
 	signIn       *app.SignIn // nil until EnableSignIn
 	applications *app.Applications
 	states       *app.AssociationStates // nil until EnableAssociationStates
+	reviews      *app.Reviews           // nil until EnableReviews
 }
 
 var _ gen.StrictServerInterface = (*Handler)(nil)
@@ -163,23 +164,7 @@ func (h *Handler) ListMemberships(_ context.Context, _ gen.ListMembershipsReques
 	return nil, httpapi.ErrNotImplemented
 }
 
-func (h *Handler) ListApplicationsForReview(_ context.Context, _ gen.ListApplicationsForReviewRequestObject) (gen.ListApplicationsForReviewResponseObject, error) {
-	return nil, httpapi.ErrNotImplemented
-}
-
-func (h *Handler) GetApplicationForReview(_ context.Context, _ gen.GetApplicationForReviewRequestObject) (gen.GetApplicationForReviewResponseObject, error) {
-	return nil, httpapi.ErrNotImplemented
-}
-
 func (h *Handler) ApproveApplication(_ context.Context, _ gen.ApproveApplicationRequestObject) (gen.ApproveApplicationResponseObject, error) {
-	return nil, httpapi.ErrNotImplemented
-}
-
-func (h *Handler) RecordExtractCheck(_ context.Context, _ gen.RecordExtractCheckRequestObject) (gen.RecordExtractCheckResponseObject, error) {
-	return nil, httpapi.ErrNotImplemented
-}
-
-func (h *Handler) DownloadExtractForReview(_ context.Context, _ gen.DownloadExtractForReviewRequestObject) (gen.DownloadExtractForReviewResponseObject, error) {
 	return nil, httpapi.ErrNotImplemented
 }
 

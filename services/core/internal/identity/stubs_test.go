@@ -23,7 +23,6 @@ func TestNewOperationsAreStubbed(t *testing.T) {
 		jsonCT = "application/json"
 		pdf    = "%PDF-1.4 test"
 	)
-	checkBody := `{"filing_id":"` + filing + `","signature_valid":true,"signer_full_name":"Test User","signed_on":"2026-11-09","head_full_name":"Test User","extract_edrpou":"12345678","extract_dated_on":"2026-11-08"}`
 	approveBody := `{"filing_id":"` + filing + `","relied_on_document":"test document"}`
 	rejectBody := `{"filing_id":"` + filing + `","reason":"test reason"}`
 	disableBody := `{"reason":"test reason"}`
@@ -46,10 +45,6 @@ func TestNewOperationsAreStubbed(t *testing.T) {
 		{"getMyApplication", "GET", a, "", nil},
 		{"refileApplication", "POST", a + "/filings", refileCT, refile},
 		{"downloadMyExtract", "GET", a + "/filings/" + filing + "/extract", "", nil},
-		{"listApplicationsForReview", "GET", "/identity/operator/applications", "", nil},
-		{"getApplicationForReview", "GET", op, "", nil},
-		{"downloadExtractForReview", "GET", op + "/filings/" + filing + "/extract", "", nil},
-		{"recordExtractCheck", "POST", op + "/checks", jsonCT, []byte(checkBody)},
 		{"approveApplication", "POST", op + "/approval", jsonCT, []byte(approveBody)},
 		{"rejectApplication", "POST", op + "/rejection", jsonCT, []byte(rejectBody)},
 		{"listAssociationsForOperator", "GET", "/identity/operator/associations", "", nil},
@@ -61,8 +56,8 @@ func TestNewOperationsAreStubbed(t *testing.T) {
 		{"completeStorageConnection", "POST", as + "/storage-connection", jsonCT, []byte(storageBody)},
 		{"startStorageConnection", "GET", as + "/storage-connection/authorization", "", nil},
 	}
-	if len(tests) != 19 {
-		t.Fatalf("table has %d operations, want the 19 stubbed ones", len(tests))
+	if len(tests) != 15 {
+		t.Fatalf("table has %d operations, want the 15 stubbed ones", len(tests))
 	}
 
 	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}

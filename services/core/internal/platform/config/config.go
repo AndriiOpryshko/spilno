@@ -13,6 +13,10 @@ type Config struct {
 	// OTLPEndpoint enables OpenTelemetry export when set. The exporters read the
 	// standard OTEL_EXPORTER_OTLP_* variables themselves; this only gates them.
 	OTLPEndpoint string
+	// DevSignIn turns on the development sign-in shim; off unless SPILNO_DEV_SIGN_IN=true.
+	DevSignIn bool
+	// OperatorEmail is the address whose session is the оператор (SPILNO_OPERATOR_EMAIL).
+	OperatorEmail string
 }
 
 func Load() Config {
@@ -23,6 +27,8 @@ func Load() Config {
 		DatabaseURL:           dbURL,
 		MigrationsDatabaseURL: env("MIGRATIONS_DATABASE_URL", dbURL),
 		OTLPEndpoint:          os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"),
+		DevSignIn:             os.Getenv("SPILNO_DEV_SIGN_IN") == "true",
+		OperatorEmail:         os.Getenv("SPILNO_OPERATOR_EMAIL"),
 	}
 }
 

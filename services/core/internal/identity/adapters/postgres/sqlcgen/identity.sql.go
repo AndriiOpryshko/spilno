@@ -7,6 +7,8 @@ package sqlcgen
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const countAccounts = `-- name: CountAccounts :one
@@ -18,4 +20,85 @@ func (q *Queries) CountAccounts(ctx context.Context) (int64, error) {
 	var total int64
 	err := row.Scan(&total)
 	return total, err
+}
+
+const deleteSession = `-- name: DeleteSession :exec
+DELETE FROM sessions WHERE token_hash = $1
+`
+
+func (q *Queries) DeleteSession(ctx context.Context, tokenHash []byte) error {
+	_, err := q.db.Exec(ctx, deleteSession, tokenHash)
+	return err
+}
+
+const getSessionPrincipal = `-- name: GetSessionPrincipal :one
+SELECT a.id, a.email
+FROM sessions s
+JOIN accounts a ON a.id = s.account_id
+WHERE s.token_hash = $1 AND s.expires_at > now()
+`
+
+type GetSessionPrincipalRow struct {
+	ID    pgtype.UUID
+	Email string
+}
+
+func (q *Queries) GetSessionPrincipal(ctx context.Context, tokenHash []byte) (GetSessionPrincipalRow, error) {
+	row := q.db.QueryRow(ctx, getSessionPrincipal, tokenHash)
+	var i GetSessionPrincipalRow
+	err := row.Scan(&i.ID, &i.Email)
+	return i, err
+}
+
+const insertSession = `-- name: InsertSession :exec
+INSERT INTO sessions (id, account_id, token_hash, expires_at)
+VALUES ($1, $2, $3, $4)
+`
+
+type InsertSessionParams struct {
+	ID        pgtype.UUID
+	AccountID pgtype.UUID
+	TokenHash []byte
+	ExpiresAt pgtype.Timestamptz
+}
+
+func (q *Queries) InsertSession(ctx context.Context, arg InsertSessionParams) error {
+	_, err := q.db.Exec(ctx, insertSession,
+		arg.ID,
+		arg.AccountID,
+		arg.TokenHash,
+		arg.ExpiresAt,
+	)
+	return err
+}
+
+const upsertAccount = `-- name: UpsertAccount :one
+INSERT INTO accounts (id, oidc_issuer, oidc_subject, email)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT (oidc_issuer, oidc_subject) DO UPDATE SET email = EXCLUDED.email
+RETURNING id, email
+`
+
+type UpsertAccountParams struct {
+	ID          pgtype.UUID
+	OidcIssuer  string
+	OidcSubject string
+	Email       string
+}
+
+type UpsertAccountRow struct {
+	ID    pgtype.UUID
+	Email string
+}
+
+func (q *Queries) UpsertAccount(ctx context.Context, arg UpsertAccountParams) (UpsertAccountRow, error) {
+	row := q.db.QueryRow(ctx, upsertAccount,
+		arg.ID,
+		arg.OidcIssuer,
+		arg.OidcSubject,
+		arg.Email,
+	)
+	var i UpsertAccountRow
+	err := row.Scan(&i.ID, &i.Email)
+	return i, err
 }

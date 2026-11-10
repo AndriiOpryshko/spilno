@@ -72,11 +72,20 @@ func run() error {
 	defer pool.Close()
 
 	r := httpapi.NewRouter()
+	idm := identity.New(pool)
+	if cfg.DevSignIn {
+		// Development and e2e only: signs in as the operator address, or a fixed test person.
+		email := cfg.OperatorEmail
+		if email == "" {
+			email = "user@example.test"
+		}
+		idm.EnableSignIn(identity.SignInConfig{Provider: identity.DevSignInProvider(email), OperatorEmail: cfg.OperatorEmail})
+	}
 	modules := []module{
 		system.New(pool),
 		finance.New(pool),
 		governance.New(pool),
-		identity.New(pool),
+		idm,
 	}
 	for _, m := range modules {
 		if err := m.Routes(r); err != nil {

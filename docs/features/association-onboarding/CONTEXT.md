@@ -1,6 +1,6 @@
 ---
 status: Living
-updated_at: "2026-11-05"
+updated_at: "2026-11-10"
 ---
 
 # Domain Context — association-onboarding
@@ -18,4 +18,4 @@ Shared terms (голова правління, член правління, ре
 - КЕП — a qualified electronic signature of a person; here, the голова's signature on the витяг з ЄДР that proves the applicant is the person the register names. NOT a Google account (which proves only an e-mail address).
 - оператор — the person who runs Спільно (the product owner) and decides заявки на підключення and запити на передачу and disables or enables associations; takes no decisions of any association. NOT a член правління; NOT the управляюча компанія.
 - підключене ОСББ — an association whose заявка на підключення the оператор approved (or that was set up by hand before onboarding existed): its члени правління work in Спільно and it can be вимкнене ОСББ. NOT an association with an очікує заявка (nothing is created until approval).
-- розбіжність імен — an advisory notice to the оператор when the applicant's typed name, the signer of the КЕП and the керівник named in the витяг з ЄДР are not the same person; it never blocks a decision by itself, but approving over it requires the оператор to name the document relied on. NOT an invalid signature (which blocks filing); NOT the extract-age warning (an extract older than 30 days, advisory and needing no document).
+- розбіжність імен — an advisory notice to the оператор when the applicant's typed name, the signer of the КЕП and the керівник named in the витяг з ЄДР are not the same person; it never blocks a decision by itself, but approving over it requires the оператор to name the document relied on. NOT an invalid signature (which the оператор finds while checking outside Спільно and rejects with that reason; nothing is checked at filing); NOT the extract-age warning (an extract older than 30 days, advisory and needing no document).

@@ -31,6 +31,11 @@ func (s *RosterService) MembershipsOf(ctx context.Context, email string, date ti
 	return s.roster.MembershipsOf(ctx, email, date)
 }
 
+// CurrentMemberID returns the roster entry id of the member whose sign-in address is email on date.
+func (s *RosterService) CurrentMemberID(ctx context.Context, association uuid.UUID, email string, date time.Time) (uuid.UUID, bool, error) {
+	return s.writer.CurrentMemberID(ctx, association, email, date)
+}
+
 // MemberSignInAddresses lists the addresses of today's members.
 func (s *RosterService) MemberSignInAddresses(ctx context.Context, association uuid.UUID) ([]string, error) {
 	return s.roster.MemberSignInAddresses(ctx, association, s.now().UTC())

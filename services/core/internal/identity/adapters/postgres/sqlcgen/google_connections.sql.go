@@ -20,6 +20,17 @@ func (q *Queries) DeleteGoogleConnection(ctx context.Context, associationID pgty
 	return err
 }
 
+const getAccountEmail = `-- name: GetAccountEmail :one
+SELECT email FROM accounts WHERE id = $1
+`
+
+func (q *Queries) GetAccountEmail(ctx context.Context, id pgtype.UUID) (string, error) {
+	row := q.db.QueryRow(ctx, getAccountEmail, id)
+	var email string
+	err := row.Scan(&email)
+	return email, err
+}
+
 const getGoogleConnection = `-- name: GetGoogleConnection :one
 SELECT id, association_id, google_account_email, refresh_token_ciphertext, refresh_token_nonce, encryption_key_id, scopes, drive_root_folder_id, authorized_by_account_id, created_at FROM google_connections WHERE association_id = $1
 `

@@ -23,6 +23,8 @@ type GoogleConnection struct {
 	Scopes                 string // the scopes joined by one space
 	DriveRootFolderID      string // empty when the folder is not created yet
 	AuthorizedBy           uuid.UUID
+	AuthorizedByEmail      string    // the sign-in address of that account; empty when unknown
+	CreatedAt              time.Time // when the connection was stored
 }
 
 // GoogleConnectionRepository stores the one Google connection an association has.

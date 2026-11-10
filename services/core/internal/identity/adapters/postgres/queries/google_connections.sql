@@ -10,5 +10,8 @@ INSERT INTO google_connections (
     @encryption_key_id, @scopes, @drive_root_folder_id, @authorized_by_account_id
 );
 
+-- name: GetAccountEmail :one
+SELECT email FROM accounts WHERE id = @id;
+
 -- name: GetGoogleConnection :one
 SELECT * FROM google_connections WHERE association_id = @association_id;

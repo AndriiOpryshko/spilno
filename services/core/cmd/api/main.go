@@ -14,11 +14,13 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"golang.org/x/oauth2/endpoints"
 
 	"github.com/AndriiOpryshko/spilno/services/core/internal/finance"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/identity"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/config"
+	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/google"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/httpapi"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/observability"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/postgres"
@@ -36,6 +38,26 @@ type rosterOf struct{ gov *governance.Module }
 func (g rosterOf) CurrentMember(ctx context.Context, association uuid.UUID, email string, date time.Time) (bool, error) {
 	_, ok, err := g.gov.CurrentMember(ctx, association, email, date)
 	return ok, err
+}
+
+// wireGoogle turns the Google connection and the storage connection operations on when the
+// configuration is present; without it both stay off and the operations answer 501.
+func wireGoogle(idm *identity.Module, gov *governance.Module, gc *identity.GoogleConfig) (bool, error) {
+	if gc == nil {
+		return false, nil
+	}
+	cfg := *gc
+	if cfg.OAuth != nil && cfg.OAuth.Endpoint.TokenURL == "" {
+		// A client without endpoints talks to Google's.
+		o := *cfg.OAuth
+		o.Endpoint = endpoints.Google
+		cfg.OAuth = &o
+	}
+	if err := idm.EnableGoogle(cfg); err != nil {
+		return false, err
+	}
+	idm.EnableStorageConnection(identity.StorageConnectionConfig{Consent: google.Consent{OAuth: cfg.OAuth}, Members: gov})
+	return true, nil
 }
 
 func main() {
@@ -92,6 +114,21 @@ func run() error {
 		idm.EnableSignIn(identity.SignInConfig{Provider: identity.DevSignInProvider(email), OperatorEmail: cfg.OperatorEmail})
 	}
 	gov := governance.New(pool)
+	gcfg, err := config.LoadGoogle()
+	if err != nil {
+		return err
+	}
+	var gc *identity.GoogleConfig
+	if gcfg != nil {
+		gc = &identity.GoogleConfig{KeyID: gcfg.TokenKeyID, Key: gcfg.TokenKey, OAuth: gcfg.OAuth(cfg.WebOrigin + "/storage/callback")}
+	}
+	wired, err := wireGoogle(idm, gov, gc)
+	if err != nil {
+		return err
+	}
+	if !wired {
+		slog.Info("google connection is not configured")
+	}
 	for _, m := range []module{system.New(pool)} {
 		if err := m.Routes(r); err != nil {
 			return err

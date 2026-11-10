@@ -72,6 +72,11 @@ func (m *Module) MembershipsOf(ctx context.Context, email string, date time.Time
 	return m.roster.MembershipsOf(ctx, email, date)
 }
 
+// CurrentMemberID returns the board member id of the person whose sign-in address is email on date.
+func (m *Module) CurrentMemberID(ctx context.Context, association uuid.UUID, email string, date time.Time) (uuid.UUID, bool, error) {
+	return m.roster.CurrentMemberID(ctx, association, email, date)
+}
+
 // MemberSignInAddresses returns the sign-in addresses of the association's current members.
 func (m *Module) MemberSignInAddresses(ctx context.Context, association uuid.UUID) ([]string, error) {
 	return m.roster.MemberSignInAddresses(ctx, association)

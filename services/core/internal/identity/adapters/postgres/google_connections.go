@@ -52,12 +52,20 @@ func (s *GoogleConnections) Replace(ctx context.Context, c ports.GoogleConnectio
 
 func (s *GoogleConnections) Get(ctx context.Context, associationID uuid.UUID) (ports.GoogleConnection, error) {
 	var row sqlcgen.GoogleConnection
+	var email string
 	err := db.InAssociation(ctx, s.pool, associationID, "", func(ctx context.Context) error {
 		tx, err := db.From(ctx)
 		if err != nil {
 			return err
 		}
 		row, err = sqlcgen.New(tx).GetGoogleConnection(ctx, pgtype.UUID{Bytes: associationID, Valid: true})
+		if err != nil {
+			return err
+		}
+		email, err = sqlcgen.New(tx).GetAccountEmail(ctx, row.AuthorizedByAccountID)
+		if errors.Is(err, pgx.ErrNoRows) {
+			email, err = "", nil
+		}
 		return err
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -76,5 +84,7 @@ func (s *GoogleConnections) Get(ctx context.Context, associationID uuid.UUID) (p
 		Scopes:                 row.Scopes,
 		DriveRootFolderID:      row.DriveRootFolderID.String,
 		AuthorizedBy:           row.AuthorizedByAccountID.Bytes,
+		AuthorizedByEmail:      email,
+		CreatedAt:              row.CreatedAt.Time,
 	}, nil
 }

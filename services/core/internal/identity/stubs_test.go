@@ -26,7 +26,6 @@ func TestNewOperationsAreStubbed(t *testing.T) {
 	approveBody := `{"filing_id":"` + filing + `","relied_on_document":"test document"}`
 	rejectBody := `{"filing_id":"` + filing + `","reason":"test reason"}`
 	disableBody := `{"reason":"test reason"}`
-	storageBody := `{"code":"test-code","state":"test-state"}`
 
 	refile, refileCT := multipartBody(t, map[string]string{
 		"association_name": "Test Association", "association_address": "Test Street 1",
@@ -52,12 +51,9 @@ func TestNewOperationsAreStubbed(t *testing.T) {
 		{"enableAssociation", "POST", "/identity/operator/associations/" + assoc + "/enabling", "", nil},
 		{"getAssociationCard", "GET", as, "", nil},
 		{"downloadConfirmationExtract", "GET", as + "/extracts/" + uuid.NewString(), "", nil},
-		{"getStorageConnection", "GET", as + "/storage-connection", "", nil},
-		{"completeStorageConnection", "POST", as + "/storage-connection", jsonCT, []byte(storageBody)},
-		{"startStorageConnection", "GET", as + "/storage-connection/authorization", "", nil},
 	}
-	if len(tests) != 15 {
-		t.Fatalf("table has %d operations, want the 15 stubbed ones", len(tests))
+	if len(tests) != 12 {
+		t.Fatalf("table has %d operations, want the 12 stubbed ones", len(tests))
 	}
 
 	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}

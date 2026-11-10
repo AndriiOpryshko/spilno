@@ -37,7 +37,7 @@
 | [T30](./T30-disable-enable-association.md) | Disable and enable an association as the оператор | ports | Andrii Opryshko | M | T11, T19 | done |
 | [T31](./T31-disabled-association-read-only.md) | Make a disabled association read-only in the middleware | wiring | Andrii Opryshko | M | T19, T30 | done |
 | [T32](./T32-memberships-and-association-card.md) | Serve my associations and the association card with the confirmation chain | ports | Andrii Opryshko | M | T19, T26 | todo |
-| [T33](./T33-connect-storage-in-app.md) | Connect the association's document storage from the web app | ports | Andrii Opryshko | L | T14, T19, T20 | todo |
+| [T33](./T33-connect-storage-in-app.md) | Connect the association's document storage from the web app | ports | Andrii Opryshko | L | T14, T19, T20 | done |
 | [T34](./T34-refuse-documents-without-storage.md) | Refuse case documents and assistant turns while the storage is not connected | ports | Andrii Opryshko | S | T02, T03, T19 | done |
 | [T35](./T35-ui-shell-sign-in-picker.md) | Build the signed-in shell: sign-in page, association picker, routes under /o/$associationId and the оператор's entry | ui | Andrii Opryshko | L | T02 | done |
 | [T36](./T36-ui-filing-forms.md) | Build the filing forms for a заявка на підключення and a запит на передачу | ui | Andrii Opryshko | L | T35 | done |

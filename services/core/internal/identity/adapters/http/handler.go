@@ -19,8 +19,9 @@ import (
 type Handler struct {
 	signIn       *app.SignIn // nil until EnableSignIn
 	applications *app.Applications
-	states       *app.AssociationStates // nil until EnableAssociationStates
-	reviews      *app.Reviews           // nil until EnableReviews
+	states       *app.AssociationStates  // nil until EnableAssociationStates
+	reviews      *app.Reviews            // nil until EnableReviews
+	storage      *app.StorageConnections // nil until EnableStorageConnections
 }
 
 var _ gen.StrictServerInterface = (*Handler)(nil)
@@ -145,18 +146,6 @@ func (h *Handler) GetAssociationCard(_ context.Context, _ gen.GetAssociationCard
 }
 
 func (h *Handler) DownloadConfirmationExtract(_ context.Context, _ gen.DownloadConfirmationExtractRequestObject) (gen.DownloadConfirmationExtractResponseObject, error) {
-	return nil, httpapi.ErrNotImplemented
-}
-
-func (h *Handler) GetStorageConnection(_ context.Context, _ gen.GetStorageConnectionRequestObject) (gen.GetStorageConnectionResponseObject, error) {
-	return nil, httpapi.ErrNotImplemented
-}
-
-func (h *Handler) CompleteStorageConnection(_ context.Context, _ gen.CompleteStorageConnectionRequestObject) (gen.CompleteStorageConnectionResponseObject, error) {
-	return nil, httpapi.ErrNotImplemented
-}
-
-func (h *Handler) StartStorageConnection(_ context.Context, _ gen.StartStorageConnectionRequestObject) (gen.StartStorageConnectionResponseObject, error) {
 	return nil, httpapi.ErrNotImplemented
 }
 

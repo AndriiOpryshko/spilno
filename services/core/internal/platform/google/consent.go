@@ -67,14 +67,8 @@ func (c Consent) Complete(ctx context.Context, code string) (Grant, error) {
 	if token.RefreshToken == "" {
 		return Grant{}, ErrNoRefreshToken
 	}
-	// An answer without a scope field grants what was asked (RFC 6749 §5.1).
-	if scope, ok := token.Extra("scope").(string); ok {
-		granted := strings.Fields(scope)
-		for _, required := range requiredScopes() {
-			if !slices.Contains(granted, required) {
-				return Grant{}, ErrScopeNotGranted
-			}
-		}
+	if !grantsRequiredScopes(token) {
+		return Grant{}, ErrScopeNotGranted
 	}
 
 	email, err := c.accountEmail(ctx, token.AccessToken)
@@ -95,6 +89,22 @@ func (c Consent) Complete(ctx context.Context, code string) (Grant, error) {
 }
 
 func requiredScopes() []string { return []string{ScopeDriveFile, ScopeDocuments} }
+
+// grantsRequiredScopes reports whether the token answer grants both scopes.
+// An answer without a scope field grants what was asked (RFC 6749 §5.1).
+func grantsRequiredScopes(token *oauth2.Token) bool {
+	scope, ok := token.Extra("scope").(string)
+	if !ok {
+		return true
+	}
+	granted := strings.Fields(scope)
+	for _, required := range requiredScopes() {
+		if !slices.Contains(granted, required) {
+			return false
+		}
+	}
+	return true
+}
 
 // accountEmail reads the email of the account that gave the consent.
 func (c Consent) accountEmail(ctx context.Context, accessToken string) (string, error) {
@@ -117,6 +127,16 @@ func (c Consent) accountEmail(ctx context.Context, accessToken string) (string, 
 // rootFolder returns the id of the spilno folder: the oldest one spilno
 // created earlier, or a new one.
 func (c Consent) rootFolder(ctx context.Context, accessToken string) (string, error) {
+	id, found, err := c.existingRootFolder(ctx, accessToken)
+	if err != nil || found {
+		return id, err
+	}
+	return c.createRootFolder(ctx, accessToken)
+}
+
+// existingRootFolder looks for the oldest spilno folder; drive.file shows the
+// client only the folders it created itself.
+func (c Consent) existingRootFolder(ctx context.Context, accessToken string) (id string, found bool, err error) {
 	var list struct {
 		Files []struct {
 			ID string `json:"id"`
@@ -129,15 +149,19 @@ func (c Consent) rootFolder(ctx context.Context, accessToken string) (string, er
 	}
 	status, err := c.drive(ctx, accessToken, http.MethodGet, "/files", query, nil, &list)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
-	if len(list.Files) > 0 {
-		if list.Files[0].ID == "" {
-			return "", driveError(http.MethodGet, "/files", fmt.Sprintf("status %d, no folder id", status))
-		}
-		return list.Files[0].ID, nil
+	if len(list.Files) == 0 {
+		return "", false, nil
 	}
+	if list.Files[0].ID == "" {
+		return "", false, driveError(http.MethodGet, "/files", fmt.Sprintf("status %d, no folder id", status))
+	}
+	return list.Files[0].ID, true, nil
+}
 
+// createRootFolder creates the spilno folder and returns its id.
+func (c Consent) createRootFolder(ctx context.Context, accessToken string) (string, error) {
 	folder, err := json.Marshal(map[string]string{"name": RootFolderName, "mimeType": driveFolderMimeType})
 	if err != nil {
 		return "", driveError(http.MethodPost, "/files", "request not built")
@@ -145,7 +169,7 @@ func (c Consent) rootFolder(ctx context.Context, accessToken string) (string, er
 	var created struct {
 		ID string `json:"id"`
 	}
-	status, err = c.drive(ctx, accessToken, http.MethodPost, "/files", url.Values{"fields": {"id"}}, folder, &created)
+	status, err := c.drive(ctx, accessToken, http.MethodPost, "/files", url.Values{"fields": {"id"}}, folder, &created)
 	if err != nil {
 		return "", err
 	}

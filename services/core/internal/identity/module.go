@@ -12,6 +12,7 @@ import (
 
 	identityhttp "github.com/AndriiOpryshko/spilno/services/core/internal/identity/adapters/http"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/identity/adapters/http/gen"
+	"github.com/AndriiOpryshko/spilno/services/core/internal/identity/app"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/httpapi"
 )
 
@@ -19,6 +20,7 @@ type Module struct {
 	handler *identityhttp.Handler
 	pool    *pgxpool.Pool
 	google  *googleState // nil until EnableGoogle
+	signIn  *app.SignIn  // nil until EnableSignIn
 }
 
 func New(pool *pgxpool.Pool) *Module {

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"github.com/AndriiOpryshko/spilno/services/core/internal/finance"
@@ -27,6 +28,14 @@ import (
 // module is what every bounded context's module.go provides.
 type module interface {
 	Routes(r chi.Router) error
+}
+
+// rosterOf adapts the governance roster to the port the identity guard asks for.
+type rosterOf struct{ gov *governance.Module }
+
+func (g rosterOf) CurrentMember(ctx context.Context, association uuid.UUID, email string, date time.Time) (bool, error) {
+	_, ok, err := g.gov.CurrentMember(ctx, association, email, date)
+	return ok, err
 }
 
 func main() {
@@ -81,16 +90,24 @@ func run() error {
 		}
 		idm.EnableSignIn(identity.SignInConfig{Provider: identity.DevSignInProvider(email), OperatorEmail: cfg.OperatorEmail})
 	}
-	modules := []module{
-		system.New(pool),
-		finance.New(pool),
-		governance.New(pool),
-		idm,
-	}
-	for _, m := range modules {
+	gov := governance.New(pool)
+	for _, m := range []module{system.New(pool)} {
 		if err := m.Routes(r); err != nil {
 			return err
 		}
+	}
+	// Association and operator routes sit behind the identity guard: session, roster, scoped transaction.
+	var routeErr error
+	r.Group(func(r chi.Router) {
+		r.Use(idm.Guard(rosterOf{gov}))
+		for _, m := range []module{finance.New(pool), gov, idm} {
+			if routeErr = m.Routes(r); routeErr != nil {
+				return
+			}
+		}
+	})
+	if routeErr != nil {
+		return routeErr
 	}
 
 	srv := &http.Server{

@@ -22,7 +22,8 @@ type SignInConfig struct {
 // EnableSignIn turns startSignIn, completeSignIn, signOut and getSession on.
 func (m *Module) EnableSignIn(cfg SignInConfig) {
 	repo := postgres.NewSessions(m.pool)
-	m.handler.EnableSignIn(app.NewSignIn(cfg.Provider, repo, repo, cfg.OperatorEmail))
+	m.signIn = app.NewSignIn(cfg.Provider, repo, repo, cfg.OperatorEmail)
+	m.handler.EnableSignIn(m.signIn)
 }
 
 // DevSignInProvider is the development and e2e shim; never wire it in production.

@@ -9,25 +9,34 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/AndriiOpryshko/spilno/services/core/internal/finance/adapters/postgres/sqlcgen"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/finance/domain"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/finance/ports"
+	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/db"
 )
 
-type Contracts struct {
-	q *sqlcgen.Queries
-}
+// Contracts reads and writes contracts on the transaction in ctx (db.InAssociation).
+type Contracts struct{}
 
 var _ ports.ContractRepository = (*Contracts)(nil)
 
-func NewContracts(pool *pgxpool.Pool) *Contracts {
-	return &Contracts{q: sqlcgen.New(pool)}
+func NewContracts() *Contracts { return &Contracts{} }
+
+func queries(ctx context.Context) (*sqlcgen.Queries, error) {
+	tx, err := db.From(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return sqlcgen.New(tx), nil
 }
 
 func (c *Contracts) Create(ctx context.Context, t domain.ContractTerms) (domain.Contract, error) {
-	row, err := c.q.CreateContract(ctx, sqlcgen.CreateContractParams{
+	q, err := queries(ctx)
+	if err != nil {
+		return domain.Contract{}, err
+	}
+	row, err := q.CreateContract(ctx, sqlcgen.CreateContractParams{
 		Counterparty:  t.Counterparty,
 		AmountCents:   t.AmountCents,
 		Currency:      string(t.Currency),
@@ -42,7 +51,11 @@ func (c *Contracts) Create(ctx context.Context, t domain.ContractTerms) (domain.
 }
 
 func (c *Contracts) Get(ctx context.Context, id uuid.UUID) (domain.Contract, error) {
-	row, err := c.q.GetContract(ctx, sqlcgen.GetContractParams{
+	q, err := queries(ctx)
+	if err != nil {
+		return domain.Contract{}, err
+	}
+	row, err := q.GetContract(ctx, sqlcgen.GetContractParams{
 		ID:            pgtype.UUID{Bytes: id, Valid: true},
 		AssociationID: associationID(ctx),
 	})
@@ -65,7 +78,11 @@ func (c *Contracts) List(ctx context.Context, after *ports.ContractKey, limit in
 		arg.AfterCreatedAt = pgtype.Timestamptz{Time: after.CreatedAt, Valid: true}
 		arg.AfterID = pgtype.UUID{Bytes: after.ID, Valid: true}
 	}
-	rows, err := c.q.ListContracts(ctx, arg)
+	q, err := queries(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := q.ListContracts(ctx, arg)
 	if err != nil {
 		return nil, err
 	}

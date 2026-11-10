@@ -36,8 +36,8 @@ type Person struct{ FullName, SignInEmail string }
 // Term is a board membership period; a zero End means open.
 type Term = domain.Term
 
-func New(pool *pgxpool.Pool) *Module {
-	meetings := app.NewMeetingService(postgres.NewMeetings(pool))
+func New(_ *pgxpool.Pool) *Module {
+	meetings := app.NewMeetingService(postgres.NewMeetings())
 	roster := app.NewRosterService(postgres.NewRoster(), postgres.NewRoster())
 	return &Module{handler: governancehttp.NewHandler(meetings), roster: roster}
 }

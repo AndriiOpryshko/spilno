@@ -23,7 +23,7 @@
 | [T16](./T16-promote-backfills.md) | Promote the backfills: association state, roster positions and the contracts' association | migration | Andrii Opryshko | S | T06, T13, T14 | done |
 | [T17](./T17-promote-not-null-contracts.md) | Promote the NOT NULL steps and the contracts index | migration | Andrii Opryshko | S | T16 | done |
 | [T18](./T18-sign-in-any-verified-person.md) | Sign in any verified person, keep the session in Postgres and tell the оператор | app | Andrii Opryshko | L | T02, T03, T06 | done |
-| [T19](./T19-association-and-operator-guards.md) | Guard association paths with the session, the roster and a scoped transaction, and operator paths with the оператор flag | wiring | Andrii Opryshko | L | T04, T11, T14, T18 | todo |
+| [T19](./T19-association-and-operator-guards.md) | Guard association paths with the session, the roster and a scoped transaction, and operator paths with the оператор flag | wiring | Andrii Opryshko | L | T04, T11, T14, T18 | done |
 | [T20](./T20-promote-row-level-security.md) | Promote row-level security for the governance, finance and identity tables | migration | Andrii Opryshko | M | T12, T13, T17, T19 | todo |
 | [T21](./T21-isolation-release-check.md) | Add the release-blocking isolation test over every association-scoped operation of the contract | tests | Andrii Opryshko | M | T02, T20 | todo |
 | [T22](./T22-file-connection-application.md) | File a заявка на підключення and keep the signed extract unchanged | ports | Andrii Opryshko | L | T05, T08, T12, T18 | todo |

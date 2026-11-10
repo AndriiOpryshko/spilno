@@ -10,22 +10,16 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/go-chi/chi/v5"
+
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance"
-	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/httpapi"
-	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/testdb"
 )
 
 // newServer serves the context through the same router, validator and
 // generated handlers as production, on a real migrated database.
 func newServer(t *testing.T) *httptest.Server {
 	t.Helper()
-	r := httpapi.NewRouter()
-	if err := governance.New(testdb.New(t)).Routes(r); err != nil {
-		t.Fatal(err)
-	}
-	srv := httptest.NewServer(r)
-	t.Cleanup(srv.Close)
-	return srv
+	return newGuardedServer(t, func(r chi.Router, gov *governance.Module) error { return gov.Routes(r) })
 }
 
 // validBody is a request body that passes every rule.

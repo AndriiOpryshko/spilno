@@ -10,22 +10,13 @@ import (
 	"net/url"
 	"strings"
 	"testing"
-
-	"github.com/AndriiOpryshko/spilno/services/core/internal/finance"
-	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/httpapi"
-	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/testdb"
 )
 
 // newServer serves the context through the same router, validator and
 // generated handlers as production, on a real migrated database.
 func newServer(t *testing.T) *httptest.Server {
 	t.Helper()
-	r := httpapi.NewRouter()
-	if err := finance.New(testdb.New(t)).Routes(r); err != nil {
-		t.Fatal(err)
-	}
-	srv := httptest.NewServer(r)
-	t.Cleanup(srv.Close)
+	srv, _ := newGuardedServer(t)
 	return srv
 }
 
@@ -250,13 +241,7 @@ const otherAssocID = "0191a000-0000-7000-8000-00000000000b"
 // another association it is neither listed nor opened, and the answer matches
 // the one for a missing id.
 func TestContractsAreScopedToTheAssociationInThePath(t *testing.T) {
-	pool := testdb.New(t)
-	r := httpapi.NewRouter()
-	if err := finance.New(pool).Routes(r); err != nil {
-		t.Fatal(err)
-	}
-	srv := httptest.NewServer(r)
-	t.Cleanup(srv.Close)
+	srv, pool := newGuardedServer(t)
 
 	var created contract
 	do(t, "POST", srv.URL+"/finance/associations/"+assocID+"/contracts",

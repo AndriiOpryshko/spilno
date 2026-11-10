@@ -9,25 +9,34 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/adapters/postgres/sqlcgen"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/domain"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/ports"
+	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/db"
 )
 
-type Meetings struct {
-	q *sqlcgen.Queries
-}
+// Meetings reads and writes meetings on the transaction in ctx (db.InAssociation).
+type Meetings struct{}
 
 var _ ports.MeetingRepository = (*Meetings)(nil)
 
-func NewMeetings(pool *pgxpool.Pool) *Meetings {
-	return &Meetings{q: sqlcgen.New(pool)}
+func NewMeetings() *Meetings { return &Meetings{} }
+
+func queries(ctx context.Context) (*sqlcgen.Queries, error) {
+	tx, err := db.From(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return sqlcgen.New(tx), nil
 }
 
 func (s *Meetings) Create(ctx context.Context, associationID uuid.UUID, f domain.MeetingFields) (domain.Meeting, error) {
-	row, err := s.q.CreateMeeting(ctx, sqlcgen.CreateMeetingParams{
+	q, err := queries(ctx)
+	if err != nil {
+		return domain.Meeting{}, err
+	}
+	row, err := q.CreateMeeting(ctx, sqlcgen.CreateMeetingParams{
 		Title:          f.Title,
 		Kind:           string(f.Kind),
 		HeldAt:         pgtype.Timestamptz{Time: f.HeldAt, Valid: true},
@@ -43,7 +52,11 @@ func (s *Meetings) Create(ctx context.Context, associationID uuid.UUID, f domain
 }
 
 func (s *Meetings) Get(ctx context.Context, associationID, id uuid.UUID) (domain.Meeting, error) {
-	row, err := s.q.GetMeeting(ctx, sqlcgen.GetMeetingParams{
+	q, err := queries(ctx)
+	if err != nil {
+		return domain.Meeting{}, err
+	}
+	row, err := q.GetMeeting(ctx, sqlcgen.GetMeetingParams{
 		ID:            uuidOf(id),
 		AssociationID: uuidOf(associationID),
 	})
@@ -63,7 +76,11 @@ func (s *Meetings) List(ctx context.Context, associationID uuid.UUID, after *por
 		arg.AfterCreatedAt = pgtype.Timestamptz{Time: after.CreatedAt, Valid: true}
 		arg.AfterID = uuidOf(after.ID)
 	}
-	rows, err := s.q.ListMeetings(ctx, arg)
+	q, err := queries(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := q.ListMeetings(ctx, arg)
 	if err != nil {
 		return nil, err
 	}

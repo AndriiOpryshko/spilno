@@ -41,22 +41,22 @@ func NewMeetingService(repo ports.MeetingRepository) *MeetingService {
 
 // Create validates the fields and stores them. Broken invariants come back as
 // *domain.ValidationError.
-func (s *MeetingService) Create(ctx context.Context, fields domain.MeetingFields) (domain.Meeting, error) {
+func (s *MeetingService) Create(ctx context.Context, associationID uuid.UUID, fields domain.MeetingFields) (domain.Meeting, error) {
 	if err := fields.Validate(); err != nil {
 		return domain.Meeting{}, err
 	}
-	return s.repo.Create(ctx, fields)
+	return s.repo.Create(ctx, associationID, fields)
 }
 
 // Get returns domain.ErrMeetingNotFound when no meeting has the id.
-func (s *MeetingService) Get(ctx context.Context, id uuid.UUID) (domain.Meeting, error) {
-	return s.repo.Get(ctx, id)
+func (s *MeetingService) Get(ctx context.Context, associationID, id uuid.UUID) (domain.Meeting, error) {
+	return s.repo.Get(ctx, associationID, id)
 }
 
 // List returns up to limit meetings after cursor, newest first. A limit
 // outside 1..MaxPageSize falls back to DefaultPageSize or MaxPageSize; an
 // empty cursor starts from the top.
-func (s *MeetingService) List(ctx context.Context, limit int, cursor string) (MeetingPage, error) {
+func (s *MeetingService) List(ctx context.Context, associationID uuid.UUID, limit int, cursor string) (MeetingPage, error) {
 	switch {
 	case limit <= 0:
 		limit = DefaultPageSize
@@ -73,7 +73,7 @@ func (s *MeetingService) List(ctx context.Context, limit int, cursor string) (Me
 	}
 
 	// One extra row tells whether another page follows.
-	items, err := s.repo.List(ctx, after, limit+1)
+	items, err := s.repo.List(ctx, associationID, after, limit+1)
 	if err != nil {
 		return MeetingPage{}, err
 	}

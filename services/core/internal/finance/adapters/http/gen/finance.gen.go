@@ -105,6 +105,9 @@ type Problem struct {
 // AgendaItemId defines model for AgendaItemId.
 type AgendaItemId = openapi_types.UUID
 
+// AssociationId defines model for AssociationId.
+type AssociationId = openapi_types.UUID
+
 // BoardMemberId defines model for BoardMemberId.
 type BoardMemberId = openapi_types.UUID
 
@@ -154,14 +157,14 @@ type CreateContractJSONRequestBody = NewContract
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// ListContracts List contracts, newest first, one page at a time
-	// (GET /finance/contracts)
-	ListContracts(w http.ResponseWriter, r *http.Request, params ListContractsParams)
+	// (GET /finance/associations/{association_id}/contracts)
+	ListContracts(w http.ResponseWriter, r *http.Request, associationId AssociationId, params ListContractsParams)
 	// CreateContract Register a contract with a counterparty
-	// (POST /finance/contracts)
-	CreateContract(w http.ResponseWriter, r *http.Request)
+	// (POST /finance/associations/{association_id}/contracts)
+	CreateContract(w http.ResponseWriter, r *http.Request, associationId AssociationId)
 	// GetContract Get one contract
-	// (GET /finance/contracts/{id})
-	GetContract(w http.ResponseWriter, r *http.Request, id openapi_types.UUID)
+	// (GET /finance/associations/{association_id}/contracts/{id})
+	GetContract(w http.ResponseWriter, r *http.Request, associationId AssociationId, id openapi_types.UUID)
 }
 
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
@@ -169,20 +172,20 @@ type ServerInterface interface {
 type Unimplemented struct{}
 
 // ListContracts List contracts, newest first, one page at a time
-// (GET /finance/contracts)
-func (_ Unimplemented) ListContracts(w http.ResponseWriter, r *http.Request, params ListContractsParams) {
+// (GET /finance/associations/{association_id}/contracts)
+func (_ Unimplemented) ListContracts(w http.ResponseWriter, r *http.Request, associationId AssociationId, params ListContractsParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // CreateContract Register a contract with a counterparty
-// (POST /finance/contracts)
-func (_ Unimplemented) CreateContract(w http.ResponseWriter, r *http.Request) {
+// (POST /finance/associations/{association_id}/contracts)
+func (_ Unimplemented) CreateContract(w http.ResponseWriter, r *http.Request, associationId AssociationId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // GetContract Get one contract
-// (GET /finance/contracts/{id})
-func (_ Unimplemented) GetContract(w http.ResponseWriter, r *http.Request, id openapi_types.UUID) {
+// (GET /finance/associations/{association_id}/contracts/{id})
+func (_ Unimplemented) GetContract(w http.ResponseWriter, r *http.Request, associationId AssociationId, id openapi_types.UUID) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -200,6 +203,15 @@ func (siw *ServerInterfaceWrapper) ListContracts(w http.ResponseWriter, r *http.
 
 	var err error
 	_ = err
+
+	// ------------- Path parameter "association_id" -------------
+	var associationId AssociationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "association_id", chi.URLParam(r, "association_id"), &associationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "association_id", Err: err})
+		return
+	}
 
 	// Parameter object where we will unmarshal all parameters from the context
 	var params ListContractsParams
@@ -231,7 +243,7 @@ func (siw *ServerInterfaceWrapper) ListContracts(w http.ResponseWriter, r *http.
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ListContracts(w, r, params)
+		siw.Handler.ListContracts(w, r, associationId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -244,8 +256,20 @@ func (siw *ServerInterfaceWrapper) ListContracts(w http.ResponseWriter, r *http.
 // CreateContract operation middleware
 func (siw *ServerInterfaceWrapper) CreateContract(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+	_ = err
+
+	// ------------- Path parameter "association_id" -------------
+	var associationId AssociationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "association_id", chi.URLParam(r, "association_id"), &associationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "association_id", Err: err})
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.CreateContract(w, r)
+		siw.Handler.CreateContract(w, r, associationId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -261,6 +285,15 @@ func (siw *ServerInterfaceWrapper) GetContract(w http.ResponseWriter, r *http.Re
 	var err error
 	_ = err
 
+	// ------------- Path parameter "association_id" -------------
+	var associationId AssociationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "association_id", chi.URLParam(r, "association_id"), &associationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "association_id", Err: err})
+		return
+	}
+
 	// ------------- Path parameter "id" -------------
 	var id openapi_types.UUID
 
@@ -271,7 +304,7 @@ func (siw *ServerInterfaceWrapper) GetContract(w http.ResponseWriter, r *http.Re
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetContract(w, r, id)
+		siw.Handler.GetContract(w, r, associationId, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -395,13 +428,13 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	}
 
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/finance/contracts", wrapper.ListContracts)
+		r.Get(options.BaseURL+"/finance/associations/{association_id}/contracts", wrapper.ListContracts)
 	})
 	r.Group(func(r chi.Router) {
-		r.Post(options.BaseURL+"/finance/contracts", wrapper.CreateContract)
+		r.Post(options.BaseURL+"/finance/associations/{association_id}/contracts", wrapper.CreateContract)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/finance/contracts/{id}", wrapper.GetContract)
+		r.Get(options.BaseURL+"/finance/associations/{association_id}/contracts/{id}", wrapper.GetContract)
 	})
 
 	return r
@@ -412,7 +445,8 @@ type NotFoundApplicationProblemPlusJSONResponse Problem
 type UnprocessableEntityApplicationProblemPlusJSONResponse Problem
 
 type ListContractsRequestObject struct {
-	Params ListContractsParams
+	AssociationId AssociationId `json:"association_id"`
+	Params        ListContractsParams
 }
 
 type ListContractsResponseObject interface {
@@ -450,7 +484,8 @@ func (response ListContracts422ApplicationProblemPlusJSONResponse) VisitListCont
 }
 
 type CreateContractRequestObject struct {
-	Body *CreateContractJSONRequestBody
+	AssociationId AssociationId `json:"association_id"`
+	Body          *CreateContractJSONRequestBody
 }
 
 type CreateContractResponseObject interface {
@@ -488,7 +523,8 @@ func (response CreateContract422ApplicationProblemPlusJSONResponse) VisitCreateC
 }
 
 type GetContractRequestObject struct {
-	Id openapi_types.UUID `json:"id"`
+	AssociationId AssociationId      `json:"association_id"`
+	Id            openapi_types.UUID `json:"id"`
 }
 
 type GetContractResponseObject interface {
@@ -544,13 +580,13 @@ func (response GetContract422ApplicationProblemPlusJSONResponse) VisitGetContrac
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// ListContracts List contracts, newest first, one page at a time
-	// (GET /finance/contracts)
+	// (GET /finance/associations/{association_id}/contracts)
 	ListContracts(ctx context.Context, request ListContractsRequestObject) (ListContractsResponseObject, error)
 	// CreateContract Register a contract with a counterparty
-	// (POST /finance/contracts)
+	// (POST /finance/associations/{association_id}/contracts)
 	CreateContract(ctx context.Context, request CreateContractRequestObject) (CreateContractResponseObject, error)
 	// GetContract Get one contract
-	// (GET /finance/contracts/{id})
+	// (GET /finance/associations/{association_id}/contracts/{id})
 	GetContract(ctx context.Context, request GetContractRequestObject) (GetContractResponseObject, error)
 }
 
@@ -594,9 +630,10 @@ type strictHandler struct {
 }
 
 // ListContracts operation middleware
-func (sh *strictHandler) ListContracts(w http.ResponseWriter, r *http.Request, params ListContractsParams) {
+func (sh *strictHandler) ListContracts(w http.ResponseWriter, r *http.Request, associationId AssociationId, params ListContractsParams) {
 	var request ListContractsRequestObject
 
+	request.AssociationId = associationId
 	request.Params = params
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
@@ -620,8 +657,10 @@ func (sh *strictHandler) ListContracts(w http.ResponseWriter, r *http.Request, p
 }
 
 // CreateContract operation middleware
-func (sh *strictHandler) CreateContract(w http.ResponseWriter, r *http.Request) {
+func (sh *strictHandler) CreateContract(w http.ResponseWriter, r *http.Request, associationId AssociationId) {
 	var request CreateContractRequestObject
+
+	request.AssociationId = associationId
 
 	var body CreateContractJSONRequestBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -651,9 +690,10 @@ func (sh *strictHandler) CreateContract(w http.ResponseWriter, r *http.Request) 
 }
 
 // GetContract operation middleware
-func (sh *strictHandler) GetContract(w http.ResponseWriter, r *http.Request, id openapi_types.UUID) {
+func (sh *strictHandler) GetContract(w http.ResponseWriter, r *http.Request, associationId AssociationId, id openapi_types.UUID) {
 	var request GetContractRequestObject
 
+	request.AssociationId = associationId
 	request.Id = id
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
@@ -681,42 +721,43 @@ func (sh *strictHandler) GetContract(w http.ResponseWriter, r *http.Request, id 
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
-	"q95oi6DvPVhd3NXUhGEr52rQWZvc+cAfAwA=",
+	"5Bpdc9u48a9g0Ju5y4QSFcdtr/L0Ieckd2lzice+PNmusiJXFBISYIClbZ1G/70DgKRIifJHpVPt9k0C",
+	"gf3exX5gziOV5UqiJMOHc56DhgwJtfv3KkEZwzvC7F1s/wvJhzwHmvKAS8iQDzm4LSNBmI1EzAOu8Vsh",
+	"NMZ8SLrAgJtoihnY0xOlMyA+5EXhdtIstxAMaSETvlgE/JUxKhJAQkmPMEYTaZHbBT7kv02RwXILoyky",
+	"jUYVOkI2xlTJxDBSfR50Uro8uT2lPynQ8a+YjVFvFM3Y7hllbtP2GI/B4EZUERjcHsVbkW5GMRHpDlD8",
+	"Q403YviixvdGICT95ZAHPBNSZEXGhy9qbEISJqgdul8RSchkI8rMf9+erxOtSEUq3YgpLzdsj+pUFTL+",
+	"UFir2oBL2x0j6bfcV5wvD+4W51mqaCOHJlW0LXcLe9jkShp0AeiDoreWGfs7UpJQkv0JeZ6KyLlymGs1",
+	"TjF7/sUoab/hDWR5ivanIaDC8OHh4DDgJMiuWpDMw6zRw1gVNBynIL/yRZPc7zRO+JD/KVwGydB/NeGJ",
+	"x+uJbsepD4qZIpouY5PwsaoRgfoW0SeZaxWhMTBO8Y0kQbMHMLo1maf4rUBDbAIixZhdQSriirhaDE4N",
+	"x0qShsiRlGuVoybhFQSZKiSNour+WHPQVSsKeGRPoM5Be3ZXbCDgkUYgjEdALYgxEPZIZLhuNwGPCq1R",
+	"RrO7xHFc7VsEHGVsupDU8M8rBAGXRZryy0XARXwPOw64EYnsZqFrd5HHD+R40fSyc+6IaAk2aKumIaEm",
+	"cUshtMTeouiyRq7GXzAiS3BlECeQ4LpRCMKs/eNWlZSw+KJGBFqDU5HEGxpFhTZKr6cDJ2AMA8P8d0aK",
+	"JUjO0ewxlkOCR8wqjpW5QgrGL/dvUfGqZB0LbUo6JdIwwDaZb26EsZcM05gr5rlmP0yEBBnhs4BpLAzG",
+	"lhEXQa8gLdD0K3WxkGlMhCE9G6EkLRrf+k5/Nlyf80+vfuEBf/PplAf809nrBo1LM3srMI3faK30us5i",
+	"JBBppz/mynqv7vi2IqtqY1BB6xLUB7xuhhOIY2EFBelJg54JpAaDO2JNW8wVUOYEaENuJqTSrJCCDFMT",
+	"1pTag/KI9ZCVwc17lAlN+fBgMHCnq/8vdh+c2ny+t0Ycw8yyZI06Kvk+slauNIMJoWa1i/fZB+sBE6WZ",
+	"ylH2UMYYt0RwZ8h7SCxbsYj/ICR12Ux1ia0J4/TtMfvb4Z//ysrLkXnDM+wHZ4kS0jBPgSzR4ZQoh1w8",
+	"67PPkYrxMxOGgWR4QyiNLSd8pn4hP18Ug8HLyF3DN+T+YN+voXWekYQM/fLnIybIAjJIbDxjwMpTDGTM",
+	"YGxQktULsMODAzbRKnM6M1PQGDNdXsDlzat0/0K+xpTAxjJf3NQRY8ggjk1Jev9C8lXvsB98BUeWcz7k",
+	"/zqH3u+Xzy8u+vbH6PL5d113zy2O77i9fyBvhJeOUC6kIRvxOjFVmdq8w/nKxK3jlF+4Kyq5rxWYGtW6",
+	"mVkyMCq0oNmZ5ciL9QyNNY5jpb4KXDfAM9RXqHtGxMiM38p+ePX6tDcYDF4+O2K/EOUfZToL2JmFjQE7",
+	"gwzPBOHf38NNXalGHvwyl85FKtWohLhUG+TinzjzyZyQE9VBkJBJuowKzvF9mNCWQn0lIuyzN1eoZzYg",
+	"aF9JR6C1QMPwBiJKZ0xJZAQJk5DZm8tG0LHNmTGuDPyIKchFz1pdgpIlKC0sCwKiabXpe+NQovamb8Go",
+	"a2khewsuVVuy62l8dfKOB/wKtfEMDfov+gOrbRu+IBd8yF+6pcDVH05JYXmbho0M24TzdsW/CCuhuDMJ",
+	"unhWy8DWNfy9MHRc7wpa7ZDz9fwjQWbE71ir8VuBerbUYioyQbxZUMQ4gSIle20E9hYp75zyDrml9FrF",
+	"/TGHbwVWqY+TLrBc45VQhXE5zveGNXKWI6YysbSGidCNVKiLdn+sRfytt9zicqV0OxgMbilmHlbEtNLN",
+	"jkrmo0THjLvmK/W5Euvw4GAT8JrasKsOs0hMkWWgZ6VdLCEHTOK1q5ysGAOmKvRADFiVsENijYaXpulu",
+	"0hVz6qJquSVsd8OsgHNlOoz22CXulYzK+hsN/aTi2c5U0EzbFovFapG/WNP+i51rv0vzvzUyIHZtiwFf",
+	"xexS+acu/0bNoIFK0NT9b+U36zpfBA8OTuFcxIuNEepnpIamVwyqoyuzZUNmH159l169LgeHd+uybhft",
+	"Tvk/Izn/jpZC371nWytJ1BXq+xiKayv3fLK61rPfJ+5wvtLhXmxNTXDngXbj/YHkR1Ca8R5F5nCG87JD",
+	"vw8RlZOC7egMYxUVWddY6NFQbCcSJpyXg4l9SLYckDyQzi9qbMK5n27sg0o/Y9mGyFAj6dljJbUc2uzb",
+	"kSu09f38X8G9nFgtQj977dXF+R+srOUwbTfUGyMMgaQeFVo+agaq4d2+Ta7GG84b88N9xJDGPHM3NLeM",
+	"NZy3nw0sQtv6Nnvm6+7drfcPe5HDtdKxzbz/LySx9wCwe6uOVD57koTnKk177qGAeer0h/Pmg4dFeKUI",
+	"H18saT7b2JEMNEI8602U7T8ncv9hY1dcWPfvkerFGib0JHnw46vek40G7voN5+UTHteMmgidge/GPDJP",
+	"Kl8h/UGs+/n7/zjTtn0Za7iG9FGba/XyIYwxEsbu2XMCXhPwFDNxg7TDOlnE6PqjYTWUHM7byyKRPbFp",
+	"OYwgTccQfe38rgoq183MEGbhFCG1c6Z5cyrrKF+Zx55f2ha1HzJ61gqd8iG3w/5hGKYqgnSqDA1/HPw4",
+	"cDOUsnvbNcgVETKP2Y3vdSFJZMjsoLXfmM06Evn6TK4hNVb2hk2/+YDWLXUcPPMyCqoJsnHo3dTWvZAg",
+	"lmshI5FD2m929rFsWK8BdE1SVpXdFTShWe1HDThLe7Ka/vcA",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

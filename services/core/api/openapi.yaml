@@ -37,7 +37,9 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Health" }
-  /finance/contracts:
+  /finance/associations/{association_id}/contracts:
+    parameters:
+      - $ref: '#/components/parameters/AssociationId'
     post:
       operationId: createContract
       tags: [finance]
@@ -74,7 +76,9 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ContractPage" }
         "422": { $ref: "#/components/responses/UnprocessableEntity" }
-  /finance/contracts/{id}:
+  /finance/associations/{association_id}/contracts/{id}:
+    parameters:
+      - $ref: '#/components/parameters/AssociationId'
     get:
       operationId: getContract
       tags: [finance]
@@ -92,7 +96,9 @@ paths:
               schema: { $ref: "#/components/schemas/Contract" }
         "404": { $ref: "#/components/responses/NotFound" }
         "422": { $ref: "#/components/responses/UnprocessableEntity" }
-  /governance/meetings:
+  /governance/associations/{association_id}/meetings:
+    parameters:
+      - $ref: '#/components/parameters/AssociationId'
     post:
       operationId: createMeeting
       tags: [governance]
@@ -129,7 +135,9 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/MeetingPage" }
         "422": { $ref: "#/components/responses/UnprocessableEntity" }
-  /governance/meetings/{id}:
+  /governance/associations/{association_id}/meetings/{id}:
+    parameters:
+      - $ref: '#/components/parameters/AssociationId'
     get:
       operationId: getMeeting
       tags: [governance]
@@ -235,7 +243,9 @@ paths:
         "403": { $ref: "#/components/responses/NotCurrentMember" }
 
   # ─────────────────────── governance: settings & roster ───────────────────────
-  /governance/settings:
+  /governance/associations/{association_id}/settings:
+    parameters:
+      - $ref: '#/components/parameters/AssociationId'
     get:
       operationId: getAssociationSettings
       tags: [governance]
@@ -289,7 +299,9 @@ paths:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
               examples: { settings_invalid: { $ref: "#/components/examples/SettingsInvalid" } }
-  /governance/board-members:
+  /governance/associations/{association_id}/board-members:
+    parameters:
+      - $ref: '#/components/parameters/AssociationId'
     get:
       operationId: listBoardMembers
       tags: [governance]
@@ -343,8 +355,9 @@ paths:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
               examples: { roster_entry_invalid: { $ref: "#/components/examples/RosterEntryInvalid" } }
-  /governance/board-members/{board_member_id}:
+  /governance/associations/{association_id}/board-members/{board_member_id}:
     parameters:
+      - $ref: '#/components/parameters/AssociationId'
       - $ref: "#/components/parameters/BoardMemberId"
     put:
       operationId: updateBoardMember
@@ -378,7 +391,9 @@ paths:
               examples: { roster_entry_invalid: { $ref: "#/components/examples/RosterEntryInvalid" } }
 
   # ─────────────────────── governance: cases and files ───────────────────────
-  /governance/cases:
+  /governance/associations/{association_id}/cases:
+    parameters:
+      - $ref: '#/components/parameters/AssociationId'
     get:
       operationId: listCases
       tags: [governance]
@@ -418,8 +433,9 @@ paths:
         "401": { $ref: "#/components/responses/SessionRequired" }
         "403": { $ref: "#/components/responses/NotCurrentMember" }
         "422": { $ref: "#/components/responses/ValidationFailed" }
-  /governance/cases/{case_id}:
+  /governance/associations/{association_id}/cases/{case_id}:
     parameters:
+      - $ref: '#/components/parameters/AssociationId'
       - $ref: "#/components/parameters/CaseId"
     get:
       operationId: getCase
@@ -440,8 +456,9 @@ paths:
         "401": { $ref: "#/components/responses/SessionRequired" }
         "403": { $ref: "#/components/responses/NotCurrentMember" }
         "404": { $ref: "#/components/responses/NotFound" }
-  /governance/cases/{case_id}/documents:
+  /governance/associations/{association_id}/cases/{case_id}/documents:
     parameters:
+      - $ref: '#/components/parameters/AssociationId'
       - $ref: "#/components/parameters/CaseId"
     post:
       operationId: addCaseDocument
@@ -481,8 +498,9 @@ paths:
               schema: { $ref: "#/components/schemas/Problem" }
               examples: { file_invalid: { $ref: "#/components/examples/FileInvalid" } }
         "503": { $ref: "#/components/responses/StorageUnavailable" }
-  /governance/files/{file_id}:
+  /governance/associations/{association_id}/files/{file_id}:
     parameters:
+      - $ref: '#/components/parameters/AssociationId'
       - $ref: "#/components/parameters/FileId"
     get:
       operationId: downloadFile
@@ -511,8 +529,9 @@ paths:
         "503": { $ref: "#/components/responses/StorageUnavailable" }
 
   # ─────────────────────── governance: drafting ───────────────────────
-  /governance/meetings/{meeting_id}/assistant-turns:
+  /governance/associations/{association_id}/meetings/{meeting_id}/assistant-turns:
     parameters:
+      - $ref: '#/components/parameters/AssociationId'
       - $ref: "#/components/parameters/MeetingId"
     post:
       operationId: createAssistantTurn
@@ -566,8 +585,9 @@ paths:
               schema: { $ref: "#/components/schemas/Problem" }
               examples: { file_invalid: { $ref: "#/components/examples/FileInvalid" } }
         "503": { $ref: "#/components/responses/StorageUnavailable" }
-  /governance/meetings/{meeting_id}/agenda-items:
+  /governance/associations/{association_id}/meetings/{meeting_id}/agenda-items:
     parameters:
+      - $ref: '#/components/parameters/AssociationId'
       - $ref: "#/components/parameters/MeetingId"
     post:
       operationId: addAgendaItemFromCase
@@ -598,8 +618,9 @@ paths:
                 settings_missing: { $ref: "#/components/examples/SettingsMissing" }
                 protocol_locked: { $ref: "#/components/examples/ProtocolLocked" }
         "422": { $ref: "#/components/responses/ValidationFailed" }
-  /governance/jobs/{job_id}:
+  /governance/associations/{association_id}/jobs/{job_id}:
     parameters:
+      - $ref: '#/components/parameters/AssociationId'
       - $ref: "#/components/parameters/JobId"
     get:
       operationId: getJob
@@ -615,8 +636,9 @@ paths:
         "401": { $ref: "#/components/responses/SessionRequired" }
         "403": { $ref: "#/components/responses/NotCurrentMember" }
         "404": { $ref: "#/components/responses/NotFound" }
-  /governance/jobs/{job_id}/retry:
+  /governance/associations/{association_id}/jobs/{job_id}/retry:
     parameters:
+      - $ref: '#/components/parameters/AssociationId'
       - $ref: "#/components/parameters/JobId"
     post:
       operationId: retryJob
@@ -638,7 +660,9 @@ paths:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
               examples: { transition_not_allowed: { $ref: "#/components/examples/TransitionNotAllowed" } }
-  /governance/protocols:
+  /governance/associations/{association_id}/protocols:
+    parameters:
+      - $ref: '#/components/parameters/AssociationId'
     get:
       operationId: listProtocols
       tags: [governance]
@@ -669,8 +693,9 @@ paths:
         "401": { $ref: "#/components/responses/SessionRequired" }
         "403": { $ref: "#/components/responses/NotCurrentMember" }
         "422": { $ref: "#/components/responses/ValidationFailed" }
-  /governance/protocols/{protocol_id}:
+  /governance/associations/{association_id}/protocols/{protocol_id}:
     parameters:
+      - $ref: '#/components/parameters/AssociationId'
       - $ref: "#/components/parameters/ProtocolId"
     get:
       operationId: getProtocol
@@ -686,8 +711,9 @@ paths:
         "401": { $ref: "#/components/responses/SessionRequired" }
         "403": { $ref: "#/components/responses/NotCurrentMember" }
         "404": { $ref: "#/components/responses/NotFound" }
-  /governance/protocols/{protocol_id}/assistant-turns:
+  /governance/associations/{association_id}/protocols/{protocol_id}/assistant-turns:
     parameters:
+      - $ref: '#/components/parameters/AssociationId'
       - $ref: "#/components/parameters/ProtocolId"
     get:
       operationId: listAssistantTurns
@@ -709,8 +735,9 @@ paths:
         "403": { $ref: "#/components/responses/NotCurrentMember" }
         "404": { $ref: "#/components/responses/NotFound" }
         "422": { $ref: "#/components/responses/ValidationFailed" }
-  /governance/protocols/{protocol_id}/agenda-items/{agenda_item_id}/wording:
+  /governance/associations/{association_id}/protocols/{protocol_id}/agenda-items/{agenda_item_id}/wording:
     parameters:
+      - $ref: '#/components/parameters/AssociationId'
       - $ref: "#/components/parameters/ProtocolId"
       - $ref: "#/components/parameters/AgendaItemId"
     put:
@@ -746,8 +773,9 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/ProtocolEditConflict" }
         "422": { $ref: "#/components/responses/ValidationFailed" }
-  /governance/protocols/{protocol_id}/agenda-items/{agenda_item_id}/slots:
+  /governance/associations/{association_id}/protocols/{protocol_id}/agenda-items/{agenda_item_id}/slots:
     parameters:
+      - $ref: '#/components/parameters/AssociationId'
       - $ref: "#/components/parameters/ProtocolId"
       - $ref: "#/components/parameters/AgendaItemId"
     post:
@@ -775,8 +803,9 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/ProtocolEditConflict" }
         "422": { $ref: "#/components/responses/ValidationFailed" }
-  /governance/protocols/{protocol_id}/slots/{slot_id}/confirmation:
+  /governance/associations/{association_id}/protocols/{protocol_id}/slots/{slot_id}/confirmation:
     parameters:
+      - $ref: '#/components/parameters/AssociationId'
       - $ref: "#/components/parameters/ProtocolId"
       - $ref: "#/components/parameters/SlotId"
     post:
@@ -801,8 +830,9 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/ProtocolEditConflict" }
         "422": { $ref: "#/components/responses/ValidationFailed" }
-  /governance/protocols/{protocol_id}/slots/{slot_id}/values:
+  /governance/associations/{association_id}/protocols/{protocol_id}/slots/{slot_id}/values:
     parameters:
+      - $ref: '#/components/parameters/AssociationId'
       - $ref: "#/components/parameters/ProtocolId"
       - $ref: "#/components/parameters/SlotId"
     post:
@@ -831,8 +861,9 @@ paths:
         "422": { $ref: "#/components/responses/ValidationFailed" }
 
   # ─────────────────────── governance: lifecycle ───────────────────────
-  /governance/protocols/{protocol_id}/poll-rounds:
+  /governance/associations/{association_id}/protocols/{protocol_id}/poll-rounds:
     parameters:
+      - $ref: '#/components/parameters/AssociationId'
       - $ref: "#/components/parameters/ProtocolId"
     post:
       operationId: startPollRound
@@ -855,8 +886,9 @@ paths:
         "403": { $ref: "#/components/responses/NotCurrentMember" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/ProtocolEditConflict" }
-  /governance/protocols/{protocol_id}/poll-rounds/{round_number}/votes:
+  /governance/associations/{association_id}/protocols/{protocol_id}/poll-rounds/{round_number}/votes:
     parameters:
+      - $ref: '#/components/parameters/AssociationId'
       - $ref: "#/components/parameters/ProtocolId"
       - $ref: "#/components/parameters/RoundNumber"
     put:
@@ -904,8 +936,9 @@ paths:
                 protocol_locked: { $ref: "#/components/examples/ProtocolLocked" }
                 transition_not_allowed: { $ref: "#/components/examples/TransitionNotAllowed" }
         "422": { $ref: "#/components/responses/ValidationFailed" }
-  /governance/protocols/{protocol_id}/return-to-draft:
+  /governance/associations/{association_id}/protocols/{protocol_id}/return-to-draft:
     parameters:
+      - $ref: '#/components/parameters/AssociationId'
       - $ref: "#/components/parameters/ProtocolId"
     post:
       operationId: returnProtocolToDraft
@@ -931,8 +964,9 @@ paths:
         "403": { $ref: "#/components/responses/NotCurrentMember" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/ProtocolEditConflict" }
-  /governance/protocols/{protocol_id}/ready-for-signing:
+  /governance/associations/{association_id}/protocols/{protocol_id}/ready-for-signing:
     parameters:
+      - $ref: '#/components/parameters/AssociationId'
       - $ref: "#/components/parameters/ProtocolId"
     post:
       operationId: markProtocolReadyForSigning
@@ -973,8 +1007,9 @@ paths:
                 draft_revision_conflict: { $ref: "#/components/examples/DraftRevisionConflict" }
                 transition_not_allowed: { $ref: "#/components/examples/TransitionNotAllowed" }
                 protocol_locked: { $ref: "#/components/examples/ProtocolLocked" }
-  /governance/protocols/{protocol_id}/signed-copy:
+  /governance/associations/{association_id}/protocols/{protocol_id}/signed-copy:
     parameters:
+      - $ref: '#/components/parameters/AssociationId'
       - $ref: "#/components/parameters/ProtocolId"
     post:
       operationId: lockProtocolWithSignedCopy
@@ -1036,8 +1071,9 @@ paths:
                 correction_note_required: { $ref: "#/components/examples/CorrectionNoteRequired" }
                 file_invalid: { $ref: "#/components/examples/FileInvalid" }
         "503": { $ref: "#/components/responses/StorageUnavailable" }
-  /governance/protocols/{protocol_id}/withdrawal:
+  /governance/associations/{association_id}/protocols/{protocol_id}/withdrawal:
     parameters:
+      - $ref: '#/components/parameters/AssociationId'
       - $ref: "#/components/parameters/ProtocolId"
     post:
       operationId: withdrawProtocol
@@ -1078,8 +1114,9 @@ paths:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
               examples: { reason_required: { $ref: "#/components/examples/ReasonRequired" } }
-  /governance/protocols/{protocol_id}/copy:
+  /governance/associations/{association_id}/protocols/{protocol_id}/copy:
     parameters:
+      - $ref: '#/components/parameters/AssociationId'
       - $ref: "#/components/parameters/ProtocolId"
     post:
       operationId: copyWithdrawnProtocol
@@ -1103,7 +1140,9 @@ paths:
               examples: { transition_not_allowed: { $ref: "#/components/examples/TransitionNotAllowed" } }
 
   # ─────────────────────── governance: реєстр протоколів ───────────────────────
-  /governance/registry/decisions:
+  /governance/associations/{association_id}/registry/decisions:
+    parameters:
+      - $ref: '#/components/parameters/AssociationId'
     get:
       operationId: searchRegistry
       tags: [governance]
@@ -1170,8 +1209,9 @@ paths:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
               examples: { search_invalid: { $ref: "#/components/examples/SearchInvalid" } }
-  /governance/registry/protocols/{protocol_id}:
+  /governance/associations/{association_id}/registry/protocols/{protocol_id}:
     parameters:
+      - $ref: '#/components/parameters/AssociationId'
       - $ref: "#/components/parameters/ProtocolId"
     get:
       operationId: getSignedProtocol
@@ -1197,6 +1237,12 @@ components:
       description: Server-side session (ADR-0003); HttpOnly, Secure, SameSite=Lax.
 
   parameters:
+    AssociationId:
+      name: association_id
+      in: path
+      required: true
+      description: The association the resource belongs to.
+      schema: { type: string, format: uuid }
     Limit:
       name: limit
       in: query

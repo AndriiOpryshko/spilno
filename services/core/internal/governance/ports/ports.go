@@ -19,10 +19,10 @@ type MeetingKey struct {
 // MeetingRepository stores meetings.
 type MeetingRepository interface {
 	// Create stores already validated fields and returns the stored meeting.
-	Create(ctx context.Context, fields domain.MeetingFields) (domain.Meeting, error)
-	// Get returns domain.ErrMeetingNotFound when no meeting has the id.
-	Get(ctx context.Context, id uuid.UUID) (domain.Meeting, error)
+	Create(ctx context.Context, associationID uuid.UUID, fields domain.MeetingFields) (domain.Meeting, error)
+	// Get returns domain.ErrMeetingNotFound when the association has no meeting with the id.
+	Get(ctx context.Context, associationID, id uuid.UUID) (domain.Meeting, error)
 	// List returns up to limit meetings ordered by created_at, then id, both
 	// descending, starting strictly after the key (from the top when nil).
-	List(ctx context.Context, after *MeetingKey, limit int) ([]domain.Meeting, error)
+	List(ctx context.Context, associationID uuid.UUID, after *MeetingKey, limit int) ([]domain.Meeting, error)
 }

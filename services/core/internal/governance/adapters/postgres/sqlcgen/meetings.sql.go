@@ -55,11 +55,16 @@ func (q *Queries) CreateMeeting(ctx context.Context, arg CreateMeetingParams) (M
 }
 
 const getMeeting = `-- name: GetMeeting :one
-SELECT id, title, kind, held_at, ends_at, location, quorum_required, created_at, updated_at, association_id, chair_board_member_id FROM meetings WHERE id = $1
+SELECT id, title, kind, held_at, ends_at, location, quorum_required, created_at, updated_at, association_id, chair_board_member_id FROM meetings WHERE id = $1 AND association_id = $2
 `
 
-func (q *Queries) GetMeeting(ctx context.Context, id pgtype.UUID) (Meeting, error) {
-	row := q.db.QueryRow(ctx, getMeeting, id)
+type GetMeetingParams struct {
+	ID            pgtype.UUID
+	AssociationID pgtype.UUID
+}
+
+func (q *Queries) GetMeeting(ctx context.Context, arg GetMeetingParams) (Meeting, error) {
+	row := q.db.QueryRow(ctx, getMeeting, arg.ID, arg.AssociationID)
 	var i Meeting
 	err := row.Scan(
 		&i.ID,

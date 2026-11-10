@@ -111,18 +111,19 @@ export type createMeetingResponseError = (createMeetingResponse422) & {
   headers: Headers;
 };
 
-export const getCreateMeetingUrl = () => {
+export const getCreateMeetingUrl = (associationId: string,) => {
 
 
 
 
-  return `/api/governance/meetings`
+  return `/api/governance/associations/${associationId}/meetings`
 }
 
 /**
  * @summary Schedule a board meeting
  */
-export const createMeeting = async (newMeeting: NewMeeting, options?: RequestInit): Promise<createMeetingResponseSuccess> => {
+export const createMeeting = async (associationId: string,
+    newMeeting: NewMeeting, options?: RequestInit): Promise<createMeetingResponseSuccess> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -138,7 +139,7 @@ export const createMeeting = async (newMeeting: NewMeeting, options?: RequestIni
     }
     return headers;
   };
-const res = await fetch(getCreateMeetingUrl(),
+const res = await fetch(getCreateMeetingUrl(associationId),
   {
     ...options,
     method: 'POST',
@@ -182,9 +183,9 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof createMeeting>>, CreateMeetingMutationVariables> = (props) => {
-          const {data} = props ?? {};
+          const {associationId,data} = props ?? {};
 
-          return  createMeeting(data,fetchOptions)
+          return  createMeeting(associationId,data,fetchOptions)
         }
 
 
@@ -197,7 +198,7 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
     export type CreateMeetingMutationResult = NonNullable<Awaited<ReturnType<typeof createMeeting>>>
     export type CreateMeetingMutationBody = NewMeeting
     export type CreateMeetingMutationError = globalThis.Error & { info?: UnprocessableEntityResponse; status?: number }
-    export type CreateMeetingMutationVariables = {data: NewMeeting}
+    export type CreateMeetingMutationVariables = {associationId: string;data: NewMeeting}
 
     /**
  * @summary Schedule a board meeting
@@ -229,7 +230,8 @@ export type listMeetingsResponseError = (listMeetingsResponse422) & {
   headers: Headers;
 };
 
-export const getListMeetingsUrl = (params?: ListMeetingsParams,) => {
+export const getListMeetingsUrl = (associationId: string,
+    params?: ListMeetingsParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -241,15 +243,16 @@ export const getListMeetingsUrl = (params?: ListMeetingsParams,) => {
 
   const stringifiedParams = normalizedParams.toString();
 
-  return stringifiedParams.length > 0 ? `/api/governance/meetings?${stringifiedParams}` : `/api/governance/meetings`
+  return stringifiedParams.length > 0 ? `/api/governance/associations/${associationId}/meetings?${stringifiedParams}` : `/api/governance/associations/${associationId}/meetings`
 }
 
 /**
  * @summary List meetings, newest first, one page at a time
  */
-export const listMeetings = async (params?: ListMeetingsParams, options?: RequestInit): Promise<listMeetingsResponseSuccess> => {
+export const listMeetings = async (associationId: string,
+    params?: ListMeetingsParams, options?: RequestInit): Promise<listMeetingsResponseSuccess> => {
 
-  const res = await fetch(getListMeetingsUrl(params),
+  const res = await fetch(getListMeetingsUrl(associationId,params),
   {
     ...options,
     method: 'GET'
@@ -276,29 +279,31 @@ export const listMeetings = async (params?: ListMeetingsParams, options?: Reques
 
 
 
-export const getListMeetingsQueryKey = (params?: ListMeetingsParams,) => {
+export const getListMeetingsQueryKey = (associationId: string,
+    params?: ListMeetingsParams,) => {
     return [
-    `/api/governance/meetings`, ...(params ? [params] : [])
+    `/api/governance/associations/${associationId}/meetings`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getListMeetingsQueryOptions = <TData = Awaited<ReturnType<typeof listMeetings>>, TError = globalThis.Error & { info?: UnprocessableEntityResponse; status?: number }>(params?: ListMeetingsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMeetings>>, TError, TData>>, fetch?: RequestInit}
+export const getListMeetingsQueryOptions = <TData = Awaited<ReturnType<typeof listMeetings>>, TError = globalThis.Error & { info?: UnprocessableEntityResponse; status?: number }>(associationId: string,
+    params?: ListMeetingsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMeetings>>, TError, TData>>, fetch?: RequestInit}
 ) => {
 
 const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getListMeetingsQueryKey(params);
+  const queryKey =  queryOptions?.queryKey ?? getListMeetingsQueryKey(associationId,params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMeetings>>> = ({ signal }) => listMeetings(params, { signal, ...fetchOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMeetings>>> = ({ signal }) => listMeetings(associationId,params, { signal, ...fetchOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMeetings>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+   return  { queryKey, queryFn, enabled: associationId !== null && associationId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMeetings>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type ListMeetingsQueryResult = NonNullable<Awaited<ReturnType<typeof listMeetings>>>
@@ -306,7 +311,8 @@ export type ListMeetingsQueryError = globalThis.Error & { info?: UnprocessableEn
 
 
 export function useListMeetings<TData = Awaited<ReturnType<typeof listMeetings>>, TError = globalThis.Error & { info?: UnprocessableEntityResponse; status?: number }>(
- params: undefined |  ListMeetingsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMeetings>>, TError, TData>> & Pick<
+ associationId: string,
+    params: undefined |  ListMeetingsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMeetings>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listMeetings>>,
           TError,
@@ -316,7 +322,8 @@ export function useListMeetings<TData = Awaited<ReturnType<typeof listMeetings>>
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListMeetings<TData = Awaited<ReturnType<typeof listMeetings>>, TError = globalThis.Error & { info?: UnprocessableEntityResponse; status?: number }>(
- params?: ListMeetingsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMeetings>>, TError, TData>> & Pick<
+ associationId: string,
+    params?: ListMeetingsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMeetings>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listMeetings>>,
           TError,
@@ -326,7 +333,8 @@ export function useListMeetings<TData = Awaited<ReturnType<typeof listMeetings>>
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListMeetings<TData = Awaited<ReturnType<typeof listMeetings>>, TError = globalThis.Error & { info?: UnprocessableEntityResponse; status?: number }>(
- params?: ListMeetingsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMeetings>>, TError, TData>>, fetch?: RequestInit}
+ associationId: string,
+    params?: ListMeetingsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMeetings>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -334,11 +342,12 @@ export function useListMeetings<TData = Awaited<ReturnType<typeof listMeetings>>
  */
 
 export function useListMeetings<TData = Awaited<ReturnType<typeof listMeetings>>, TError = globalThis.Error & { info?: UnprocessableEntityResponse; status?: number }>(
- params?: ListMeetingsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMeetings>>, TError, TData>>, fetch?: RequestInit}
+ associationId: string,
+    params?: ListMeetingsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMeetings>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getListMeetingsQueryOptions(params,options)
+  const queryOptions = getListMeetingsQueryOptions(associationId,params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -372,20 +381,22 @@ export type getMeetingResponseError = (getMeetingResponse404 | getMeetingRespons
   headers: Headers;
 };
 
-export const getGetMeetingUrl = (id: string,) => {
+export const getGetMeetingUrl = (associationId: string,
+    id: string,) => {
 
 
 
 
-  return `/api/governance/meetings/${id}`
+  return `/api/governance/associations/${associationId}/meetings/${id}`
 }
 
 /**
  * @summary Get one meeting
  */
-export const getMeeting = async (id: string, options?: RequestInit): Promise<getMeetingResponseSuccess> => {
+export const getMeeting = async (associationId: string,
+    id: string, options?: RequestInit): Promise<getMeetingResponseSuccess> => {
 
-  const res = await fetch(getGetMeetingUrl(id),
+  const res = await fetch(getGetMeetingUrl(associationId,id),
   {
     ...options,
     method: 'GET'
@@ -412,29 +423,31 @@ export const getMeeting = async (id: string, options?: RequestInit): Promise<get
 
 
 
-export const getGetMeetingQueryKey = (id: string,) => {
+export const getGetMeetingQueryKey = (associationId: string,
+    id: string,) => {
     return [
-    `/api/governance/meetings/${id}`
+    `/api/governance/associations/${associationId}/meetings/${id}`
     ] as const;
     }
 
 
-export const getGetMeetingQueryOptions = <TData = Awaited<ReturnType<typeof getMeeting>>, TError = globalThis.Error & { info?: NotFoundResponse | UnprocessableEntityResponse; status?: number }>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMeeting>>, TError, TData>>, fetch?: RequestInit}
+export const getGetMeetingQueryOptions = <TData = Awaited<ReturnType<typeof getMeeting>>, TError = globalThis.Error & { info?: NotFoundResponse | UnprocessableEntityResponse; status?: number }>(associationId: string,
+    id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMeeting>>, TError, TData>>, fetch?: RequestInit}
 ) => {
 
 const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetMeetingQueryKey(id);
+  const queryKey =  queryOptions?.queryKey ?? getGetMeetingQueryKey(associationId,id);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMeeting>>> = ({ signal }) => getMeeting(id, { signal, ...fetchOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMeeting>>> = ({ signal }) => getMeeting(associationId,id, { signal, ...fetchOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMeeting>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+   return  { queryKey, queryFn, enabled: associationId !== null && associationId !== undefined && id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMeeting>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type GetMeetingQueryResult = NonNullable<Awaited<ReturnType<typeof getMeeting>>>
@@ -442,7 +455,8 @@ export type GetMeetingQueryError = globalThis.Error & { info?: NotFoundResponse 
 
 
 export function useGetMeeting<TData = Awaited<ReturnType<typeof getMeeting>>, TError = globalThis.Error & { info?: NotFoundResponse | UnprocessableEntityResponse; status?: number }>(
- id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMeeting>>, TError, TData>> & Pick<
+ associationId: string,
+    id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMeeting>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof getMeeting>>,
           TError,
@@ -452,7 +466,8 @@ export function useGetMeeting<TData = Awaited<ReturnType<typeof getMeeting>>, TE
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useGetMeeting<TData = Awaited<ReturnType<typeof getMeeting>>, TError = globalThis.Error & { info?: NotFoundResponse | UnprocessableEntityResponse; status?: number }>(
- id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMeeting>>, TError, TData>> & Pick<
+ associationId: string,
+    id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMeeting>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof getMeeting>>,
           TError,
@@ -462,7 +477,8 @@ export function useGetMeeting<TData = Awaited<ReturnType<typeof getMeeting>>, TE
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useGetMeeting<TData = Awaited<ReturnType<typeof getMeeting>>, TError = globalThis.Error & { info?: NotFoundResponse | UnprocessableEntityResponse; status?: number }>(
- id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMeeting>>, TError, TData>>, fetch?: RequestInit}
+ associationId: string,
+    id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMeeting>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -470,11 +486,12 @@ export function useGetMeeting<TData = Awaited<ReturnType<typeof getMeeting>>, TE
  */
 
 export function useGetMeeting<TData = Awaited<ReturnType<typeof getMeeting>>, TError = globalThis.Error & { info?: NotFoundResponse | UnprocessableEntityResponse; status?: number }>(
- id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMeeting>>, TError, TData>>, fetch?: RequestInit}
+ associationId: string,
+    id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMeeting>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getGetMeetingQueryOptions(id,options)
+  const queryOptions = getGetMeetingQueryOptions(associationId,id,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -513,20 +530,20 @@ export type getAssociationSettingsResponseError = (getAssociationSettingsRespons
   headers: Headers;
 };
 
-export const getGetAssociationSettingsUrl = () => {
+export const getGetAssociationSettingsUrl = (associationId: string,) => {
 
 
 
 
-  return `/api/governance/settings`
+  return `/api/governance/associations/${associationId}/settings`
 }
 
 /**
  * @summary Current association settings (latest saved revision)
  */
-export const getAssociationSettings = async ( options?: RequestInit): Promise<getAssociationSettingsResponseSuccess> => {
+export const getAssociationSettings = async (associationId: string, options?: RequestInit): Promise<getAssociationSettingsResponseSuccess> => {
 
-  const res = await fetch(getGetAssociationSettingsUrl(),
+  const res = await fetch(getGetAssociationSettingsUrl(associationId),
   {
     ...options,
     method: 'GET'
@@ -553,29 +570,29 @@ export const getAssociationSettings = async ( options?: RequestInit): Promise<ge
 
 
 
-export const getGetAssociationSettingsQueryKey = () => {
+export const getGetAssociationSettingsQueryKey = (associationId: string,) => {
     return [
-    `/api/governance/settings`
+    `/api/governance/associations/${associationId}/settings`
     ] as const;
     }
 
 
-export const getGetAssociationSettingsQueryOptions = <TData = Awaited<ReturnType<typeof getAssociationSettings>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | Problem; status?: number }>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAssociationSettings>>, TError, TData>>, fetch?: RequestInit}
+export const getGetAssociationSettingsQueryOptions = <TData = Awaited<ReturnType<typeof getAssociationSettings>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | Problem; status?: number }>(associationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAssociationSettings>>, TError, TData>>, fetch?: RequestInit}
 ) => {
 
 const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetAssociationSettingsQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getGetAssociationSettingsQueryKey(associationId);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAssociationSettings>>> = ({ signal }) => getAssociationSettings({ signal, ...fetchOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAssociationSettings>>> = ({ signal }) => getAssociationSettings(associationId, { signal, ...fetchOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAssociationSettings>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+   return  { queryKey, queryFn, enabled: associationId !== null && associationId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAssociationSettings>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type GetAssociationSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getAssociationSettings>>>
@@ -583,7 +600,7 @@ export type GetAssociationSettingsQueryError = globalThis.Error & { info?: Sessi
 
 
 export function useGetAssociationSettings<TData = Awaited<ReturnType<typeof getAssociationSettings>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | Problem; status?: number }>(
-  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAssociationSettings>>, TError, TData>> & Pick<
+ associationId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAssociationSettings>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof getAssociationSettings>>,
           TError,
@@ -593,7 +610,7 @@ export function useGetAssociationSettings<TData = Awaited<ReturnType<typeof getA
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useGetAssociationSettings<TData = Awaited<ReturnType<typeof getAssociationSettings>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | Problem; status?: number }>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAssociationSettings>>, TError, TData>> & Pick<
+ associationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAssociationSettings>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof getAssociationSettings>>,
           TError,
@@ -603,7 +620,7 @@ export function useGetAssociationSettings<TData = Awaited<ReturnType<typeof getA
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useGetAssociationSettings<TData = Awaited<ReturnType<typeof getAssociationSettings>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | Problem; status?: number }>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAssociationSettings>>, TError, TData>>, fetch?: RequestInit}
+ associationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAssociationSettings>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -611,11 +628,11 @@ export function useGetAssociationSettings<TData = Awaited<ReturnType<typeof getA
  */
 
 export function useGetAssociationSettings<TData = Awaited<ReturnType<typeof getAssociationSettings>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | Problem; status?: number }>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAssociationSettings>>, TError, TData>>, fetch?: RequestInit}
+ associationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAssociationSettings>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getGetAssociationSettingsQueryOptions(options)
+  const queryOptions = getGetAssociationSettingsQueryOptions(associationId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -659,18 +676,19 @@ export type saveAssociationSettingsResponseError = (saveAssociationSettingsRespo
   headers: Headers;
 };
 
-export const getSaveAssociationSettingsUrl = () => {
+export const getSaveAssociationSettingsUrl = (associationId: string,) => {
 
 
 
 
-  return `/api/governance/settings`
+  return `/api/governance/associations/${associationId}/settings`
 }
 
 /**
  * @summary Save a new revision of the association settings (AC-42, Flow 12)
  */
-export const saveAssociationSettings = async (associationSettingsInput: AssociationSettingsInput, options?: RequestInit): Promise<saveAssociationSettingsResponseSuccess> => {
+export const saveAssociationSettings = async (associationId: string,
+    associationSettingsInput: AssociationSettingsInput, options?: RequestInit): Promise<saveAssociationSettingsResponseSuccess> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -686,7 +704,7 @@ export const saveAssociationSettings = async (associationSettingsInput: Associat
     }
     return headers;
   };
-const res = await fetch(getSaveAssociationSettingsUrl(),
+const res = await fetch(getSaveAssociationSettingsUrl(associationId),
   {
     ...options,
     method: 'PUT',
@@ -730,9 +748,9 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveAssociationSettings>>, SaveAssociationSettingsMutationVariables> = (props) => {
-          const {data} = props ?? {};
+          const {associationId,data} = props ?? {};
 
-          return  saveAssociationSettings(data,fetchOptions)
+          return  saveAssociationSettings(associationId,data,fetchOptions)
         }
 
 
@@ -745,7 +763,7 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
     export type SaveAssociationSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof saveAssociationSettings>>>
     export type SaveAssociationSettingsMutationBody = AssociationSettingsInput
     export type SaveAssociationSettingsMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | Problem; status?: number }
-    export type SaveAssociationSettingsMutationVariables = {data: AssociationSettingsInput}
+    export type SaveAssociationSettingsMutationVariables = {associationId: string;data: AssociationSettingsInput}
 
     /**
  * @summary Save a new revision of the association settings (AC-42, Flow 12)
@@ -787,7 +805,8 @@ export type listBoardMembersResponseError = (listBoardMembersResponse401 | listB
   headers: Headers;
 };
 
-export const getListBoardMembersUrl = (params?: ListBoardMembersParams,) => {
+export const getListBoardMembersUrl = (associationId: string,
+    params?: ListBoardMembersParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -799,15 +818,16 @@ export const getListBoardMembersUrl = (params?: ListBoardMembersParams,) => {
 
   const stringifiedParams = normalizedParams.toString();
 
-  return stringifiedParams.length > 0 ? `/api/governance/board-members?${stringifiedParams}` : `/api/governance/board-members`
+  return stringifiedParams.length > 0 ? `/api/governance/associations/${associationId}/board-members?${stringifiedParams}` : `/api/governance/associations/${associationId}/board-members`
 }
 
 /**
  * @summary Board roster with terms, newest entry first (US-01)
  */
-export const listBoardMembers = async (params?: ListBoardMembersParams, options?: RequestInit): Promise<listBoardMembersResponseSuccess> => {
+export const listBoardMembers = async (associationId: string,
+    params?: ListBoardMembersParams, options?: RequestInit): Promise<listBoardMembersResponseSuccess> => {
 
-  const res = await fetch(getListBoardMembersUrl(params),
+  const res = await fetch(getListBoardMembersUrl(associationId,params),
   {
     ...options,
     method: 'GET'
@@ -834,29 +854,31 @@ export const listBoardMembers = async (params?: ListBoardMembersParams, options?
 
 
 
-export const getListBoardMembersQueryKey = (params?: ListBoardMembersParams,) => {
+export const getListBoardMembersQueryKey = (associationId: string,
+    params?: ListBoardMembersParams,) => {
     return [
-    `/api/governance/board-members`, ...(params ? [params] : [])
+    `/api/governance/associations/${associationId}/board-members`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getListBoardMembersQueryOptions = <TData = Awaited<ReturnType<typeof listBoardMembers>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | ValidationFailedResponse; status?: number }>(params?: ListBoardMembersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBoardMembers>>, TError, TData>>, fetch?: RequestInit}
+export const getListBoardMembersQueryOptions = <TData = Awaited<ReturnType<typeof listBoardMembers>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | ValidationFailedResponse; status?: number }>(associationId: string,
+    params?: ListBoardMembersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBoardMembers>>, TError, TData>>, fetch?: RequestInit}
 ) => {
 
 const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getListBoardMembersQueryKey(params);
+  const queryKey =  queryOptions?.queryKey ?? getListBoardMembersQueryKey(associationId,params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listBoardMembers>>> = ({ signal }) => listBoardMembers(params, { signal, ...fetchOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listBoardMembers>>> = ({ signal }) => listBoardMembers(associationId,params, { signal, ...fetchOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBoardMembers>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+   return  { queryKey, queryFn, enabled: associationId !== null && associationId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBoardMembers>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type ListBoardMembersQueryResult = NonNullable<Awaited<ReturnType<typeof listBoardMembers>>>
@@ -864,7 +886,8 @@ export type ListBoardMembersQueryError = globalThis.Error & { info?: SessionRequ
 
 
 export function useListBoardMembers<TData = Awaited<ReturnType<typeof listBoardMembers>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | ValidationFailedResponse; status?: number }>(
- params: undefined |  ListBoardMembersParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBoardMembers>>, TError, TData>> & Pick<
+ associationId: string,
+    params: undefined |  ListBoardMembersParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBoardMembers>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listBoardMembers>>,
           TError,
@@ -874,7 +897,8 @@ export function useListBoardMembers<TData = Awaited<ReturnType<typeof listBoardM
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListBoardMembers<TData = Awaited<ReturnType<typeof listBoardMembers>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | ValidationFailedResponse; status?: number }>(
- params?: ListBoardMembersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBoardMembers>>, TError, TData>> & Pick<
+ associationId: string,
+    params?: ListBoardMembersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBoardMembers>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listBoardMembers>>,
           TError,
@@ -884,7 +908,8 @@ export function useListBoardMembers<TData = Awaited<ReturnType<typeof listBoardM
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListBoardMembers<TData = Awaited<ReturnType<typeof listBoardMembers>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | ValidationFailedResponse; status?: number }>(
- params?: ListBoardMembersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBoardMembers>>, TError, TData>>, fetch?: RequestInit}
+ associationId: string,
+    params?: ListBoardMembersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBoardMembers>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -892,11 +917,12 @@ export function useListBoardMembers<TData = Awaited<ReturnType<typeof listBoardM
  */
 
 export function useListBoardMembers<TData = Awaited<ReturnType<typeof listBoardMembers>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | ValidationFailedResponse; status?: number }>(
- params?: ListBoardMembersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBoardMembers>>, TError, TData>>, fetch?: RequestInit}
+ associationId: string,
+    params?: ListBoardMembersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBoardMembers>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getListBoardMembersQueryOptions(params,options)
+  const queryOptions = getListBoardMembersQueryOptions(associationId,params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -935,18 +961,19 @@ export type createBoardMemberResponseError = (createBoardMemberResponse401 | cre
   headers: Headers;
 };
 
-export const getCreateBoardMemberUrl = () => {
+export const getCreateBoardMemberUrl = (associationId: string,) => {
 
 
 
 
-  return `/api/governance/board-members`
+  return `/api/governance/associations/${associationId}/board-members`
 }
 
 /**
  * @summary Add a person to the board roster for one term (AC-02, Flow 12)
  */
-export const createBoardMember = async (boardMemberInput: BoardMemberInput, options?: RequestInit): Promise<createBoardMemberResponseSuccess> => {
+export const createBoardMember = async (associationId: string,
+    boardMemberInput: BoardMemberInput, options?: RequestInit): Promise<createBoardMemberResponseSuccess> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -962,7 +989,7 @@ export const createBoardMember = async (boardMemberInput: BoardMemberInput, opti
     }
     return headers;
   };
-const res = await fetch(getCreateBoardMemberUrl(),
+const res = await fetch(getCreateBoardMemberUrl(associationId),
   {
     ...options,
     method: 'POST',
@@ -1006,9 +1033,9 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof createBoardMember>>, CreateBoardMemberMutationVariables> = (props) => {
-          const {data} = props ?? {};
+          const {associationId,data} = props ?? {};
 
-          return  createBoardMember(data,fetchOptions)
+          return  createBoardMember(associationId,data,fetchOptions)
         }
 
 
@@ -1021,7 +1048,7 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
     export type CreateBoardMemberMutationResult = NonNullable<Awaited<ReturnType<typeof createBoardMember>>>
     export type CreateBoardMemberMutationBody = BoardMemberInput
     export type CreateBoardMemberMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | Problem; status?: number }
-    export type CreateBoardMemberMutationVariables = {data: BoardMemberInput}
+    export type CreateBoardMemberMutationVariables = {associationId: string;data: BoardMemberInput}
 
     /**
  * @summary Add a person to the board roster for one term (AC-02, Flow 12)
@@ -1068,18 +1095,20 @@ export type updateBoardMemberResponseError = (updateBoardMemberResponse401 | upd
   headers: Headers;
 };
 
-export const getUpdateBoardMemberUrl = (boardMemberId: string,) => {
+export const getUpdateBoardMemberUrl = (associationId: string,
+    boardMemberId: string,) => {
 
 
 
 
-  return `/api/governance/board-members/${boardMemberId}`
+  return `/api/governance/associations/${associationId}/board-members/${boardMemberId}`
 }
 
 /**
  * @summary Save a new revision of a roster entry (e.g. the term ends) (AC-02, Flow 12)
  */
-export const updateBoardMember = async (boardMemberId: string,
+export const updateBoardMember = async (associationId: string,
+    boardMemberId: string,
     boardMemberInput: BoardMemberInput, options?: RequestInit): Promise<updateBoardMemberResponseSuccess> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
@@ -1096,7 +1125,7 @@ export const updateBoardMember = async (boardMemberId: string,
     }
     return headers;
   };
-const res = await fetch(getUpdateBoardMemberUrl(boardMemberId),
+const res = await fetch(getUpdateBoardMemberUrl(associationId,boardMemberId),
   {
     ...options,
     method: 'PUT',
@@ -1140,9 +1169,9 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateBoardMember>>, UpdateBoardMemberMutationVariables> = (props) => {
-          const {boardMemberId,data} = props ?? {};
+          const {associationId,boardMemberId,data} = props ?? {};
 
-          return  updateBoardMember(boardMemberId,data,fetchOptions)
+          return  updateBoardMember(associationId,boardMemberId,data,fetchOptions)
         }
 
 
@@ -1155,7 +1184,7 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
     export type UpdateBoardMemberMutationResult = NonNullable<Awaited<ReturnType<typeof updateBoardMember>>>
     export type UpdateBoardMemberMutationBody = BoardMemberInput
     export type UpdateBoardMemberMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | Problem; status?: number }
-    export type UpdateBoardMemberMutationVariables = {boardMemberId: string;data: BoardMemberInput}
+    export type UpdateBoardMemberMutationVariables = {associationId: string;boardMemberId: string;data: BoardMemberInput}
 
     /**
  * @summary Save a new revision of a roster entry (e.g. the term ends) (AC-02, Flow 12)
@@ -1197,7 +1226,8 @@ export type listCasesResponseError = (listCasesResponse401 | listCasesResponse40
   headers: Headers;
 };
 
-export const getListCasesUrl = (params?: ListCasesParams,) => {
+export const getListCasesUrl = (associationId: string,
+    params?: ListCasesParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -1209,15 +1239,16 @@ export const getListCasesUrl = (params?: ListCasesParams,) => {
 
   const stringifiedParams = normalizedParams.toString();
 
-  return stringifiedParams.length > 0 ? `/api/governance/cases?${stringifiedParams}` : `/api/governance/cases`
+  return stringifiedParams.length > 0 ? `/api/governance/associations/${associationId}/cases?${stringifiedParams}` : `/api/governance/associations/${associationId}/cases`
 }
 
 /**
  * @summary List справи, newest first
  */
-export const listCases = async (params?: ListCasesParams, options?: RequestInit): Promise<listCasesResponseSuccess> => {
+export const listCases = async (associationId: string,
+    params?: ListCasesParams, options?: RequestInit): Promise<listCasesResponseSuccess> => {
 
-  const res = await fetch(getListCasesUrl(params),
+  const res = await fetch(getListCasesUrl(associationId,params),
   {
     ...options,
     method: 'GET'
@@ -1244,29 +1275,31 @@ export const listCases = async (params?: ListCasesParams, options?: RequestInit)
 
 
 
-export const getListCasesQueryKey = (params?: ListCasesParams,) => {
+export const getListCasesQueryKey = (associationId: string,
+    params?: ListCasesParams,) => {
     return [
-    `/api/governance/cases`, ...(params ? [params] : [])
+    `/api/governance/associations/${associationId}/cases`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getListCasesQueryOptions = <TData = Awaited<ReturnType<typeof listCases>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | ValidationFailedResponse; status?: number }>(params?: ListCasesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCases>>, TError, TData>>, fetch?: RequestInit}
+export const getListCasesQueryOptions = <TData = Awaited<ReturnType<typeof listCases>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | ValidationFailedResponse; status?: number }>(associationId: string,
+    params?: ListCasesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCases>>, TError, TData>>, fetch?: RequestInit}
 ) => {
 
 const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getListCasesQueryKey(params);
+  const queryKey =  queryOptions?.queryKey ?? getListCasesQueryKey(associationId,params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCases>>> = ({ signal }) => listCases(params, { signal, ...fetchOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCases>>> = ({ signal }) => listCases(associationId,params, { signal, ...fetchOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCases>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+   return  { queryKey, queryFn, enabled: associationId !== null && associationId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCases>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type ListCasesQueryResult = NonNullable<Awaited<ReturnType<typeof listCases>>>
@@ -1274,7 +1307,8 @@ export type ListCasesQueryError = globalThis.Error & { info?: SessionRequiredRes
 
 
 export function useListCases<TData = Awaited<ReturnType<typeof listCases>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | ValidationFailedResponse; status?: number }>(
- params: undefined |  ListCasesParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCases>>, TError, TData>> & Pick<
+ associationId: string,
+    params: undefined |  ListCasesParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCases>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listCases>>,
           TError,
@@ -1284,7 +1318,8 @@ export function useListCases<TData = Awaited<ReturnType<typeof listCases>>, TErr
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListCases<TData = Awaited<ReturnType<typeof listCases>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | ValidationFailedResponse; status?: number }>(
- params?: ListCasesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCases>>, TError, TData>> & Pick<
+ associationId: string,
+    params?: ListCasesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCases>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listCases>>,
           TError,
@@ -1294,7 +1329,8 @@ export function useListCases<TData = Awaited<ReturnType<typeof listCases>>, TErr
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListCases<TData = Awaited<ReturnType<typeof listCases>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | ValidationFailedResponse; status?: number }>(
- params?: ListCasesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCases>>, TError, TData>>, fetch?: RequestInit}
+ associationId: string,
+    params?: ListCasesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCases>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -1302,11 +1338,12 @@ export function useListCases<TData = Awaited<ReturnType<typeof listCases>>, TErr
  */
 
 export function useListCases<TData = Awaited<ReturnType<typeof listCases>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | ValidationFailedResponse; status?: number }>(
- params?: ListCasesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCases>>, TError, TData>>, fetch?: RequestInit}
+ associationId: string,
+    params?: ListCasesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCases>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getListCasesQueryOptions(params,options)
+  const queryOptions = getListCasesQueryOptions(associationId,params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -1345,18 +1382,19 @@ export type createCaseResponseError = (createCaseResponse401 | createCaseRespons
   headers: Headers;
 };
 
-export const getCreateCaseUrl = () => {
+export const getCreateCaseUrl = (associationId: string,) => {
 
 
 
 
-  return `/api/governance/cases`
+  return `/api/governance/associations/${associationId}/cases`
 }
 
 /**
  * @summary Open a справа (US-02)
  */
-export const createCase = async (caseInput: CaseInput, options?: RequestInit): Promise<createCaseResponseSuccess> => {
+export const createCase = async (associationId: string,
+    caseInput: CaseInput, options?: RequestInit): Promise<createCaseResponseSuccess> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -1372,7 +1410,7 @@ export const createCase = async (caseInput: CaseInput, options?: RequestInit): P
     }
     return headers;
   };
-const res = await fetch(getCreateCaseUrl(),
+const res = await fetch(getCreateCaseUrl(associationId),
   {
     ...options,
     method: 'POST',
@@ -1416,9 +1454,9 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof createCase>>, CreateCaseMutationVariables> = (props) => {
-          const {data} = props ?? {};
+          const {associationId,data} = props ?? {};
 
-          return  createCase(data,fetchOptions)
+          return  createCase(associationId,data,fetchOptions)
         }
 
 
@@ -1431,7 +1469,7 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
     export type CreateCaseMutationResult = NonNullable<Awaited<ReturnType<typeof createCase>>>
     export type CreateCaseMutationBody = CaseInput
     export type CreateCaseMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | ValidationFailedResponse; status?: number }
-    export type CreateCaseMutationVariables = {data: CaseInput}
+    export type CreateCaseMutationVariables = {associationId: string;data: CaseInput}
 
     /**
  * @summary Open a справа (US-02)
@@ -1473,20 +1511,22 @@ export type getCaseResponseError = (getCaseResponse401 | getCaseResponse403 | ge
   headers: Headers;
 };
 
-export const getGetCaseUrl = (caseId: string,) => {
+export const getGetCaseUrl = (associationId: string,
+    caseId: string,) => {
 
 
 
 
-  return `/api/governance/cases/${caseId}`
+  return `/api/governance/associations/${associationId}/cases/${caseId}`
 }
 
 /**
  * @summary One справа with all its document versions (AC-03, AC-19)
  */
-export const getCase = async (caseId: string, options?: RequestInit): Promise<getCaseResponseSuccess> => {
+export const getCase = async (associationId: string,
+    caseId: string, options?: RequestInit): Promise<getCaseResponseSuccess> => {
 
-  const res = await fetch(getGetCaseUrl(caseId),
+  const res = await fetch(getGetCaseUrl(associationId,caseId),
   {
     ...options,
     method: 'GET'
@@ -1513,29 +1553,31 @@ export const getCase = async (caseId: string, options?: RequestInit): Promise<ge
 
 
 
-export const getGetCaseQueryKey = (caseId: string,) => {
+export const getGetCaseQueryKey = (associationId: string,
+    caseId: string,) => {
     return [
-    `/api/governance/cases/${caseId}`
+    `/api/governance/associations/${associationId}/cases/${caseId}`
     ] as const;
     }
 
 
-export const getGetCaseQueryOptions = <TData = Awaited<ReturnType<typeof getCase>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse; status?: number }>(caseId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCase>>, TError, TData>>, fetch?: RequestInit}
+export const getGetCaseQueryOptions = <TData = Awaited<ReturnType<typeof getCase>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse; status?: number }>(associationId: string,
+    caseId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCase>>, TError, TData>>, fetch?: RequestInit}
 ) => {
 
 const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetCaseQueryKey(caseId);
+  const queryKey =  queryOptions?.queryKey ?? getGetCaseQueryKey(associationId,caseId);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCase>>> = ({ signal }) => getCase(caseId, { signal, ...fetchOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCase>>> = ({ signal }) => getCase(associationId,caseId, { signal, ...fetchOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, enabled: caseId !== null && caseId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCase>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+   return  { queryKey, queryFn, enabled: associationId !== null && associationId !== undefined && caseId !== null && caseId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCase>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type GetCaseQueryResult = NonNullable<Awaited<ReturnType<typeof getCase>>>
@@ -1543,7 +1585,8 @@ export type GetCaseQueryError = globalThis.Error & { info?: SessionRequiredRespo
 
 
 export function useGetCase<TData = Awaited<ReturnType<typeof getCase>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse; status?: number }>(
- caseId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCase>>, TError, TData>> & Pick<
+ associationId: string,
+    caseId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCase>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof getCase>>,
           TError,
@@ -1553,7 +1596,8 @@ export function useGetCase<TData = Awaited<ReturnType<typeof getCase>>, TError =
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useGetCase<TData = Awaited<ReturnType<typeof getCase>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse; status?: number }>(
- caseId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCase>>, TError, TData>> & Pick<
+ associationId: string,
+    caseId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCase>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof getCase>>,
           TError,
@@ -1563,7 +1607,8 @@ export function useGetCase<TData = Awaited<ReturnType<typeof getCase>>, TError =
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useGetCase<TData = Awaited<ReturnType<typeof getCase>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse; status?: number }>(
- caseId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCase>>, TError, TData>>, fetch?: RequestInit}
+ associationId: string,
+    caseId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCase>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -1571,11 +1616,12 @@ export function useGetCase<TData = Awaited<ReturnType<typeof getCase>>, TError =
  */
 
 export function useGetCase<TData = Awaited<ReturnType<typeof getCase>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse; status?: number }>(
- caseId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCase>>, TError, TData>>, fetch?: RequestInit}
+ associationId: string,
+    caseId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCase>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getGetCaseQueryOptions(caseId,options)
+  const queryOptions = getGetCaseQueryOptions(associationId,caseId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -1624,12 +1670,13 @@ export type addCaseDocumentResponseError = (addCaseDocumentResponse401 | addCase
   headers: Headers;
 };
 
-export const getAddCaseDocumentUrl = (caseId: string,) => {
+export const getAddCaseDocumentUrl = (associationId: string,
+    caseId: string,) => {
 
 
 
 
-  return `/api/governance/cases/${caseId}/documents`
+  return `/api/governance/associations/${associationId}/cases/${caseId}/documents`
 }
 
 /**
@@ -1638,7 +1685,8 @@ export const getAddCaseDocumentUrl = (caseId: string,) => {
  * (AC-09, AC-05d, AC-14b). The file is streamed to storage before the transaction (Flow 8).
  * @summary Upload a document, or a newer version of one, into a справа (US-04, AC-09, Flow 3, Flow 8)
  */
-export const addCaseDocument = async (caseId: string,
+export const addCaseDocument = async (associationId: string,
+    caseId: string,
     caseDocumentUpload: CaseDocumentUpload, options?: RequestInit): Promise<addCaseDocumentResponseSuccess> => {
     const formData = new FormData();
 formData.append(`file`, caseDocumentUpload.file instanceof Blob ? caseDocumentUpload.file : new Blob([caseDocumentUpload.file], { type: 'application/pdf, image/jpeg, image/png' }));
@@ -1649,7 +1697,7 @@ if(caseDocumentUpload.document_date !== undefined) {
  formData.append(`document_date`, caseDocumentUpload.document_date);
  }
 
-  const res = await fetch(getAddCaseDocumentUrl(caseId),
+  const res = await fetch(getAddCaseDocumentUrl(associationId,caseId),
   {
     ...options,
     method: 'POST'
@@ -1693,9 +1741,9 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof addCaseDocument>>, AddCaseDocumentMutationVariables> = (props) => {
-          const {caseId,data} = props ?? {};
+          const {associationId,caseId,data} = props ?? {};
 
-          return  addCaseDocument(caseId,data,fetchOptions)
+          return  addCaseDocument(associationId,caseId,data,fetchOptions)
         }
 
 
@@ -1708,7 +1756,7 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
     export type AddCaseDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof addCaseDocument>>>
     export type AddCaseDocumentMutationBody = CaseDocumentUpload
     export type AddCaseDocumentMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | Problem | StorageUnavailableResponse; status?: number }
-    export type AddCaseDocumentMutationVariables = {caseId: string;data: CaseDocumentUpload}
+    export type AddCaseDocumentMutationVariables = {associationId: string;caseId: string;data: CaseDocumentUpload}
 
     /**
  * @summary Upload a document, or a newer version of one, into a справа (US-04, AC-09, Flow 3, Flow 8)
@@ -1765,21 +1813,23 @@ export type downloadFileResponseError = (downloadFileResponse401 | downloadFileR
   headers: Headers;
 };
 
-export const getDownloadFileUrl = (fileId: string,) => {
+export const getDownloadFileUrl = (associationId: string,
+    fileId: string,) => {
 
 
 
 
-  return `/api/governance/files/${fileId}`
+  return `/api/governance/associations/${associationId}/files/${fileId}`
 }
 
 /**
  * Served as an attachment with `X-Content-Type-Options nosniff`, never inline (SAD §8 Files).
  * @summary Download a stored file — case document, print copy or signed scan (US-07, Flow 13)
  */
-export const downloadFile = async (fileId: string, options?: RequestInit): Promise<downloadFileResponseSuccess> => {
+export const downloadFile = async (associationId: string,
+    fileId: string, options?: RequestInit): Promise<downloadFileResponseSuccess> => {
 
-  const res = await fetch(getDownloadFileUrl(fileId),
+  const res = await fetch(getDownloadFileUrl(associationId,fileId),
   {
     ...options,
     method: 'GET'
@@ -1806,29 +1856,31 @@ export const downloadFile = async (fileId: string, options?: RequestInit): Promi
 
 
 
-export const getDownloadFileQueryKey = (fileId: string,) => {
+export const getDownloadFileQueryKey = (associationId: string,
+    fileId: string,) => {
     return [
-    `/api/governance/files/${fileId}`
+    `/api/governance/associations/${associationId}/files/${fileId}`
     ] as const;
     }
 
 
-export const getDownloadFileQueryOptions = <TData = Awaited<ReturnType<typeof downloadFile>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | StorageUnavailableResponse; status?: number }>(fileId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof downloadFile>>, TError, TData>>, fetch?: RequestInit}
+export const getDownloadFileQueryOptions = <TData = Awaited<ReturnType<typeof downloadFile>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | StorageUnavailableResponse; status?: number }>(associationId: string,
+    fileId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof downloadFile>>, TError, TData>>, fetch?: RequestInit}
 ) => {
 
 const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getDownloadFileQueryKey(fileId);
+  const queryKey =  queryOptions?.queryKey ?? getDownloadFileQueryKey(associationId,fileId);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadFile>>> = ({ signal }) => downloadFile(fileId, { signal, ...fetchOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadFile>>> = ({ signal }) => downloadFile(associationId,fileId, { signal, ...fetchOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, enabled: fileId !== null && fileId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadFile>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+   return  { queryKey, queryFn, enabled: associationId !== null && associationId !== undefined && fileId !== null && fileId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadFile>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type DownloadFileQueryResult = NonNullable<Awaited<ReturnType<typeof downloadFile>>>
@@ -1836,7 +1888,8 @@ export type DownloadFileQueryError = globalThis.Error & { info?: SessionRequired
 
 
 export function useDownloadFile<TData = Awaited<ReturnType<typeof downloadFile>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | StorageUnavailableResponse; status?: number }>(
- fileId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof downloadFile>>, TError, TData>> & Pick<
+ associationId: string,
+    fileId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof downloadFile>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof downloadFile>>,
           TError,
@@ -1846,7 +1899,8 @@ export function useDownloadFile<TData = Awaited<ReturnType<typeof downloadFile>>
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useDownloadFile<TData = Awaited<ReturnType<typeof downloadFile>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | StorageUnavailableResponse; status?: number }>(
- fileId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof downloadFile>>, TError, TData>> & Pick<
+ associationId: string,
+    fileId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof downloadFile>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof downloadFile>>,
           TError,
@@ -1856,7 +1910,8 @@ export function useDownloadFile<TData = Awaited<ReturnType<typeof downloadFile>>
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useDownloadFile<TData = Awaited<ReturnType<typeof downloadFile>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | StorageUnavailableResponse; status?: number }>(
- fileId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof downloadFile>>, TError, TData>>, fetch?: RequestInit}
+ associationId: string,
+    fileId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof downloadFile>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -1864,11 +1919,12 @@ export function useDownloadFile<TData = Awaited<ReturnType<typeof downloadFile>>
  */
 
 export function useDownloadFile<TData = Awaited<ReturnType<typeof downloadFile>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | StorageUnavailableResponse; status?: number }>(
- fileId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof downloadFile>>, TError, TData>>, fetch?: RequestInit}
+ associationId: string,
+    fileId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof downloadFile>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getDownloadFileQueryOptions(fileId,options)
+  const queryOptions = getDownloadFileQueryOptions(associationId,fileId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -1922,12 +1978,13 @@ export type createAssistantTurnResponseError = (createAssistantTurnResponse401 |
   headers: Headers;
 };
 
-export const getCreateAssistantTurnUrl = (meetingId: string,) => {
+export const getCreateAssistantTurnUrl = (associationId: string,
+    meetingId: string,) => {
 
 
 
 
-  return `/api/governance/meetings/${meetingId}/assistant-turns`
+  return `/api/governance/associations/${associationId}/meetings/${meetingId}/assistant-turns`
 }
 
 /**
@@ -1937,7 +1994,8 @@ export const getCreateAssistantTurnUrl = (meetingId: string,) => {
  * готовий до голосування / готовий до підпису draft returns it to чернетка (AC-05d, AC-14b).
  * @summary Ask the помічник протоколу for a draft of the meeting's protocol, or refine it (US-12, Flow 1)
  */
-export const createAssistantTurn = async (meetingId: string,
+export const createAssistantTurn = async (associationId: string,
+    meetingId: string,
     assistantTurnInput: AssistantTurnInput, options?: RequestInit): Promise<createAssistantTurnResponseSuccess> => {
     const formData = new FormData();
 formData.append(`message`, assistantTurnInput.message);
@@ -1951,7 +2009,7 @@ if(assistantTurnInput.files !== undefined) {
  assistantTurnInput.files.forEach(value => formData.append(`files`, value));
  }
 
-  const res = await fetch(getCreateAssistantTurnUrl(meetingId),
+  const res = await fetch(getCreateAssistantTurnUrl(associationId,meetingId),
   {
     ...options,
     method: 'POST'
@@ -1995,9 +2053,9 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAssistantTurn>>, CreateAssistantTurnMutationVariables> = (props) => {
-          const {meetingId,data} = props ?? {};
+          const {associationId,meetingId,data} = props ?? {};
 
-          return  createAssistantTurn(meetingId,data,fetchOptions)
+          return  createAssistantTurn(associationId,meetingId,data,fetchOptions)
         }
 
 
@@ -2010,7 +2068,7 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
     export type CreateAssistantTurnMutationResult = NonNullable<Awaited<ReturnType<typeof createAssistantTurn>>>
     export type CreateAssistantTurnMutationBody = AssistantTurnInput
     export type CreateAssistantTurnMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | Problem | StorageUnavailableResponse; status?: number }
-    export type CreateAssistantTurnMutationVariables = {meetingId: string;data: AssistantTurnInput}
+    export type CreateAssistantTurnMutationVariables = {associationId: string;meetingId: string;data: AssistantTurnInput}
 
     /**
  * @summary Ask the помічник протоколу for a draft of the meeting's protocol, or refine it (US-12, Flow 1)
@@ -2062,18 +2120,20 @@ export type addAgendaItemFromCaseResponseError = (addAgendaItemFromCaseResponse4
   headers: Headers;
 };
 
-export const getAddAgendaItemFromCaseUrl = (meetingId: string,) => {
+export const getAddAgendaItemFromCaseUrl = (associationId: string,
+    meetingId: string,) => {
 
 
 
 
-  return `/api/governance/meetings/${meetingId}/agenda-items`
+  return `/api/governance/associations/${associationId}/meetings/${meetingId}/agenda-items`
 }
 
 /**
  * @summary Open the meeting's draft from a справа, or add the справа as an agenda item (US-02, AC-03c)
  */
-export const addAgendaItemFromCase = async (meetingId: string,
+export const addAgendaItemFromCase = async (associationId: string,
+    meetingId: string,
     agendaItemFromCaseInput: AgendaItemFromCaseInput, options?: RequestInit): Promise<addAgendaItemFromCaseResponseSuccess> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
@@ -2090,7 +2150,7 @@ export const addAgendaItemFromCase = async (meetingId: string,
     }
     return headers;
   };
-const res = await fetch(getAddAgendaItemFromCaseUrl(meetingId),
+const res = await fetch(getAddAgendaItemFromCaseUrl(associationId,meetingId),
   {
     ...options,
     method: 'POST',
@@ -2134,9 +2194,9 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof addAgendaItemFromCase>>, AddAgendaItemFromCaseMutationVariables> = (props) => {
-          const {meetingId,data} = props ?? {};
+          const {associationId,meetingId,data} = props ?? {};
 
-          return  addAgendaItemFromCase(meetingId,data,fetchOptions)
+          return  addAgendaItemFromCase(associationId,meetingId,data,fetchOptions)
         }
 
 
@@ -2149,7 +2209,7 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
     export type AddAgendaItemFromCaseMutationResult = NonNullable<Awaited<ReturnType<typeof addAgendaItemFromCase>>>
     export type AddAgendaItemFromCaseMutationBody = AgendaItemFromCaseInput
     export type AddAgendaItemFromCaseMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | Problem | ValidationFailedResponse; status?: number }
-    export type AddAgendaItemFromCaseMutationVariables = {meetingId: string;data: AgendaItemFromCaseInput}
+    export type AddAgendaItemFromCaseMutationVariables = {associationId: string;meetingId: string;data: AgendaItemFromCaseInput}
 
     /**
  * @summary Open the meeting's draft from a справа, or add the справа as an agenda item (US-02, AC-03c)
@@ -2191,20 +2251,22 @@ export type getJobResponseError = (getJobResponse401 | getJobResponse403 | getJo
   headers: Headers;
 };
 
-export const getGetJobUrl = (jobId: number,) => {
+export const getGetJobUrl = (associationId: string,
+    jobId: number,) => {
 
 
 
 
-  return `/api/governance/jobs/${jobId}`
+  return `/api/governance/associations/${associationId}/jobs/${jobId}`
 }
 
 /**
  * @summary Status of a proposal or print-copy job, polled about every 2 s (SAD §4, Flows 1, 4, 8)
  */
-export const getJob = async (jobId: number, options?: RequestInit): Promise<getJobResponseSuccess> => {
+export const getJob = async (associationId: string,
+    jobId: number, options?: RequestInit): Promise<getJobResponseSuccess> => {
 
-  const res = await fetch(getGetJobUrl(jobId),
+  const res = await fetch(getGetJobUrl(associationId,jobId),
   {
     ...options,
     method: 'GET'
@@ -2231,29 +2293,31 @@ export const getJob = async (jobId: number, options?: RequestInit): Promise<getJ
 
 
 
-export const getGetJobQueryKey = (jobId: number,) => {
+export const getGetJobQueryKey = (associationId: string,
+    jobId: number,) => {
     return [
-    `/api/governance/jobs/${jobId}`
+    `/api/governance/associations/${associationId}/jobs/${jobId}`
     ] as const;
     }
 
 
-export const getGetJobQueryOptions = <TData = Awaited<ReturnType<typeof getJob>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse; status?: number }>(jobId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getJob>>, TError, TData>>, fetch?: RequestInit}
+export const getGetJobQueryOptions = <TData = Awaited<ReturnType<typeof getJob>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse; status?: number }>(associationId: string,
+    jobId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getJob>>, TError, TData>>, fetch?: RequestInit}
 ) => {
 
 const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetJobQueryKey(jobId);
+  const queryKey =  queryOptions?.queryKey ?? getGetJobQueryKey(associationId,jobId);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getJob>>> = ({ signal }) => getJob(jobId, { signal, ...fetchOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getJob>>> = ({ signal }) => getJob(associationId,jobId, { signal, ...fetchOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, enabled: jobId !== null && jobId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getJob>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+   return  { queryKey, queryFn, enabled: associationId !== null && associationId !== undefined && jobId !== null && jobId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getJob>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type GetJobQueryResult = NonNullable<Awaited<ReturnType<typeof getJob>>>
@@ -2261,7 +2325,8 @@ export type GetJobQueryError = globalThis.Error & { info?: SessionRequiredRespon
 
 
 export function useGetJob<TData = Awaited<ReturnType<typeof getJob>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse; status?: number }>(
- jobId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getJob>>, TError, TData>> & Pick<
+ associationId: string,
+    jobId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getJob>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof getJob>>,
           TError,
@@ -2271,7 +2336,8 @@ export function useGetJob<TData = Awaited<ReturnType<typeof getJob>>, TError = g
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useGetJob<TData = Awaited<ReturnType<typeof getJob>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse; status?: number }>(
- jobId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getJob>>, TError, TData>> & Pick<
+ associationId: string,
+    jobId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getJob>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof getJob>>,
           TError,
@@ -2281,7 +2347,8 @@ export function useGetJob<TData = Awaited<ReturnType<typeof getJob>>, TError = g
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useGetJob<TData = Awaited<ReturnType<typeof getJob>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse; status?: number }>(
- jobId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getJob>>, TError, TData>>, fetch?: RequestInit}
+ associationId: string,
+    jobId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getJob>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -2289,11 +2356,12 @@ export function useGetJob<TData = Awaited<ReturnType<typeof getJob>>, TError = g
  */
 
 export function useGetJob<TData = Awaited<ReturnType<typeof getJob>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse; status?: number }>(
- jobId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getJob>>, TError, TData>>, fetch?: RequestInit}
+ associationId: string,
+    jobId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getJob>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getGetJobQueryOptions(jobId,options)
+  const queryOptions = getGetJobQueryOptions(associationId,jobId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -2337,20 +2405,22 @@ export type retryJobResponseError = (retryJobResponse401 | retryJobResponse403 |
   headers: Headers;
 };
 
-export const getRetryJobUrl = (jobId: number,) => {
+export const getRetryJobUrl = (associationId: string,
+    jobId: number,) => {
 
 
 
 
-  return `/api/governance/jobs/${jobId}/retry`
+  return `/api/governance/associations/${associationId}/jobs/${jobId}/retry`
 }
 
 /**
  * @summary Retry a failed job (Flow 8 "retry offered")
  */
-export const retryJob = async (jobId: number, options?: RequestInit): Promise<retryJobResponseSuccess> => {
+export const retryJob = async (associationId: string,
+    jobId: number, options?: RequestInit): Promise<retryJobResponseSuccess> => {
 
-  const res = await fetch(getRetryJobUrl(jobId),
+  const res = await fetch(getRetryJobUrl(associationId,jobId),
   {
     ...options,
     method: 'POST'
@@ -2394,9 +2464,9 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof retryJob>>, RetryJobMutationVariables> = (props) => {
-          const {jobId} = props ?? {};
+          const {associationId,jobId} = props ?? {};
 
-          return  retryJob(jobId,fetchOptions)
+          return  retryJob(associationId,jobId,fetchOptions)
         }
 
 
@@ -2409,7 +2479,7 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
     export type RetryJobMutationResult = NonNullable<Awaited<ReturnType<typeof retryJob>>>
 
     export type RetryJobMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | Problem; status?: number }
-    export type RetryJobMutationVariables = {jobId: number}
+    export type RetryJobMutationVariables = {associationId: string;jobId: number}
 
     /**
  * @summary Retry a failed job (Flow 8 "retry offered")
@@ -2451,7 +2521,8 @@ export type listProtocolsResponseError = (listProtocolsResponse401 | listProtoco
   headers: Headers;
 };
 
-export const getListProtocolsUrl = (params?: ListProtocolsParams,) => {
+export const getListProtocolsUrl = (associationId: string,
+    params?: ListProtocolsParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -2463,15 +2534,16 @@ export const getListProtocolsUrl = (params?: ListProtocolsParams,) => {
 
   const stringifiedParams = normalizedParams.toString();
 
-  return stringifiedParams.length > 0 ? `/api/governance/protocols?${stringifiedParams}` : `/api/governance/protocols`
+  return stringifiedParams.length > 0 ? `/api/governance/associations/${associationId}/protocols?${stringifiedParams}` : `/api/governance/associations/${associationId}/protocols`
 }
 
 /**
  * @summary List protocol drafts and protocols, newest first, optionally by state
  */
-export const listProtocols = async (params?: ListProtocolsParams, options?: RequestInit): Promise<listProtocolsResponseSuccess> => {
+export const listProtocols = async (associationId: string,
+    params?: ListProtocolsParams, options?: RequestInit): Promise<listProtocolsResponseSuccess> => {
 
-  const res = await fetch(getListProtocolsUrl(params),
+  const res = await fetch(getListProtocolsUrl(associationId,params),
   {
     ...options,
     method: 'GET'
@@ -2498,29 +2570,31 @@ export const listProtocols = async (params?: ListProtocolsParams, options?: Requ
 
 
 
-export const getListProtocolsQueryKey = (params?: ListProtocolsParams,) => {
+export const getListProtocolsQueryKey = (associationId: string,
+    params?: ListProtocolsParams,) => {
     return [
-    `/api/governance/protocols`, ...(params ? [params] : [])
+    `/api/governance/associations/${associationId}/protocols`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getListProtocolsQueryOptions = <TData = Awaited<ReturnType<typeof listProtocols>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | ValidationFailedResponse; status?: number }>(params?: ListProtocolsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProtocols>>, TError, TData>>, fetch?: RequestInit}
+export const getListProtocolsQueryOptions = <TData = Awaited<ReturnType<typeof listProtocols>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | ValidationFailedResponse; status?: number }>(associationId: string,
+    params?: ListProtocolsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProtocols>>, TError, TData>>, fetch?: RequestInit}
 ) => {
 
 const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getListProtocolsQueryKey(params);
+  const queryKey =  queryOptions?.queryKey ?? getListProtocolsQueryKey(associationId,params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listProtocols>>> = ({ signal }) => listProtocols(params, { signal, ...fetchOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listProtocols>>> = ({ signal }) => listProtocols(associationId,params, { signal, ...fetchOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listProtocols>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+   return  { queryKey, queryFn, enabled: associationId !== null && associationId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listProtocols>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type ListProtocolsQueryResult = NonNullable<Awaited<ReturnType<typeof listProtocols>>>
@@ -2528,7 +2602,8 @@ export type ListProtocolsQueryError = globalThis.Error & { info?: SessionRequire
 
 
 export function useListProtocols<TData = Awaited<ReturnType<typeof listProtocols>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | ValidationFailedResponse; status?: number }>(
- params: undefined |  ListProtocolsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProtocols>>, TError, TData>> & Pick<
+ associationId: string,
+    params: undefined |  ListProtocolsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProtocols>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listProtocols>>,
           TError,
@@ -2538,7 +2613,8 @@ export function useListProtocols<TData = Awaited<ReturnType<typeof listProtocols
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListProtocols<TData = Awaited<ReturnType<typeof listProtocols>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | ValidationFailedResponse; status?: number }>(
- params?: ListProtocolsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProtocols>>, TError, TData>> & Pick<
+ associationId: string,
+    params?: ListProtocolsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProtocols>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listProtocols>>,
           TError,
@@ -2548,7 +2624,8 @@ export function useListProtocols<TData = Awaited<ReturnType<typeof listProtocols
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListProtocols<TData = Awaited<ReturnType<typeof listProtocols>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | ValidationFailedResponse; status?: number }>(
- params?: ListProtocolsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProtocols>>, TError, TData>>, fetch?: RequestInit}
+ associationId: string,
+    params?: ListProtocolsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProtocols>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -2556,11 +2633,12 @@ export function useListProtocols<TData = Awaited<ReturnType<typeof listProtocols
  */
 
 export function useListProtocols<TData = Awaited<ReturnType<typeof listProtocols>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | ValidationFailedResponse; status?: number }>(
- params?: ListProtocolsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProtocols>>, TError, TData>>, fetch?: RequestInit}
+ associationId: string,
+    params?: ListProtocolsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProtocols>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getListProtocolsQueryOptions(params,options)
+  const queryOptions = getListProtocolsQueryOptions(associationId,params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -2599,20 +2677,22 @@ export type getProtocolResponseError = (getProtocolResponse401 | getProtocolResp
   headers: Headers;
 };
 
-export const getGetProtocolUrl = (protocolId: string,) => {
+export const getGetProtocolUrl = (associationId: string,
+    protocolId: string,) => {
 
 
 
 
-  return `/api/governance/protocols/${protocolId}`
+  return `/api/governance/associations/${associationId}/protocols/${protocolId}`
 }
 
 /**
  * @summary Open a draft with its meeting, roster in force, documents, slots, poll rounds and print copies (AC-03)
  */
-export const getProtocol = async (protocolId: string, options?: RequestInit): Promise<getProtocolResponseSuccess> => {
+export const getProtocol = async (associationId: string,
+    protocolId: string, options?: RequestInit): Promise<getProtocolResponseSuccess> => {
 
-  const res = await fetch(getGetProtocolUrl(protocolId),
+  const res = await fetch(getGetProtocolUrl(associationId,protocolId),
   {
     ...options,
     method: 'GET'
@@ -2639,29 +2719,31 @@ export const getProtocol = async (protocolId: string, options?: RequestInit): Pr
 
 
 
-export const getGetProtocolQueryKey = (protocolId: string,) => {
+export const getGetProtocolQueryKey = (associationId: string,
+    protocolId: string,) => {
     return [
-    `/api/governance/protocols/${protocolId}`
+    `/api/governance/associations/${associationId}/protocols/${protocolId}`
     ] as const;
     }
 
 
-export const getGetProtocolQueryOptions = <TData = Awaited<ReturnType<typeof getProtocol>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse; status?: number }>(protocolId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getProtocol>>, TError, TData>>, fetch?: RequestInit}
+export const getGetProtocolQueryOptions = <TData = Awaited<ReturnType<typeof getProtocol>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse; status?: number }>(associationId: string,
+    protocolId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getProtocol>>, TError, TData>>, fetch?: RequestInit}
 ) => {
 
 const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetProtocolQueryKey(protocolId);
+  const queryKey =  queryOptions?.queryKey ?? getGetProtocolQueryKey(associationId,protocolId);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getProtocol>>> = ({ signal }) => getProtocol(protocolId, { signal, ...fetchOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getProtocol>>> = ({ signal }) => getProtocol(associationId,protocolId, { signal, ...fetchOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, enabled: protocolId !== null && protocolId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getProtocol>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+   return  { queryKey, queryFn, enabled: associationId !== null && associationId !== undefined && protocolId !== null && protocolId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getProtocol>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type GetProtocolQueryResult = NonNullable<Awaited<ReturnType<typeof getProtocol>>>
@@ -2669,7 +2751,8 @@ export type GetProtocolQueryError = globalThis.Error & { info?: SessionRequiredR
 
 
 export function useGetProtocol<TData = Awaited<ReturnType<typeof getProtocol>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse; status?: number }>(
- protocolId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getProtocol>>, TError, TData>> & Pick<
+ associationId: string,
+    protocolId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getProtocol>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof getProtocol>>,
           TError,
@@ -2679,7 +2762,8 @@ export function useGetProtocol<TData = Awaited<ReturnType<typeof getProtocol>>, 
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useGetProtocol<TData = Awaited<ReturnType<typeof getProtocol>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse; status?: number }>(
- protocolId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getProtocol>>, TError, TData>> & Pick<
+ associationId: string,
+    protocolId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getProtocol>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof getProtocol>>,
           TError,
@@ -2689,7 +2773,8 @@ export function useGetProtocol<TData = Awaited<ReturnType<typeof getProtocol>>, 
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useGetProtocol<TData = Awaited<ReturnType<typeof getProtocol>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse; status?: number }>(
- protocolId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getProtocol>>, TError, TData>>, fetch?: RequestInit}
+ associationId: string,
+    protocolId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getProtocol>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -2697,11 +2782,12 @@ export function useGetProtocol<TData = Awaited<ReturnType<typeof getProtocol>>, 
  */
 
 export function useGetProtocol<TData = Awaited<ReturnType<typeof getProtocol>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse; status?: number }>(
- protocolId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getProtocol>>, TError, TData>>, fetch?: RequestInit}
+ associationId: string,
+    protocolId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getProtocol>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getGetProtocolQueryOptions(protocolId,options)
+  const queryOptions = getGetProtocolQueryOptions(associationId,protocolId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -2745,7 +2831,8 @@ export type listAssistantTurnsResponseError = (listAssistantTurnsResponse401 | l
   headers: Headers;
 };
 
-export const getListAssistantTurnsUrl = (protocolId: string,
+export const getListAssistantTurnsUrl = (associationId: string,
+    protocolId: string,
     params?: ListAssistantTurnsParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -2758,16 +2845,17 @@ export const getListAssistantTurnsUrl = (protocolId: string,
 
   const stringifiedParams = normalizedParams.toString();
 
-  return stringifiedParams.length > 0 ? `/api/governance/protocols/${protocolId}/assistant-turns?${stringifiedParams}` : `/api/governance/protocols/${protocolId}/assistant-turns`
+  return stringifiedParams.length > 0 ? `/api/governance/associations/${associationId}/protocols/${protocolId}/assistant-turns?${stringifiedParams}` : `/api/governance/associations/${associationId}/protocols/${protocolId}/assistant-turns`
 }
 
 /**
  * @summary The conversation kept with the draft, newest first (AC-26)
  */
-export const listAssistantTurns = async (protocolId: string,
+export const listAssistantTurns = async (associationId: string,
+    protocolId: string,
     params?: ListAssistantTurnsParams, options?: RequestInit): Promise<listAssistantTurnsResponseSuccess> => {
 
-  const res = await fetch(getListAssistantTurnsUrl(protocolId,params),
+  const res = await fetch(getListAssistantTurnsUrl(associationId,protocolId,params),
   {
     ...options,
     method: 'GET'
@@ -2794,31 +2882,33 @@ export const listAssistantTurns = async (protocolId: string,
 
 
 
-export const getListAssistantTurnsQueryKey = (protocolId: string,
+export const getListAssistantTurnsQueryKey = (associationId: string,
+    protocolId: string,
     params?: ListAssistantTurnsParams,) => {
     return [
-    `/api/governance/protocols/${protocolId}/assistant-turns`, ...(params ? [params] : [])
+    `/api/governance/associations/${associationId}/protocols/${protocolId}/assistant-turns`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getListAssistantTurnsQueryOptions = <TData = Awaited<ReturnType<typeof listAssistantTurns>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | ValidationFailedResponse; status?: number }>(protocolId: string,
+export const getListAssistantTurnsQueryOptions = <TData = Awaited<ReturnType<typeof listAssistantTurns>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | ValidationFailedResponse; status?: number }>(associationId: string,
+    protocolId: string,
     params?: ListAssistantTurnsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAssistantTurns>>, TError, TData>>, fetch?: RequestInit}
 ) => {
 
 const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getListAssistantTurnsQueryKey(protocolId,params);
+  const queryKey =  queryOptions?.queryKey ?? getListAssistantTurnsQueryKey(associationId,protocolId,params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAssistantTurns>>> = ({ signal }) => listAssistantTurns(protocolId,params, { signal, ...fetchOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAssistantTurns>>> = ({ signal }) => listAssistantTurns(associationId,protocolId,params, { signal, ...fetchOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, enabled: protocolId !== null && protocolId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAssistantTurns>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+   return  { queryKey, queryFn, enabled: associationId !== null && associationId !== undefined && protocolId !== null && protocolId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAssistantTurns>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type ListAssistantTurnsQueryResult = NonNullable<Awaited<ReturnType<typeof listAssistantTurns>>>
@@ -2826,7 +2916,8 @@ export type ListAssistantTurnsQueryError = globalThis.Error & { info?: SessionRe
 
 
 export function useListAssistantTurns<TData = Awaited<ReturnType<typeof listAssistantTurns>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | ValidationFailedResponse; status?: number }>(
- protocolId: string,
+ associationId: string,
+    protocolId: string,
     params: undefined |  ListAssistantTurnsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAssistantTurns>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listAssistantTurns>>,
@@ -2837,7 +2928,8 @@ export function useListAssistantTurns<TData = Awaited<ReturnType<typeof listAssi
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListAssistantTurns<TData = Awaited<ReturnType<typeof listAssistantTurns>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | ValidationFailedResponse; status?: number }>(
- protocolId: string,
+ associationId: string,
+    protocolId: string,
     params?: ListAssistantTurnsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAssistantTurns>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listAssistantTurns>>,
@@ -2848,7 +2940,8 @@ export function useListAssistantTurns<TData = Awaited<ReturnType<typeof listAssi
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListAssistantTurns<TData = Awaited<ReturnType<typeof listAssistantTurns>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | ValidationFailedResponse; status?: number }>(
- protocolId: string,
+ associationId: string,
+    protocolId: string,
     params?: ListAssistantTurnsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAssistantTurns>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
@@ -2857,12 +2950,13 @@ export function useListAssistantTurns<TData = Awaited<ReturnType<typeof listAssi
  */
 
 export function useListAssistantTurns<TData = Awaited<ReturnType<typeof listAssistantTurns>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | ValidationFailedResponse; status?: number }>(
- protocolId: string,
+ associationId: string,
+    protocolId: string,
     params?: ListAssistantTurnsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAssistantTurns>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getListAssistantTurnsQueryOptions(protocolId,params,options)
+  const queryOptions = getListAssistantTurnsQueryOptions(associationId,protocolId,params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -2911,13 +3005,14 @@ export type saveAgendaItemWordingResponseError = (saveAgendaItemWordingResponse4
   headers: Headers;
 };
 
-export const getSaveAgendaItemWordingUrl = (protocolId: string,
+export const getSaveAgendaItemWordingUrl = (associationId: string,
+    protocolId: string,
     agendaItemId: string,) => {
 
 
 
 
-  return `/api/governance/protocols/${protocolId}/agenda-items/${agendaItemId}/wording`
+  return `/api/governance/associations/${associationId}/protocols/${protocolId}/agenda-items/${agendaItemId}/wording`
 }
 
 /**
@@ -2926,7 +3021,8 @@ export const getSaveAgendaItemWordingUrl = (protocolId: string,
  * чернетка: the open round closes, the print copy is voided, the number stays.
  * @summary Reword an agenda item's subject and text (AC-29, AC-05d, AC-14b, Flows 1, 3)
  */
-export const saveAgendaItemWording = async (protocolId: string,
+export const saveAgendaItemWording = async (associationId: string,
+    protocolId: string,
     agendaItemId: string,
     agendaItemWordingInput: AgendaItemWordingInput, options?: RequestInit): Promise<saveAgendaItemWordingResponseSuccess> => {
 
@@ -2944,7 +3040,7 @@ export const saveAgendaItemWording = async (protocolId: string,
     }
     return headers;
   };
-const res = await fetch(getSaveAgendaItemWordingUrl(protocolId,agendaItemId),
+const res = await fetch(getSaveAgendaItemWordingUrl(associationId,protocolId,agendaItemId),
   {
     ...options,
     method: 'PUT',
@@ -2988,9 +3084,9 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveAgendaItemWording>>, SaveAgendaItemWordingMutationVariables> = (props) => {
-          const {protocolId,agendaItemId,data} = props ?? {};
+          const {associationId,protocolId,agendaItemId,data} = props ?? {};
 
-          return  saveAgendaItemWording(protocolId,agendaItemId,data,fetchOptions)
+          return  saveAgendaItemWording(associationId,protocolId,agendaItemId,data,fetchOptions)
         }
 
 
@@ -3003,7 +3099,7 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
     export type SaveAgendaItemWordingMutationResult = NonNullable<Awaited<ReturnType<typeof saveAgendaItemWording>>>
     export type SaveAgendaItemWordingMutationBody = AgendaItemWordingInput
     export type SaveAgendaItemWordingMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | ProtocolEditConflictResponse | ValidationFailedResponse; status?: number }
-    export type SaveAgendaItemWordingMutationVariables = {protocolId: string;agendaItemId: string;data: AgendaItemWordingInput}
+    export type SaveAgendaItemWordingMutationVariables = {associationId: string;protocolId: string;agendaItemId: string;data: AgendaItemWordingInput}
 
     /**
  * @summary Reword an agenda item's subject and text (AC-29, AC-05d, AC-14b, Flows 1, 3)
@@ -3055,19 +3151,21 @@ export type addDecisionSlotResponseError = (addDecisionSlotResponse401 | addDeci
   headers: Headers;
 };
 
-export const getAddDecisionSlotUrl = (protocolId: string,
+export const getAddDecisionSlotUrl = (associationId: string,
+    protocolId: string,
     agendaItemId: string,) => {
 
 
 
 
-  return `/api/governance/protocols/${protocolId}/agenda-items/${agendaItemId}/slots`
+  return `/api/governance/associations/${associationId}/protocols/${protocolId}/agenda-items/${agendaItemId}/slots`
 }
 
 /**
  * @summary Turn a typed fact into a слот рішення by hand (ADR-0011 highlight offer, AC-28)
  */
-export const addDecisionSlot = async (protocolId: string,
+export const addDecisionSlot = async (associationId: string,
+    protocolId: string,
     agendaItemId: string,
     decisionSlotInput: DecisionSlotInput, options?: RequestInit): Promise<addDecisionSlotResponseSuccess> => {
 
@@ -3085,7 +3183,7 @@ export const addDecisionSlot = async (protocolId: string,
     }
     return headers;
   };
-const res = await fetch(getAddDecisionSlotUrl(protocolId,agendaItemId),
+const res = await fetch(getAddDecisionSlotUrl(associationId,protocolId,agendaItemId),
   {
     ...options,
     method: 'POST',
@@ -3129,9 +3227,9 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof addDecisionSlot>>, AddDecisionSlotMutationVariables> = (props) => {
-          const {protocolId,agendaItemId,data} = props ?? {};
+          const {associationId,protocolId,agendaItemId,data} = props ?? {};
 
-          return  addDecisionSlot(protocolId,agendaItemId,data,fetchOptions)
+          return  addDecisionSlot(associationId,protocolId,agendaItemId,data,fetchOptions)
         }
 
 
@@ -3144,7 +3242,7 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
     export type AddDecisionSlotMutationResult = NonNullable<Awaited<ReturnType<typeof addDecisionSlot>>>
     export type AddDecisionSlotMutationBody = DecisionSlotInput
     export type AddDecisionSlotMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | ProtocolEditConflictResponse | ValidationFailedResponse; status?: number }
-    export type AddDecisionSlotMutationVariables = {protocolId: string;agendaItemId: string;data: DecisionSlotInput}
+    export type AddDecisionSlotMutationVariables = {associationId: string;protocolId: string;agendaItemId: string;data: DecisionSlotInput}
 
     /**
  * @summary Turn a typed fact into a слот рішення by hand (ADR-0011 highlight offer, AC-28)
@@ -3196,19 +3294,21 @@ export type confirmDecisionSlotResponseError = (confirmDecisionSlotResponse401 |
   headers: Headers;
 };
 
-export const getConfirmDecisionSlotUrl = (protocolId: string,
+export const getConfirmDecisionSlotUrl = (associationId: string,
+    protocolId: string,
     slotId: string,) => {
 
 
 
 
-  return `/api/governance/protocols/${protocolId}/slots/${slotId}/confirmation`
+  return `/api/governance/associations/${associationId}/protocols/${protocolId}/slots/${slotId}/confirmation`
 }
 
 /**
  * @summary Confirm one value of a slot — the proposed one or an alternative beside it (AC-21, AC-22, AC-28b)
  */
-export const confirmDecisionSlot = async (protocolId: string,
+export const confirmDecisionSlot = async (associationId: string,
+    protocolId: string,
     slotId: string,
     slotConfirmationInput: SlotConfirmationInput, options?: RequestInit): Promise<confirmDecisionSlotResponseSuccess> => {
 
@@ -3226,7 +3326,7 @@ export const confirmDecisionSlot = async (protocolId: string,
     }
     return headers;
   };
-const res = await fetch(getConfirmDecisionSlotUrl(protocolId,slotId),
+const res = await fetch(getConfirmDecisionSlotUrl(associationId,protocolId,slotId),
   {
     ...options,
     method: 'POST',
@@ -3270,9 +3370,9 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof confirmDecisionSlot>>, ConfirmDecisionSlotMutationVariables> = (props) => {
-          const {protocolId,slotId,data} = props ?? {};
+          const {associationId,protocolId,slotId,data} = props ?? {};
 
-          return  confirmDecisionSlot(protocolId,slotId,data,fetchOptions)
+          return  confirmDecisionSlot(associationId,protocolId,slotId,data,fetchOptions)
         }
 
 
@@ -3285,7 +3385,7 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
     export type ConfirmDecisionSlotMutationResult = NonNullable<Awaited<ReturnType<typeof confirmDecisionSlot>>>
     export type ConfirmDecisionSlotMutationBody = SlotConfirmationInput
     export type ConfirmDecisionSlotMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | ProtocolEditConflictResponse | ValidationFailedResponse; status?: number }
-    export type ConfirmDecisionSlotMutationVariables = {protocolId: string;slotId: string;data: SlotConfirmationInput}
+    export type ConfirmDecisionSlotMutationVariables = {associationId: string;protocolId: string;slotId: string;data: SlotConfirmationInput}
 
     /**
  * @summary Confirm one value of a slot — the proposed one or an alternative beside it (AC-21, AC-22, AC-28b)
@@ -3337,19 +3437,21 @@ export type correctDecisionSlotResponseError = (correctDecisionSlotResponse401 |
   headers: Headers;
 };
 
-export const getCorrectDecisionSlotUrl = (protocolId: string,
+export const getCorrectDecisionSlotUrl = (associationId: string,
+    protocolId: string,
     slotId: string,) => {
 
 
 
 
-  return `/api/governance/protocols/${protocolId}/slots/${slotId}/values`
+  return `/api/governance/associations/${associationId}/protocols/${protocolId}/slots/${slotId}/values`
 }
 
 /**
  * @summary Correct a slot by hand; a corrected value counts as confirmed (AC-21)
  */
-export const correctDecisionSlot = async (protocolId: string,
+export const correctDecisionSlot = async (associationId: string,
+    protocolId: string,
     slotId: string,
     slotCorrectionInput: SlotCorrectionInput, options?: RequestInit): Promise<correctDecisionSlotResponseSuccess> => {
 
@@ -3367,7 +3469,7 @@ export const correctDecisionSlot = async (protocolId: string,
     }
     return headers;
   };
-const res = await fetch(getCorrectDecisionSlotUrl(protocolId,slotId),
+const res = await fetch(getCorrectDecisionSlotUrl(associationId,protocolId,slotId),
   {
     ...options,
     method: 'POST',
@@ -3411,9 +3513,9 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof correctDecisionSlot>>, CorrectDecisionSlotMutationVariables> = (props) => {
-          const {protocolId,slotId,data} = props ?? {};
+          const {associationId,protocolId,slotId,data} = props ?? {};
 
-          return  correctDecisionSlot(protocolId,slotId,data,fetchOptions)
+          return  correctDecisionSlot(associationId,protocolId,slotId,data,fetchOptions)
         }
 
 
@@ -3426,7 +3528,7 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
     export type CorrectDecisionSlotMutationResult = NonNullable<Awaited<ReturnType<typeof correctDecisionSlot>>>
     export type CorrectDecisionSlotMutationBody = SlotCorrectionInput
     export type CorrectDecisionSlotMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | ProtocolEditConflictResponse | ValidationFailedResponse; status?: number }
-    export type CorrectDecisionSlotMutationVariables = {protocolId: string;slotId: string;data: SlotCorrectionInput}
+    export type CorrectDecisionSlotMutationVariables = {associationId: string;protocolId: string;slotId: string;data: SlotCorrectionInput}
 
     /**
  * @summary Correct a slot by hand; a corrected value counts as confirmed (AC-21)
@@ -3473,18 +3575,20 @@ export type startPollRoundResponseError = (startPollRoundResponse401 | startPoll
   headers: Headers;
 };
 
-export const getStartPollRoundUrl = (protocolId: string,) => {
+export const getStartPollRoundUrl = (associationId: string,
+    protocolId: string,) => {
 
 
 
 
-  return `/api/governance/protocols/${protocolId}/poll-rounds`
+  return `/api/governance/associations/${associationId}/protocols/${protocolId}/poll-rounds`
 }
 
 /**
  * @summary Freeze the wording as the next round of the попереднє голосування (чернетка → готовий до голосування) (AC-30, Flow 2)
  */
-export const startPollRound = async (protocolId: string,
+export const startPollRound = async (associationId: string,
+    protocolId: string,
     protocolRevisionInput: ProtocolRevisionInput, options?: RequestInit): Promise<startPollRoundResponseSuccess> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
@@ -3501,7 +3605,7 @@ export const startPollRound = async (protocolId: string,
     }
     return headers;
   };
-const res = await fetch(getStartPollRoundUrl(protocolId),
+const res = await fetch(getStartPollRoundUrl(associationId,protocolId),
   {
     ...options,
     method: 'POST',
@@ -3545,9 +3649,9 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof startPollRound>>, StartPollRoundMutationVariables> = (props) => {
-          const {protocolId,data} = props ?? {};
+          const {associationId,protocolId,data} = props ?? {};
 
-          return  startPollRound(protocolId,data,fetchOptions)
+          return  startPollRound(associationId,protocolId,data,fetchOptions)
         }
 
 
@@ -3560,7 +3664,7 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
     export type StartPollRoundMutationResult = NonNullable<Awaited<ReturnType<typeof startPollRound>>>
     export type StartPollRoundMutationBody = ProtocolRevisionInput
     export type StartPollRoundMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | ProtocolEditConflictResponse; status?: number }
-    export type StartPollRoundMutationVariables = {protocolId: string;data: ProtocolRevisionInput}
+    export type StartPollRoundMutationVariables = {associationId: string;protocolId: string;data: ProtocolRevisionInput}
 
     /**
  * @summary Freeze the wording as the next round of the попереднє голосування (чернетка → готовий до голосування) (AC-30, Flow 2)
@@ -3612,19 +3716,21 @@ export type castPollVoteResponseError = (castPollVoteResponse401 | castPollVoteR
   headers: Headers;
 };
 
-export const getCastPollVoteUrl = (protocolId: string,
+export const getCastPollVoteUrl = (associationId: string,
+    protocolId: string,
     roundNumber: number,) => {
 
 
 
 
-  return `/api/governance/protocols/${protocolId}/poll-rounds/${roundNumber}/votes`
+  return `/api/governance/associations/${associationId}/protocols/${protocolId}/poll-rounds/${roundNumber}/votes`
 }
 
 /**
  * @summary Cast or change one's own informal vote on an agenda item (AC-31, AC-05e, AC-32, Flow 2)
  */
-export const castPollVote = async (protocolId: string,
+export const castPollVote = async (associationId: string,
+    protocolId: string,
     roundNumber: number,
     pollVoteInput: PollVoteInput, options?: RequestInit): Promise<castPollVoteResponseSuccess> => {
 
@@ -3642,7 +3748,7 @@ export const castPollVote = async (protocolId: string,
     }
     return headers;
   };
-const res = await fetch(getCastPollVoteUrl(protocolId,roundNumber),
+const res = await fetch(getCastPollVoteUrl(associationId,protocolId,roundNumber),
   {
     ...options,
     method: 'PUT',
@@ -3686,9 +3792,9 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof castPollVote>>, CastPollVoteMutationVariables> = (props) => {
-          const {protocolId,roundNumber,data} = props ?? {};
+          const {associationId,protocolId,roundNumber,data} = props ?? {};
 
-          return  castPollVote(protocolId,roundNumber,data,fetchOptions)
+          return  castPollVote(associationId,protocolId,roundNumber,data,fetchOptions)
         }
 
 
@@ -3701,7 +3807,7 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
     export type CastPollVoteMutationResult = NonNullable<Awaited<ReturnType<typeof castPollVote>>>
     export type CastPollVoteMutationBody = PollVoteInput
     export type CastPollVoteMutationError = globalThis.Error & { info?: SessionRequiredResponse | Problem | NotFoundResponse | ValidationFailedResponse; status?: number }
-    export type CastPollVoteMutationVariables = {protocolId: string;roundNumber: number;data: PollVoteInput}
+    export type CastPollVoteMutationVariables = {associationId: string;protocolId: string;roundNumber: number;data: PollVoteInput}
 
     /**
  * @summary Cast or change one's own informal vote on an agenda item (AC-31, AC-05e, AC-32, Flow 2)
@@ -3748,12 +3854,13 @@ export type returnProtocolToDraftResponseError = (returnProtocolToDraftResponse4
   headers: Headers;
 };
 
-export const getReturnProtocolToDraftUrl = (protocolId: string,) => {
+export const getReturnProtocolToDraftUrl = (associationId: string,
+    protocolId: string,) => {
 
 
 
 
-  return `/api/governance/protocols/${protocolId}/return-to-draft`
+  return `/api/governance/associations/${associationId}/protocols/${protocolId}/return-to-draft`
 }
 
 /**
@@ -3761,7 +3868,8 @@ export const getReturnProtocolToDraftUrl = (protocolId: string,) => {
  * printed earlier must not be signed), keeps the reserved number.
  * @summary «Повернути в чернетку» (готовий до голосування / готовий до підпису → чернетка) (AC-05d, AC-14b, Flow 3)
  */
-export const returnProtocolToDraft = async (protocolId: string,
+export const returnProtocolToDraft = async (associationId: string,
+    protocolId: string,
     protocolRevisionInput: ProtocolRevisionInput, options?: RequestInit): Promise<returnProtocolToDraftResponseSuccess> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
@@ -3778,7 +3886,7 @@ export const returnProtocolToDraft = async (protocolId: string,
     }
     return headers;
   };
-const res = await fetch(getReturnProtocolToDraftUrl(protocolId),
+const res = await fetch(getReturnProtocolToDraftUrl(associationId,protocolId),
   {
     ...options,
     method: 'POST',
@@ -3822,9 +3930,9 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof returnProtocolToDraft>>, ReturnProtocolToDraftMutationVariables> = (props) => {
-          const {protocolId,data} = props ?? {};
+          const {associationId,protocolId,data} = props ?? {};
 
-          return  returnProtocolToDraft(protocolId,data,fetchOptions)
+          return  returnProtocolToDraft(associationId,protocolId,data,fetchOptions)
         }
 
 
@@ -3837,7 +3945,7 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
     export type ReturnProtocolToDraftMutationResult = NonNullable<Awaited<ReturnType<typeof returnProtocolToDraft>>>
     export type ReturnProtocolToDraftMutationBody = ProtocolRevisionInput
     export type ReturnProtocolToDraftMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | ProtocolEditConflictResponse; status?: number }
-    export type ReturnProtocolToDraftMutationVariables = {protocolId: string;data: ProtocolRevisionInput}
+    export type ReturnProtocolToDraftMutationVariables = {associationId: string;protocolId: string;data: ProtocolRevisionInput}
 
     /**
  * @summary «Повернути в чернетку» (готовий до голосування / готовий до підпису → чернетка) (AC-05d, AC-14b, Flow 3)
@@ -3884,18 +3992,20 @@ export type markProtocolReadyForSigningResponseError = (markProtocolReadyForSign
   headers: Headers;
 };
 
-export const getMarkProtocolReadyForSigningUrl = (protocolId: string,) => {
+export const getMarkProtocolReadyForSigningUrl = (associationId: string,
+    protocolId: string,) => {
 
 
 
 
-  return `/api/governance/protocols/${protocolId}/ready-for-signing`
+  return `/api/governance/associations/${associationId}/protocols/${protocolId}/ready-for-signing`
 }
 
 /**
  * @summary Mark готовий до підпису — freeze the text, reserve the number, render the print copy (AC-04, AC-21, AC-14c, AC-33, Flow 4)
  */
-export const markProtocolReadyForSigning = async (protocolId: string,
+export const markProtocolReadyForSigning = async (associationId: string,
+    protocolId: string,
     protocolRevisionInput: ProtocolRevisionInput, options?: RequestInit): Promise<markProtocolReadyForSigningResponseSuccess> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
@@ -3912,7 +4022,7 @@ export const markProtocolReadyForSigning = async (protocolId: string,
     }
     return headers;
   };
-const res = await fetch(getMarkProtocolReadyForSigningUrl(protocolId),
+const res = await fetch(getMarkProtocolReadyForSigningUrl(associationId,protocolId),
   {
     ...options,
     method: 'POST',
@@ -3956,9 +4066,9 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof markProtocolReadyForSigning>>, MarkProtocolReadyForSigningMutationVariables> = (props) => {
-          const {protocolId,data} = props ?? {};
+          const {associationId,protocolId,data} = props ?? {};
 
-          return  markProtocolReadyForSigning(protocolId,data,fetchOptions)
+          return  markProtocolReadyForSigning(associationId,protocolId,data,fetchOptions)
         }
 
 
@@ -3971,7 +4081,7 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
     export type MarkProtocolReadyForSigningMutationResult = NonNullable<Awaited<ReturnType<typeof markProtocolReadyForSigning>>>
     export type MarkProtocolReadyForSigningMutationBody = ProtocolRevisionInput
     export type MarkProtocolReadyForSigningMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | Problem; status?: number }
-    export type MarkProtocolReadyForSigningMutationVariables = {protocolId: string;data: ProtocolRevisionInput}
+    export type MarkProtocolReadyForSigningMutationVariables = {associationId: string;protocolId: string;data: ProtocolRevisionInput}
 
     /**
  * @summary Mark готовий до підпису — freeze the text, reserve the number, render the print copy (AC-04, AC-21, AC-14c, AC-33, Flow 4)
@@ -4028,12 +4138,13 @@ export type lockProtocolWithSignedCopyResponseError = (lockProtocolWithSignedCop
   headers: Headers;
 };
 
-export const getLockProtocolWithSignedCopyUrl = (protocolId: string,) => {
+export const getLockProtocolWithSignedCopyUrl = (associationId: string,
+    protocolId: string,) => {
 
 
 
 
-  return `/api/governance/protocols/${protocolId}/signed-copy`
+  return `/api/governance/associations/${associationId}/protocols/${protocolId}/signed-copy`
 }
 
 /**
@@ -4041,14 +4152,15 @@ export const getLockProtocolWithSignedCopyUrl = (protocolId: string,) => {
  * pre-filled from the poll (AC-41). Quorum, majority and who signed are not checked (AC-14).
  * @summary Upload the signed scan with the meeting facts and lock (готовий до підпису → підписаний) (AC-14, AC-34, AC-15, AC-40, AC-16, Flow 5)
  */
-export const lockProtocolWithSignedCopy = async (protocolId: string,
+export const lockProtocolWithSignedCopy = async (associationId: string,
+    protocolId: string,
     signedCopyUpload: SignedCopyUpload, options?: RequestInit): Promise<lockProtocolWithSignedCopyResponseSuccess> => {
     const formData = new FormData();
 formData.append(`print_copy_id`, signedCopyUpload.print_copy_id);
 formData.append(`scan`, signedCopyUpload.scan instanceof Blob ? signedCopyUpload.scan : new Blob([signedCopyUpload.scan], { type: 'application/pdf, image/jpeg, image/png' }));
 formData.append(`meeting_facts`, JSON.stringify(signedCopyUpload.meeting_facts));
 
-  const res = await fetch(getLockProtocolWithSignedCopyUrl(protocolId),
+  const res = await fetch(getLockProtocolWithSignedCopyUrl(associationId,protocolId),
   {
     ...options,
     method: 'POST'
@@ -4092,9 +4204,9 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof lockProtocolWithSignedCopy>>, LockProtocolWithSignedCopyMutationVariables> = (props) => {
-          const {protocolId,data} = props ?? {};
+          const {associationId,protocolId,data} = props ?? {};
 
-          return  lockProtocolWithSignedCopy(protocolId,data,fetchOptions)
+          return  lockProtocolWithSignedCopy(associationId,protocolId,data,fetchOptions)
         }
 
 
@@ -4107,7 +4219,7 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
     export type LockProtocolWithSignedCopyMutationResult = NonNullable<Awaited<ReturnType<typeof lockProtocolWithSignedCopy>>>
     export type LockProtocolWithSignedCopyMutationBody = SignedCopyUpload
     export type LockProtocolWithSignedCopyMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | Problem | StorageUnavailableResponse; status?: number }
-    export type LockProtocolWithSignedCopyMutationVariables = {protocolId: string;data: SignedCopyUpload}
+    export type LockProtocolWithSignedCopyMutationVariables = {associationId: string;protocolId: string;data: SignedCopyUpload}
 
     /**
  * @summary Upload the signed scan with the meeting facts and lock (готовий до підпису → підписаний) (AC-14, AC-34, AC-15, AC-40, AC-16, Flow 5)
@@ -4159,18 +4271,20 @@ export type withdrawProtocolResponseError = (withdrawProtocolResponse401 | withd
   headers: Headers;
 };
 
-export const getWithdrawProtocolUrl = (protocolId: string,) => {
+export const getWithdrawProtocolUrl = (associationId: string,
+    protocolId: string,) => {
 
 
 
 
-  return `/api/governance/protocols/${protocolId}/withdrawal`
+  return `/api/governance/associations/${associationId}/protocols/${protocolId}/withdrawal`
 }
 
 /**
  * @summary Close a draft as знятий з розгляду with a reason (AC-35, AC-36, AC-37, AC-38, Flow 9)
  */
-export const withdrawProtocol = async (protocolId: string,
+export const withdrawProtocol = async (associationId: string,
+    protocolId: string,
     withdrawalInput: WithdrawalInput, options?: RequestInit): Promise<withdrawProtocolResponseSuccess> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
@@ -4187,7 +4301,7 @@ export const withdrawProtocol = async (protocolId: string,
     }
     return headers;
   };
-const res = await fetch(getWithdrawProtocolUrl(protocolId),
+const res = await fetch(getWithdrawProtocolUrl(associationId,protocolId),
   {
     ...options,
     method: 'POST',
@@ -4231,9 +4345,9 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof withdrawProtocol>>, WithdrawProtocolMutationVariables> = (props) => {
-          const {protocolId,data} = props ?? {};
+          const {associationId,protocolId,data} = props ?? {};
 
-          return  withdrawProtocol(protocolId,data,fetchOptions)
+          return  withdrawProtocol(associationId,protocolId,data,fetchOptions)
         }
 
 
@@ -4246,7 +4360,7 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
     export type WithdrawProtocolMutationResult = NonNullable<Awaited<ReturnType<typeof withdrawProtocol>>>
     export type WithdrawProtocolMutationBody = WithdrawalInput
     export type WithdrawProtocolMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | Problem; status?: number }
-    export type WithdrawProtocolMutationVariables = {protocolId: string;data: WithdrawalInput}
+    export type WithdrawProtocolMutationVariables = {associationId: string;protocolId: string;data: WithdrawalInput}
 
     /**
  * @summary Close a draft as знятий з розгляду with a reason (AC-35, AC-36, AC-37, AC-38, Flow 9)
@@ -4293,20 +4407,22 @@ export type copyWithdrawnProtocolResponseError = (copyWithdrawnProtocolResponse4
   headers: Headers;
 };
 
-export const getCopyWithdrawnProtocolUrl = (protocolId: string,) => {
+export const getCopyWithdrawnProtocolUrl = (associationId: string,
+    protocolId: string,) => {
 
 
 
 
-  return `/api/governance/protocols/${protocolId}/copy`
+  return `/api/governance/associations/${associationId}/protocols/${protocolId}/copy`
 }
 
 /**
  * @summary Start a new draft copied from a withdrawn one (AC-39)
  */
-export const copyWithdrawnProtocol = async (protocolId: string, options?: RequestInit): Promise<copyWithdrawnProtocolResponseSuccess> => {
+export const copyWithdrawnProtocol = async (associationId: string,
+    protocolId: string, options?: RequestInit): Promise<copyWithdrawnProtocolResponseSuccess> => {
 
-  const res = await fetch(getCopyWithdrawnProtocolUrl(protocolId),
+  const res = await fetch(getCopyWithdrawnProtocolUrl(associationId,protocolId),
   {
     ...options,
     method: 'POST'
@@ -4350,9 +4466,9 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof copyWithdrawnProtocol>>, CopyWithdrawnProtocolMutationVariables> = (props) => {
-          const {protocolId} = props ?? {};
+          const {associationId,protocolId} = props ?? {};
 
-          return  copyWithdrawnProtocol(protocolId,fetchOptions)
+          return  copyWithdrawnProtocol(associationId,protocolId,fetchOptions)
         }
 
 
@@ -4365,7 +4481,7 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
     export type CopyWithdrawnProtocolMutationResult = NonNullable<Awaited<ReturnType<typeof copyWithdrawnProtocol>>>
 
     export type CopyWithdrawnProtocolMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | Problem; status?: number }
-    export type CopyWithdrawnProtocolMutationVariables = {protocolId: string}
+    export type CopyWithdrawnProtocolMutationVariables = {associationId: string;protocolId: string}
 
     /**
  * @summary Start a new draft copied from a withdrawn one (AC-39)
@@ -4407,7 +4523,8 @@ export type searchRegistryResponseError = (searchRegistryResponse401 | searchReg
   headers: Headers;
 };
 
-export const getSearchRegistryUrl = (params?: SearchRegistryParams,) => {
+export const getSearchRegistryUrl = (associationId: string,
+    params?: SearchRegistryParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -4419,7 +4536,7 @@ export const getSearchRegistryUrl = (params?: SearchRegistryParams,) => {
 
   const stringifiedParams = normalizedParams.toString();
 
-  return stringifiedParams.length > 0 ? `/api/governance/registry/decisions?${stringifiedParams}` : `/api/governance/registry/decisions`
+  return stringifiedParams.length > 0 ? `/api/governance/associations/${associationId}/registry/decisions?${stringifiedParams}` : `/api/governance/associations/${associationId}/registry/decisions`
 }
 
 /**
@@ -4428,9 +4545,10 @@ export const getSearchRegistryUrl = (params?: SearchRegistryParams,) => {
  * shown as gaps marked «знято з розгляду».
  * @summary Search decisions of signed protocols, newest meeting first (AC-18, Flow 13)
  */
-export const searchRegistry = async (params?: SearchRegistryParams, options?: RequestInit): Promise<searchRegistryResponseSuccess> => {
+export const searchRegistry = async (associationId: string,
+    params?: SearchRegistryParams, options?: RequestInit): Promise<searchRegistryResponseSuccess> => {
 
-  const res = await fetch(getSearchRegistryUrl(params),
+  const res = await fetch(getSearchRegistryUrl(associationId,params),
   {
     ...options,
     method: 'GET'
@@ -4457,29 +4575,31 @@ export const searchRegistry = async (params?: SearchRegistryParams, options?: Re
 
 
 
-export const getSearchRegistryQueryKey = (params?: SearchRegistryParams,) => {
+export const getSearchRegistryQueryKey = (associationId: string,
+    params?: SearchRegistryParams,) => {
     return [
-    `/api/governance/registry/decisions`, ...(params ? [params] : [])
+    `/api/governance/associations/${associationId}/registry/decisions`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getSearchRegistryQueryOptions = <TData = Awaited<ReturnType<typeof searchRegistry>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | Problem; status?: number }>(params?: SearchRegistryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchRegistry>>, TError, TData>>, fetch?: RequestInit}
+export const getSearchRegistryQueryOptions = <TData = Awaited<ReturnType<typeof searchRegistry>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | Problem; status?: number }>(associationId: string,
+    params?: SearchRegistryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchRegistry>>, TError, TData>>, fetch?: RequestInit}
 ) => {
 
 const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getSearchRegistryQueryKey(params);
+  const queryKey =  queryOptions?.queryKey ?? getSearchRegistryQueryKey(associationId,params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof searchRegistry>>> = ({ signal }) => searchRegistry(params, { signal, ...fetchOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof searchRegistry>>> = ({ signal }) => searchRegistry(associationId,params, { signal, ...fetchOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof searchRegistry>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+   return  { queryKey, queryFn, enabled: associationId !== null && associationId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof searchRegistry>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type SearchRegistryQueryResult = NonNullable<Awaited<ReturnType<typeof searchRegistry>>>
@@ -4487,7 +4607,8 @@ export type SearchRegistryQueryError = globalThis.Error & { info?: SessionRequir
 
 
 export function useSearchRegistry<TData = Awaited<ReturnType<typeof searchRegistry>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | Problem; status?: number }>(
- params: undefined |  SearchRegistryParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchRegistry>>, TError, TData>> & Pick<
+ associationId: string,
+    params: undefined |  SearchRegistryParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchRegistry>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof searchRegistry>>,
           TError,
@@ -4497,7 +4618,8 @@ export function useSearchRegistry<TData = Awaited<ReturnType<typeof searchRegist
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useSearchRegistry<TData = Awaited<ReturnType<typeof searchRegistry>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | Problem; status?: number }>(
- params?: SearchRegistryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchRegistry>>, TError, TData>> & Pick<
+ associationId: string,
+    params?: SearchRegistryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchRegistry>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof searchRegistry>>,
           TError,
@@ -4507,7 +4629,8 @@ export function useSearchRegistry<TData = Awaited<ReturnType<typeof searchRegist
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useSearchRegistry<TData = Awaited<ReturnType<typeof searchRegistry>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | Problem; status?: number }>(
- params?: SearchRegistryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchRegistry>>, TError, TData>>, fetch?: RequestInit}
+ associationId: string,
+    params?: SearchRegistryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchRegistry>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -4515,11 +4638,12 @@ export function useSearchRegistry<TData = Awaited<ReturnType<typeof searchRegist
  */
 
 export function useSearchRegistry<TData = Awaited<ReturnType<typeof searchRegistry>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | Problem; status?: number }>(
- params?: SearchRegistryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchRegistry>>, TError, TData>>, fetch?: RequestInit}
+ associationId: string,
+    params?: SearchRegistryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchRegistry>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getSearchRegistryQueryOptions(params,options)
+  const queryOptions = getSearchRegistryQueryOptions(associationId,params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -4558,20 +4682,22 @@ export type getSignedProtocolResponseError = (getSignedProtocolResponse401 | get
   headers: Headers;
 };
 
-export const getGetSignedProtocolUrl = (protocolId: string,) => {
+export const getGetSignedProtocolUrl = (associationId: string,
+    protocolId: string,) => {
 
 
 
 
-  return `/api/governance/registry/protocols/${protocolId}`
+  return `/api/governance/associations/${associationId}/registry/protocols/${protocolId}`
 }
 
 /**
  * @summary Open a signed protocol with its signed copy, meeting facts, cited documents and poll history (AC-18, AC-41, AC-15, Flow 13)
  */
-export const getSignedProtocol = async (protocolId: string, options?: RequestInit): Promise<getSignedProtocolResponseSuccess> => {
+export const getSignedProtocol = async (associationId: string,
+    protocolId: string, options?: RequestInit): Promise<getSignedProtocolResponseSuccess> => {
 
-  const res = await fetch(getGetSignedProtocolUrl(protocolId),
+  const res = await fetch(getGetSignedProtocolUrl(associationId,protocolId),
   {
     ...options,
     method: 'GET'
@@ -4598,29 +4724,31 @@ export const getSignedProtocol = async (protocolId: string, options?: RequestIni
 
 
 
-export const getGetSignedProtocolQueryKey = (protocolId: string,) => {
+export const getGetSignedProtocolQueryKey = (associationId: string,
+    protocolId: string,) => {
     return [
-    `/api/governance/registry/protocols/${protocolId}`
+    `/api/governance/associations/${associationId}/registry/protocols/${protocolId}`
     ] as const;
     }
 
 
-export const getGetSignedProtocolQueryOptions = <TData = Awaited<ReturnType<typeof getSignedProtocol>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse; status?: number }>(protocolId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSignedProtocol>>, TError, TData>>, fetch?: RequestInit}
+export const getGetSignedProtocolQueryOptions = <TData = Awaited<ReturnType<typeof getSignedProtocol>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse; status?: number }>(associationId: string,
+    protocolId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSignedProtocol>>, TError, TData>>, fetch?: RequestInit}
 ) => {
 
 const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetSignedProtocolQueryKey(protocolId);
+  const queryKey =  queryOptions?.queryKey ?? getGetSignedProtocolQueryKey(associationId,protocolId);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSignedProtocol>>> = ({ signal }) => getSignedProtocol(protocolId, { signal, ...fetchOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSignedProtocol>>> = ({ signal }) => getSignedProtocol(associationId,protocolId, { signal, ...fetchOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, enabled: protocolId !== null && protocolId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSignedProtocol>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+   return  { queryKey, queryFn, enabled: associationId !== null && associationId !== undefined && protocolId !== null && protocolId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSignedProtocol>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type GetSignedProtocolQueryResult = NonNullable<Awaited<ReturnType<typeof getSignedProtocol>>>
@@ -4628,7 +4756,8 @@ export type GetSignedProtocolQueryError = globalThis.Error & { info?: SessionReq
 
 
 export function useGetSignedProtocol<TData = Awaited<ReturnType<typeof getSignedProtocol>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse; status?: number }>(
- protocolId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSignedProtocol>>, TError, TData>> & Pick<
+ associationId: string,
+    protocolId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSignedProtocol>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof getSignedProtocol>>,
           TError,
@@ -4638,7 +4767,8 @@ export function useGetSignedProtocol<TData = Awaited<ReturnType<typeof getSigned
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useGetSignedProtocol<TData = Awaited<ReturnType<typeof getSignedProtocol>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse; status?: number }>(
- protocolId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSignedProtocol>>, TError, TData>> & Pick<
+ associationId: string,
+    protocolId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSignedProtocol>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof getSignedProtocol>>,
           TError,
@@ -4648,7 +4778,8 @@ export function useGetSignedProtocol<TData = Awaited<ReturnType<typeof getSigned
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useGetSignedProtocol<TData = Awaited<ReturnType<typeof getSignedProtocol>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse; status?: number }>(
- protocolId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSignedProtocol>>, TError, TData>>, fetch?: RequestInit}
+ associationId: string,
+    protocolId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSignedProtocol>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -4656,11 +4787,12 @@ export function useGetSignedProtocol<TData = Awaited<ReturnType<typeof getSigned
  */
 
 export function useGetSignedProtocol<TData = Awaited<ReturnType<typeof getSignedProtocol>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse; status?: number }>(
- protocolId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSignedProtocol>>, TError, TData>>, fetch?: RequestInit}
+ associationId: string,
+    protocolId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSignedProtocol>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getGetSignedProtocolQueryOptions(protocolId,options)
+  const queryOptions = getGetSignedProtocolQueryOptions(associationId,protocolId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

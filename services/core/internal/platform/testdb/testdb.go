@@ -65,7 +65,7 @@ func NewTwoAssociations(t testing.TB) (*pgxpool.Pool, string, string) {
 		t.Fatalf("testdb: connect owner: %v", err)
 	}
 	defer owner.Close(ctx)
-	if _, err := owner.Exec(ctx, `INSERT INTO associations (id, name) VALUES ($1, 'Association A'), ($2, 'Association B') ON CONFLICT DO NOTHING`, a, b); err != nil {
+	if _, err := owner.Exec(ctx, `INSERT INTO associations (id, name, state) VALUES ($1, 'Association A', 'connected'), ($2, 'Association B', 'connected') ON CONFLICT DO NOTHING`, a, b); err != nil {
 		t.Fatalf("testdb: seed associations: %v", err)
 	}
 	return openPool(t, name, appUser), a, b

@@ -173,7 +173,7 @@ type Association struct {
 	CreatedAt             pgtype.Timestamptz
 	Edrpou                pgtype.Text
 	Address               pgtype.Text
-	State                 pgtype.Text
+	State                 string
 	ConfirmedByDecisionID pgtype.UUID
 }
 
@@ -213,7 +213,7 @@ type BoardMemberRevision struct {
 	TermEnd           pgtype.Date
 	CreatedByMemberID pgtype.UUID
 	CreatedAt         pgtype.Timestamptz
-	Position          pgtype.Text
+	Position          string
 	DecisionID        pgtype.UUID
 }
 

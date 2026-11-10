@@ -95,7 +95,7 @@ type InsertBoardMemberRevisionParams struct {
 	SignInEmail   pgtype.Text
 	TermStart     pgtype.Date
 	TermEnd       pgtype.Date
-	Position      pgtype.Text
+	Position      string
 	DecisionID    pgtype.UUID
 }
 

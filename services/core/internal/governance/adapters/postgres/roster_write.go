@@ -43,7 +43,7 @@ func (Roster) WriteRevision(ctx context.Context, association, boardMember uuid.U
 		FullName:    entry.FullName,
 		SignInEmail: pgtype.Text{String: entry.SignInEmail, Valid: entry.SignInEmail != ""},
 		TermStart:   dateOf(entry.Term.Start),
-		Position:    pgtype.Text{String: string(entry.Position), Valid: true},
+		Position:    string(entry.Position),
 		DecisionID:  decision,
 	}
 	if !entry.Term.End.IsZero() {

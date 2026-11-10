@@ -21,7 +21,7 @@
 | [T14](./T14-roster-read-facade.md) | Serve the roster facade: the current member, a person's memberships and the members' sign-in addresses | infra | Andrii Opryshko | L | T04, T05, T07 | done |
 | [T15](./T15-seat-head-end-term.md) | Seat a голова and end a term through the governance facade inside the caller's transaction | app | Andrii Opryshko | M | T14 | done |
 | [T16](./T16-promote-backfills.md) | Promote the backfills: association state, roster positions and the contracts' association | migration | Andrii Opryshko | S | T06, T13, T14 | done |
-| [T17](./T17-promote-not-null-contracts.md) | Promote the NOT NULL steps and the contracts index | migration | Andrii Opryshko | S | T16 | todo |
+| [T17](./T17-promote-not-null-contracts.md) | Promote the NOT NULL steps and the contracts index | migration | Andrii Opryshko | S | T16 | done |
 | [T18](./T18-sign-in-any-verified-person.md) | Sign in any verified person, keep the session in Postgres and tell the оператор | app | Andrii Opryshko | L | T02, T03, T06 | done |
 | [T19](./T19-association-and-operator-guards.md) | Guard association paths with the session, the roster and a scoped transaction, and operator paths with the оператор flag | wiring | Andrii Opryshko | L | T04, T11, T14, T18 | todo |
 | [T20](./T20-promote-row-level-security.md) | Promote row-level security for the governance, finance and identity tables | migration | Andrii Opryshko | M | T12, T13, T17, T19 | todo |

@@ -716,9 +716,11 @@ ADR files: `docs/features/association-onboarding/adr/NNNN-<decision>.md`. Repo-l
 | КЕП | qualified electronic signature (CONTEXT.md) |
 | оператор | the person who runs Спільно and decides access (CONTEXT.md) |
 | підключене ОСББ / вимкнене ОСББ | association states (CONTEXT.md) |
-| розбіжність імен | advisory notice when typed name, signer and керівник differ (CONTEXT.md) |
+| розбіжність імен | advisory notice when the typed name, the signer and the керівник differ after levelling letter case, spaces, apostrophes and word order (CONTEXT.md, AC-11) |
 | член правління / голова правління | roster roles (board-protocol CONTEXT.md) |
 | check of the extract | what the оператор records after checking the extract outside Спільно: signer, signing date, керівник, the extract's ЄДРПОУ and date |
+| own filing | a заявка or a запит whose applicant account is the acting оператор's; the оператор can neither approve nor reject it (AC-16c) |
+| re-seat | a new revision of a person's current roster entry that sets the position голова правління with the decision reference, instead of a second entry (AC-19) |
 | association-scoped path | an operation path `/<context>/associations/{association_id}/...` |
 | row-level security (RLS) | Postgres policies that hide rows of other associations from the app role |
 | `spilno_app` / `spilno_owner` | the database role that serves requests / the role that owns the schema and runs migrations |

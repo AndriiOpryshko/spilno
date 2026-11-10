@@ -3,7 +3,7 @@ status: Draft
 skill: ao-data-model
 owner: "Andrii Opryshko"
 reviewers: []
-updated_at: "2026-11-05"
+updated_at: "2026-11-10"
 feature_size: "M"
 prd: "PRD.md"
 sad: "sad.md"

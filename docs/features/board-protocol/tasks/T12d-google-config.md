@@ -10,7 +10,7 @@ test_cmd: "cd services/core && go test -count=1 ./internal/platform/config/"
 stub: services/core/internal/platform/config/google.go
 test_file: services/core/internal/platform/config/google_test.go
 estimate: "2 h"
-status: "todo"
+status: "done"
 ---
 
 # T12d — Read the Google configuration from the environment

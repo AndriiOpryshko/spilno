@@ -16,11 +16,11 @@
 | [T09](./T09-settings-roster-domain.md) | Model association settings and roster entries with all-fields validation | domain | Andrii Opryshko | M | — | done |
 | [T10](./T10-settings-roster-endpoints.md) | Serve settings and roster: use cases, Postgres repositories, handlers and CurrentMember | ports | Andrii Opryshko | L | T02, T06, T07, T09 | todo |
 | [T11](./T11-require-session-current-member.md) | Require a session and a current член правління on the governance and finance routes | wiring | Andrii Opryshko | M | T08, T10 | replaced (association-onboarding) |
-| [T12](./T12-google-connection-token-source.md) | Store the association's Google connection and expose GoogleTokenSource | infra | Andrii Opryshko | M | T01, T07 | in_progress |
+| [T12](./T12-google-connection-token-source.md) | Store the association's Google connection and expose GoogleTokenSource | infra | Andrii Opryshko | M | T01, T07 | done |
 | [T12a](./T12a-google-token-cipher.md) | Seal and open the Google refresh token with AES-256-GCM | infra | Andrii Opryshko | S | — | done |
 | [T12b](./T12b-google-connection-store.md) | Store the association's Google connection and hand out its token source | infra | Andrii Opryshko | M | T01, T07, T12a | done |
 | [T12c](./T12c-google-consent.md) | Turn one Google consent into a grant: refresh token, account email and the spilno folder | infra | Andrii Opryshko | M | — | done |
-| [T12d](./T12d-google-config.md) | Read the Google configuration from the environment and enable the connection in the API | infra | Andrii Opryshko | S | T12b | todo |
+| [T12d](./T12d-google-config.md) | Read the Google configuration from the environment and enable the connection in the API | infra | Andrii Opryshko | S | T12b | done |
 | [T13](./T13-drive-files-adapter.md) | Implement the Drive Files adapter with sha256 checks and an in-memory fake | infra | Andrii Opryshko | M | T12 | todo |
 | [T13a](./T13a-files-port-fake.md) | Declare the Files port and an in-memory fake that passes a shared contract test | infra | Andrii Opryshko | M | — | done |
 | [T14](./T14-river-worker-jobs.md) | Wire the River client, the cmd/worker binary and the job status endpoints | wiring | Andrii Opryshko | L | T04, T07, T11 | todo |

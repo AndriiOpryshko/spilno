@@ -27,11 +27,20 @@ var liveRelations = []string{
 	"poll_rounds", "poll_votes",
 	"print_copies", "meeting_facts", "meeting_attendees", "meeting_item_votes",
 	"protocol_snapshots", "registry_entries", "integrity_runs", "integrity_findings",
+	"application_extracts", "applications", "application_filings", "application_checks",
+	"application_decisions", "association_state_changes",
+	"uq_applications_account_edrpou_pending", "idx_association_state_changes_association_created",
+	"uq_associations_edrpou", "idx_associations_confirmed_by_decision",
+	"idx_board_member_revisions_sign_in_email",
 }
 
 // liveColumns are columns the migrations add to tables that existed before them.
 var liveColumns = [][2]string{
 	{"meetings", "chair_board_member_id"},
+	{"associations", "edrpou"}, {"associations", "address"}, {"associations", "state"},
+	{"associations", "confirmed_by_decision_id"},
+	{"board_member_revisions", "position"}, {"board_member_revisions", "decision_id"},
+	{"contracts", "association_id"},
 }
 
 func TestMigrationsRoundtrip(t *testing.T) {
@@ -94,6 +103,7 @@ func assertSchema(t *testing.T, pool *pgxpool.Pool) {
 			t.Errorf("relation %s does not exist", name)
 		}
 	}
+	assertAppRole(t, pool)
 	for _, c := range liveColumns {
 		var n int
 		if err := pool.QueryRow(context.Background(), `SELECT count(*) FROM information_schema.columns
@@ -102,6 +112,34 @@ func assertSchema(t *testing.T, pool *pgxpool.Pool) {
 		}
 		if n != 1 {
 			t.Errorf("column %s.%s does not exist", c[0], c[1])
+		}
+	}
+}
+
+// assertAppRole checks the spilno_app role exists without BYPASSRLS and that the audit tables are
+// insert-only for it.
+func assertAppRole(t *testing.T, pool *pgxpool.Pool) {
+	t.Helper()
+	ctx := context.Background()
+	var bypass bool
+	if err := pool.QueryRow(ctx, `SELECT rolbypassrls FROM pg_roles WHERE rolname = 'spilno_app'`).Scan(&bypass); err != nil {
+		t.Errorf("role spilno_app: %v", err)
+		return
+	}
+	if bypass {
+		t.Errorf("role spilno_app must not bypass row-level security")
+	}
+	for _, table := range []string{"application_extracts", "application_filings", "application_checks",
+		"application_decisions", "association_state_changes"} {
+		var ins, upd, del bool
+		if err := pool.QueryRow(ctx, `SELECT has_table_privilege('spilno_app', $1, 'INSERT'),
+			has_table_privilege('spilno_app', $1, 'UPDATE'), has_table_privilege('spilno_app', $1, 'DELETE')`,
+			"public."+table).Scan(&ins, &upd, &del); err != nil {
+			t.Errorf("privileges on %s: %v", table, err)
+			continue
+		}
+		if !ins || upd || del {
+			t.Errorf("spilno_app on %s: insert=%v update=%v delete=%v, want insert only", table, ins, upd, del)
 		}
 	}
 }

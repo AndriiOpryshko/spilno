@@ -14,7 +14,7 @@ import (
 const createContract = `-- name: CreateContract :one
 INSERT INTO contracts (counterparty, amount_cents, currency, signed_at, ends_at)
 VALUES ($1, $2, $3, $4, $5)
-RETURNING id, counterparty, amount_cents, currency, signed_at, ends_at, created_at, updated_at
+RETURNING id, counterparty, amount_cents, currency, signed_at, ends_at, created_at, updated_at, association_id
 `
 
 type CreateContractParams struct {
@@ -43,12 +43,13 @@ func (q *Queries) CreateContract(ctx context.Context, arg CreateContractParams) 
 		&i.EndsAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.AssociationID,
 	)
 	return i, err
 }
 
 const getContract = `-- name: GetContract :one
-SELECT id, counterparty, amount_cents, currency, signed_at, ends_at, created_at, updated_at FROM contracts WHERE id = $1
+SELECT id, counterparty, amount_cents, currency, signed_at, ends_at, created_at, updated_at, association_id FROM contracts WHERE id = $1
 `
 
 func (q *Queries) GetContract(ctx context.Context, id pgtype.UUID) (Contract, error) {
@@ -63,12 +64,13 @@ func (q *Queries) GetContract(ctx context.Context, id pgtype.UUID) (Contract, er
 		&i.EndsAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.AssociationID,
 	)
 	return i, err
 }
 
 const listContracts = `-- name: ListContracts :many
-SELECT id, counterparty, amount_cents, currency, signed_at, ends_at, created_at, updated_at FROM contracts
+SELECT id, counterparty, amount_cents, currency, signed_at, ends_at, created_at, updated_at, association_id FROM contracts
 WHERE $1::timestamptz IS NULL
    OR (created_at, id) < ($1::timestamptz, $2::uuid)
 ORDER BY created_at DESC, id DESC
@@ -101,6 +103,7 @@ func (q *Queries) ListContracts(ctx context.Context, arg ListContractsParams) ([
 			&i.EndsAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.AssociationID,
 		); err != nil {
 			return nil, err
 		}

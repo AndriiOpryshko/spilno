@@ -11,6 +11,33 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const currentMemberIDByEmail = `-- name: CurrentMemberIDByEmail :one
+SELECT board_member_id
+FROM (
+  SELECT DISTINCT ON (board_member_id) board_member_id, sign_in_email, term_start, term_end
+  FROM board_member_revisions
+  WHERE association_id = $1
+  ORDER BY board_member_id, created_at DESC, id DESC
+) latest
+WHERE lower(sign_in_email) = lower($2::text)
+  AND term_start <= $3::date
+  AND (term_end IS NULL OR term_end >= $3::date)
+LIMIT 1
+`
+
+type CurrentMemberIDByEmailParams struct {
+	AssociationID pgtype.UUID
+	Email         string
+	OnDate        pgtype.Date
+}
+
+func (q *Queries) CurrentMemberIDByEmail(ctx context.Context, arg CurrentMemberIDByEmailParams) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, currentMemberIDByEmail, arg.AssociationID, arg.Email, arg.OnDate)
+	var board_member_id pgtype.UUID
+	err := row.Scan(&board_member_id)
+	return board_member_id, err
+}
+
 const currentMembership = `-- name: CurrentMembership :one
 SELECT position::text AS position
 FROM (
@@ -38,6 +65,20 @@ func (q *Queries) CurrentMembership(ctx context.Context, arg CurrentMembershipPa
 	var position string
 	err := row.Scan(&position)
 	return position, err
+}
+
+const insertBoardMember = `-- name: InsertBoardMember :exec
+INSERT INTO board_members (id, association_id) VALUES ($1, $2)
+`
+
+type InsertBoardMemberParams struct {
+	ID            pgtype.UUID
+	AssociationID pgtype.UUID
+}
+
+func (q *Queries) InsertBoardMember(ctx context.Context, arg InsertBoardMemberParams) error {
+	_, err := q.db.Exec(ctx, insertBoardMember, arg.ID, arg.AssociationID)
+	return err
 }
 
 const insertBoardMemberRevision = `-- name: InsertBoardMemberRevision :exec
@@ -71,6 +112,41 @@ func (q *Queries) InsertBoardMemberRevision(ctx context.Context, arg InsertBoard
 		arg.DecisionID,
 	)
 	return err
+}
+
+const latestRevisionOfMember = `-- name: LatestRevisionOfMember :one
+SELECT full_name::text AS full_name, COALESCE(sign_in_email, '')::text AS sign_in_email, term_start, term_end,
+       COALESCE(position, 'member')::text AS position
+FROM board_member_revisions
+WHERE association_id = $1 AND board_member_id = $2
+ORDER BY created_at DESC, id DESC
+LIMIT 1
+`
+
+type LatestRevisionOfMemberParams struct {
+	AssociationID pgtype.UUID
+	BoardMemberID pgtype.UUID
+}
+
+type LatestRevisionOfMemberRow struct {
+	FullName    string
+	SignInEmail string
+	TermStart   pgtype.Date
+	TermEnd     pgtype.Date
+	Position    string
+}
+
+func (q *Queries) LatestRevisionOfMember(ctx context.Context, arg LatestRevisionOfMemberParams) (LatestRevisionOfMemberRow, error) {
+	row := q.db.QueryRow(ctx, latestRevisionOfMember, arg.AssociationID, arg.BoardMemberID)
+	var i LatestRevisionOfMemberRow
+	err := row.Scan(
+		&i.FullName,
+		&i.SignInEmail,
+		&i.TermStart,
+		&i.TermEnd,
+		&i.Position,
+	)
+	return i, err
 }
 
 const memberSignInAddresses = `-- name: MemberSignInAddresses :many

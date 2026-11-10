@@ -42,3 +42,27 @@ ORDER BY sign_in_email;
 INSERT INTO board_member_revisions (id, association_id, board_member_id, full_name, sign_in_email, term_start, term_end, position, decision_id)
 VALUES (sqlc.arg(id), sqlc.arg(association_id), sqlc.arg(board_member_id), sqlc.arg(full_name), sqlc.narg(sign_in_email),
         sqlc.arg(term_start), sqlc.narg(term_end), sqlc.arg(position), sqlc.narg(decision_id));
+
+-- name: InsertBoardMember :exec
+INSERT INTO board_members (id, association_id) VALUES (sqlc.arg(id), sqlc.arg(association_id));
+
+-- name: LatestRevisionOfMember :one
+SELECT full_name::text AS full_name, COALESCE(sign_in_email, '')::text AS sign_in_email, term_start, term_end,
+       COALESCE(position, 'member')::text AS position
+FROM board_member_revisions
+WHERE association_id = sqlc.arg(association_id) AND board_member_id = sqlc.arg(board_member_id)
+ORDER BY created_at DESC, id DESC
+LIMIT 1;
+
+-- name: CurrentMemberIDByEmail :one
+SELECT board_member_id
+FROM (
+  SELECT DISTINCT ON (board_member_id) board_member_id, sign_in_email, term_start, term_end
+  FROM board_member_revisions
+  WHERE association_id = sqlc.arg(association_id)
+  ORDER BY board_member_id, created_at DESC, id DESC
+) latest
+WHERE lower(sign_in_email) = lower(sqlc.arg(email)::text)
+  AND term_start <= sqlc.arg(on_date)::date
+  AND (term_end IS NULL OR term_end >= sqlc.arg(on_date)::date)
+LIMIT 1;

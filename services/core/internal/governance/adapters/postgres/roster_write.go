@@ -4,12 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/adapters/postgres/sqlcgen"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/domain"
+	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/ports"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/db"
 )
 
@@ -62,4 +65,66 @@ func validateForWrite(entry domain.BoardMemberEntry) error {
 	}
 	issues = append(issues, domain.FieldIssue{Pointer: "/position", Detail: "is required"})
 	return &domain.CodedFieldsError{Code: domain.CodeRosterEntryInvalid, Fields: issues}
+}
+
+var _ ports.RosterWriter = Roster{}
+
+// CurrentMemberID finds the entry whose latest revision carries email and covers date.
+func (Roster) CurrentMemberID(ctx context.Context, association uuid.UUID, email string, date time.Time) (uuid.UUID, bool, error) {
+	tx, err := db.From(ctx)
+	if err != nil {
+		return uuid.Nil, false, err
+	}
+	id, err := sqlcgen.New(tx).CurrentMemberIDByEmail(ctx, sqlcgen.CurrentMemberIDByEmailParams{
+		AssociationID: uuidOf(association), Email: email, OnDate: dateOf(date),
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return uuid.Nil, false, nil
+	}
+	if err != nil {
+		return uuid.Nil, false, err
+	}
+	return uuid.UUID(id.Bytes), true, nil
+}
+
+// LatestEntry returns the newest revision of an entry.
+func (Roster) LatestEntry(ctx context.Context, association, boardMember uuid.UUID) (domain.BoardMemberEntry, bool, error) {
+	tx, err := db.From(ctx)
+	if err != nil {
+		return domain.BoardMemberEntry{}, false, err
+	}
+	row, err := sqlcgen.New(tx).LatestRevisionOfMember(ctx, sqlcgen.LatestRevisionOfMemberParams{
+		AssociationID: uuidOf(association), BoardMemberID: uuidOf(boardMember),
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.BoardMemberEntry{}, false, nil
+	}
+	if err != nil {
+		return domain.BoardMemberEntry{}, false, err
+	}
+	entry := domain.BoardMemberEntry{
+		FullName: row.FullName, SignInEmail: row.SignInEmail,
+		Term:     domain.Term{Start: row.TermStart.Time},
+		Position: domain.Position(row.Position),
+	}
+	if row.TermEnd.Valid {
+		entry.Term.End = row.TermEnd.Time
+	}
+	return entry, true, nil
+}
+
+// CreateMember stores a new, empty roster entry.
+func (Roster) CreateMember(ctx context.Context, association uuid.UUID) (uuid.UUID, error) {
+	tx, err := db.From(ctx)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	id, err := uuid.NewV7()
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("member id: %w", err)
+	}
+	if err := sqlcgen.New(tx).InsertBoardMember(ctx, sqlcgen.InsertBoardMemberParams{ID: uuidOf(id), AssociationID: uuidOf(association)}); err != nil {
+		return uuid.Nil, err
+	}
+	return id, nil
 }

@@ -69,7 +69,7 @@ Reconcile pass 2026-11-10 (PRD §1 ¶4 «Clarified 2026-11-10»): the опера
 |---|---|---|
 | голова правління | Person | signs in, files a заявка на підключення or a запит на передачу with the signed extract, follows it |
 | член правління | Person | works in each association whose roster they are on; connects the storage |
-| оператор | Person | checks extracts outside Спільно, records the check, decides, disables and enables |
+| оператор | Person | checks extracts outside Спільно, records the check, decides, disables and enables; the same person may be a член правління and then enters that association as its member, not as the оператор |
 | Google sign-in | System (external) | proves the person's sign-in address (OIDC) |
 | Google Drive of the association | System (external) | the association's document storage, connected by the board |
 | Public signature verification service (ЦЗО) | System (external) | used by the оператор by hand to check the КЕП; Спільно does not call it |

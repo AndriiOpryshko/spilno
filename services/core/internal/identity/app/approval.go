@@ -12,10 +12,11 @@ import (
 type Approvals struct {
 	repo ports.ApprovalRepository
 	seat ports.SeatHeadFunc
+	end  ports.EndTermFunc
 }
 
-func NewApprovals(repo ports.ApprovalRepository, seat ports.SeatHeadFunc) *Approvals {
-	return &Approvals{repo: repo, seat: seat}
+func NewApprovals(repo ports.ApprovalRepository, seat ports.SeatHeadFunc, end ports.EndTermFunc) *Approvals {
+	return &Approvals{repo: repo, seat: seat, end: end}
 }
 
 // ApproveInput is an approval by the оператор.
@@ -40,10 +41,10 @@ func (a *Approvals) Approve(ctx context.Context, in ApproveInput) (ports.ReviewD
 			mismatch = nameMismatchOpen(f)
 		}
 		_, err := app.Approve(domain.ApprovalInput{
-			OperatorAccountID: in.OperatorAccountID, MismatchOpen: mismatch, Document: in.Document,
+			OperatorAccountID: in.OperatorAccountID, AssociationEDRPOU: f.AssociationEdrpou, MismatchOpen: mismatch, Document: in.Document,
 		})
 		return err
-	}, a.seat)
+	}, a.seat, a.end)
 }
 
 func nameMismatchOpen(f ports.ApprovalFacts) bool {

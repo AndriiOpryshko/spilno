@@ -68,7 +68,7 @@ func (q *Queries) CreateAssociation(ctx context.Context, arg CreateAssociationPa
 }
 
 const getApplicationForApproval = `-- name: GetApplicationForApproval :one
-SELECT a.id, a.kind, a.account_id, a.edrpou, a.state, c.email AS applicant_email
+SELECT a.id, a.kind, a.account_id, a.edrpou, a.state, a.association_id, c.email AS applicant_email
 FROM applications a
 JOIN accounts c ON c.id = a.account_id
 WHERE a.id = $1
@@ -81,6 +81,7 @@ type GetApplicationForApprovalRow struct {
 	AccountID      pgtype.UUID
 	Edrpou         string
 	State          string
+	AssociationID  pgtype.UUID
 	ApplicantEmail string
 }
 
@@ -93,7 +94,76 @@ func (q *Queries) GetApplicationForApproval(ctx context.Context, id pgtype.UUID)
 		&i.AccountID,
 		&i.Edrpou,
 		&i.State,
+		&i.AssociationID,
 		&i.ApplicantEmail,
+	)
+	return i, err
+}
+
+const getApplicationScope = `-- name: GetApplicationScope :one
+SELECT kind, association_id FROM applications WHERE id = $1
+`
+
+type GetApplicationScopeRow struct {
+	Kind          string
+	AssociationID pgtype.UUID
+}
+
+func (q *Queries) GetApplicationScope(ctx context.Context, id pgtype.UUID) (GetApplicationScopeRow, error) {
+	row := q.db.QueryRow(ctx, getApplicationScope, id)
+	var i GetApplicationScopeRow
+	err := row.Scan(&i.Kind, &i.AssociationID)
+	return i, err
+}
+
+const getAssociationForApproval = `-- name: GetAssociationForApproval :one
+SELECT edrpou, confirmed_by_decision_id FROM associations WHERE id = $1 FOR UPDATE
+`
+
+type GetAssociationForApprovalRow struct {
+	Edrpou                pgtype.Text
+	ConfirmedByDecisionID pgtype.UUID
+}
+
+func (q *Queries) GetAssociationForApproval(ctx context.Context, id pgtype.UUID) (GetAssociationForApprovalRow, error) {
+	row := q.db.QueryRow(ctx, getAssociationForApproval, id)
+	var i GetAssociationForApprovalRow
+	err := row.Scan(&i.Edrpou, &i.ConfirmedByDecisionID)
+	return i, err
+}
+
+const getEntryOfDecision = `-- name: GetEntryOfDecision :one
+SELECT board_member_id, COALESCE(sign_in_email, '')::text AS sign_in_email, term_start, term_end
+FROM (
+    SELECT DISTINCT ON (board_member_id) board_member_id, sign_in_email, term_start, term_end, decision_id
+    FROM board_member_revisions
+    WHERE association_id = $1
+    ORDER BY board_member_id, created_at DESC, id DESC
+) latest
+WHERE decision_id = $2 AND term_end IS NULL
+LIMIT 1
+`
+
+type GetEntryOfDecisionParams struct {
+	AssociationID pgtype.UUID
+	DecisionID    pgtype.UUID
+}
+
+type GetEntryOfDecisionRow struct {
+	BoardMemberID pgtype.UUID
+	SignInEmail   string
+	TermStart     pgtype.Date
+	TermEnd       pgtype.Date
+}
+
+func (q *Queries) GetEntryOfDecision(ctx context.Context, arg GetEntryOfDecisionParams) (GetEntryOfDecisionRow, error) {
+	row := q.db.QueryRow(ctx, getEntryOfDecision, arg.AssociationID, arg.DecisionID)
+	var i GetEntryOfDecisionRow
+	err := row.Scan(
+		&i.BoardMemberID,
+		&i.SignInEmail,
+		&i.TermStart,
+		&i.TermEnd,
 	)
 	return i, err
 }
@@ -154,5 +224,19 @@ type SetAssociationConfirmationParams struct {
 
 func (q *Queries) SetAssociationConfirmation(ctx context.Context, arg SetAssociationConfirmationParams) error {
 	_, err := q.db.Exec(ctx, setAssociationConfirmation, arg.DecisionID, arg.ID)
+	return err
+}
+
+const setAssociationEdrpou = `-- name: SetAssociationEdrpou :exec
+UPDATE associations SET edrpou = $1 WHERE id = $2 AND edrpou IS NULL
+`
+
+type SetAssociationEdrpouParams struct {
+	Edrpou pgtype.Text
+	ID     pgtype.UUID
+}
+
+func (q *Queries) SetAssociationEdrpou(ctx context.Context, arg SetAssociationEdrpouParams) error {
+	_, err := q.db.Exec(ctx, setAssociationEdrpou, arg.Edrpou, arg.ID)
 	return err
 }

@@ -33,6 +33,13 @@ import (
 // newApprovalEnv is newReviewEnv with approvals enabled; seat nil seats through governance.SeatHead.
 func newApprovalEnv(t *testing.T, seat func(ctx context.Context, association uuid.UUID, fullName, signInEmail string, termStart time.Time, decisionID uuid.UUID) (uuid.UUID, error)) *reviewEnv {
 	t.Helper()
+	return newApprovalEnvWith(t, seat, nil)
+}
+
+// newApprovalEnvWith also takes the end-of-term step (ApprovalConfig.EndTerm); nil ends through
+// governance.EndTerm. The router serves /probe/associations/{association_id} behind the guard.
+func newApprovalEnvWith(t *testing.T, seat func(ctx context.Context, association uuid.UUID, fullName, signInEmail string, termStart time.Time, decisionID uuid.UUID) (uuid.UUID, error), end func(ctx context.Context, association, memberID uuid.UUID, date time.Time, decisionID uuid.UUID) error) *reviewEnv {
+	t.Helper()
 	pool, _, _ := testdb.NewTwoAssociations(t)
 	gov := governance.New(pool)
 	if seat == nil {
@@ -40,8 +47,11 @@ func newApprovalEnv(t *testing.T, seat func(ctx context.Context, association uui
 			return gov.SeatHead(ctx, association, governance.Person{FullName: fullName, SignInEmail: signInEmail}, governance.Term{Start: termStart}, decisionID)
 		}
 	}
+	if end == nil {
+		end = gov.EndTerm
+	}
 	idm := identity.New(pool)
-	idm.EnableApprovals(identity.ApprovalConfig{SeatHead: seat})
+	idm.EnableApprovals(identity.ApprovalConfig{SeatHead: seat, EndTerm: end})
 	people := map[string]identity.ProviderIdentity{}
 	for p, email := range map[string]string{"first": "first@example.test", "second": "second@example.test", "head": "head@example.test", "operator": guardOperatorEmail} {
 		people[p] = identity.ProviderIdentity{Issuer: "https://accounts.example.test", Subject: "sub-" + p, Email: email, EmailVerified: true}
@@ -50,6 +60,7 @@ func newApprovalEnv(t *testing.T, seat func(ctx context.Context, association uui
 	r := httpapi.NewRouter()
 	r.Group(func(r chi.Router) {
 		r.Use(idm.Guard(guardRoster{gov}))
+		r.Get("/probe/associations/{association_id}", guardProbe(pool))
 		if err := idm.Routes(r); err != nil {
 			t.Fatal(err)
 		}

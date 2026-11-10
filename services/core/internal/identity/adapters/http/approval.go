@@ -35,8 +35,6 @@ func (h *Handler) ApproveApplication(ctx context.Context, req gen.ApproveApplica
 	switch {
 	case errors.Is(err, ports.ErrApplicationNotFound):
 		return gen.ApproveApplication404ApplicationProblemPlusJSONResponse{NotFoundApplicationProblemPlusJSONResponse: applicationNotFound()}, nil
-	case errors.Is(err, ports.ErrTransferNotSupported):
-		return nil, httpapi.ErrNotImplemented
 	case errors.Is(err, ports.ErrAssociationConnected):
 		return approvalConflict(domain.CodeAssociationAlreadyConnected), nil
 	case errors.As(err, &ce):

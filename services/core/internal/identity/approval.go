@@ -10,9 +10,10 @@ import (
 // runs inside the approval's transaction (cmd/api passes governance.Module.SeatHead).
 type ApprovalConfig struct {
 	SeatHead ports.SeatHeadFunc
+	EndTerm  ports.EndTermFunc
 }
 
 // EnableApprovals turns approveApplication on.
 func (m *Module) EnableApprovals(cfg ApprovalConfig) {
-	m.handler.EnableApprovals(app.NewApprovals(postgres.NewApprovals(m.pool), cfg.SeatHead))
+	m.handler.EnableApprovals(app.NewApprovals(postgres.NewApprovals(m.pool), cfg.SeatHead, cfg.EndTerm))
 }

@@ -3,6 +3,8 @@ package postgres
 import (
 	"context"
 	"errors"
+	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -24,7 +26,7 @@ var _ ports.ApprovalRepository = (*Approvals)(nil)
 
 func NewApprovals(pool *pgxpool.Pool) *Approvals { return &Approvals{pool: pool} }
 
-func (s *Approvals) Approve(ctx context.Context, req ports.ApprovalRequest, decide func(ports.ApprovalFacts) error, seat ports.SeatHeadFunc) (ports.ReviewDecision, error) {
+func (s *Approvals) Approve(ctx context.Context, req ports.ApprovalRequest, decide func(ports.ApprovalFacts) error, seat ports.SeatHeadFunc, end ports.EndTermFunc) (ports.ReviewDecision, error) {
 	assocID, err := uuid.NewV7()
 	if err != nil {
 		return ports.ReviewDecision{}, err
@@ -33,8 +35,19 @@ func (s *Approvals) Approve(ctx context.Context, req ports.ApprovalRequest, deci
 	if err != nil {
 		return ports.ReviewDecision{}, err
 	}
+	scope, err := sqlcgen.New(s.pool).GetApplicationScope(ctx, pgUUID(req.ApplicationID))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ports.ReviewDecision{}, ports.ErrApplicationNotFound
+	}
+	if err != nil {
+		return ports.ReviewDecision{}, err
+	}
+	transfer := scope.Kind != "connection"
+	if transfer {
+		assocID = scope.AssociationID.Bytes
+	}
 	var out ports.ReviewDecision
-	// The scope is the association being created; the actor is set to the applicant once known.
+	// The scope is the association being created, or the one a transfer is for.
 	err = db.InAssociation(ctx, s.pool, assocID, req.OperatorEmail, func(ctx context.Context) error {
 		tx, err := db.From(ctx)
 		if err != nil {
@@ -47,9 +60,6 @@ func (s *Approvals) Approve(ctx context.Context, req ports.ApprovalRequest, deci
 		}
 		if err != nil {
 			return err
-		}
-		if app.Kind != "connection" {
-			return ports.ErrTransferNotSupported
 		}
 		filing, err := q.GetLatestFilingForApproval(ctx, pgUUID(req.ApplicationID))
 		if err != nil {
@@ -70,11 +80,25 @@ func (s *Approvals) Approve(ctx context.Context, req ports.ApprovalRequest, deci
 			return err
 		}
 		facts.FiledAt = filing.CreatedAt.Time
+		var assoc sqlcgen.GetAssociationForApprovalRow
+		if transfer {
+			if assoc, err = q.GetAssociationForApproval(ctx, pgUUID(assocID)); err != nil {
+				return err
+			}
+			facts.AssociationEdrpou = assoc.Edrpou.String
+		}
 		if err := decide(facts); err != nil {
 			return err
 		}
 
-		if err := q.CreateAssociation(ctx, sqlcgen.CreateAssociationParams{
+		if transfer {
+			if err := q.SetAssociationEdrpou(ctx, sqlcgen.SetAssociationEdrpouParams{ID: pgUUID(assocID), Edrpou: pgtype.Text{String: app.Edrpou, Valid: true}}); err != nil {
+				return err
+			}
+			if err := endPreviousHead(ctx, q, end, assocID, assoc.ConfirmedByDecisionID, app.ApplicantEmail, filing.TermStart.Time, decisionID); err != nil {
+				return err
+			}
+		} else if err := q.CreateAssociation(ctx, sqlcgen.CreateAssociationParams{
 			ID: pgUUID(assocID), Name: filing.AssociationName, Edrpou: pgtype.Text{String: app.Edrpou, Valid: true},
 			Address: pgtype.Text{String: filing.AssociationAddress, Valid: true},
 		}); err != nil {
@@ -108,4 +132,28 @@ func (s *Approvals) Approve(ctx context.Context, req ports.ApprovalRequest, deci
 		return nil
 	})
 	return out, err
+}
+
+// endPreviousHead ends the whole entry of the голова confirmed by the earlier approval the day before
+// the new term starts, never before the entry's own first day. Nothing ends when no approval
+// confirmed a голова or when it is the applicant, who is re-seated.
+func endPreviousHead(ctx context.Context, q *sqlcgen.Queries, end ports.EndTermFunc, assocID uuid.UUID, confirmedBy pgtype.UUID, applicantEmail string, termStart time.Time, decisionID uuid.UUID) error {
+	if !confirmedBy.Valid {
+		return nil
+	}
+	prev, err := q.GetEntryOfDecision(ctx, sqlcgen.GetEntryOfDecisionParams{AssociationID: pgUUID(assocID), DecisionID: confirmedBy})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if strings.EqualFold(prev.SignInEmail, applicantEmail) {
+		return nil
+	}
+	date := termStart.AddDate(0, 0, -1)
+	if date.Before(prev.TermStart.Time) {
+		date = prev.TermStart.Time
+	}
+	return end(ctx, assocID, prev.BoardMemberID.Bytes, date, decisionID)
 }

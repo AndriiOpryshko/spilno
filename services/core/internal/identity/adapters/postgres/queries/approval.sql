@@ -1,5 +1,5 @@
 -- name: GetApplicationForApproval :one
-SELECT a.id, a.kind, a.account_id, a.edrpou, a.state, c.email AS applicant_email
+SELECT a.id, a.kind, a.account_id, a.edrpou, a.state, a.association_id, c.email AS applicant_email
 FROM applications a
 JOIN accounts c ON c.id = a.account_id
 WHERE a.id = @id
@@ -29,3 +29,23 @@ UPDATE applications SET state = 'approved', association_id = @association_id WHE
 
 -- name: SetAssociationConfirmation :exec
 UPDATE associations SET confirmed_by_decision_id = @decision_id WHERE id = @id;
+
+-- name: GetApplicationScope :one
+SELECT kind, association_id FROM applications WHERE id = @id;
+
+-- name: GetAssociationForApproval :one
+SELECT edrpou, confirmed_by_decision_id FROM associations WHERE id = @id FOR UPDATE;
+
+-- name: GetEntryOfDecision :one
+SELECT board_member_id, COALESCE(sign_in_email, '')::text AS sign_in_email, term_start, term_end
+FROM (
+    SELECT DISTINCT ON (board_member_id) board_member_id, sign_in_email, term_start, term_end, decision_id
+    FROM board_member_revisions
+    WHERE association_id = @association_id
+    ORDER BY board_member_id, created_at DESC, id DESC
+) latest
+WHERE decision_id = @decision_id AND term_end IS NULL
+LIMIT 1;
+
+-- name: SetAssociationEdrpou :exec
+UPDATE associations SET edrpou = @edrpou WHERE id = @id AND edrpou IS NULL;

@@ -116,7 +116,7 @@ func run() error {
 	gov := governance.New(pool)
 	idm.EnableApprovals(identity.ApprovalConfig{SeatHead: func(ctx context.Context, association uuid.UUID, fullName, signInEmail string, termStart time.Time, decisionID uuid.UUID) (uuid.UUID, error) {
 		return gov.SeatHead(ctx, association, governance.Person{FullName: fullName, SignInEmail: signInEmail}, governance.Term{Start: termStart}, decisionID)
-	}})
+	}, EndTerm: gov.EndTerm})
 	gcfg, err := config.LoadGoogle()
 	if err != nil {
 		return err

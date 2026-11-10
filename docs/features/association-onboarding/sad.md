@@ -610,7 +610,7 @@ Coverage: 9/9 user stories · 42/42 ACs — 0 non-runtime N/A.
 Same VM and compose topology as board-protocol SAD §7 (`caddy`, `core-api`, `worker`, `postgres`, `backup`, `otel-lgtm`); no new process. Changes:
 
 - **Two database roles** (ADR-0003): `spilno_owner` owns the schema and runs goose on start (`MIGRATIONS_DATABASE_URL`); `spilno_app` (no `BYPASSRLS`, not the owner) serves requests and River jobs (`DATABASE_URL`). A goose migration creates `spilno_app` and its grants, so `infra/compose.yaml`, `testdb.New(t)` and production get it the same way. `spilno_app` has `SELECT, INSERT` only on the insert-only tables: extracts, checks, filings, decisions, association state changes (ADR-0005, ADR-0007).
-- **Configuration:** `SPILNO_OPERATOR_EMAIL` (the one оператор, ADR-0001); the OAuth redirect URI for the storage connection registered with Google (ADR-0008).
+- **Configuration:** `SPILNO_OPERATOR_EMAIL` (the one оператор, ADR-0001; the address may also stand on a roster, ADR-0009); the OAuth redirect URI for the storage connection registered with Google (ADR-0008).
 - **Backups:** extracts are inside Postgres, covered by the nightly dump (board-protocol ADR-0016); at ~6 filings a year of ≤ 5 MB the dump grows by ≤ 30 MB a year.
 
 **Monitoring additions:**
@@ -618,7 +618,7 @@ Same VM and compose topology as board-protocol SAD §7 (`caddy`, `core-api`, `wo
 | Signal | Source | Alert |
 |---|---|---|
 | Request duration p95 per route | `http.server.request.duration` | read > 200 ms, write > 500 ms, filing > 5 s for 15 min |
-| Isolation denials | `identity.access.denied` by reason (not_member, disabled_write, operator_on_association) | sudden rise > 10× weekly mean (probing) |
+| Isolation denials | `identity.access.denied` by reason (not_member, disabled_write; an оператор off the roster counts as not_member, ADR-0009) | sudden rise > 10× weekly mean (probing) |
 | Applications waiting | `identity.applications.pending_age_days` (oldest) | oldest > 5 working days |
 | Row-level-security misses | `platform.db.association_unset` (a query on a scoped table without the association set returns nothing) | any |
 

@@ -38,6 +38,7 @@ Board-protocol [ADR-0005](../../board-protocol/adr/0005-store-files-in-associati
 - Good: replaces T12; reconnecting replaces the row as before.
 - Bad: one more OAuth redirect URI to register; an unknown personal address is not detectable (SAD §11).
 - Neutral: scope, encryption and folder layout of board-protocol ADR-0005 are unchanged.
+- Open (2026-11-10): who may replace a connected storage and what happens to the files on the old account is an open question (PRD §8, SAD §11); until it is closed a new connection replaces the row and moves no files.
 
 ### Migration and rollback
 

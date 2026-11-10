@@ -56,3 +56,12 @@
 | [T49](./T49-security-review-record.md) | Run and record the security review that PRD §6.1 requires | docs | Andrii Opryshko | M | T45, T46 | todo |
 
 **Total:** 49 tasks, ~29.5 person-days.
+
+## Known gaps (found during implementation)
+
+- **No adapter for the real sign-in provider.** T18 built the provider port, an in-process fake and the
+  development shim (`SPILNO_DEV_SIGN_IN=true`); without the shim the four sign-in operations answer 501.
+  The Google OIDC adapter (ID-token verification, client configuration from the environment) is a
+  separate piece of work after this feature (decided 2026-11-10).
+- **Sign-in state lives in process memory** (`identity/app/signin.go`: state, PKCE verifier, nonce, 10
+  minutes). Enough for one API instance; more than one needs a table that the data model does not have.

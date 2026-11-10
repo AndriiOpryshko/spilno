@@ -3,7 +3,7 @@ status: Draft
 skill: ao-architecture
 owner: "Andrii Opryshko"
 reviewers: ["Andrii Opryshko"]
-updated_at: "2026-11-05"
+updated_at: "2026-11-10"
 feature_size: "M"
 stage: "04-05"
 depth: "easy"
@@ -14,11 +14,11 @@ contexts: [identity, governance, finance, platform]
 
 # Software Architecture Document — association-onboarding
 
-> **Inputs:** [PRD](./PRD.md) (Approved 2026-11-05, ao-prd, amended at this pass: manual extract check) · [CONTEXT](./CONTEXT.md) · [board-protocol CONTEXT](../board-protocol/CONTEXT.md) · repo ADRs [`docs/adr/`](../../adr/) · board-protocol [SAD](../board-protocol/sad.md) and [ADRs](../board-protocol/adr/) · reference contexts `services/core/internal/identity`, `services/core/internal/governance`
+> **Inputs:** [PRD](./PRD.md) (Approved 2026-11-05, ao-prd; amended at the first SAD pass: manual extract check; clarified 2026-11-10 by clarify-prd and reconciled here the same day) · [CONTEXT](./CONTEXT.md) · [board-protocol CONTEXT](../board-protocol/CONTEXT.md) · repo ADRs [`docs/adr/`](../../adr/) · board-protocol [SAD](../board-protocol/sad.md) and [ADRs](../board-protocol/adr/) · reference contexts `services/core/internal/identity`, `services/core/internal/governance`
 
 ## 1. Introduction and goals
 
-**Intent.** A голова правління connects their association to Спільно, or takes it over after an election, without the developer: they sign in, file a заявка на підключення or a запит на передачу with a КЕП-signed витяг з ЄДР, and the оператор checks the extract outside Спільно and decides with a reason. The оператор can disable and enable an association; the board connects its own document storage. With a second association the data of each association becomes visible only to the people on its roster, and one person may sit on several rosters (PRD §1, §2).
+**Intent.** A голова правління connects their association to Спільно, or takes it over after an election, without the developer: they sign in, file a заявка на підключення or a запит на передачу with a КЕП-signed витяг з ЄДР, and the оператор checks the extract outside Спільно and decides with a reason. The оператор can disable and enable an association; the board connects its own document storage. With a second association the data of each association becomes visible only to the people on its roster, and one person may sit on several rosters (PRD §1, §2). The оператор role may sit on the account of a член правління: it opens no association's records and decides nothing its holder filed (AC-16b, AC-16c).
 
 **Top-3 quality goals** (full scenarios in §10):
 
@@ -30,13 +30,15 @@ contexts: [identity, governance, finance, platform]
 
 | Role (glossary) | Interest | Sign-off? |
 |---|---|---|
-| голова правління | files, follows and refiles a заявка or a запит; becomes the first член правління | No |
-| оператор | checks extracts, decides, disables and enables associations | Yes (product owner) |
+| голова правління | files, follows and refiles a заявка or a запит, on the roster or not; becomes the first член правління of a new association or the голова on an existing roster | No |
+| оператор | checks extracts, decides (never their own filing), disables and enables associations; may also be a член правління on the same account | Yes (product owner) |
 | член правління | works in one or several associations; connects the storage; reads the registry of a вимкнене ОСББ | No |
 | ревізійна комісія | later reads the chain from Спільно to ЄДР (no access in this feature) | No |
 | Tech lead | SAD approval | Yes |
 
 Product-owner decisions at this pass (2026-11-05): the extract and the КЕП are checked by hand outside Спільно («вся перевірка — ручна і за кадром», PRD amended); the association id is part of the path («хоч рут різний з айді осбб»); row-level security now.
+
+Reconcile pass 2026-11-10 (PRD §1 ¶4 «Clarified 2026-11-10»): the оператор role and a roster membership are independent grants on one sign-in account, and the оператор's own filing is refused ([ADR-0009](./adr/0009-treat-the-operator-role-and-a-roster-membership-as-independent-grants-on-one-account.md), AC-16b, AC-16c); a запит на передачу may come from a person already on the roster, whose entry is re-seated instead of doubled ([ADR-0006](./adr/0006-apply-approvals-to-the-roster-through-a-governance-facade-in-one-transaction.md) amended, AC-17, AC-19); a competing запит stays decidable after another was approved (AC-19b); a term start later than the filing date is refused (AC-02); the three names are compared after levelling their spelling (AC-11). The C4 diagrams of §3 and §5 did not change.
 
 <!-- Decision overrides from the critic: «- Decision override: <headline> — rationale: <reason>» -->
 

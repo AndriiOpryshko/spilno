@@ -18,6 +18,7 @@ import { Route as ApplicationsNewRouteImport } from './routes/applications.new'
 import { Route as CasesIndexRouteImport } from './routes/cases.index'
 import { Route as OAssociationIdRouteImport } from './routes/o.$associationId'
 import { Route as OperatorAssociationsRouteImport } from './routes/operator.associations'
+import { Route as StorageCallbackRouteImport } from './routes/storage.callback'
 import { Route as CasesCaseIdProtocolRouteImport } from './routes/cases.$caseId.protocol'
 import { Route as OAssociationIdAssociationRouteImport } from './routes/o.$associationId.association'
 import { Route as OperatorApplicationsIndexRouteImport } from './routes/operator.applications.index'
@@ -71,6 +72,11 @@ const OperatorAssociationsRoute = OperatorAssociationsRouteImport.update({
   path: '/operator/associations',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StorageCallbackRoute = StorageCallbackRouteImport.update({
+  id: '/storage/callback',
+  path: '/storage/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CasesCaseIdProtocolRoute = CasesCaseIdProtocolRouteImport.update({
   id: '/cases/$caseId/protocol',
   path: '/cases/$caseId/protocol',
@@ -115,6 +121,7 @@ export interface FileRoutesByFullPath {
   '/applications/new': typeof ApplicationsNewRoute
   '/o/$associationId': typeof OAssociationIdRouteWithChildren
   '/operator/associations': typeof OperatorAssociationsRoute
+  '/storage/callback': typeof StorageCallbackRoute
   '/applications/': typeof ApplicationsIndexRoute
   '/cases/': typeof CasesIndexRoute
   '/cases/$caseId/protocol': typeof CasesCaseIdProtocolRoute
@@ -132,6 +139,7 @@ export interface FileRoutesByTo {
   '/applications/new': typeof ApplicationsNewRoute
   '/o/$associationId': typeof OAssociationIdRouteWithChildren
   '/operator/associations': typeof OperatorAssociationsRoute
+  '/storage/callback': typeof StorageCallbackRoute
   '/applications': typeof ApplicationsIndexRoute
   '/cases': typeof CasesIndexRoute
   '/cases/$caseId/protocol': typeof CasesCaseIdProtocolRoute
@@ -150,6 +158,7 @@ export interface FileRoutesById {
   '/applications/new': typeof ApplicationsNewRoute
   '/o/$associationId': typeof OAssociationIdRouteWithChildren
   '/operator/associations': typeof OperatorAssociationsRoute
+  '/storage/callback': typeof StorageCallbackRoute
   '/applications/': typeof ApplicationsIndexRoute
   '/cases/': typeof CasesIndexRoute
   '/cases/$caseId/protocol': typeof CasesCaseIdProtocolRoute
@@ -169,6 +178,7 @@ export interface FileRouteTypes {
     | '/applications/new'
     | '/o/$associationId'
     | '/operator/associations'
+    | '/storage/callback'
     | '/applications/'
     | '/cases/'
     | '/cases/$caseId/protocol'
@@ -186,6 +196,7 @@ export interface FileRouteTypes {
     | '/applications/new'
     | '/o/$associationId'
     | '/operator/associations'
+    | '/storage/callback'
     | '/applications'
     | '/cases'
     | '/cases/$caseId/protocol'
@@ -203,6 +214,7 @@ export interface FileRouteTypes {
     | '/applications/new'
     | '/o/$associationId'
     | '/operator/associations'
+    | '/storage/callback'
     | '/applications/'
     | '/cases/'
     | '/cases/$caseId/protocol'
@@ -221,6 +233,7 @@ export interface RootRouteChildren {
   ApplicationsNewRoute: typeof ApplicationsNewRoute
   OAssociationIdRoute: typeof OAssociationIdRouteWithChildren
   OperatorAssociationsRoute: typeof OperatorAssociationsRoute
+  StorageCallbackRoute: typeof StorageCallbackRoute
   ApplicationsIndexRoute: typeof ApplicationsIndexRoute
   CasesIndexRoute: typeof CasesIndexRoute
   CasesCaseIdProtocolRoute: typeof CasesCaseIdProtocolRoute
@@ -293,6 +306,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OperatorAssociationsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/storage/callback': {
+      id: '/storage/callback'
+      path: '/storage/callback'
+      fullPath: '/storage/callback'
+      preLoaderRoute: typeof StorageCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/cases/$caseId/protocol': {
       id: '/cases/$caseId/protocol'
       path: '/cases/$caseId/protocol'
@@ -363,6 +383,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApplicationsNewRoute: ApplicationsNewRoute,
   OAssociationIdRoute: OAssociationIdRouteWithChildren,
   OperatorAssociationsRoute: OperatorAssociationsRoute,
+  StorageCallbackRoute: StorageCallbackRoute,
   ApplicationsIndexRoute: ApplicationsIndexRoute,
   CasesIndexRoute: CasesIndexRoute,
   CasesCaseIdProtocolRoute: CasesCaseIdProtocolRoute,

@@ -122,6 +122,10 @@ export const uk = {
   storage: {
     personalAccount: 'Це особистий акаунт члена правління — підключіть акаунт ОСББ',
     notConnected: 'Спершу підключіть сховище документів ОСББ',
+    anyMemberCanConnect: 'Підключити сховище може будь-який член правління',
+    line: (email: string) => `Сховище документів: ${email}`,
+    lineNotConnected: 'сховище не підключене',
+    connect: 'Підключити сховище',
   },
   caseStatus: { draft: 'Чернетка', review: 'На перевірці', ready: 'Готово до друку', printed: 'Надруковано' },
   documentKind: { offer: 'Пропозиція', invoice: 'Рахунок', contract: 'Договір', act: 'Акт' },

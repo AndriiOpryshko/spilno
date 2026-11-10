@@ -10,7 +10,7 @@ test_cmd: "cd services/core && go test -count=1 ./internal/platform/google/"
 stub: services/core/internal/platform/google/consent.go
 test_file: services/core/internal/platform/google/consent_test.go
 estimate: "half a day"
-status: "in_progress"
+status: "done"
 ---
 
 # T12c — Turn one Google consent into a grant

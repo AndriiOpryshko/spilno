@@ -53,7 +53,7 @@
 | [T46](./T46-e2e-disable-storage-access.md) | Prove disabling, the read-only association, the storage connection and every access denial end to end (US-06, US-07, US-08) | tests | Andrii Opryshko | L | T21, T31, T33, T34, T40, T42, T44 | done |
 | [T47](./T47-load-scenarios.md) | Add the load scenarios for the latency and throughput targets of PRD §6 | tests | Andrii Opryshko | M | T26, T30, T32 | done |
 | [T48](./T48-docs-rules-and-amendments.md) | Update the repo rules and environment docs, amend the board-protocol documents and write the оператор's runbook | docs | Andrii Opryshko | M | T20, T33 | done |
-| [T49](./T49-security-review-record.md) | Run and record the security review that PRD §6.1 requires | docs | Andrii Opryshko | M | T45, T46 | todo |
+| [T49](./T49-security-review-record.md) | Run and record the security review that PRD §6.1 requires | docs | Andrii Opryshko | M | T45, T46 | done |
 
 **Total:** 49 tasks, ~29.5 person-days.
 
@@ -65,3 +65,6 @@
   separate piece of work after this feature (decided 2026-11-10).
 - **Sign-in state lives in process memory** (`identity/app/signin.go`: state, PKCE verifier, nonce, 10
   minutes). Enough for one API instance; more than one needs a table that the data model does not have.
+- **Security review findings are open** ([record](../_review/security-2026-11-10.md)): no High, six Medium
+  (SEC-01 to SEC-06, due 2026-11-24), eight Low. SEC-01 with the gap above means the feature must not be
+  deployed where anyone but the developer can reach it until the real provider adapter exists.

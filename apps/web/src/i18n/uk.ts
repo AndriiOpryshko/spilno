@@ -72,6 +72,7 @@ export const uk = {
       termStart: 'Початок строку повноважень',
       termEnd: 'Кінець строку повноважень (необов’язково)',
       extract: 'Витяг (до 5 МБ)',
+      extractRequired: 'Додайте файл витягу',
       submitConnection: 'Подати заявку',
       submitTransfer: 'Подати запит',
       filedConnection: 'Заявку подано, очікує розгляду оператором',

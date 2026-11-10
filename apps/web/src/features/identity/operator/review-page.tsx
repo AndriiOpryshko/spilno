@@ -42,7 +42,7 @@ export function ReviewPage({ applicationId }: { applicationId: string }) {
       )}
       {warnings.map((w) => (
         <p key={w.kind} role="status" className="rounded-md border px-3 py-2 text-sm">
-          {w.kind === 'extract_age' ? `${uk.operator.extractAgeBefore} ${w.detail} — ${uk.operator.extractAgeAfter}` : w.detail}
+          {w.kind === 'extract_age' ? `${uk.operator.extractAgeBefore} ${w.detail.match(/\d{4}-\d{2}-\d{2}/)?.[0] ?? w.detail} — ${uk.operator.extractAgeAfter}` : w.detail}
         </p>
       ))}
       {filing && (

@@ -38,6 +38,14 @@ const refusalLinks: Record<string, { href: string; label: string }> = {
   'identity.association_not_connected': { href: '/applications/new?kind=connection', label: t.linkConnection },
 };
 
+const refusalMessages: Record<string, string> = {
+  'identity.term_ended': uk.applications.termEnded,
+  'identity.application_already_open': uk.applications.alreadyOpen,
+  'identity.association_already_connected': uk.applications.alreadyConnected,
+};
+
+const knownRefusalMessage = (problem?: Problem) => (problem?.code ? refusalMessages[problem.code] : undefined);
+
 export function FilingForm({ kind, associationId, refile }: FilingFormProps) {
   const [values, setValues] = useState({
     edrpou: '',
@@ -70,7 +78,7 @@ export function FilingForm({ kind, associationId, refile }: FilingFormProps) {
       position: 'head' as const,
       term_start: values.term_start,
       ...(values.term_end ? { term_end: values.term_end } : {}),
-      extract: extract ?? new Blob([]),
+      extract: extract ?? new Blob([], { type: 'application/pdf' }),
     };
     const handlers = {
       onSuccess: () => {
@@ -79,8 +87,13 @@ export function FilingForm({ kind, associationId, refile }: FilingFormProps) {
       },
       onError: (err: unknown) => {
         const problem = ((err as { info?: Problem }).info ?? {}) as Problem;
-        if (problem.errors?.length) {
-          setFieldErrors(Object.fromEntries(problem.errors.map((x) => [x.pointer.replace(/^\//, ''), x.detail])));
+        if (knownRefusalMessage(problem)) {
+          setRefusal(problem);
+        } else if (problem.errors?.length) {
+          setFieldErrors({
+            ...(extract ? {} : { extract: t.extractRequired }),
+            ...Object.fromEntries(problem.errors.map((x) => [x.pointer.replace(/^\//, ''), x.detail])),
+          });
         } else {
           setRefusal(problem);
         }
@@ -123,7 +136,8 @@ export function FilingForm({ kind, associationId, refile }: FilingFormProps) {
   };
 
   const link = refusal?.code ? refusalLinks[refusal.code] : undefined;
-  const unknownRefusal = refusal && !refusal.detail;
+  const refusalMessage = knownRefusalMessage(refusal);
+  const unknownRefusal = refusal && !refusal.detail && !refusalMessage;
 
   return (
     <form noValidate onSubmit={submit} className="mx-auto grid max-w-xl gap-4 px-4 py-8">
@@ -135,7 +149,7 @@ export function FilingForm({ kind, associationId, refile }: FilingFormProps) {
       )}
       {refusal && (
         <InlineAlert
-          title={refusal.detail ?? t.failed}
+          title={refusalMessage ?? refusal.detail ?? t.failed}
           action={link && !unknownRefusal ? <a className="text-sm underline" href={link.href}>{link.label}</a> : undefined}
         />
       )}

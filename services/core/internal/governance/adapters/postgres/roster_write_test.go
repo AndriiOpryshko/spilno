@@ -26,7 +26,7 @@ var assoc = uuid.MustParse("0191a000-0000-7000-8000-00000000000a")
 
 func inAssoc(t *testing.T, fn func(ctx context.Context, tx db.DBTX)) {
 	t.Helper()
-	pool := testdb.New(t)
+	pool := testdb.NewApp(t)
 	err := db.InAssociation(context.Background(), pool, assoc, "actor@example.test", func(ctx context.Context) error {
 		tx, err := db.From(ctx)
 		if err != nil {

@@ -43,7 +43,7 @@ func (g guardedRoster) CurrentMember(ctx context.Context, association uuid.UUID,
 // carries the session of a person who is on the roster of both seeded associations.
 func newGuardedServer(t *testing.T, mount func(chi.Router, *governance.Module) error) *httptest.Server {
 	t.Helper()
-	pool := testdb.New(t)
+	pool := testdb.NewApp(t)
 	idm := identity.New(pool)
 	idm.EnableSignIn(identity.SignInConfig{Provider: guardedFakeProvider{}})
 	gov := governance.New(pool)

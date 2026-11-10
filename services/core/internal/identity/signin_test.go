@@ -41,7 +41,7 @@ func (f *signInFake) Exchange(_ context.Context, code, _ /*verifier*/, _ /*nonce
 
 func newSignInServer(t *testing.T) (*httptest.Server, *pgxpool.Pool) {
 	t.Helper()
-	pool := testdb.New(t)
+	pool := testdb.NewApp(t)
 	m := identity.New(pool)
 	m.EnableSignIn(identity.SignInConfig{
 		Provider: &signInFake{people: map[string]identity.ProviderIdentity{

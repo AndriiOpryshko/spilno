@@ -45,7 +45,7 @@ func (g financeGuardedRoster) CurrentMember(ctx context.Context, association uui
 // carries the session of a person who is on the roster of both seeded associations.
 func newGuardedServer(t *testing.T) (*httptest.Server, *pgxpool.Pool) {
 	t.Helper()
-	pool := testdb.New(t)
+	pool := testdb.NewApp(t)
 	idm := identity.New(pool)
 	idm.EnableSignIn(identity.SignInConfig{Provider: financeGuardedFakeProvider{}})
 	gov := governance.New(pool)

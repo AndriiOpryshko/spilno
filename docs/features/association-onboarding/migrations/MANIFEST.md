@@ -28,6 +28,7 @@ schema diff empty except the column position of `accounts.association_id` after 
 | 18 | `NNNNN_enable_rls_governance.sql` | PR 3 | 9 | - |
 | 19 | `NNNNN_enable_rls_finance.sql` | PR 3 | 9, 16 | - |
 | 20 | `NNNNN_enable_rls_identity.sql` | PR 3 | 9 | - |
+| 21 | `NNNNN_enable_rls_identity_state_changes.sql` | PR 3 | 5, 9 | - |
 
 PR 3 ships together with the app change that connects as a login role in `spilno_app` and runs every
 association-scoped request through `platform/db.InAssociation` (ADR-0003); before that change, enabling
@@ -37,3 +38,8 @@ row-level security would hide every row from the app.
 cannot get an account row (AC-05) until it is dropped; and the drop was last only «after the release that stops
 reading it», which is already out (no Go code reads or writes it). Left last, the order loops: RLS (T20) needs the
 middleware (T19), which needs sign-in (T18), which needs this drop. Dependencies of the later rows were renumbered.
+
+File 21 was added during implementation (T20, 2026-11-10): the isolation test walks every table with an
+`association_id` column and found `association_state_changes` without a policy. `applications` and
+`application_decisions` stay without one on purpose (ADR-0003: no association before approval, reached only
+by account or by the оператор) and are the two named exceptions of that test.

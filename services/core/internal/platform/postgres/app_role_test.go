@@ -5,8 +5,10 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/db"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/testdb"
 )
 
@@ -58,14 +60,36 @@ func TestAppRoleCannotRewriteInsertOnlyTables(t *testing.T) {
 		{"association_state_changes", `INSERT INTO association_state_changes (id, association_id, to_state, changed_by_email)
 			VALUES ('` + change + `', '` + assocA + `', 'active', 'operator@example.test')`},
 	}
+	// association_state_changes is association-scoped (row-level security, ADR-0003): its row
+	// is written inside the association it belongs to.
 	for _, in := range inserts {
-		if _, err := pool.Exec(ctx, in.q); err != nil {
+		var err error
+		if in.table == "association_state_changes" {
+			err = db.InAssociation(ctx, pool, uuid.MustParse(assocA), "operator@example.test", func(ctx context.Context) error {
+				tx, err := db.From(ctx)
+				if err != nil {
+					return err
+				}
+				_, err = tx.Exec(ctx, in.q)
+				return err
+			})
+		} else {
+			_, err = pool.Exec(ctx, in.q)
+		}
+		if err != nil {
 			t.Fatalf("app role INSERT into %s must work: %v", in.table, err)
 		}
 	}
 
 	for _, tbl := range []string{"application_extracts", "application_filings", "application_checks", "application_decisions", "association_state_changes"} {
-		if err := pool.QueryRow(ctx, `SELECT count(*) FROM `+tbl).Scan(&n); err != nil || n != 1 {
+		err := db.InAssociation(ctx, pool, uuid.MustParse(assocA), "operator@example.test", func(ctx context.Context) error {
+			tx, err := db.From(ctx)
+			if err != nil {
+				return err
+			}
+			return tx.QueryRow(ctx, `SELECT count(*) FROM `+tbl).Scan(&n)
+		})
+		if err != nil || n != 1 {
 			t.Fatalf("app role SELECT from %s: count %d, err %v, want 1", tbl, n, err)
 		}
 		for verb, q := range map[string]string{

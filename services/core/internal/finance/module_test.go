@@ -10,6 +10,10 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/google/uuid"
+
+	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/db"
 )
 
 // newServer serves the context through the same router, validator and
@@ -249,8 +253,15 @@ func TestContractsAreScopedToTheAssociationInThePath(t *testing.T) {
 		http.StatusCreated, &created)
 
 	var stored *string
-	if err := pool.QueryRow(context.Background(),
-		`SELECT association_id::text FROM contracts WHERE id = $1`, created.ID).Scan(&stored); err != nil {
+	// contracts is under row-level security: read it inside the association's own transaction.
+	err := db.InAssociation(context.Background(), pool, uuid.MustParse(assocID), "", func(ctx context.Context) error {
+		q, err := db.From(ctx)
+		if err != nil {
+			return err
+		}
+		return q.QueryRow(ctx, `SELECT association_id::text FROM contracts WHERE id = $1`, created.ID).Scan(&stored)
+	})
+	if err != nil {
 		t.Fatal(err)
 	}
 	if stored == nil || *stored != assocID {

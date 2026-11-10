@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/governancetest"
@@ -27,8 +28,9 @@ func TestRosterFacade(t *testing.T) {
 	a, b := uuid.MustParse(assocA), uuid.MustParse(assocB)
 	day := func(n int) time.Time { return today().AddDate(0, 0, n) }
 
+	var pool *pgxpool.Pool
 	setup := func(t *testing.T) (*governance.Module, func(assoc uuid.UUID, fn func(ctx context.Context, tx db.DBTX))) {
-		pool := testdb.New(t)
+		pool = testdb.NewApp(t)
 		m := governance.New(pool)
 		return m, func(assoc uuid.UUID, fn func(ctx context.Context, tx db.DBTX)) {
 			t.Helper()
@@ -77,7 +79,16 @@ func TestRosterFacade(t *testing.T) {
 		m, run := setup(t)
 		run(a, func(ctx context.Context, tx db.DBTX) { governancetest.Member(t, tx, a, "both@example.test", "head") })
 		run(b, func(ctx context.Context, tx db.DBTX) { governancetest.Member(t, tx, b, "both@example.test", "member") })
-		run(a, func(ctx context.Context, tx db.DBTX) {
+		// The guard sets the actor's own address on the request (identity.Guard); row-level security
+		// shows the actor's entries in B only under that address.
+		run2 := func(fn func(ctx context.Context)) {
+			t.Helper()
+			err := db.InAssociation(context.Background(), pool, a, "both@example.test", func(ctx context.Context) error { fn(ctx); return nil })
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		run2(func(ctx context.Context) {
 			got, err := m.MembershipsOf(ctx, "both@example.test", today())
 			if err != nil {
 				t.Fatal(err)

@@ -2,6 +2,7 @@ package identity_test
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -14,6 +15,7 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/AndriiOpryshko/spilno/services/core/internal/identity"
+	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/db"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/testdb"
 )
 
@@ -138,27 +140,35 @@ type connectionRow struct {
 // connectionRows reads the association's google_connections rows with plain SQL.
 func connectionRows(t *testing.T, pool *pgxpool.Pool) []connectionRow {
 	t.Helper()
-	rows, err := pool.Query(t.Context(),
-		`SELECT id::text, google_account_email, refresh_token_ciphertext, refresh_token_nonce,
-		        encryption_key_id, scopes, drive_root_folder_id, authorized_by_account_id::text
-		   FROM google_connections
-		  WHERE association_id = $1`,
-		testAssociation.String())
-	if err != nil {
-		t.Fatalf("read google_connections: %v", err)
-	}
-	defer rows.Close()
-
 	var out []connectionRow
-	for rows.Next() {
-		var r connectionRow
-		if err := rows.Scan(&r.ID, &r.AccountEmail, &r.Ciphertext, &r.Nonce,
-			&r.KeyID, &r.Scopes, &r.DriveRootFolderID, &r.AuthorizedBy); err != nil {
-			t.Fatalf("scan google_connections: %v", err)
+	// google_connections is under row-level security: the app-role pool sees rows only inside
+	// the association's own transaction.
+	err := db.InAssociation(t.Context(), pool, testAssociation, "", func(ctx context.Context) error {
+		q, err := db.From(ctx)
+		if err != nil {
+			return err
 		}
-		out = append(out, r)
-	}
-	if err := rows.Err(); err != nil {
+		rows, err := q.Query(ctx,
+			`SELECT id::text, google_account_email, refresh_token_ciphertext, refresh_token_nonce,
+			        encryption_key_id, scopes, drive_root_folder_id, authorized_by_account_id::text
+			   FROM google_connections
+			  WHERE association_id = $1`,
+			testAssociation.String())
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var r connectionRow
+			if err := rows.Scan(&r.ID, &r.AccountEmail, &r.Ciphertext, &r.Nonce,
+				&r.KeyID, &r.Scopes, &r.DriveRootFolderID, &r.AuthorizedBy); err != nil {
+				return err
+			}
+			out = append(out, r)
+		}
+		return rows.Err()
+	})
+	if err != nil {
 		t.Fatalf("read google_connections: %v", err)
 	}
 	return out
@@ -201,7 +211,7 @@ func refreshedToken(t *testing.T, m *identity.Module) *oauth2.Token {
 // `encryption_key_id` `k1`, a 12-byte nonce, a ciphertext that does not contain the token's bytes, a `NULL`
 // `drive_root_folder_id` and the operator's account in `authorized_by_account_id`.
 func TestGoogleConnection_AC1_ConnectStoresTheSealedToken(t *testing.T) {
-	pool := testdb.New(t)
+	pool := testdb.NewApp(t)
 	operator := insertOperator(t, pool)
 	m := enabledModule(t, pool, "k1", googleTestKey(1), newTokenEndpoint(t).URL)
 
@@ -240,7 +250,7 @@ func TestGoogleConnection_AC1_ConnectStoresTheSealedToken(t *testing.T) {
 // Then the token endpoint received `grant_type=refresh_token`, `refresh_token=1//refresh-token-example`,
 // `client_id=client-1` and `client_secret=secret-1`, and the returned access token is `at-1`.
 func TestGoogleConnection_AC2_TokenSourceExchangesTheStoredRefreshToken(t *testing.T) {
-	pool := testdb.New(t)
+	pool := testdb.NewApp(t)
 	operator := insertOperator(t, pool)
 	endpoint := newTokenEndpoint(t)
 	m := enabledModule(t, pool, "k1", googleTestKey(1), endpoint.URL)
@@ -270,7 +280,7 @@ func TestGoogleConnection_AC2_TokenSourceExchangesTheStoredRefreshToken(t *testi
 // and the folder id `folder-1`, Then the association still has exactly one row, its `id` differs from the first
 // one, `drive_root_folder_id` is `folder-1`, and a new token source sends `refresh_token=1//second-token`.
 func TestGoogleConnection_AC3_ConnectAgainReplacesTheRow(t *testing.T) {
-	pool := testdb.New(t)
+	pool := testdb.NewApp(t)
 	operator := insertOperator(t, pool)
 	endpoint := newTokenEndpoint(t)
 	m := enabledModule(t, pool, "k1", googleTestKey(1), endpoint.URL)
@@ -305,7 +315,7 @@ func TestGoogleConnection_AC3_ConnectAgainReplacesTheRow(t *testing.T) {
 // AC-4: Given an enabled module and an association with no connection, Then `GoogleTokenSource` returns
 // `ErrGoogleNotConnected`.
 func TestGoogleConnection_AC4_TokenSourceWithoutConnection(t *testing.T) {
-	pool := testdb.New(t)
+	pool := testdb.NewApp(t)
 	m := enabledModule(t, pool, "k1", googleTestKey(1), newTokenEndpoint(t).URL)
 
 	_, err := m.GoogleTokenSource(t.Context(), testAssociation)
@@ -319,7 +329,7 @@ func TestGoogleConnection_AC4_TokenSourceWithoutConnection(t *testing.T) {
 // with key id `k1` and a different key, or with key id `k2` and the same key, Then `GoogleTokenSource` returns
 // `ErrGoogleTokenUnreadable` in both cases.
 func TestGoogleConnection_AC5_TokenSealedUnderAnotherKeyIsUnreadable(t *testing.T) {
-	pool := testdb.New(t)
+	pool := testdb.NewApp(t)
 	operator := insertOperator(t, pool)
 	endpoint := newTokenEndpoint(t)
 	first := enabledModule(t, pool, "k1", googleTestKey(1), endpoint.URL)
@@ -353,7 +363,7 @@ func TestGoogleConnection_AC5_TokenSealedUnderAnotherKeyIsUnreadable(t *testing.
 // `ClientID` or an empty `Endpoint.TokenURL` returns `ErrGoogleConfigInvalid` and leaves the module not
 // configured.
 func TestGoogleConnection_AC6_NotConfiguredAndInvalidConfig(t *testing.T) {
-	pool := testdb.New(t)
+	pool := testdb.NewApp(t)
 	operator := insertOperator(t, pool)
 	tokenURL := newTokenEndpoint(t).URL
 
@@ -400,7 +410,7 @@ func TestGoogleConnection_AC6_NotConfiguredAndInvalidConfig(t *testing.T) {
 // AC-7: Given an enabled module, When `ConnectGoogle` gets an empty refresh token, an empty account email or
 // no scopes, Then it returns `ErrGoogleConnectionInvalid` each time and the association has no row.
 func TestGoogleConnection_AC7_InvalidConnectionWritesNothing(t *testing.T) {
-	pool := testdb.New(t)
+	pool := testdb.NewApp(t)
 	operator := insertOperator(t, pool)
 	m := enabledModule(t, pool, "k1", googleTestKey(1), newTokenEndpoint(t).URL)
 

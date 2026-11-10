@@ -14,7 +14,7 @@ import (
 func newServer(t *testing.T) *httptest.Server {
 	t.Helper()
 	r := httpapi.NewRouter()
-	if err := identity.New(testdb.New(t)).Routes(r); err != nil {
+	if err := identity.New(testdb.NewApp(t)).Routes(r); err != nil {
 		t.Fatal(err)
 	}
 	srv := httptest.NewServer(r)

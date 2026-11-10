@@ -51,7 +51,7 @@
 | [T44](./T44-e2e-connection-flows.md) | Prove filing, following and deciding a заявка end to end through the UI (US-01, US-02, US-03) | tests | Andrii Opryshko | L | T23, T25, T26, T32, T37, T39 | todo |
 | [T45](./T45-e2e-transfer-and-card.md) | Prove a transfer, the takeover and the association card end to end (US-04, US-05, US-09) | tests | Andrii Opryshko | M | T29, T41, T44 | todo |
 | [T46](./T46-e2e-disable-storage-access.md) | Prove disabling, the read-only association, the storage connection and every access denial end to end (US-06, US-07, US-08) | tests | Andrii Opryshko | L | T21, T31, T33, T34, T40, T42, T44 | todo |
-| [T47](./T47-load-scenarios.md) | Add the load scenarios for the latency and throughput targets of PRD §6 | tests | Andrii Opryshko | M | T26, T30, T32 | todo |
+| [T47](./T47-load-scenarios.md) | Add the load scenarios for the latency and throughput targets of PRD §6 | tests | Andrii Opryshko | M | T26, T30, T32 | done |
 | [T48](./T48-docs-rules-and-amendments.md) | Update the repo rules and environment docs, amend the board-protocol documents and write the оператор's runbook | docs | Andrii Opryshko | M | T20, T33 | done |
 | [T49](./T49-security-review-record.md) | Run and record the security review that PRD §6.1 requires | docs | Andrii Opryshko | M | T45, T46 | todo |
 

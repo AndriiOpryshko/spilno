@@ -51,6 +51,10 @@ run = [
   "pnpm --filter @spilno/web test:stories",
 ]
 
+[tasks.load]
+description = "Load scenarios of PRD section 6 against a running stack (not part of test): mise run load -- -base-url http://localhost:8080 -read-p95 200ms"
+run = "cd tests/load && go run . "
+
 [tasks.storybook]
 description = "Component workshop on :6006 (stories mirror the Figma component variants)"
 run = "pnpm --filter @spilno/web storybook"

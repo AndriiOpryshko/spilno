@@ -1,5 +1,5 @@
 # ao-api-forge delta for services/core/api/openapi.yaml — association-onboarding.
-# Derived from PRD.md (§4, §5, §5.1, §10), sad.md (§6 flows 1-12, §8, ADR-0001..0008) and data-model.md
+# Derived from PRD.md (§4, §5, §5.1, §10), sad.md (§6 flows 1-12, §8, ADR-0001..0009) and data-model.md
 # (+ staged migrations). New operations only; the move of governance and finance operations under
 # /<context>/associations/{association_id}/ (ADR-0002) and the changed repo components are merge
 # notes in api-sync-report.md §E. Errors follow the team rule in .claude/rules/openapi.md:
@@ -92,11 +92,15 @@ paths:
     post:
       operationId: fileApplication
       tags: [identity]
-      summary: File a заявка на підключення or a запит на передачу with the signed extract (US-01, US-04, Flow 1)
+      summary: File a заявка на підключення or a запит на передачу with the signed extract (US-01, US-04, Flows 1 and 6)
       description: |
-        AC-01, AC-17, AC-19c. Every broken field is named at once (AC-02). A code that is pending by another
-        person is accepted and not revealed (AC-04c). `association_id` is set only when a член правління files
-        a запит from the card of the association set up by hand (AC-19c).
+        AC-01, AC-17, AC-19c. Every broken field is named at once with `identity.application_invalid` (AC-02):
+        the code, the name, the address, the applicant's full name, a position other than `head`, a term start
+        that is missing or later than the filing date, no extract. A term end earlier than the filing date
+        answers `identity.term_ended` (AC-30). Any signed-in person may file a запит на передачу, on the roster
+        of that association or not (AC-17). A code that is pending by another person is accepted and not
+        revealed (AC-04c). `association_id` is set only when a член правління files a запит from the card of the
+        association set up by hand (AC-19c). The signature is not checked at filing (AC-03).
       x-problem-types:
         "401": [identity.session_required]
         "409": [identity.association_already_connected, identity.application_already_open, identity.association_not_connected, identity.term_ended]
@@ -169,11 +173,15 @@ paths:
     post:
       operationId: refileApplication
       tags: [identity]
-      summary: Fix and file a rejected application again (US-02, AC-06)
+      summary: Fix and file a rejected application again (US-02, AC-06, Flow 5)
+      description: |
+        The filing checks of fileApplication run again (AC-02, AC-30). A заявка на підключення whose code was
+        connected meanwhile answers `identity.association_already_connected` (AC-04); a refiled запит на
+        передачу is not checked against AC-18 again.
       x-problem-types:
         "401": [identity.session_required]
         "404": [about:blank]
-        "409": [identity.application_not_pending, identity.term_ended]
+        "409": [identity.application_not_pending, identity.association_already_connected, identity.term_ended]
         "422": [identity.application_invalid, about:blank]
       requestBody:
         required: true
@@ -199,12 +207,13 @@ paths:
         "401": { $ref: "#/components/responses/SessionRequired" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409":
-          description: Only a rejected application can be refiled, or the term has ended.
+          description: Only a rejected application can be refiled, the code of a заявка was connected meanwhile, or the term has ended.
           content:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
               examples:
                 application_not_pending: { $ref: "#/components/examples/ApplicationNotPending" }
+                association_already_connected: { $ref: "#/components/examples/AssociationAlreadyConnected" }
                 term_ended: { $ref: "#/components/examples/TermEnded" }
         "422":
           description: Missing or wrong fields, all named.
@@ -301,6 +310,7 @@ paths:
       operationId: recordExtractCheck
       tags: [identity]
       summary: Record the оператор's check of the extract of the latest filing (AC-03, AC-10, Flow 2)
+      description: Not refused for the оператор's own filing — a recorded check leads to no decision (ADR-0009).
       x-problem-types:
         "401": [identity.session_required]
         "403": [identity.not_operator]
@@ -337,12 +347,18 @@ paths:
     post:
       operationId: approveApplication
       tags: [identity]
-      summary: Approve the latest filing — create the association or change its roster (AC-08, AC-19, AC-19c, Flows 2-3)
+      summary: Approve the latest filing — create the association or change its roster (AC-08, AC-16c, AC-19, AC-19c, Flows 2-3)
+      description: |
+        The оператор's own filing is refused whatever the recorded check says and stays pending (AC-16c, ADR-0009).
+        For a запит на передачу: an applicant who already has a current roster entry gets no second entry, that
+        entry takes the position голова правління; only the entry of the голова recorded by an earlier approval
+        ends (AC-19). A competing запит stays pending and can be approved later as a new transfer (AC-19b), so
+        `identity.association_already_connected` is answered only for a заявка на підключення (AC-04c).
       x-problem-types:
         "401": [identity.session_required]
         "403": [identity.not_operator]
         "404": [about:blank]
-        "409": [identity.signature_not_checked, identity.extract_code_mismatch, identity.mismatch_needs_document, identity.application_not_pending, identity.association_already_connected]
+        "409": [identity.operator_own_application, identity.signature_not_checked, identity.extract_code_mismatch, identity.mismatch_needs_document, identity.application_not_pending, identity.association_already_connected]
         "422": [about:blank]
       requestBody:
         required: true
@@ -361,11 +377,12 @@ paths:
         "403": { $ref: "#/components/responses/NotOperator" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409":
-          description: No recorded check, an extract of another code, an open name mismatch without a document, already decided, or the code was connected by a competing заявка.
+          description: The оператор's own filing, no recorded check, an extract of another code, an open name mismatch without a document, already decided, or the code was connected by a competing заявка.
           content:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
               examples:
+                operator_own_application: { $ref: "#/components/examples/OperatorOwnApplication" }
                 signature_not_checked: { $ref: "#/components/examples/SignatureNotChecked" }
                 extract_code_mismatch: { $ref: "#/components/examples/ExtractCodeMismatch" }
                 mismatch_needs_document: { $ref: "#/components/examples/MismatchNeedsDocument" }
@@ -379,12 +396,12 @@ paths:
     post:
       operationId: rejectApplication
       tags: [identity]
-      summary: Reject the latest filing with a reason the applicant will see (AC-13, AC-14)
+      summary: Reject the latest filing with a reason the applicant will see (AC-13, AC-14, AC-16c, Flow 8)
       x-problem-types:
         "401": [identity.session_required]
         "403": [identity.not_operator]
         "404": [about:blank]
-        "409": [identity.application_not_pending]
+        "409": [identity.application_not_pending, identity.operator_own_application]
         "422": [identity.reason_required, about:blank]
       requestBody:
         required: true
@@ -403,11 +420,13 @@ paths:
         "403": { $ref: "#/components/responses/NotOperator" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409":
-          description: The application is already decided.
+          description: The application is already decided, or it is the оператор's own filing (it stays pending).
           content:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
-              examples: { application_not_pending: { $ref: "#/components/examples/ApplicationNotPending" } }
+              examples:
+                application_not_pending: { $ref: "#/components/examples/ApplicationNotPending" }
+                operator_own_application: { $ref: "#/components/examples/OperatorOwnApplication" }
         "422":
           description: Empty reason.
           content:
@@ -575,8 +594,13 @@ paths:
       tags: [identity]
       # unresolved: no response is named for an unknown, expired or replayed `state`, or for a code the
       # provider refuses — PRD §5.1 has no code for it (api-sync-report.md §D, /sdlc:clarify-prd).
+      # unresolved: who may replace a connected storage and what happens to the files on the old account is
+      # an open question of PRD §8; until it is closed a later connection replaces the stored one (report §D).
       summary: Finish the storage consent the SPA received back from Google (ADR-0008, AC-27, AC-28b)
-      description: The SPA's callback route posts the authorization code and state; the state is bound to the session and the association.
+      description: |
+        The SPA's callback route posts the authorization code and state; the state is bound to the session and
+        the association. When a storage is already connected, the new account replaces the stored one under the
+        same rules and no file is moved (SAD §8, open question of PRD §8).
       x-problem-types:
         "401": [identity.session_required]
         "403": [identity.not_current_member, identity.association_disabled]
@@ -699,7 +723,7 @@ components:
             errors: [{ pointer: /protocol_revision, detail: property "protocol_revision" is missing }]
     # new
     NotOperator:
-      description: Only the оператор reaches the back office (`identity.not_operator`, AC-16).
+      description: Only the оператор reaches the back office (`identity.not_operator`, AC-16); a roster membership gives no way in (ADR-0009).
       content:
         application/problem+json:
           schema: { $ref: "#/components/schemas/Problem" }
@@ -709,6 +733,8 @@ components:
         `identity.not_current_member` — not on this association's roster today (same body for a missing
         association, AC-07); `identity.association_disabled` — a member of a вимкнене ОСББ on any operation
         outside the registry reads and the signed-copy download (ADR-0007; AC-21, AC-25). Membership is checked first.
+        The оператор role is not asked here: an оператор off the roster gets `identity.not_current_member` like
+        anyone, an оператор on the roster is a member and nothing more (AC-16b, ADR-0009).
       content:
         application/problem+json:
           schema: { $ref: "#/components/schemas/Problem" }
@@ -745,7 +771,7 @@ components:
         detail: "Перевірте поля заявки: edrpou, term_start"
         errors:
           - { pointer: /edrpou, detail: must be 8 digits }
-          - { pointer: /term_start, detail: is required }
+          - { pointer: /term_start, detail: must not be later than the filing date }
     AssociationAlreadyConnected:
       value: { type: about:blank, title: Association already connected, status: 409, code: identity.association_already_connected, detail: Це ОСББ вже підключене — зверніться до голови вашого ОСББ або подайте запит на передачу }
     ApplicationAlreadyOpen:
@@ -756,6 +782,8 @@ components:
       value: { type: about:blank, title: Term ended, status: 409, code: identity.term_ended, detail: Строк повноважень голови вже завершився — подайте витяг після переобрання }
     ApplicationNotPending:
       value: { type: about:blank, title: Application not pending, status: 409, code: identity.application_not_pending, detail: Рішення за цією заявкою вже ухвалено }
+    OperatorOwnApplication:
+      value: { type: about:blank, title: Operator own application, status: 409, code: identity.operator_own_application, detail: Це ваша власна заявка — оператор не ухвалює рішення щодо себе }
     SignatureNotChecked:
       value: { type: about:blank, title: Signature not checked, status: 409, code: identity.signature_not_checked, detail: Спершу перевірте підпис КЕП і внесіть підписанта, керівника, код і дату витягу }
     ExtractCodeMismatch:
@@ -892,7 +920,7 @@ components:
 
     # changed repo component (merge note)
     Principal:
-      description: Changed — the signed-in person only; associations from listMemberships (ADR-0004). `is_operator` = the session address equals the configured оператор (ADR-0001).
+      description: Changed — the signed-in person only; associations from listMemberships (ADR-0004). `is_operator` = the session address equals the configured оператор (ADR-0001); the same person may also have memberships, and neither grant widens the other (ADR-0009).
       type: object
       additionalProperties: false
       required: [account_id, email, is_operator]
@@ -922,7 +950,7 @@ components:
       type: string
       enum: [connected, disabled]
     ReviewWarningKind:
-      description: розбіжність імен (AC-11) or an extract older than 30 days (AC-11b); advisory only.
+      description: розбіжність імен — the applicant's typed full name, the signer and the керівник differ after ignoring letter case, extra spaces, the form of the apostrophe and the order of the words (AC-11) — or an extract older than 30 days (AC-11b); advisory only.
       type: string
       enum: [name_mismatch, extract_age]
     AssociationEventKind:
@@ -951,7 +979,9 @@ components:
 
     # applications
     NewApplication:
-      description: multipart body of fileApplication; application + its first filing + the extract.
+      description: |
+        multipart body of fileApplication; application + its first filing + the extract. `position` is always
+        `head`: the applicant does not choose it, and `member` is named in `identity.application_invalid` (AC-02).
       type: object
       required: [kind, edrpou, association_name, association_address, applicant_full_name, position, term_start, extract]
       properties:
@@ -963,27 +993,52 @@ components:
           format: uuid
         association_name: { type: string, minLength: 1, maxLength: 200 }
         association_address: { type: string, minLength: 1, maxLength: 500 }
-        applicant_full_name: { type: string, minLength: 1, maxLength: 200 }
+        applicant_full_name:
+          description: The applicant's own ПІБ; compared with the signer and the керівник the оператор records (AC-11).
+          type: string
+          minLength: 1
+          maxLength: 200
         position: { $ref: "#/components/schemas/BoardPosition" }
-        term_start: { type: string, format: date }
-        term_end: { type: string, format: date }
+        term_start:
+          description: Not later than the filing date (Europe/Kyiv); a later date is named in identity.application_invalid (AC-02).
+          type: string
+          format: date
+        term_end:
+          description: Optional. A date earlier than the filing date answers identity.term_ended; the filing date itself is still in force (AC-30).
+          type: string
+          format: date
         extract:
-          description: The КЕП-signed витяг з ЄДР as uploaded, ≤ 5 MB (PRD §6); kept unchanged, never parsed (ADR-0005).
+          description: |
+            The КЕП-signed витяг з ЄДР as one file ≤ 5 MB: a PDF with the signature inside it, or a signed container
+            that holds the PDF (`.p7s`, ASiC-E); a signature sent as a second, separate file is not accepted
+            (PRD §6). Kept unchanged, never parsed (ADR-0005).
           type: string
           contentMediaType: application/octet-stream
     ApplicationRefiling:
-      description: multipart body of refileApplication; a new filing of the same application (AC-06).
+      description: |
+        multipart body of refileApplication; a new filing of the same application (AC-06), under the same field
+        rules as NewApplication (AC-02, AC-30).
       type: object
       required: [association_name, association_address, applicant_full_name, position, term_start, extract]
       properties:
         association_name: { type: string, minLength: 1, maxLength: 200 }
         association_address: { type: string, minLength: 1, maxLength: 500 }
-        applicant_full_name: { type: string, minLength: 1, maxLength: 200 }
+        applicant_full_name:
+          description: The applicant's own ПІБ; compared with the signer and the керівник the оператор records (AC-11).
+          type: string
+          minLength: 1
+          maxLength: 200
         position: { $ref: "#/components/schemas/BoardPosition" }
-        term_start: { type: string, format: date }
-        term_end: { type: string, format: date }
+        term_start:
+          description: Not later than the filing date (Europe/Kyiv); a later date is named in identity.application_invalid (AC-02).
+          type: string
+          format: date
+        term_end:
+          description: Optional. A date earlier than the filing date answers identity.term_ended; the filing date itself is still in force (AC-30).
+          type: string
+          format: date
         extract:
-          description: The new КЕП-signed витяг з ЄДР, ≤ 5 MB.
+          description: The new КЕП-signed витяг з ЄДР, one file ≤ 5 MB, in the same forms as in NewApplication.
           type: string
           contentMediaType: application/octet-stream
     Application:
@@ -1140,7 +1195,7 @@ components:
           type: string
           format: uuid
         relied_on_document:
-          description: Required when розбіжність імен is open (AC-12).
+          description: Required when розбіжність імен is open (AC-12) — a typed reference to the document, no file is uploaded.
           type: string
           minLength: 1
           maxLength: 500

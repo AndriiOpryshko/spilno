@@ -27,6 +27,7 @@ type Module struct {
 func New(pool *pgxpool.Pool) *Module {
 	h := identityhttp.NewHandler()
 	h.EnableApplications(app.NewApplications(postgres.NewApplications(pool)))
+	h.EnableAssociationStates(app.NewAssociationStates(postgres.NewAssociations(pool)))
 	return &Module{handler: h, pool: pool}
 }
 

@@ -34,7 +34,7 @@
 | [T27](./T27-file-transfer-request.md) | File a запит на передачу for a connected association | ports | Andrii Opryshko | M | T14, T22 | todo |
 | [T28](./T28-review-transfer-request.md) | Show competing запити and the storage account in the review of a запит | ports | Andrii Opryshko | S | T24, T27 | todo |
 | [T29](./T29-approve-transfer-request.md) | Approve a запит на передачу: seat the new голова and end the previous term in one transaction | ports | Andrii Opryshko | L | T26, T28 | todo |
-| [T30](./T30-disable-enable-association.md) | Disable and enable an association as the оператор | ports | Andrii Opryshko | M | T11, T19 | todo |
+| [T30](./T30-disable-enable-association.md) | Disable and enable an association as the оператор | ports | Andrii Opryshko | M | T11, T19 | done |
 | [T31](./T31-disabled-association-read-only.md) | Make a disabled association read-only in the middleware | wiring | Andrii Opryshko | M | T19, T30 | todo |
 | [T32](./T32-memberships-and-association-card.md) | Serve my associations and the association card with the confirmation chain | ports | Andrii Opryshko | M | T19, T26 | todo |
 | [T33](./T33-connect-storage-in-app.md) | Connect the association's document storage from the web app | ports | Andrii Opryshko | L | T14, T19, T20 | todo |

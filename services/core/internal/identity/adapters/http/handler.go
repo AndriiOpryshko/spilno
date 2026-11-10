@@ -19,6 +19,7 @@ import (
 type Handler struct {
 	signIn       *app.SignIn // nil until EnableSignIn
 	applications *app.Applications
+	states       *app.AssociationStates // nil until EnableAssociationStates
 }
 
 var _ gen.StrictServerInterface = (*Handler)(nil)
@@ -183,17 +184,5 @@ func (h *Handler) DownloadExtractForReview(_ context.Context, _ gen.DownloadExtr
 }
 
 func (h *Handler) RejectApplication(_ context.Context, _ gen.RejectApplicationRequestObject) (gen.RejectApplicationResponseObject, error) {
-	return nil, httpapi.ErrNotImplemented
-}
-
-func (h *Handler) ListAssociationsForOperator(_ context.Context, _ gen.ListAssociationsForOperatorRequestObject) (gen.ListAssociationsForOperatorResponseObject, error) {
-	return nil, httpapi.ErrNotImplemented
-}
-
-func (h *Handler) DisableAssociation(_ context.Context, _ gen.DisableAssociationRequestObject) (gen.DisableAssociationResponseObject, error) {
-	return nil, httpapi.ErrNotImplemented
-}
-
-func (h *Handler) EnableAssociation(_ context.Context, _ gen.EnableAssociationRequestObject) (gen.EnableAssociationResponseObject, error) {
 	return nil, httpapi.ErrNotImplemented
 }

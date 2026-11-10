@@ -41,7 +41,7 @@
 | [T34](./T34-refuse-documents-without-storage.md) | Refuse case documents and assistant turns while the storage is not connected | ports | Andrii Opryshko | S | T02, T03, T19 | todo |
 | [T35](./T35-ui-shell-sign-in-picker.md) | Build the signed-in shell: sign-in page, association picker, routes under /o/$associationId and the оператор's entry | ui | Andrii Opryshko | L | T02 | done |
 | [T36](./T36-ui-filing-forms.md) | Build the filing forms for a заявка на підключення and a запит на передачу | ui | Andrii Opryshko | L | T35 | done |
-| [T37](./T37-ui-my-applications.md) | Show my applications: status, the оператор's contact, the reason and refiling | ui | Andrii Opryshko | M | T36 | todo |
+| [T37](./T37-ui-my-applications.md) | Show my applications: status, the оператор's contact, the reason and refiling | ui | Andrii Opryshko | M | T36 | done |
 | [T38](./T38-ui-operator-queue-review.md) | Build the оператор's queue and the review page with sources, warnings and the check form | ui | Andrii Opryshko | L | T36 | todo |
 | [T39](./T39-ui-operator-decisions.md) | Add the оператор's decisions: approve, reject and their refusals | ui | Andrii Opryshko | M | T38 | todo |
 | [T40](./T40-ui-operator-associations.md) | Build the оператор's associations list with disabling and enabling | ui | Andrii Opryshko | M | T35 | done |

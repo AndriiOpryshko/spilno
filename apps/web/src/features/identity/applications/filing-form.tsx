@@ -1,6 +1,7 @@
 import { Fragment, useState } from 'react';
 
-import { useFileApplication } from '@/api/gen/endpoints/identity/identity';
+import { useFileApplication, useRefileApplication } from '@/api/gen/endpoints/identity/identity';
+import type { ApplicationFiling } from '@/api/gen/model';
 import { Button } from '@/components/ui/button';
 import { DateField } from '@/components/ui/date-field';
 import { FileField } from '@/components/ui/file-field';
@@ -20,6 +21,7 @@ interface Problem {
 interface FilingFormProps {
   kind: Kind;
   associationId?: string;
+  refile?: { applicationId: string; filing: ApplicationFiling; onFiled: () => void };
 }
 
 const t = uk.applications.filing;
@@ -36,20 +38,22 @@ const refusalLinks: Record<string, { href: string; label: string }> = {
   'identity.association_not_connected': { href: '/applications/new?kind=connection', label: t.linkConnection },
 };
 
-export function FilingForm({ kind, associationId }: FilingFormProps) {
+export function FilingForm({ kind, associationId, refile }: FilingFormProps) {
   const [values, setValues] = useState({
     edrpou: '',
-    association_name: '',
-    association_address: '',
-    applicant_full_name: '',
-    term_start: '',
-    term_end: '',
+    association_name: refile?.filing.association_name ?? '',
+    association_address: refile?.filing.association_address ?? '',
+    applicant_full_name: refile?.filing.applicant_full_name ?? '',
+    term_start: refile?.filing.term_start ?? '',
+    term_end: refile?.filing.term_end ?? '',
   });
   const [extract, setExtract] = useState<File | undefined>();
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [refusal, setRefusal] = useState<Problem | undefined>();
   const [filed, setFiled] = useState(false);
-  const mutation = useFileApplication();
+  const fileMutation = useFileApplication();
+  const refileMutation = useRefileApplication();
+  const mutation = refile ? refileMutation : fileMutation;
 
   const set = (name: keyof typeof values) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setValues((v) => ({ ...v, [name]: e.target.value }));
@@ -59,33 +63,44 @@ export function FilingForm({ kind, associationId }: FilingFormProps) {
     setFieldErrors({});
     setRefusal(undefined);
     setFiled(false);
-    mutation.mutate(
-      {
-        data: {
-          kind,
-          edrpou: values.edrpou,
-          ...(associationId ? { association_id: associationId } : {}),
-          association_name: values.association_name,
-          association_address: values.association_address,
-          applicant_full_name: values.applicant_full_name,
-          position: 'head',
-          term_start: values.term_start,
-          ...(values.term_end ? { term_end: values.term_end } : {}),
-          extract: extract ?? new Blob([]),
-        },
+    const common = {
+      association_name: values.association_name,
+      association_address: values.association_address,
+      applicant_full_name: values.applicant_full_name,
+      position: 'head' as const,
+      term_start: values.term_start,
+      ...(values.term_end ? { term_end: values.term_end } : {}),
+      extract: extract ?? new Blob([]),
+    };
+    const handlers = {
+      onSuccess: () => {
+        setFiled(true);
+        refile?.onFiled();
       },
-      {
-        onSuccess: () => setFiled(true),
-        onError: (err) => {
-          const problem = ((err as { info?: Problem }).info ?? {}) as Problem;
-          if (problem.errors?.length) {
-            setFieldErrors(Object.fromEntries(problem.errors.map((x) => [x.pointer.replace(/^\//, ''), x.detail])));
-          } else {
-            setRefusal(problem);
-          }
-        },
+      onError: (err: unknown) => {
+        const problem = ((err as { info?: Problem }).info ?? {}) as Problem;
+        if (problem.errors?.length) {
+          setFieldErrors(Object.fromEntries(problem.errors.map((x) => [x.pointer.replace(/^\//, ''), x.detail])));
+        } else {
+          setRefusal(problem);
+        }
       },
-    );
+    };
+    if (refile) {
+      refileMutation.mutate({ applicationId: refile.applicationId, data: common }, handlers);
+    } else {
+      fileMutation.mutate(
+        {
+          data: {
+            kind,
+            edrpou: values.edrpou,
+            ...(associationId ? { association_id: associationId } : {}),
+            ...common,
+          },
+        },
+        handlers,
+      );
+    }
   };
 
   const field = (name: string, label: string, control: (p: object) => React.ReactNode) => {
@@ -124,7 +139,8 @@ export function FilingForm({ kind, associationId }: FilingFormProps) {
           action={link && !unknownRefusal ? <a className="text-sm underline" href={link.href}>{link.label}</a> : undefined}
         />
       )}
-      {field('edrpou', t.edrpou, (p) => <Input {...p} inputMode="numeric" value={values.edrpou} onChange={set('edrpou')} />)}
+      {!refile &&
+        field('edrpou', t.edrpou, (p) => <Input {...p} inputMode="numeric" value={values.edrpou} onChange={set('edrpou')} />)}
       {textFields.map(([name, label]) => (
         <Fragment key={name}>
           {field(name, label, (p) => <Input {...p} value={values[name]} onChange={set(name)} />)}

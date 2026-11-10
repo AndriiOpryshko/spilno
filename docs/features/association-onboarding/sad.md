@@ -187,7 +187,7 @@ sequenceDiagram
     participant D as db
     H->>W: fill the form and attach the signed extract
     W->>I: file application with the extract file
-    I->>I: validate every field at once and the term end
+    I->>I: validate every field at once, the term start against the filing date, the term end
     alt invalid fields or term ended
         I-->>W: refused with every broken field named
     else valid
@@ -201,7 +201,7 @@ sequenceDiagram
     end
 ```
 
-**Flow 2: the оператор records the check and approves a заявка (Очікує → Схвалена, — → Підключене) — covers AC-03, AC-03b, AC-08, AC-09, AC-12, AC-04c**
+**Flow 2: the оператор records the check and approves a заявка (Очікує → Схвалена, — → Підключене) — covers AC-03, AC-03b, AC-08, AC-09, AC-12, AC-04c, AC-16c**
 
 ```mermaid
 sequenceDiagram
@@ -213,9 +213,10 @@ sequenceDiagram
     O->>O: check the КЕП and the extract outside Спільно
     O->>W: record signer, керівник, code and date of the extract
     W->>I: record check
-    I->>D: insert the check, compute name mismatch and age warnings
+    I->>D: insert the check, compute the name mismatch on levelled names and the age warning
     O->>W: approve, naming a document if a mismatch is open
     W->>I: approve
+    I->>I: refuse the оператор's own filing
     I->>I: check recorded, codes equal, document named if needed
     I->>D: begin, code still free, insert the association
     I->>D: set the new association and the actor for row-level security
@@ -225,7 +226,7 @@ sequenceDiagram
     I-->>W: approved, association connected
 ```
 
-**Flow 3: approving a запит на передачу (Очікує → Схвалена, roster change) — covers AC-19, AC-19b, AC-19c, AC-24b**
+**Flow 3: approving a запит на передачу (Очікує → Схвалена, roster change) — covers AC-19, AC-19b, AC-19c, AC-24b, AC-16c**
 
 ```mermaid
 sequenceDiagram
@@ -236,14 +237,22 @@ sequenceDiagram
     participant D as db
     O->>W: approve the transfer request
     W->>I: approve
+    I->>I: refuse the оператор's own filing
     I->>I: check recorded, codes equal, document named if needed
     I->>D: begin with the association set
-    I->>G: end the term of the recorded голова on the day before the new term start
-    G->>D: insert a roster revision with term end and decision reference
+    opt a голова recorded by an earlier approval who is not the applicant
+        I->>G: end the term of the recorded голова on the day before the new term start
+        G->>D: insert a roster revision with term end and decision reference
+    end
     I->>G: seat the new голова from the typed term start
-    G->>D: insert roster entry with position and decision reference
+    alt the applicant has a current roster entry
+        G->>D: insert a revision of that entry with position голова and decision reference
+    else not on the roster
+        G->>D: insert roster entry with position and decision reference
+    end
     I->>D: record the decision and commit
     Note over I,G: the ended term is before today, so the next membership check refuses the previous голова
+    Note over I,G: no other member's entry changes, a competing request stays pending and decidable
     I-->>W: approved, competing requests stay waiting
 ```
 
@@ -261,7 +270,8 @@ sequenceDiagram
     I->>D: resolve the session
     I->>D: begin, set the association for row-level security
     I->>G: is this person a current member today
-    alt not a member, the operator, or unknown association
+    Note over I,G: the оператор role is not asked here, an оператор on the roster is a member
+    alt not a member or unknown association
         I-->>W: denied, same answer as a missing record
     else member and association disabled
         alt registry read or signed copy download
@@ -322,14 +332,17 @@ sequenceDiagram
     participant UI as <ui>
     participant S as <service>
     participant D as <data-store>
-    Note over U,UI: Precondition: a newly elected голова holds a КЕП-signed extract naming them
+    Note over U,UI: Precondition: a newly elected голова, on the roster or not, holds a КЕП-signed extract naming them
     U->>UI: file a transfer request with the code, term start and extract
     opt from the card of the association set up by hand
         UI->>UI: attach the association id of the card
     end
     UI->>S: file the transfer request
-    S->>S: validate every field and the term end
-    alt term ended
+    S->>S: validate every field, the term start against the filing date, the term end
+    alt invalid fields
+        S-->>UI: refused with every broken field named
+        UI-->>U: «Перевірте поля заявки» with the fields
+    else term ended
         S-->>UI: refused, the term has ended
         UI-->>U: «Строк повноважень голови вже завершився»
     else valid
@@ -368,7 +381,7 @@ sequenceDiagram
         S->>D: read other pending applications for the same code
         S->>D: read the storage account of the association, for a transfer
         D-->>S: rows
-        S->>S: compare typed name, signer and керівник, and the extract date
+        S->>S: compare the levelled typed name, signer and керівник, and the extract date
         S-->>UI: values with their sources, warnings, competing applications
         UI-->>O: each value marked «введено заявником», «перевірено оператором» or «не перевірено»
         opt name mismatch or extract older than 30 days
@@ -382,7 +395,7 @@ sequenceDiagram
 
 ### Flow 8: rejecting an application
 
-Covers US-03 — AC-13, AC-14, AC-15.
+Covers US-03 — AC-13, AC-14, AC-15, AC-16c.
 
 ```mermaid
 sequenceDiagram
@@ -400,6 +413,9 @@ sequenceDiagram
     else already decided
         S-->>UI: refused, the decision was already taken
         UI-->>O: «Рішення за цією заявкою вже ухвалено»
+    else filed by the оператор
+        S-->>UI: refused, the оператор's own filing
+        UI-->>O: «Це ваша власна заявка — оператор не ухвалює рішення щодо себе»
     else valid
         S->>D: insert the decision and set the application rejected
         Note over S,D: persists application_decisions (one per filing), applications.state
@@ -543,7 +559,7 @@ sequenceDiagram
 | US-08 | `Flow 10: connecting the document storage`, `Flow 11: attaching a document while the storage is not connected` | flow | |
 | US-09 | `Flow 12: my associations, the association card and the roster` | flow | |
 | AC-01 | `Flow 1: filing a заявка на підключення` | flow | |
-| AC-02 | `Flow 1: filing a заявка на підключення` | branch | `alt invalid fields or term ended` |
+| AC-02 | `Flow 1: filing a заявка на підключення`, `Flow 6: filing a запит на передачу` | branch | Flow 1 `alt invalid fields or term ended`, a term start later than the filing date being one of the broken fields; Flow 6 `alt invalid fields` |
 | AC-03 | `Flow 2: the оператор records the check and approves a заявка` | flow | refused at the guard step `check recorded, codes equal, document named if needed` when no check is recorded |
 | AC-03b | `Flow 2: the оператор records the check and approves a заявка` | flow | refused at the same guard step, `codes equal` |
 | AC-04 | `Flow 1: filing a заявка на підключення` | branch | `alt code connected` |
@@ -552,7 +568,7 @@ sequenceDiagram
 | AC-04d | `Flow 12: my associations, the association card and the roster` | flow | |
 | AC-05 | `Flow 5: following and refiling an application` | flow | |
 | AC-06 | `Flow 5: following and refiling an application` | flow | |
-| AC-07 | `Flow 4: an association-scoped request through the middleware` | branch | `alt not a member, the operator, or unknown association` |
+| AC-07 | `Flow 4: an association-scoped request through the middleware` | branch | `alt not a member or unknown association` |
 | AC-08 | `Flow 2: the оператор records the check and approves a заявка` | flow | |
 | AC-09 | `Flow 2: the оператор records the check and approves a заявка` | flow | |
 | AC-10 | `Flow 7: the оператор opens an application for review` | flow | |
@@ -563,13 +579,14 @@ sequenceDiagram
 | AC-14 | `Flow 8: rejecting an application` | flow | |
 | AC-15 | `Flow 8: rejecting an application` | branch | `else already decided` |
 | AC-16 | `Flow 7: the оператор opens an application for review` | branch | `alt the session is not the оператор` |
-| AC-16b | `Flow 4: an association-scoped request through the middleware` | branch | `alt not a member, the operator, or unknown association` |
-| AC-17 | `Flow 6: filing a запит на передачу` | flow | |
+| AC-16b | `Flow 4: an association-scoped request through the middleware` | branch | `alt not a member or unknown association` for an оператор off the roster; an оператор on the roster takes the member branches, the role is not asked |
+| AC-16c | `Flow 2: the оператор records the check and approves a заявка`, `Flow 3: approving a запит на передачу`, `Flow 8: rejecting an application` | branch | Flow 2 and Flow 3 step `refuse the оператор's own filing`; Flow 8 `else filed by the оператор` |
+| AC-17 | `Flow 6: filing a запит на передачу` | flow | the applicant may be on the roster; the roster effect is Flow 3 `alt the applicant has a current roster entry` |
 | AC-18 | `Flow 6: filing a запит на передачу` | branch | `alt not connected` |
 | AC-18b | `Flow 3: approving a запит на передачу` | flow | refused at the guard step `check recorded, codes equal, document named if needed`, as AC-03 / AC-03b in Flow 2 |
-| AC-19 | `Flow 3: approving a запит на передачу` | flow | |
-| AC-19b | `Flow 3: approving a запит на передачу`, `Flow 7: the оператор opens an application for review` | flow | Flow 3 ends with `approved, competing requests stay waiting`; Flow 7 `opt competing application or request` shows them side by side |
-| AC-19c | `Flow 6: filing a запит на передачу`, `Flow 3: approving a запит на передачу` | flow | filed through Flow 6 `opt from the card of the association set up by hand`, approved through Flow 3 |
+| AC-19 | `Flow 3: approving a запит на передачу` | flow | `alt the applicant has a current roster entry` re-seats without a second entry; `opt a голова recorded by an earlier approval who is not the applicant` ends that entry only |
+| AC-19b | `Flow 3: approving a запит на передачу`, `Flow 7: the оператор opens an application for review` | flow | Flow 3 ends with `approved, competing requests stay waiting`; Flow 7 `opt competing application or request` shows them side by side; approving the competing запит later runs Flow 3 again as a new transfer |
+| AC-19c | `Flow 6: filing a запит на передачу`, `Flow 3: approving a запит на передачу` | flow | filed through Flow 6 `opt from the card of the association set up by hand`, approved through Flow 3 with no term to end and the entry re-seated; not decidable while its голова is the оператор (AC-16c) |
 | AC-20 | `Flow 12: my associations, the association card and the roster` | flow | |
 | AC-21 | `Flow 9: disabling and enabling an association` | flow | what the members see next is Flow 4 `else member and association disabled` |
 | AC-22 | `Flow 9: disabling and enabling an association` | branch | `alt disable with an empty reason` |
@@ -582,11 +599,11 @@ sequenceDiagram
 | AC-28 | `Flow 11: attaching a document while the storage is not connected` | flow | |
 | AC-28b | `Flow 10: connecting the document storage` | branch | `alt the address is a member's sign-in address`; the оператор sees the account in Flow 7, step `read the storage account of the association, for a transfer` |
 | AC-29 | `Flow 12: my associations, the association card and the roster` | flow | |
-| AC-30 | `Flow 1: filing a заявка на підключення`, `Flow 5: following and refiling an application`, `Flow 6: filing a запит на передачу` | branch | Flow 1 `alt invalid fields or term ended`; Flow 5 `else term already ended`; Flow 6 `alt term ended` |
+| AC-30 | `Flow 1: filing a заявка на підключення`, `Flow 5: following and refiling an application`, `Flow 6: filing a запит на передачу` | branch | Flow 1 `alt invalid fields or term ended`; Flow 5 `else term already ended`; Flow 6 `else term ended` |
 
-Coverage: 9/9 user stories · 41/41 ACs — 0 non-runtime N/A.
+Coverage: 9/9 user stories · 42/42 ACs — 0 non-runtime N/A.
 
-**Flags:** Flow 1–4 predate this pass: they are titled with a bold line instead of a `###` heading and use the container aliases of §5 (`W`, `I`, `G`, `D`) instead of generic participants; they are kept as written. No new participant, no decision worth an ADR.
+**Flags:** Flow 1–4 predate this pass: they are titled with a bold line instead of a `###` heading and use the container aliases of §5 (`W`, `I`, `G`, `D`) instead of generic participants; they are kept as written. No new participant, no decision worth an ADR. Reconciled 2026-11-10 by ao-architecture with the clarified PRD: Flows 2, 3 and 8 refuse the оператор's own filing (AC-16c), Flow 3 re-seats an applicant who is on the roster (AC-19), Flow 4 no longer names the оператор (AC-16b), Flow 6 has the invalid-fields branch (AC-02).
 
 ## 7. Deployment view
 

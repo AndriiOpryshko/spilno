@@ -29,11 +29,6 @@ func TestNewOperationsAreStubbed(t *testing.T) {
 	disableBody := `{"reason":"test reason"}`
 	storageBody := `{"code":"test-code","state":"test-state"}`
 
-	newApp, newAppCT := multipartBody(t, map[string]string{
-		"kind": "connection", "edrpou": "12345678", "association_name": "Test Association",
-		"association_address": "Test Street 1", "applicant_full_name": "Test User",
-		"position": "head", "term_start": "2026-03-01",
-	}, pdf)
 	refile, refileCT := multipartBody(t, map[string]string{
 		"association_name": "Test Association", "association_address": "Test Street 1",
 		"applicant_full_name": "Test User", "position": "head", "term_start": "2026-03-01",
@@ -48,7 +43,6 @@ func TestNewOperationsAreStubbed(t *testing.T) {
 	}{
 		{"listMemberships", "GET", "/identity/memberships", "", nil},
 		{"listMyApplications", "GET", "/identity/applications", "", nil},
-		{"fileApplication", "POST", "/identity/applications", newAppCT, newApp},
 		{"getMyApplication", "GET", a, "", nil},
 		{"refileApplication", "POST", a + "/filings", refileCT, refile},
 		{"downloadMyExtract", "GET", a + "/filings/" + filing + "/extract", "", nil},
@@ -67,8 +61,8 @@ func TestNewOperationsAreStubbed(t *testing.T) {
 		{"completeStorageConnection", "POST", as + "/storage-connection", jsonCT, []byte(storageBody)},
 		{"startStorageConnection", "GET", as + "/storage-connection/authorization", "", nil},
 	}
-	if len(tests) != 20 {
-		t.Fatalf("table has %d operations, want the 20 new ones", len(tests))
+	if len(tests) != 19 {
+		t.Fatalf("table has %d operations, want the 19 stubbed ones", len(tests))
 	}
 
 	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}

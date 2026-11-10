@@ -12,6 +12,7 @@ import (
 
 	identityhttp "github.com/AndriiOpryshko/spilno/services/core/internal/identity/adapters/http"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/identity/adapters/http/gen"
+	"github.com/AndriiOpryshko/spilno/services/core/internal/identity/adapters/postgres"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/identity/app"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/httpapi"
 )
@@ -24,7 +25,9 @@ type Module struct {
 }
 
 func New(pool *pgxpool.Pool) *Module {
-	return &Module{handler: identityhttp.NewHandler(), pool: pool}
+	h := identityhttp.NewHandler()
+	h.EnableApplications(app.NewApplications(postgres.NewApplications(pool)))
+	return &Module{handler: h, pool: pool}
 }
 
 // Routes attaches the context's routes to r inside their own group, validated

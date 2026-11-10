@@ -17,7 +17,8 @@ import (
 
 // Handler serves the identity operations; those not built yet answer 501.
 type Handler struct {
-	signIn *app.SignIn // nil until EnableSignIn
+	signIn       *app.SignIn // nil until EnableSignIn
+	applications *app.Applications
 }
 
 var _ gen.StrictServerInterface = (*Handler)(nil)
@@ -26,6 +27,9 @@ func NewHandler() *Handler { return &Handler{} }
 
 // EnableSignIn turns the four session operations on.
 func (h *Handler) EnableSignIn(s *app.SignIn) { h.signIn = s }
+
+// EnableApplications turns fileApplication on.
+func (h *Handler) EnableApplications(a *app.Applications) { h.applications = a }
 
 const sessionCookie = "spilno_session"
 
@@ -119,10 +123,6 @@ func (h *Handler) SignOut(ctx context.Context, _ gen.SignOutRequestObject) (gen.
 }
 
 func (h *Handler) ListMyApplications(_ context.Context, _ gen.ListMyApplicationsRequestObject) (gen.ListMyApplicationsResponseObject, error) {
-	return nil, httpapi.ErrNotImplemented
-}
-
-func (h *Handler) FileApplication(_ context.Context, _ gen.FileApplicationRequestObject) (gen.FileApplicationResponseObject, error) {
 	return nil, httpapi.ErrNotImplemented
 }
 

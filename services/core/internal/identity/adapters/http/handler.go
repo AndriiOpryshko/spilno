@@ -23,6 +23,7 @@ type Handler struct {
 	reviews      *app.Reviews            // nil until EnableReviews
 	storage      *app.StorageConnections // nil until EnableStorageConnections
 	rejections   *app.Rejections         // nil until EnableRejections
+	approvals    *app.Approvals          // nil until EnableApprovals
 }
 
 var _ gen.StrictServerInterface = (*Handler)(nil)
@@ -135,9 +136,5 @@ func (h *Handler) DownloadConfirmationExtract(_ context.Context, _ gen.DownloadC
 }
 
 func (h *Handler) ListMemberships(_ context.Context, _ gen.ListMembershipsRequestObject) (gen.ListMembershipsResponseObject, error) {
-	return nil, httpapi.ErrNotImplemented
-}
-
-func (h *Handler) ApproveApplication(_ context.Context, _ gen.ApproveApplicationRequestObject) (gen.ApproveApplicationResponseObject, error) {
 	return nil, httpapi.ErrNotImplemented
 }

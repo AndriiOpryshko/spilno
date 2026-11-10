@@ -30,7 +30,7 @@
 | [T23](./T23-follow-and-refile-application.md) | Let the applicant follow and refile their application | ports | Andrii Opryshko | M | T09, T22 | done |
 | [T24](./T24-operator-queue-review-check.md) | Serve the оператор's queue and review page, and record the check of the extract | ports | Andrii Opryshko | L | T10, T19, T22 | done |
 | [T25](./T25-reject-application.md) | Reject an application with a reason | ports | Andrii Opryshko | S | T09, T24 | done |
-| [T26](./T26-approve-connection-application.md) | Approve a заявка на підключення: create the association and seat its first голова in one transaction | ports | Andrii Opryshko | L | T09, T15, T20, T24 | todo |
+| [T26](./T26-approve-connection-application.md) | Approve a заявка на підключення: create the association and seat its first голова in one transaction | ports | Andrii Opryshko | L | T09, T15, T20, T24 | done |
 | [T27](./T27-file-transfer-request.md) | File a запит на передачу for a connected association | ports | Andrii Opryshko | M | T14, T22 | done |
 | [T28](./T28-review-transfer-request.md) | Show competing запити and the storage account in the review of a запит | ports | Andrii Opryshko | S | T24, T27 | done |
 | [T29](./T29-approve-transfer-request.md) | Approve a запит на передачу: seat the new голова and end the previous term in one transaction | ports | Andrii Opryshko | L | T26, T28 | todo |

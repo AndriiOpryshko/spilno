@@ -15,30 +15,24 @@ import (
 func TestNewOperationsAreStubbed(t *testing.T) {
 	srv := newServer(t)
 
-	app, assoc, filing := uuid.NewString(), uuid.NewString(), uuid.NewString()
-	const (
-		jsonCT = "application/json"
-		pdf    = "%PDF-1.4 test"
-	)
-	approveBody := `{"filing_id":"` + filing + `","relied_on_document":"test document"}`
+	assoc := uuid.NewString()
+	const jsonCT = "application/json"
 	disableBody := `{"reason":"test reason"}`
 
-	op := "/identity/operator/applications/" + app
 	as := "/identity/associations/" + assoc
 	tests := []struct {
 		name, method, path, ct string
 		body                   []byte
 	}{
 		{"listMemberships", "GET", "/identity/memberships", "", nil},
-		{"approveApplication", "POST", op + "/approval", jsonCT, []byte(approveBody)},
 		{"listAssociationsForOperator", "GET", "/identity/operator/associations", "", nil},
 		{"disableAssociation", "POST", "/identity/operator/associations/" + assoc + "/disabling", jsonCT, []byte(disableBody)},
 		{"enableAssociation", "POST", "/identity/operator/associations/" + assoc + "/enabling", "", nil},
 		{"getAssociationCard", "GET", as, "", nil},
 		{"downloadConfirmationExtract", "GET", as + "/extracts/" + uuid.NewString(), "", nil},
 	}
-	if len(tests) != 7 {
-		t.Fatalf("table has %d operations, want the 7 stubbed ones", len(tests))
+	if len(tests) != 6 {
+		t.Fatalf("table has %d operations, want the 6 stubbed ones", len(tests))
 	}
 
 	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}

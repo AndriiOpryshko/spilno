@@ -1,6 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, within } from 'storybook/test';
+import { expect as vitestExpect } from 'vitest';
+import { page } from 'vitest/browser';
 
 import type { ApplicationReview } from '@/api/gen/model';
 
@@ -86,6 +88,8 @@ export const Clean: Story = {
   beforeEach: serve({ ...base, checks: [check] }),
   play: async ({ canvasElement }) => {
     await expect((await within(canvasElement).findAllByText(/з КЕП, перевірено оператором/))[0]).toBeInTheDocument();
+    await document.fonts.ready;
+    await vitestExpect(page.elementLocator(canvasElement)).toMatchScreenshot('review-page');
   },
 };
 

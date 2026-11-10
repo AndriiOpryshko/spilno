@@ -1,6 +1,8 @@
 import type { Decorator, Meta, StoryObj } from '@storybook/react-vite';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
+import { expect as vitestExpect } from 'vitest';
+import { page } from 'vitest/browser';
 
 import { FilingForm } from './filing-form';
 
@@ -23,6 +25,8 @@ export const Connection: Story = {
   args: { kind: 'connection' },
   play: async ({ canvasElement }) => {
     await expect(within(canvasElement).getByText('голова правління')).toBeInTheDocument();
+    await document.fonts.ready;
+    await vitestExpect(page.elementLocator(canvasElement)).toMatchScreenshot('filing-form');
   },
 };
 

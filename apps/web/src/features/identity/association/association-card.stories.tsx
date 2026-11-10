@@ -1,5 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, within } from 'storybook/test';
+import { expect as vitestExpect } from 'vitest';
+import { page } from 'vitest/browser';
 
 import type { AssociationCard as Card } from '@/api/gen/model';
 
@@ -37,6 +39,8 @@ export const WithExtract: Story = {
   args: { card: base },
   play: async ({ canvasElement }) => {
     await expect(within(canvasElement).getByRole('heading', { name: 'ОСББ «Тестовий Будинок»' })).toBeInTheDocument();
+    await document.fonts.ready;
+    await vitestExpect(page.elementLocator(canvasElement)).toMatchScreenshot('association-card');
   },
 };
 

@@ -33,6 +33,10 @@ const (
 	CodeNoteRequired       = "governance.correction_note_required"
 )
 
+// CodeStorageUnavailable is answered when the association's file storage
+// cannot be reached; the request changes nothing (sad §6 Flow 8).
+const CodeStorageUnavailable = "governance.storage_unavailable"
+
 // DomainError is a rule violation identified only by its problem code.
 type DomainError struct {
 	Code string
@@ -85,5 +89,5 @@ var ErrorRegistry = []ErrorDef{
 	{CodeProtocolLocked, http.StatusConflict},
 	{"governance.register_start_locked", http.StatusConflict},
 	{CodeTransitionDenied, http.StatusConflict},
-	{"governance.storage_unavailable", http.StatusServiceUnavailable},
+	{CodeStorageUnavailable, http.StatusServiceUnavailable},
 }

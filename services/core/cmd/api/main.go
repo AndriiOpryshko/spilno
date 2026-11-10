@@ -54,14 +54,22 @@ func run() error {
 		}
 	}()
 
+	// goose runs as the owner; the API serves as a login role in spilno_app.
+	migrationsPool, err := postgres.Open(ctx, cfg.MigrationsDatabaseURL)
+	if err != nil {
+		return err
+	}
+	err = postgres.Migrate(ctx, migrationsPool)
+	migrationsPool.Close()
+	if err != nil {
+		return err
+	}
+
 	pool, err := postgres.Open(ctx, cfg.DatabaseURL)
 	if err != nil {
 		return err
 	}
 	defer pool.Close()
-	if err := postgres.Migrate(ctx, pool); err != nil {
-		return err
-	}
 
 	r := httpapi.NewRouter()
 	modules := []module{

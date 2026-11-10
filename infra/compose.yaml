@@ -12,6 +12,8 @@ services:
       - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql
+      # Creates the spilno_app_login role on a fresh volume (first start only).
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U spilno -d spilno"]
       interval: 2s

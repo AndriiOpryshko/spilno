@@ -10,12 +10,27 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as NoAccessRouteImport } from './routes/no-access'
+import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as CasesIndexRouteImport } from './routes/cases.index'
+import { Route as OAssociationIdRouteImport } from './routes/o.$associationId'
 import { Route as CasesCaseIdProtocolRouteImport } from './routes/cases.$caseId.protocol'
+import { Route as OAssociationIdCasesIndexRouteImport } from './routes/o.$associationId.cases.index'
+import { Route as OAssociationIdCasesCaseIdProtocolRouteImport } from './routes/o.$associationId.cases.$caseId.protocol'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NoAccessRoute = NoAccessRouteImport.update({
+  id: '/no-access',
+  path: '/no-access',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignInRoute = SignInRouteImport.update({
+  id: '/sign-in',
+  path: '/sign-in',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CasesIndexRoute = CasesIndexRouteImport.update({
@@ -23,38 +38,98 @@ const CasesIndexRoute = CasesIndexRouteImport.update({
   path: '/cases/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OAssociationIdRoute = OAssociationIdRouteImport.update({
+  id: '/o/$associationId',
+  path: '/o/$associationId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CasesCaseIdProtocolRoute = CasesCaseIdProtocolRouteImport.update({
   id: '/cases/$caseId/protocol',
   path: '/cases/$caseId/protocol',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OAssociationIdCasesIndexRoute =
+  OAssociationIdCasesIndexRouteImport.update({
+    id: '/cases/',
+    path: '/cases/',
+    getParentRoute: () => OAssociationIdRoute,
+  } as any)
+const OAssociationIdCasesCaseIdProtocolRoute =
+  OAssociationIdCasesCaseIdProtocolRouteImport.update({
+    id: '/cases/$caseId/protocol',
+    path: '/cases/$caseId/protocol',
+    getParentRoute: () => OAssociationIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/no-access': typeof NoAccessRoute
+  '/sign-in': typeof SignInRoute
+  '/o/$associationId': typeof OAssociationIdRouteWithChildren
   '/cases/': typeof CasesIndexRoute
   '/cases/$caseId/protocol': typeof CasesCaseIdProtocolRoute
+  '/o/$associationId/cases/': typeof OAssociationIdCasesIndexRoute
+  '/o/$associationId/cases/$caseId/protocol': typeof OAssociationIdCasesCaseIdProtocolRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/no-access': typeof NoAccessRoute
+  '/sign-in': typeof SignInRoute
+  '/o/$associationId': typeof OAssociationIdRouteWithChildren
   '/cases': typeof CasesIndexRoute
   '/cases/$caseId/protocol': typeof CasesCaseIdProtocolRoute
+  '/o/$associationId/cases': typeof OAssociationIdCasesIndexRoute
+  '/o/$associationId/cases/$caseId/protocol': typeof OAssociationIdCasesCaseIdProtocolRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/no-access': typeof NoAccessRoute
+  '/sign-in': typeof SignInRoute
+  '/o/$associationId': typeof OAssociationIdRouteWithChildren
   '/cases/': typeof CasesIndexRoute
   '/cases/$caseId/protocol': typeof CasesCaseIdProtocolRoute
+  '/o/$associationId/cases/': typeof OAssociationIdCasesIndexRoute
+  '/o/$associationId/cases/$caseId/protocol': typeof OAssociationIdCasesCaseIdProtocolRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/cases/' | '/cases/$caseId/protocol'
+  fullPaths:
+    | '/'
+    | '/no-access'
+    | '/sign-in'
+    | '/o/$associationId'
+    | '/cases/'
+    | '/cases/$caseId/protocol'
+    | '/o/$associationId/cases/'
+    | '/o/$associationId/cases/$caseId/protocol'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/cases' | '/cases/$caseId/protocol'
-  id: '__root__' | '/' | '/cases/' | '/cases/$caseId/protocol'
+  to:
+    | '/'
+    | '/no-access'
+    | '/sign-in'
+    | '/o/$associationId'
+    | '/cases'
+    | '/cases/$caseId/protocol'
+    | '/o/$associationId/cases'
+    | '/o/$associationId/cases/$caseId/protocol'
+  id:
+    | '__root__'
+    | '/'
+    | '/no-access'
+    | '/sign-in'
+    | '/o/$associationId'
+    | '/cases/'
+    | '/cases/$caseId/protocol'
+    | '/o/$associationId/cases/'
+    | '/o/$associationId/cases/$caseId/protocol'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  NoAccessRoute: typeof NoAccessRoute
+  SignInRoute: typeof SignInRoute
+  OAssociationIdRoute: typeof OAssociationIdRouteWithChildren
   CasesIndexRoute: typeof CasesIndexRoute
   CasesCaseIdProtocolRoute: typeof CasesCaseIdProtocolRoute
 }
@@ -68,11 +143,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/no-access': {
+      id: '/no-access'
+      path: '/no-access'
+      fullPath: '/no-access'
+      preLoaderRoute: typeof NoAccessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sign-in': {
+      id: '/sign-in'
+      path: '/sign-in'
+      fullPath: '/sign-in'
+      preLoaderRoute: typeof SignInRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/cases/': {
       id: '/cases/'
       path: '/cases'
       fullPath: '/cases/'
       preLoaderRoute: typeof CasesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/o/$associationId': {
+      id: '/o/$associationId'
+      path: '/o/$associationId'
+      fullPath: '/o/$associationId'
+      preLoaderRoute: typeof OAssociationIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/cases/$caseId/protocol': {
@@ -82,11 +178,43 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CasesCaseIdProtocolRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/o/$associationId/cases/': {
+      id: '/o/$associationId/cases/'
+      path: '/cases'
+      fullPath: '/o/$associationId/cases/'
+      preLoaderRoute: typeof OAssociationIdCasesIndexRouteImport
+      parentRoute: typeof OAssociationIdRoute
+    }
+    '/o/$associationId/cases/$caseId/protocol': {
+      id: '/o/$associationId/cases/$caseId/protocol'
+      path: '/cases/$caseId/protocol'
+      fullPath: '/o/$associationId/cases/$caseId/protocol'
+      preLoaderRoute: typeof OAssociationIdCasesCaseIdProtocolRouteImport
+      parentRoute: typeof OAssociationIdRoute
+    }
   }
 }
 
+interface OAssociationIdRouteChildren {
+  OAssociationIdCasesIndexRoute: typeof OAssociationIdCasesIndexRoute
+  OAssociationIdCasesCaseIdProtocolRoute: typeof OAssociationIdCasesCaseIdProtocolRoute
+}
+
+const OAssociationIdRouteChildren: OAssociationIdRouteChildren = {
+  OAssociationIdCasesIndexRoute: OAssociationIdCasesIndexRoute,
+  OAssociationIdCasesCaseIdProtocolRoute:
+    OAssociationIdCasesCaseIdProtocolRoute,
+}
+
+const OAssociationIdRouteWithChildren = OAssociationIdRoute._addFileChildren(
+  OAssociationIdRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  NoAccessRoute: NoAccessRoute,
+  SignInRoute: SignInRoute,
+  OAssociationIdRoute: OAssociationIdRouteWithChildren,
   CasesIndexRoute: CasesIndexRoute,
   CasesCaseIdProtocolRoute: CasesCaseIdProtocolRoute,
 }

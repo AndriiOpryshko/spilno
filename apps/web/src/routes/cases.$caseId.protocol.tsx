@@ -1,12 +1,7 @@
-import { createFileRoute } from '@tanstack/react-router';
-
-import { ProtocolScreen } from '@/features/governance/protocol-screen';
+import { createFileRoute, redirect } from '@tanstack/react-router';
 
 export const Route = createFileRoute('/cases/$caseId/protocol')({
-  component: ProtocolPage,
+  beforeLoad: () => {
+    throw redirect({ to: '/' });
+  },
 });
-
-function ProtocolPage() {
-  const { caseId } = Route.useParams();
-  return <ProtocolScreen key={caseId} caseId={caseId} />;
-}

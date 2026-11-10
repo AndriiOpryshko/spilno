@@ -12,6 +12,7 @@ import (
 	"github.com/AndriiOpryshko/spilno/services/core/internal/identity/adapters/postgres/sqlcgen"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/identity/domain"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/identity/ports"
+	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/db"
 )
 
 // Reviews implements ports.ReviewRepository. The application tables carry no policy (ADR-0003).
@@ -134,7 +135,34 @@ func (s *Reviews) Get(ctx context.Context, id uuid.UUID) (ports.ReviewDetail, er
 	for _, c := range competing {
 		d.Competing = append(d.Competing, c.Bytes)
 	}
+	if a.Kind == string(domain.KindTransfer) && a.AssociationID.Valid {
+		if d.StorageAccountEmail, err = s.storageAccountEmail(ctx, a.AssociationID); err != nil {
+			return d, err
+		}
+	}
 	return d, nil
+}
+
+// storageAccountEmail returns only the address of the association's connection, read inside the
+// association (ADR-0003); nil when the association has no connection.
+func (s *Reviews) storageAccountEmail(ctx context.Context, associationID pgtype.UUID) (*string, error) {
+	var email *string
+	err := db.InAssociation(ctx, s.pool, associationID.Bytes, "", func(ctx context.Context) error {
+		tx, err := db.From(ctx)
+		if err != nil {
+			return err
+		}
+		row, err := sqlcgen.New(tx).GetGoogleConnection(ctx, associationID)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		email = &row.GoogleAccountEmail
+		return nil
+	})
+	return email, err
 }
 
 func (s *Reviews) Extract(ctx context.Context, applicationID, filingID uuid.UUID) (ports.ReviewExtract, error) {

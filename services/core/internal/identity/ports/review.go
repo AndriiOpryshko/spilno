@@ -70,6 +70,8 @@ type ReviewDetail struct {
 	Checks         []ReviewCheck
 	Decisions      []ReviewDecision
 	Competing      []uuid.UUID
+	// StorageAccountEmail is the account holding a transfer's files; nil otherwise.
+	StorageAccountEmail *string
 }
 
 // NewCheck is a check the оператор records.

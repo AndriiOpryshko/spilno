@@ -131,6 +131,10 @@ func (h *Handler) GetApplicationForReview(ctx context.Context, req gen.GetApplic
 		ad.AssociationId = reviewUUIDPtr(d.AssociationID)
 		out.Decisions = append(out.Decisions, ad)
 	}
+	if v.StorageAccountEmail != nil {
+		e := openapi_types.Email(*v.StorageAccountEmail)
+		out.StorageAccountEmail = &e
+	}
 	out.CompetingApplicationIds = append(out.CompetingApplicationIds, v.Competing...)
 	for _, w := range v.Warnings {
 		out.Warnings = append(out.Warnings, gen.ReviewWarning{Kind: gen.ReviewWarningKind(w.Kind), Detail: w.Detail})

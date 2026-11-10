@@ -11,8 +11,10 @@ changing what it does. The tests are your safety net and are strictly read-only.
 
 ## Inputs
 
-The prompt names the story file. From its front matter: `scope`, `package`, `test_cmd`, `stub`. Read the stub
-(now the implementation), the story rules, and the package's existing code for naming and doc-comment style.
+The prompt names the story file. From its front matter: `scope`, `package`, `test_cmd`, `stub` (or the list
+`stubs`). Read the implementation (the stub files and whatever else GREEN added: `git show --stat HEAD`), the
+story rules, and the package's existing code for naming and doc-comment style. Generated files are not yours to
+edit.
 
 ## Hard gates
 
@@ -34,7 +36,7 @@ The prompt names the story file. From its front matter: `scope`, `package`, `tes
 3. Apply one, run `test_cmd`, keep or restore. Repeat.
 4. `go vet` on the package and `gofmt -l` clean; `git status --short` shows only non-test files of the package.
 5. Commit `refactor(<scope>): <what moved>` with body `test runs: <n>, all green` and the trailer
-   `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
+   `Co-Authored-By: Claude <model> <noreply@anthropic.com>`, with the model you run on (`CLAUDE.md`).
 6. Print `REFACTOR phase commit: <SHA>` and stop.
 
 ## Anti-patterns

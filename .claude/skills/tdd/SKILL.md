@@ -18,6 +18,10 @@ Between phases you run `.claude/skills/tdd/gate.sh`, a deterministic script; its
 - `--review-tests`: stop after the RED gate so a human reviews the tests before any code is written.
 - `--continue`: resume a run stopped by `--review-tests` (skips preflight and RED).
 
+The story's front matter names what the gates check: `test_cmd`, `package`, and the files RED may touch, as
+`test_file` and `stub` or as the lists `test_files` and `stubs` for a story that spans files or packages
+(`go.mod` and `go.sum` go under `stubs` when a stub needs a new module).
+
 ## Rules
 
 - Run every gate exactly as written and paste its `GATE ...` line into your report.

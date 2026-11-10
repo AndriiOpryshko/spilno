@@ -14,7 +14,7 @@
 | [T07](./T07-roster-position-domain.md) | Give roster entries a position and a decision reference, with the date rules of a transfer | domain | Andrii Opryshko | M | — | done |
 | [T08](./T08-filing-validation-domain.md) | Validate a filing: every field at once, the term rules and the extract file | domain | Andrii Opryshko | M | T03 | todo |
 | [T09](./T09-application-lifecycle-domain.md) | Model the application lifecycle and the guards of a decision | domain | Andrii Opryshko | M | T03 | todo |
-| [T10](./T10-name-match-extract-age.md) | Compare the three names after levelling and flag an extract older than 30 days | domain | Andrii Opryshko | S | — | todo |
+| [T10](./T10-name-match-extract-age.md) | Compare the three names after levelling and flag an extract older than 30 days | domain | Andrii Opryshko | S | — | done |
 | [T11](./T11-association-state-access-matrix.md) | Model the association state and the access matrix of PRD §10 | domain | Andrii Opryshko | M | T03 | todo |
 | [T12](./T12-two-database-roles.md) | Run goose as the owner and serve as spilno_app; give tests an app-role pool with two associations | infra | Andrii Opryshko | M | T05 | todo |
 | [T13](./T13-finance-contracts-association.md) | Scope finance contracts to the association in the path | app | Andrii Opryshko | S | T01, T04, T05 | todo |

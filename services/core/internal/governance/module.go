@@ -19,6 +19,7 @@ import (
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/app"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/domain"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/ports"
+	"github.com/AndriiOpryshko/spilno/services/core/internal/identity"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/httpapi"
 )
 
@@ -36,10 +37,10 @@ type Person struct{ FullName, SignInEmail string }
 // Term is a board membership period; a zero End means open.
 type Term = domain.Term
 
-func New(_ *pgxpool.Pool) *Module {
+func New(pool *pgxpool.Pool) *Module {
 	meetings := app.NewMeetingService(postgres.NewMeetings())
 	roster := app.NewRosterService(postgres.NewRoster(), postgres.NewRoster())
-	return &Module{handler: governancehttp.NewHandler(meetings), roster: roster}
+	return &Module{handler: governancehttp.NewHandler(meetings, identity.New(pool).HasStorageConnection), roster: roster}
 }
 
 // Routes attaches the context's routes to r inside their own group, validated

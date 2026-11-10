@@ -6,6 +6,8 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/google/uuid"
+
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/adapters/http/gen"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/app"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/domain"
@@ -13,12 +15,16 @@ import (
 
 type Handler struct {
 	meetings *app.MeetingService
+	storage  StorageConnected
 }
+
+// StorageConnected reports whether the association has a connected document storage.
+type StorageConnected func(ctx context.Context, association uuid.UUID) (bool, error)
 
 var _ gen.StrictServerInterface = (*Handler)(nil)
 
-func NewHandler(meetings *app.MeetingService) *Handler {
-	return &Handler{meetings: meetings}
+func NewHandler(meetings *app.MeetingService, storage StorageConnected) *Handler {
+	return &Handler{meetings: meetings, storage: storage}
 }
 
 func (h *Handler) CreateMeeting(ctx context.Context, req gen.CreateMeetingRequestObject) (gen.CreateMeetingResponseObject, error) {

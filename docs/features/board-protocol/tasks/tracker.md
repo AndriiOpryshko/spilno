@@ -21,10 +21,13 @@
 | [T13a](./T13a-files-port-fake.md) | Declare the Files port and an in-memory fake that passes a shared contract test | infra | Andrii Opryshko | M | — | done |
 | [T14](./T14-river-worker-jobs.md) | Wire the River client, the cmd/worker binary and the job status endpoints | wiring | Andrii Opryshko | L | T04, T07, T11 | todo |
 | [T15](./T15-protocol-lifecycle-domain.md) | Model the protocol lifecycle: states, revision, transitions and refusals | domain | Andrii Opryshko | L | — | done |
-| [T16](./T16-agenda-slots-domain.md) | Model agenda items and слоти рішення: confirm, correct, needs review and readiness | domain | Andrii Opryshko | M | T15 | todo |
-| [T17](./T17-text-fragments-proposal-rules.md) | Add text fragments, the fact validator and the amount recommendation rule | domain | Andrii Opryshko | L | T16 | todo |
+| [T16](./T16-agenda-slots-domain.md) | Model agenda items and слоти рішення: confirm, correct, needs review and readiness | domain | Andrii Opryshko | M | T15 | done |
+| [T17](./T17-text-fragments-proposal-rules.md) | Add text fragments, the fact validator and the amount recommendation rule | domain | Andrii Opryshko | L | T16 | in_progress |
+| [T17b](./T17b-amount-recommendation.md) | Recommend the amount slot value from the case documents | domain | Andrii Opryshko | S | T16 | done |
 | [T18](./T18-poll-domain.md) | Model poll rounds and the own-vote rule | domain | Andrii Opryshko | M | T15 | done |
-| [T19](./T19-meeting-facts-snapshot-domain.md) | Model meeting facts and the canonical fingerprinted snapshot | domain | Andrii Opryshko | M | T16, T18 | todo |
+| [T19](./T19-meeting-facts-snapshot-domain.md) | Model meeting facts and the canonical fingerprinted snapshot | domain | Andrii Opryshko | M | T16, T18 | done |
+| [T19a](./T19a-meeting-facts.md) | Validate the meeting facts entered with the signed scan | domain | Andrii Opryshko | S | T16, T18 | done |
+| [T19b](./T19b-snapshot-fingerprint.md) | Serialize the protocol snapshot canonically and fingerprint it | domain | Andrii Opryshko | S | T16, T18 | done |
 | [T20](./T20-protocol-repository.md) | Persist the protocol aggregate with a revision guard | infra | Andrii Opryshko | L | T03, T16 | todo |
 | [T21](./T21-cases-endpoints.md) | Serve cases: create, list, open, add document versions and download files | ports | Andrii Opryshko | L | T03, T11, T13 | todo |
 | [T22](./T22-open-draft-endpoints.md) | Open a draft for a meeting from a case, get and list protocols | ports | Andrii Opryshko | L | T10, T20, T21 | todo |

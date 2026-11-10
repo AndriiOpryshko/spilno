@@ -667,7 +667,7 @@ ADR files: `docs/features/association-onboarding/adr/NNNN-<decision>.md`. Repo-l
 **QG-1. Isolation**
 - **When:** a person on the roster of association A only, and a person on the rosters of A and B, call every read operation of the contract with B's id in the path, and the same queries run with A set for row-level security.
 - **Then:** 0 records of association B readable by a person not on B's roster, for every kind of record, in a release-blocking check run against two seeded associations and one person on both rosters.
-- **How verify:** `services/core/internal/platform/isolation_test.go` on `testdb.New(t)` (two associations seeded), iterating the operations of `openapi.yaml` with an `{association_id}` parameter; part of `mise run test`, which gates the release.
+- **How verify:** `services/core/internal/platform/isolation_test.go` on `testdb.New(t)` (two associations seeded), iterating the operations of `openapi.yaml` with an `{association_id}` parameter; the оператор's address is seeded on A's roster only and is denied on B like any person off the roster (AC-16b); part of `mise run test`, which gates the release.
 
 **QG-2. Effect of disabling and of a transfer**
 - **When:** the оператор disables an association, or approves a запит на передачу, while an affected member has an open session.

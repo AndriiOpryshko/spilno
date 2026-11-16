@@ -60,11 +60,7 @@ func (s *StorageConnections) Start(account, association uuid.UUID) (string, erro
 	state := base64.RawURLEncoding.EncodeToString(raw)
 	now := time.Now()
 	s.mu.Lock()
-	for k, v := range s.states {
-		if now.After(v.expires) {
-			delete(s.states, k)
-		}
-	}
+	evictToCap(s.states, now, func(v storageState) time.Time { return v.expires })
 	s.states[state] = storageState{account: account, association: association, expires: now.Add(storageStateTTL)}
 	s.mu.Unlock()
 	return s.consent.AuthURL(state), nil

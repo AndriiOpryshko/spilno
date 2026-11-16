@@ -41,7 +41,7 @@ type Term = domain.Term
 func New(_ *pgxpool.Pool, hasStorage func(context.Context, uuid.UUID) (bool, error)) *Module {
 	meetings := app.NewMeetingService(postgres.NewMeetings())
 	roster := app.NewRosterService(postgres.NewRoster(), postgres.NewRoster())
-	return &Module{handler: governancehttp.NewHandler(meetings, roster, hasStorage), roster: roster}
+	return &Module{handler: governancehttp.NewHandler(meetings, roster, app.NewRegistryService(postgres.NewRegistry()), hasStorage), roster: roster}
 }
 
 // Routes attaches the context's routes to r inside their own group, validated

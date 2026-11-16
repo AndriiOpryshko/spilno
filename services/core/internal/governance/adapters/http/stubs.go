@@ -118,14 +118,6 @@ func (h *Handler) WithdrawProtocol(_ context.Context, _ gen.WithdrawProtocolRequ
 	return nil, httpapi.ErrNotImplemented
 }
 
-func (h *Handler) SearchRegistry(_ context.Context, _ gen.SearchRegistryRequestObject) (gen.SearchRegistryResponseObject, error) {
-	return nil, httpapi.ErrNotImplemented
-}
-
-func (h *Handler) GetSignedProtocol(_ context.Context, _ gen.GetSignedProtocolRequestObject) (gen.GetSignedProtocolResponseObject, error) {
-	return nil, httpapi.ErrNotImplemented
-}
-
 func (h *Handler) GetAssociationSettings(_ context.Context, _ gen.GetAssociationSettingsRequestObject) (gen.GetAssociationSettingsResponseObject, error) {
 	return nil, httpapi.ErrNotImplemented
 }

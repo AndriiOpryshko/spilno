@@ -3,6 +3,7 @@ import { Link, useParams } from '@tanstack/react-router';
 import { cn } from 'cn';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
+import { listMemberships } from '@/api/gen/endpoints/identity/identity';
 import { TopBar } from '@/components/app-shell';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,6 +28,10 @@ const amount = (c: CaseSummary) => (c.amountUah === null ? uk.cases.amountNotFou
 
 export function CasesScreen() {
   const query = useQuery({ queryKey: ['cases'], queryFn: listCases });
+  const { associationId } = useParams({ from: '/o/$associationId' });
+  // The layout already loaded the roster; this reads the same cache entry.
+  const { data: roster } = useQuery({ queryKey: ['memberships'], queryFn: () => listMemberships() });
+  const association = roster?.data.items.find((m) => m.association_id === associationId);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<CaseStatus | 'all'>('all');
   const searchRef = useRef<HTMLInputElement>(null);
@@ -57,7 +62,7 @@ export function CasesScreen() {
 
   return (
     <>
-      <TopBar crumbs={[{ label: uk.nav.cases }]} end={<span className="text-[13px] text-muted-foreground lg:hidden">{uk.app.osbbShort}</span>} />
+      <TopBar crumbs={[{ label: uk.nav.cases }]} associationName={association?.association_name} />
       <div className="space-y-6 px-4 py-6 lg:px-8 lg:py-8">
         <header className="space-y-1">
           <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">{uk.cases.eyebrow}</p>
@@ -155,10 +160,11 @@ function CasesTable({ cases }: { cases: CaseSummary[] }) {
 }
 
 function CaseCard({ c }: { c: CaseSummary }) {
+  const { associationId } = useParams({ from: '/o/$associationId' });
   return (
     <Link
-      to="/cases/$caseId/protocol"
-      params={{ caseId: c.id }}
+      to="/o/$associationId/cases/$caseId/protocol"
+      params={{ associationId, caseId: c.id }}
       className="block space-y-2 rounded-lg border bg-card p-4 outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <div className="flex items-start gap-2">

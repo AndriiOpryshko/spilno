@@ -33,6 +33,9 @@ export function Sidebar({ associationId, associationName, isOperator, casesCount
           <span>{uk.nav.cases}</span>
           {casesCount !== undefined && <span className="text-xs opacity-50">{casesCount}</span>}
         </Link>
+        <Link to="/o/$associationId/association" params={{ associationId }} className="flex items-center justify-between rounded-md px-3 py-2 opacity-75 hover:bg-sidebar-accent" activeProps={{ className: 'bg-sidebar-accent font-medium !opacity-100' }}>
+          {uk.nav.association}
+        </Link>
         {isOperator && (
           <Link to="/operator" className="flex items-center justify-between rounded-md px-3 py-2 opacity-75 hover:bg-sidebar-accent">
             {uk.operator.entry}
@@ -48,7 +51,7 @@ export function Sidebar({ associationId, associationName, isOperator, casesCount
   );
 }
 
-export function TopBar({ crumbs, end }: { crumbs: { label: string; to?: string }[]; end?: React.ReactNode }) {
+export function TopBar({ crumbs, end, associationName }: { crumbs: { label: string; to?: string }[]; end?: React.ReactNode; associationName?: string }) {
   return (
     <div className="flex items-center gap-2 border-b bg-card px-4 py-3 text-[13px] lg:px-8">
       <BrandMark className="lg:hidden" />
@@ -71,6 +74,7 @@ export function TopBar({ crumbs, end }: { crumbs: { label: string; to?: string }
           );
         })}
       </nav>
+      {associationName && <span className="truncate text-[13px] text-muted-foreground lg:hidden">{associationName}</span>}
       {end}
     </div>
   );

@@ -8,12 +8,13 @@ const pick = (n: number, forms: { one: string; few: string; many: string }) => {
 };
 
 export const uk = {
-  app: { name: 'Спільно', osbb: 'ОСББ «Січових Стрільців, 12»', osbbShort: 'ОСББ 12', search: 'Пошук і команди' },
-  nav: { cases: 'Справи', protocols: 'Протоколи', meetings: 'Збори', documents: 'Документи', soon: 'Незабаром' },
+  app: { name: 'Спільно', osbb: 'ОСББ «Січових Стрільців, 12»', search: 'Пошук і команди' },
+  nav: { cases: 'Справи', association: 'ОСББ', protocols: 'Протоколи', meetings: 'Збори', documents: 'Документи', soon: 'Незабаром' },
   association: {
     signInTitle: 'Вхід до Спільно',
     signIn: 'Увійти',
     pickTitle: 'Оберіть ОСББ',
+    openCard: 'Картка ОСББ',
     noAccess: 'Немає доступу',
     notCurrentMember: 'Немає доступу',
     disabled: (reason: string) => `Доступ призупинено: ${reason}`,

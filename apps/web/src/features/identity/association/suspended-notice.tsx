@@ -1,9 +1,10 @@
 import { Link } from '@tanstack/react-router';
 
+import { InlineAlert } from '@/features/governance/inline-alert';
 import { uk } from '@/i18n/uk';
 
 export function SuspendedNotice({ reason }: { reason: string }) {
-  return <p role="alert">{uk.association.disabled(reason)}</p>;
+  return <InlineAlert title={uk.association.disabled(reason)} />;
 }
 
 type ProblemError = { status?: number; info?: { code?: string; detail?: string } };

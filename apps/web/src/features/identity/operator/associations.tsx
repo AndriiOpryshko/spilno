@@ -17,7 +17,7 @@ const messageFor = (err: unknown) => {
   const code = (err as { info?: { code?: string } }).info?.code;
   if (code === 'identity.reason_required') return uk.operator.reasonRequired;
   if (code === 'identity.association_state_unchanged') return uk.association.stateUnchanged;
-  return null;
+  return uk.operator.actionFailed;
 };
 
 function AssociationRow({ association, onChanged }: { association: OperatorAssociation; onChanged: () => void }) {

@@ -168,6 +168,8 @@ export const uk = {
     signatureValid: 'Підпис КЕП дійсний',
     recordCheck: 'Записати перевірку',
     checkFailed: 'Не вдалося записати перевірку',
+    checkFieldsBroken: (fields: string) => `Перевірте поля: ${fields}`,
+    actionFailed: 'Не вдалося виконати дію. Спробуйте ще раз',
     reject: 'Відхилити',
     rejectTitle: 'Відхилити заявку',
     rejectReasonRequired: 'Вкажіть причину — її побачить заявник',

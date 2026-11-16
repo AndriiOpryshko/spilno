@@ -208,4 +208,41 @@ describe('DecisionPanel on the review page', () => {
     expect(screen.queryByRole('button', { name: 'Схвалити' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Відхилити' })).not.toBeInTheDocument();
   });
+
+  it('refetches the review after a 409 on approval, so stale buttons go away (AC-15)', async () => {
+    refusal = { status: 409, code: 'identity.application_not_pending' };
+    await renderPage();
+    // Another operator decided meanwhile.
+    review = decided('rejected', { reason: 'Інший оператор' });
+    fireEvent.click(await screen.findByRole('button', { name: 'Схвалити' }));
+    expect(await screen.findByText(/відхилена/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Схвалити' })).not.toBeInTheDocument());
+  });
+
+  it('refetches the review after a 409 on rejection (AC-15)', async () => {
+    refusal = { status: 409, code: 'identity.application_not_pending' };
+    await renderPage();
+    const { confirm, reason } = await openReject();
+    review = decided('approved', {});
+    type(reason, 'Причина');
+    fireEvent.click(confirm);
+    expect(await screen.findByText(/схвалена/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Відхилити' })).not.toBeInTheDocument());
+  });
+
+  it('announces the outcome as a status and moves focus to it after a rejection (AC-13)', async () => {
+    await renderPage();
+    const { confirm, reason } = await openReject();
+    type(reason, 'Витяг нечитабельний');
+    fireEvent.click(confirm);
+    const status = await screen.findByRole('status');
+    expect(status.textContent).toMatch(/відхилена/);
+    await waitFor(() => expect(status).toHaveFocus());
+  });
+
+  it('announces an approval as a status (AC-08)', async () => {
+    await renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Схвалити' }));
+    expect((await screen.findByRole('status')).textContent).toMatch(/схвалена/);
+  });
 });

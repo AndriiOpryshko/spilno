@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import {
   getGetApplicationForReviewQueryKey,
@@ -21,6 +21,8 @@ const messageFor = (err: unknown) => {
   const code = (err as { info?: { code?: string } }).info?.code;
   return (code && t.refusal[code]) || t.decisionFailed;
 };
+
+const isConflict = (err: unknown) => (err as { info?: { status?: number } }).info?.status === 409;
 
 function ErrorText({ children }: { children: string }) {
   return (
@@ -49,12 +51,25 @@ export function DecisionPanel({
   const [error, setError] = useState<string | null>(null);
   const [reasonError, setReasonError] = useState<string | null>(null);
 
+  const statusRef = useRef<HTMLParagraphElement>(null);
+  const [focusOutcome, setFocusOutcome] = useState(false);
+  useEffect(() => {
+    if (focusOutcome && statusRef.current) {
+      const id = window.setTimeout(() => statusRef.current?.focus(), 0);
+      return () => window.clearTimeout(id);
+    }
+  }, [focusOutcome, review]);
+
   const { application, decisions } = review;
   const decision = decisions[0];
   if (application.state !== 'pending') {
     if (!decision) return null;
     const date = formatDate(decision.decided_at);
-    return <p>{application.state === 'approved' ? t.approvedOn(date) : t.rejectedOn(date)}</p>;
+    return (
+      <p ref={statusRef} role="status" tabIndex={-1} className="outline-none">
+        {application.state === 'approved' ? t.approvedOn(date) : t.rejectedOn(date)}
+      </p>
+    );
   }
   const email = session.data?.data.email;
   if (email && email === review.applicant_email) return <p>{t.ownApplication}</p>;
@@ -75,7 +90,13 @@ export function DecisionPanel({
             setError(null);
             approve.mutate(
               { applicationId, data: { filing_id: filingId, ...(document ? { relied_on_document: document } : {}) } },
-              { onSuccess: refresh, onError: (err) => setError(messageFor(err)) },
+              {
+                onSuccess: refresh,
+                onError: (err) => {
+                  setError(messageFor(err));
+                  if (isConflict(err)) void refresh();
+                },
+              },
             );
           }}
         >
@@ -108,9 +129,13 @@ export function DecisionPanel({
                   {
                     onSuccess: () => {
                       setOpen(false);
+                      setFocusOutcome(true);
                       void refresh();
                     },
-                    onError: (err) => setReasonError(messageFor(err)),
+                    onError: (err) => {
+                      setReasonError(messageFor(err));
+                      if (isConflict(err)) void refresh();
+                    },
                   },
                 );
               }}

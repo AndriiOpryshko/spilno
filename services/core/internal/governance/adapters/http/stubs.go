@@ -12,29 +12,6 @@ import (
 	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/httpapi"
 )
 
-func (h *Handler) ListCases(_ context.Context, _ gen.ListCasesRequestObject) (gen.ListCasesResponseObject, error) {
-	return nil, httpapi.ErrNotImplemented
-}
-
-func (h *Handler) CreateCase(_ context.Context, _ gen.CreateCaseRequestObject) (gen.CreateCaseResponseObject, error) {
-	return nil, httpapi.ErrNotImplemented
-}
-
-func (h *Handler) GetCase(_ context.Context, _ gen.GetCaseRequestObject) (gen.GetCaseResponseObject, error) {
-	return nil, httpapi.ErrNotImplemented
-}
-
-func (h *Handler) AddCaseDocument(ctx context.Context, req gen.AddCaseDocumentRequestObject) (gen.AddCaseDocumentResponseObject, error) {
-	connected, err := h.storage(ctx, req.AssociationId)
-	if err != nil {
-		return nil, err
-	}
-	if !connected {
-		return gen.AddCaseDocument409ApplicationProblemPlusJSONResponse(driveNotConnectedProblem()), nil
-	}
-	return nil, httpapi.ErrNotImplemented
-}
-
 func (h *Handler) GetJob(_ context.Context, _ gen.GetJobRequestObject) (gen.GetJobResponseObject, error) {
 	return nil, httpapi.ErrNotImplemented
 }

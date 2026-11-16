@@ -27,6 +27,7 @@ type Module struct {
 	handler *governancehttp.Handler
 	roster  *app.RosterService
 	files   *app.FileService
+	cases   *app.CaseService
 }
 
 // Membership is a person's current seat on one association's board.
@@ -44,7 +45,8 @@ func New(_ *pgxpool.Pool, hasStorage func(context.Context, uuid.UUID) (bool, err
 	meetings := app.NewMeetingService(postgres.NewMeetings())
 	roster := app.NewRosterService(postgres.NewRoster(), postgres.NewRoster())
 	files := app.NewFileService(postgres.NewFiles())
-	return &Module{handler: governancehttp.NewHandler(meetings, roster, app.NewRegistryService(postgres.NewRegistry()), files, hasStorage), roster: roster, files: files}
+	cases := app.NewCaseService(postgres.NewCases(), postgres.NewRoster())
+	return &Module{handler: governancehttp.NewHandler(meetings, roster, app.NewRegistryService(postgres.NewRegistry()), files, cases, hasStorage), roster: roster, files: files, cases: cases}
 }
 
 // Files is the association-owned file storage the downloads read from.
@@ -53,10 +55,11 @@ type Files = ports.Files
 // NewDevFiles is an in-memory Files for development (SPILNO_DEV_STORAGE=true); it forgets on restart.
 func NewDevFiles() Files { return filesfake.New() }
 
-// WithFiles wires the storage behind downloadFile; without it the operation answers 503
+// WithFiles wires the storage behind downloadFile and addCaseDocument; without it they answer 503
 // governance.storage_unavailable. Call it before Routes.
 func (m *Module) WithFiles(files Files) *Module {
 	m.files.SetFiles(files)
+	m.cases.SetFiles(files)
 	return m
 }
 

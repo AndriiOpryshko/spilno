@@ -106,7 +106,8 @@ func driveGuardMultipart(t *testing.T, fields map[string]string, fileField strin
 }
 
 // AC-28: with no storage connection both operations answer 409 governance.drive_not_connected;
-// with one they reach the handler's current behaviour (501 until board-protocol T21 and T25).
+// with one createAssistantTurn reaches the handler's current behaviour (501 until board-protocol T25);
+// addCaseDocument is served since association-onboarding T65 and is covered by cases_endpoints_test.go.
 func TestDriveNotConnectedRefusesDocumentsAndAssistantTurns(t *testing.T) {
 	srv, assocWith, assocWithout := driveGuardServer(t)
 	caseID, meetingID := uuid.NewString(), uuid.NewString()
@@ -114,9 +115,10 @@ func TestDriveNotConnectedRefusesDocumentsAndAssistantTurns(t *testing.T) {
 		name, path string
 		fields     map[string]string
 		file       string
+		stubbed    bool // still answers 501 once the storage is connected
 	}{
-		{"addCaseDocument", "/cases/" + caseID + "/documents", nil, "file"},
-		{"createAssistantTurn", "/meetings/" + meetingID + "/assistant-turns", map[string]string{"message": "Підготуйте проєкт"}, ""},
+		{"addCaseDocument", "/cases/" + caseID + "/documents", nil, "file", false},
+		{"createAssistantTurn", "/meetings/" + meetingID + "/assistant-turns", map[string]string{"message": "Підготуйте проєкт"}, "", true},
 	}
 	for _, op := range ops {
 		send := func(assoc string) (int, []byte) {
@@ -154,6 +156,9 @@ func TestDriveNotConnectedRefusesDocumentsAndAssistantTurns(t *testing.T) {
 				t.Errorf("detail = %q, want the connect-the-storage message", p.Detail)
 			}
 		})
+		if !op.stubbed {
+			continue
+		}
 		t.Run(op.name+"/connected", func(t *testing.T) {
 			status, b := send(assocWith)
 			if status != http.StatusNotImplemented {

@@ -11,7 +11,7 @@ export function BrandMark({ className }: { className?: string }) {
   );
 }
 
-const soon = [uk.nav.protocols, uk.nav.meetings, uk.nav.documents];
+const soon = [uk.nav.meetings, uk.nav.documents];
 
 // Desktop navigation (Sidebar in Figma). Hidden below lg; screens render their own mobile top bar.
 export function Sidebar({ associationId, associationName, isOperator, casesCount }: { associationId: string; associationName: string; isOperator: boolean; casesCount?: number }) {
@@ -38,6 +38,9 @@ export function Sidebar({ associationId, associationName, isOperator, casesCount
         </Link>
         <Link to="/o/$associationId/roster" params={{ associationId }} className="flex items-center justify-between rounded-md px-3 py-2 opacity-75 hover:bg-sidebar-accent" activeProps={{ className: 'bg-sidebar-accent font-medium !opacity-100' }}>
           {uk.nav.roster}
+        </Link>
+        <Link to="/o/$associationId/registry" params={{ associationId }} className="flex items-center justify-between rounded-md px-3 py-2 opacity-75 hover:bg-sidebar-accent" activeProps={{ className: 'bg-sidebar-accent font-medium !opacity-100' }}>
+          {uk.nav.registry}
         </Link>
         {isOperator && (
           <Link to="/operator" className="flex items-center justify-between rounded-md px-3 py-2 opacity-75 hover:bg-sidebar-accent">

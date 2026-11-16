@@ -28,6 +28,8 @@ import { Route as OAssociationIdRosterRouteImport } from './routes/o.$associatio
 import { Route as OperatorApplicationsIndexRouteImport } from './routes/operator.applications.index'
 import { Route as OperatorApplicationsApplicationIdRouteImport } from './routes/operator.applications.$applicationId'
 import { Route as OAssociationIdCasesIndexRouteImport } from './routes/o.$associationId.cases.index'
+import { Route as OAssociationIdRegistryIndexRouteImport } from './routes/o.$associationId.registry.index'
+import { Route as OAssociationIdRegistryProtocolIdRouteImport } from './routes/o.$associationId.registry.$protocolId'
 import { Route as OAssociationIdCasesCaseIdProtocolRouteImport } from './routes/o.$associationId.cases.$caseId.protocol'
 
 const IndexRoute = IndexRouteImport.update({
@@ -130,6 +132,18 @@ const OAssociationIdCasesIndexRoute =
     path: '/cases/',
     getParentRoute: () => OAssociationIdRoute,
   } as any)
+const OAssociationIdRegistryIndexRoute =
+  OAssociationIdRegistryIndexRouteImport.update({
+    id: '/registry/',
+    path: '/registry/',
+    getParentRoute: () => OAssociationIdRoute,
+  } as any)
+const OAssociationIdRegistryProtocolIdRoute =
+  OAssociationIdRegistryProtocolIdRouteImport.update({
+    id: '/registry/$protocolId',
+    path: '/registry/$protocolId',
+    getParentRoute: () => OAssociationIdRoute,
+  } as any)
 const OAssociationIdCasesCaseIdProtocolRoute =
   OAssociationIdCasesCaseIdProtocolRouteImport.update({
     id: '/cases/$caseId/protocol',
@@ -156,7 +170,9 @@ export interface FileRoutesByFullPath {
   '/o/$associationId/roster': typeof OAssociationIdRosterRoute
   '/operator/applications/$applicationId': typeof OperatorApplicationsApplicationIdRoute
   '/operator/applications/': typeof OperatorApplicationsIndexRoute
+  '/o/$associationId/registry/$protocolId': typeof OAssociationIdRegistryProtocolIdRoute
   '/o/$associationId/cases/': typeof OAssociationIdCasesIndexRoute
+  '/o/$associationId/registry/': typeof OAssociationIdRegistryIndexRoute
   '/o/$associationId/cases/$caseId/protocol': typeof OAssociationIdCasesCaseIdProtocolRoute
 }
 export interface FileRoutesByTo {
@@ -177,7 +193,9 @@ export interface FileRoutesByTo {
   '/o/$associationId/roster': typeof OAssociationIdRosterRoute
   '/operator/applications/$applicationId': typeof OperatorApplicationsApplicationIdRoute
   '/operator/applications': typeof OperatorApplicationsIndexRoute
+  '/o/$associationId/registry/$protocolId': typeof OAssociationIdRegistryProtocolIdRoute
   '/o/$associationId/cases': typeof OAssociationIdCasesIndexRoute
+  '/o/$associationId/registry': typeof OAssociationIdRegistryIndexRoute
   '/o/$associationId/cases/$caseId/protocol': typeof OAssociationIdCasesCaseIdProtocolRoute
 }
 export interface FileRoutesById {
@@ -200,7 +218,9 @@ export interface FileRoutesById {
   '/o/$associationId/roster': typeof OAssociationIdRosterRoute
   '/operator/applications/$applicationId': typeof OperatorApplicationsApplicationIdRoute
   '/operator/applications/': typeof OperatorApplicationsIndexRoute
+  '/o/$associationId/registry/$protocolId': typeof OAssociationIdRegistryProtocolIdRoute
   '/o/$associationId/cases/': typeof OAssociationIdCasesIndexRoute
+  '/o/$associationId/registry/': typeof OAssociationIdRegistryIndexRoute
   '/o/$associationId/cases/$caseId/protocol': typeof OAssociationIdCasesCaseIdProtocolRoute
 }
 export interface FileRouteTypes {
@@ -224,7 +244,9 @@ export interface FileRouteTypes {
     | '/o/$associationId/roster'
     | '/operator/applications/$applicationId'
     | '/operator/applications/'
+    | '/o/$associationId/registry/$protocolId'
     | '/o/$associationId/cases/'
+    | '/o/$associationId/registry/'
     | '/o/$associationId/cases/$caseId/protocol'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -245,7 +267,9 @@ export interface FileRouteTypes {
     | '/o/$associationId/roster'
     | '/operator/applications/$applicationId'
     | '/operator/applications'
+    | '/o/$associationId/registry/$protocolId'
     | '/o/$associationId/cases'
+    | '/o/$associationId/registry'
     | '/o/$associationId/cases/$caseId/protocol'
   id:
     | '__root__'
@@ -267,7 +291,9 @@ export interface FileRouteTypes {
     | '/o/$associationId/roster'
     | '/operator/applications/$applicationId'
     | '/operator/applications/'
+    | '/o/$associationId/registry/$protocolId'
     | '/o/$associationId/cases/'
+    | '/o/$associationId/registry/'
     | '/o/$associationId/cases/$caseId/protocol'
   fileRoutesById: FileRoutesById
 }
@@ -421,6 +447,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OAssociationIdCasesIndexRouteImport
       parentRoute: typeof OAssociationIdRoute
     }
+    '/o/$associationId/registry/': {
+      id: '/o/$associationId/registry/'
+      path: '/registry'
+      fullPath: '/o/$associationId/registry/'
+      preLoaderRoute: typeof OAssociationIdRegistryIndexRouteImport
+      parentRoute: typeof OAssociationIdRoute
+    }
+    '/o/$associationId/registry/$protocolId': {
+      id: '/o/$associationId/registry/$protocolId'
+      path: '/registry/$protocolId'
+      fullPath: '/o/$associationId/registry/$protocolId'
+      preLoaderRoute: typeof OAssociationIdRegistryProtocolIdRouteImport
+      parentRoute: typeof OAssociationIdRoute
+    }
     '/o/$associationId/cases/$caseId/protocol': {
       id: '/o/$associationId/cases/$caseId/protocol'
       path: '/cases/$caseId/protocol'
@@ -453,14 +493,18 @@ const OperatorRouteWithChildren = OperatorRoute._addFileChildren(
 interface OAssociationIdRouteChildren {
   OAssociationIdAssociationRoute: typeof OAssociationIdAssociationRoute
   OAssociationIdRosterRoute: typeof OAssociationIdRosterRoute
+  OAssociationIdRegistryProtocolIdRoute: typeof OAssociationIdRegistryProtocolIdRoute
   OAssociationIdCasesIndexRoute: typeof OAssociationIdCasesIndexRoute
+  OAssociationIdRegistryIndexRoute: typeof OAssociationIdRegistryIndexRoute
   OAssociationIdCasesCaseIdProtocolRoute: typeof OAssociationIdCasesCaseIdProtocolRoute
 }
 
 const OAssociationIdRouteChildren: OAssociationIdRouteChildren = {
   OAssociationIdAssociationRoute: OAssociationIdAssociationRoute,
   OAssociationIdRosterRoute: OAssociationIdRosterRoute,
+  OAssociationIdRegistryProtocolIdRoute: OAssociationIdRegistryProtocolIdRoute,
   OAssociationIdCasesIndexRoute: OAssociationIdCasesIndexRoute,
+  OAssociationIdRegistryIndexRoute: OAssociationIdRegistryIndexRoute,
   OAssociationIdCasesCaseIdProtocolRoute:
     OAssociationIdCasesCaseIdProtocolRoute,
 }

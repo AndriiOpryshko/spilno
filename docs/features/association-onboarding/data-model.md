@@ -374,28 +374,50 @@ Row-level security with the own-entry clause (ADR-0003). `idx_board_member_revis
 
 | Order | Staged file | Change | Phase | Ships in | Down | Backfill note |
 |---|---|---|---|---|---|---|
-| 1 | `NNNNN_create_applications.sql` | 5 new identity tables | - | PR 1 | drop tables | - |
-| 2 | `NNNNN_add_associations_onboarding_columns.sql` | `edrpou`, `address`, `state`, `confirmed_by_decision_id` nullable | expand | PR 1 | drop columns | - |
-| 3 | `NNNNN_index_associations_edrpou.sql` | unique partial, concurrently | - | PR 1 | drop index | - |
-| 4 | `NNNNN_index_associations_confirmed_by_decision.sql` | FK index, concurrently | - | PR 1 | drop index | - |
-| 5 | `NNNNN_create_association_state_changes.sql` | new table | - | PR 1 | drop table | - |
-| 6 | `NNNNN_add_board_member_revisions_position.sql` | `position`, `decision_id` nullable | expand | PR 1 | drop columns | - |
-| 7 | `NNNNN_index_board_member_revisions_sign_in_email.sql` | index, concurrently | - | PR 1 | drop index | - |
-| 8 | `NNNNN_add_contracts_association_id.sql` | nullable column | expand | PR 1 | drop column | - |
-| 9 | `NNNNN_create_app_role.sql` | `spilno_app` role, grants, insert-only revokes | - | PR 1 | revoke (role kept) | - |
-| 10 | `NNNNN_drop_accounts_association_id.sql` | drop column + index | contract | PR 4 | re-add NOT NULL FK + index, filled with the seeded association | - |
-| 11 | `NNNNN_backfill_associations_state.sql` | `connected` | backfill | PR 2 | no-op | [note](./migrations/backfill-associations-state.md) |
-| 12 | `NNNNN_backfill_board_member_revisions_position.sql` | `member` | backfill | PR 2 | no-op | [note](./migrations/backfill-board-member-revisions-position.md) |
-| 13 | `NNNNN_backfill_contracts_association_id.sql` | seeded association | backfill | PR 2 | no-op | [note](./migrations/backfill-contracts-association-id.md) |
-| 14 | `NNNNN_contract_associations_state.sql` | NOT NULL | contract | PR 3 | drop NOT NULL | - |
-| 15 | `NNNNN_contract_board_member_revisions_position.sql` | NOT NULL | contract | PR 3 | drop NOT NULL | - |
-| 16 | `NNNNN_contract_contracts_association_id.sql` | NOT NULL | contract | PR 3 | drop NOT NULL | - |
-| 17 | `NNNNN_index_contracts_association_created.sql` | index, concurrently | - | PR 3 | drop index | - |
-| 18 | `NNNNN_enable_rls_governance.sql` | RLS on 27 tables | - | PR 3 | drop policies, disable | - |
-| 19 | `NNNNN_enable_rls_finance.sql` | RLS on `contracts` | - | PR 3 | drop policy, disable | - |
-| 20 | `NNNNN_enable_rls_identity.sql` | RLS on `google_connections` | - | PR 3 | drop policy, disable | - |
-| 21 | `NNNNN_enable_rls_identity_state_changes.sql` | RLS on `association_state_changes` (added in T20) | - | PR 3 | drop policy, disable | - |
-| 22 | `NNNNN_index_board_member_revisions_lower_sign_in_email.sql` | index on `lower(sign_in_email)`, concurrently (added in T59) | - | review follow-up | drop index | - |
+| 1 | `NNNNN_create_applications.sql` | 5 new identity tables | - | #48 (planned: PR 1) | drop tables | - |
+| 2 | `NNNNN_add_associations_onboarding_columns.sql` | `edrpou`, `address`, `state`, `confirmed_by_decision_id` nullable | expand | #48 (planned: PR 1) | drop columns | - |
+| 3 | `NNNNN_index_associations_edrpou.sql` | unique partial, concurrently | - | #48 (planned: PR 1) | drop index | - |
+| 4 | `NNNNN_index_associations_confirmed_by_decision.sql` | FK index, concurrently | - | #48 (planned: PR 1) | drop index | - |
+| 5 | `NNNNN_create_association_state_changes.sql` | new table | - | #48 (planned: PR 1) | drop table | - |
+| 6 | `NNNNN_add_board_member_revisions_position.sql` | `position`, `decision_id` nullable | expand | #48 (planned: PR 1) | drop columns | - |
+| 7 | `NNNNN_index_board_member_revisions_sign_in_email.sql` | index, concurrently | - | #48 (planned: PR 1) | drop index | - |
+| 8 | `NNNNN_add_contracts_association_id.sql` | nullable column | expand | #48 (planned: PR 1) | drop column | - |
+| 9 | `NNNNN_create_app_role.sql` | `spilno_app` role, grants, insert-only revokes | - | #48 (planned: PR 1) | revoke (role kept) | - |
+| 10 | `NNNNN_drop_accounts_association_id.sql` | drop column + index | contract | #48 (planned: PR 4) | re-add NOT NULL FK + index, filled with the seeded association | - |
+| 11 | `NNNNN_backfill_associations_state.sql` | `connected` | backfill | #48 (planned: PR 2) | no-op | [note](./migrations/backfill-associations-state.md) |
+| 12 | `NNNNN_backfill_board_member_revisions_position.sql` | `member` | backfill | #48 (planned: PR 2) | no-op | [note](./migrations/backfill-board-member-revisions-position.md) |
+| 13 | `NNNNN_backfill_contracts_association_id.sql` | seeded association | backfill | #48 (planned: PR 2) | no-op | [note](./migrations/backfill-contracts-association-id.md) |
+| 14 | `NNNNN_contract_associations_state.sql` | NOT NULL | contract | #48 (planned: PR 3) | drop NOT NULL | - |
+| 15 | `NNNNN_contract_board_member_revisions_position.sql` | NOT NULL | contract | #48 (planned: PR 3) | drop NOT NULL | - |
+| 16 | `NNNNN_contract_contracts_association_id.sql` | NOT NULL | contract | #48 (planned: PR 3) | drop NOT NULL | - |
+| 17 | `NNNNN_index_contracts_association_created.sql` | index, concurrently | - | #48 (planned: PR 3) | drop index | - |
+| 18 | `NNNNN_enable_rls_governance.sql` | RLS on 27 tables | - | #48 (planned: PR 3) | drop policies, disable | - |
+| 19 | `NNNNN_enable_rls_finance.sql` | RLS on `contracts` | - | #48 (planned: PR 3) | drop policy, disable | - |
+| 20 | `NNNNN_enable_rls_identity.sql` | RLS on `google_connections` | - | #48 (planned: PR 3) | drop policy, disable | - |
+| 21 | `NNNNN_enable_rls_identity_state_changes.sql` | RLS on `association_state_changes` (added in T20) | - | #48 (planned: PR 3) | drop policy, disable | - |
+| 22 | `NNNNN_index_board_member_revisions_lower_sign_in_email.sql` | index on `lower(sign_in_email)`, concurrently (added in T59) | - | review follow-up (T59) | drop index | - |
+
+### Delivery: one release instead of four
+
+Recorded 2026-11-16 (review of 2026-11-10, F19). The plan was four PRs, each deployed before the next, and two
+releases for the drop of `accounts.association_id` ([ADR-0004](./adr/0004-let-any-verified-person-sign-in-and-derive-memberships-from-rosters.md);
+`.claude/rules/migrations.md`, zero-downtime patterns). What happened: files 1–21 reached `main` together in
+PR #48 (2026-11-10) as live `00028`–`00048`, so one start of the API applies expand, backfill and contract in a
+single goose run. The «Ships in» column above says where each file shipped and keeps the plan in brackets.
+
+Why that was safe: the deployment is one API replica and no worker process ([sad](./sad.md) §7), and the API
+applies the migrations at start, before it serves. A deploy is therefore stop the old binary, then start the new
+one; no binary from before PR #48 is alive while the migrations run or after them. An older binary beside the new
+schema would not be safe: the review names `00037` (the dropped column) and `00043` (`contracts.association_id`
+set `NOT NULL`, which the old binary does not fill).
+
+The applied files keep their header comments («Promote with …», the staged order): an applied migration is never
+edited, so the headers describe the plan, and this section describes the delivery.
+
+Rule from here on: as soon as more than one instance can run across a deploy (a second API replica, the worker of
+board-protocol T14, a rolling update), each phase of a rename or a drop — expand, backfill with dual write,
+contract — is its own release, and a `NOT NULL` step ships only when every running binary already writes the
+column. A new index on an existing table stays one `CONCURRENTLY` file and needs no phases (file 22).
 
 **Reversibility:** a rollback keeps every application, extract, check and decision (PRD §9); after real filings, the tables of file 1 are not dropped. Rolling back RLS (18–21) returns to explicit filters only (ADR-0015). File 10's Down (promoted early, was 20: AC-05 needs accounts without an association, and sign-in, the middleware and RLS all follow from it) is exact only while the one seeded association is the only one an account belonged to (audit).
 

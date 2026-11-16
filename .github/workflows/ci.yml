@@ -52,6 +52,8 @@ jobs:
       - name: Story tests (render, interactions, a11y in Chromium)
         run: pnpm --filter @spilno/web test:stories
       - run: pnpm --filter @spilno/web build
+        env:
+          VITE_OPERATOR_CONTACT_EMAIL: operator@example.test
 
   e2e:
     runs-on: ubuntu-latest

@@ -5,7 +5,7 @@ import { tanstackRouter } from '@tanstack/router-plugin/vite';
 import react from '@vitejs/plugin-react';
 import { storybookTest } from '@storybook/addon-vitest/vitest-plugin';
 import { playwright } from '@vitest/browser-playwright';
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 
 const apiProxy = {
   '/api': {
@@ -14,7 +14,7 @@ const apiProxy = {
   },
 };
 
-export default defineConfig({
+const config = defineConfig({
   plugins: [tanstackRouter({ target: 'react', autoCodeSplitting: true }), react(), tailwindcss()],
   resolve: {
     alias: { '@': path.resolve(import.meta.dirname, './src') },
@@ -65,4 +65,17 @@ export default defineConfig({
       },
     ],
   },
+});
+
+// A production build without the оператор's contact address would ship a status page with no way to reach them (AC-05).
+function assertOperatorContactEmail(mode: string) {
+  const env = loadEnv(mode, import.meta.dirname, 'VITE_');
+  if (!(process.env.VITE_OPERATOR_CONTACT_EMAIL ?? env.VITE_OPERATOR_CONTACT_EMAIL)?.trim()) {
+    throw new Error('VITE_OPERATOR_CONTACT_EMAIL must be set for a production build (the оператор contact address)');
+  }
+}
+
+export default defineConfig(({ command, mode }) => {
+  if (command === 'build' && mode === 'production') assertOperatorContactEmail(mode);
+  return config;
 });

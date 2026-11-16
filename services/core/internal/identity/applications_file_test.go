@@ -33,6 +33,7 @@ type fileAppEnv struct {
 	srv     *httptest.Server
 	pool    *pgxpool.Pool
 	assocA  string
+	assocB  string
 	cookies map[string]*http.Cookie
 }
 
@@ -40,7 +41,7 @@ type fileAppEnv struct {
 // (no roster) and head (a член правління of association A).
 func newFileAppEnv(t *testing.T) *fileAppEnv {
 	t.Helper()
-	pool, a, _ := testdb.NewTwoAssociations(t)
+	pool, a, b := testdb.NewTwoAssociations(t)
 	idm := identity.New(pool)
 	people := map[string]identity.ProviderIdentity{}
 	for _, p := range []string{"first", "second", "head"} {
@@ -69,7 +70,7 @@ func newFileAppEnv(t *testing.T) *fileAppEnv {
 	if err != nil {
 		t.Fatal(err)
 	}
-	env := &fileAppEnv{srv: srv, pool: pool, assocA: a, cookies: map[string]*http.Cookie{}}
+	env := &fileAppEnv{srv: srv, pool: pool, assocA: a, assocB: b, cookies: map[string]*http.Cookie{}}
 	for p := range people {
 		c := sessionCookieOf(signInAs(t, srv, p))
 		if c == nil {

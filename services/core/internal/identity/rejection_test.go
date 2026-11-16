@@ -177,3 +177,33 @@ func TestRejection_NonOperatorsAreRefused(t *testing.T) {
 		t.Fatalf("state = %q, want pending", s)
 	}
 }
+
+// AC-15: a rejection that names an earlier filing, after the applicant refiled, is 409
+// identity.application_not_pending and records nothing; the application stays pending.
+func TestRejection_StaleFilingIsRefusedWith409(t *testing.T) {
+	e := newReviewEnv(t)
+	id := e.fileAs(t, "first", fileAppFields(), fileAppPDF(512))
+	first := e.review(t, id).Filings[0].ID
+	if status, _, body := rejectionPost(e, t, "operator", id, first, "Перша причина"); status != http.StatusOK {
+		t.Fatalf("first rejection = %d: %s", status, body)
+	}
+	// the applicant refiles: a new filing, the application pending again
+	if _, err := e.pool.Exec(context.Background(), `INSERT INTO application_filings (id, application_id, extract_id, association_name, association_address, applicant_full_name, position, term_start)
+		SELECT gen_random_uuid(), application_id, extract_id, association_name, association_address, applicant_full_name, position, term_start
+		FROM application_filings WHERE id = $1`, first); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.pool.Exec(context.Background(), `UPDATE applications SET state = 'pending' WHERE id = $1`, id); err != nil {
+		t.Fatal(err)
+	}
+	status, code, body := rejectionPost(e, t, "operator", id, first, "Стара причина")
+	if status != http.StatusConflict || code != "identity.application_not_pending" {
+		t.Fatalf("stale rejection = %d %s, want 409 identity.application_not_pending", status, body)
+	}
+	if rows := rejectionDecisions(t, e, id); len(rows) != 1 || rows[0].Reason != "Перша причина" {
+		t.Fatalf("decisions = %+v, want only the first rejection", rows)
+	}
+	if s := rejectionState(t, e, id); s != "pending" {
+		t.Fatalf("state = %q, want pending", s)
+	}
+}

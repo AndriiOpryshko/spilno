@@ -114,7 +114,15 @@ func (a *Applications) fileFromCard(ctx context.Context, f ports.NewTransfer) (p
 		if err != nil {
 			return err
 		}
-		out, err = storeChecked(ctx, sqlcgen.New(tx), f.NewFiling, &assoc)
+		q := sqlcgen.New(tx)
+		if holder, err := q.GetAssociationByEdrpou(ctx, pgtype.Text{String: f.Edrpou, Valid: true}); err == nil {
+			if holder.Bytes != assoc {
+				return ports.ErrAssociationConnected
+			}
+		} else if !errors.Is(err, pgx.ErrNoRows) {
+			return err
+		}
+		out, err = storeChecked(ctx, q, f.NewFiling, &assoc)
 		return err
 	})
 	return out, err
@@ -177,11 +185,15 @@ func assocOf(id *uuid.UUID) pgtype.UUID {
 
 // mapOpen turns the unique-index race of two concurrent filings into ErrApplicationOpen.
 func mapOpen(err error) error {
-	var pg *pgconn.PgError
-	if errors.As(err, &pg) && pg.Code == "23505" {
+	if isUniqueViolation(err) {
 		return ports.ErrApplicationOpen
 	}
 	return err
+}
+
+func isUniqueViolation(err error) bool {
+	var pg *pgconn.PgError
+	return errors.As(err, &pg) && pg.Code == "23505"
 }
 
 func optDate(d pgtype.Date) *time.Time {

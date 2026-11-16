@@ -3606,7 +3606,7 @@ components:
         «за запитом на передачу від <filed_at>, схвалено оператором <occurred_at>» mark and the extract of AC-20.
       type: object
       additionalProperties: false
-      required: [kind, occurred_at, decision_id, filed_at, reason, head_full_name, signer_full_name, extract_id, extract_dated_on]
+      required: [kind, occurred_at, decision_id, filed_at, reason, head_full_name, ended_head_full_name, signer_full_name, extract_id, extract_dated_on]
       properties:
         kind: { $ref: "#/components/schemas/AssociationEventKind" }
         occurred_at: { type: string, format: date-time }
@@ -3620,6 +3620,10 @@ components:
           format: date-time
         reason: { type: [string, "null"], maxLength: 1000 }
         head_full_name: { type: [string, "null"], maxLength: 200 }
+        ended_head_full_name:
+          description: The голова whose term this approval ended; null when it ended none (a first connection, AC-19c).
+          type: [string, "null"]
+          maxLength: 200
         signer_full_name: { type: [string, "null"], maxLength: 200 }
         extract_id: { type: [string, "null"], format: uuid }
         extract_dated_on: { type: [string, "null"], format: date }

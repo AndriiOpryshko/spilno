@@ -37,6 +37,12 @@ export interface AssociationEvent {
      */
   head_full_name: string | null;
   /**
+     * The голова whose term this approval ended; null when it ended none (a first connection, AC-19c).
+     * @maxLength 200
+     * @nullable
+     */
+  ended_head_full_name: string | null;
+  /**
      * @maxLength 200
      * @nullable
      */

@@ -38,11 +38,17 @@ export function AssociationCard({ card }: { card: Card }) {
               {e.reason && <p>{e.reason}</p>}
               {e.kind === 'transfer_approved' &&
                 e.filed_at &&
-                [t.markAppointed, t.markEnded].map((what) => (
-                  <p key={what} className="text-sm text-muted-foreground">
-                    {t.mark(what, formatDate(e.filed_at as string), formatDate(e.occurred_at))}
-                  </p>
-                ))}
+                [
+                  { what: t.markAppointed, name: e.head_full_name },
+                  { what: t.markEnded, name: e.ended_head_full_name },
+                ].map(
+                  ({ what, name }) =>
+                    name && (
+                      <p key={what} className="text-sm text-muted-foreground">
+                        {t.markOf(what, name, formatDate(e.filed_at as string), formatDate(e.occurred_at))}
+                      </p>
+                    ),
+                )}
               {e.head_full_name && <p>{e.head_full_name}</p>}
               {e.signer_full_name && <p>{t.signer(e.signer_full_name)}</p>}
               {e.extract_dated_on && <p>{t.extractDated(formatDate(e.extract_dated_on))}</p>}

@@ -60,7 +60,7 @@ func (h *Handler) GetAssociationCard(ctx context.Context, req gen.GetAssociation
 	for _, e := range c.History {
 		ev := gen.AssociationEvent{
 			Kind: gen.AssociationEventKind(e.Kind), OccurredAt: e.OccurredAt, DecisionId: e.DecisionID, FiledAt: e.FiledAt,
-			Reason: e.Reason, HeadFullName: e.HeadFullName, SignerFullName: e.SignerFullName, ExtractId: e.ExtractID,
+			Reason: e.Reason, HeadFullName: e.HeadFullName, EndedHeadFullName: e.EndedHeadFullName, SignerFullName: e.SignerFullName, ExtractId: e.ExtractID,
 		}
 		if e.ExtractDatedOn != nil {
 			ev.ExtractDatedOn = &openapi_types.Date{Time: *e.ExtractDatedOn}

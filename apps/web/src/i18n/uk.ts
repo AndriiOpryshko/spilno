@@ -38,6 +38,8 @@ export const uk = {
       markAppointed: 'призначено',
       markEnded: 'повноваження завершено',
       mark: (what: string, filed: string, approved: string) => `${what} за запитом на передачу від ${filed}, схвалено оператором ${approved}`,
+      markOf: (what: string, name: string, filed: string, approved: string) =>
+        `${what}: ${name} за запитом на передачу від ${filed}, схвалено оператором ${approved}`,
     },
     roster: {
       title: 'Правління',

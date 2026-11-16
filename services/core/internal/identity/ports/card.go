@@ -19,15 +19,17 @@ type AssociationBrief struct {
 
 // CardEvent is one step of the confirmation chain: an approval or a state change.
 type CardEvent struct {
-	Kind           string // connected | transfer_approved | disabled | enabled
-	OccurredAt     time.Time
-	DecisionID     *uuid.UUID
-	FiledAt        *time.Time
-	Reason         *string
-	HeadFullName   *string
-	SignerFullName *string
-	ExtractID      *uuid.UUID
-	ExtractDatedOn *time.Time
+	Kind         string // connected | transfer_approved | disabled | enabled
+	OccurredAt   time.Time
+	DecisionID   *uuid.UUID
+	FiledAt      *time.Time
+	Reason       *string
+	HeadFullName *string
+	// EndedHeadFullName is the голова whose term the approval ended; nil when it ended none.
+	EndedHeadFullName *string
+	SignerFullName    *string
+	ExtractID         *uuid.UUID
+	ExtractDatedOn    *time.Time
 }
 
 // Card is the association card, history newest first.

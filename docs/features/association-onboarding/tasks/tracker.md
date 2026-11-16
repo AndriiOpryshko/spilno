@@ -66,10 +66,10 @@
 | [T59](./T59-index-lower-sign-in-email.md) | Make the memberships lookup use an index on the lowered sign-in address | migration | Andrii Opryshko | S | — | done |
 | [T60](./T60-contract-disabled-and-refile-codes.md) | Advertise the two missing problem codes in the contract and reconcile the sync report | wiring | Andrii Opryshko | M | — | done |
 | [T61](./T61-record-single-release-migrations.md) | Record that the expand, backfill and contract migrations shipped in one release | docs | Andrii Opryshko | S | T59 | done |
-| [T62](./T62-serve-roster-endpoints.md) | Serve the roster: list, add and change члени правління with their position and decision | ports | Andrii Opryshko | L | T51, T58, T59 | todo |
-| [T63](./T63-serve-registry-read.md) | Serve the реєстр протоколів: search and the signed protocol | ports | Andrii Opryshko | L | T62 | todo |
-| [T64](./T64-serve-file-download-read-only-check.md) | Serve file downloads, and only signed copies while the association is read-only | ports | Andrii Opryshko | M | T58, T63 | todo |
-| [T65](./T65-serve-cases-and-document-upload.md) | Serve справи and document upload behind the storage guard | ports | Andrii Opryshko | L | T64 | todo |
+| [T62](./T62-serve-roster-endpoints.md) | Serve the roster: list, add and change члени правління with their position and decision | ports | Andrii Opryshko | L | T51, T58, T59 | done |
+| [T63](./T63-serve-registry-read.md) | Serve the реєстр протоколів: search and the signed protocol | ports | Andrii Opryshko | L | T62 | done |
+| [T64](./T64-serve-file-download-read-only-check.md) | Serve file downloads, and only signed copies while the association is read-only | ports | Andrii Opryshko | M | T58, T63 | done |
+| [T65](./T65-serve-cases-and-document-upload.md) | Serve справи and document upload behind the storage guard | ports | Andrii Opryshko | L | T64 | done |
 | [T66](./T66-ui-sign-in-link-generated-urls.md) | Point «Увійти» at the API and build every API link from the generated URL helpers | ui | Andrii Opryshko | S | — | todo |
 | [T67](./T67-ui-operator-layout-entry-guard.md) | Give the оператор's section an index, its own navigation and one access guard | ui | Andrii Opryshko | M | T66 | todo |
 | [T68](./T68-ui-association-shell-card-notice.md) | Put the association card in the navigation and the suspended notice in the association layout | ui | Andrii Opryshko | M | T67 | todo |
@@ -87,7 +87,7 @@
 | [T80](./T80-ui-cases-on-api-with-upload.md) | Move the справи list and the case screen to the API, with document upload and the storage message | ui | Andrii Opryshko | L | T65, T68 | todo |
 | [T81](./T81-e2e-review-fixes-through-clicks.md) | Prove the fixed flows end to end by clicking, not by typing addresses | tests | Andrii Opryshko | M | T52, T68, T71, T72, T73 | todo |
 | [T82](./T82-e2e-roster-registry-documents.md) | Prove the roster, the registry and the document refusal end to end | tests | Andrii Opryshko | L | T78, T79, T80 | todo |
-| [T83](./T83-concurrency-and-failure-tests.md) | Test the decisions and the filings under concurrency | tests | Andrii Opryshko | M | T52, T54 | todo |
+| [T83](./T83-concurrency-and-failure-tests.md) | Test the decisions and the filings under concurrency | tests | Andrii Opryshko | M | T52, T54 | done |
 | [T84](./T84-refresh-visual-baselines.md) | Refresh the visual baselines of the review page and the association card | tests | Andrii Opryshko | S | T71, T72, T77 | todo |
 | [T85](./T85-sync-test-plan-tracker-board-protocol.md) | Bring the test plan, the trackers and the board-protocol tasks in line with what was built | docs | Andrii Opryshko | M | T61, T81, T82, T83, T84 | todo |
 

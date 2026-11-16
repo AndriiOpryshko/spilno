@@ -26,7 +26,7 @@ import (
 func TestApprovalTransfer_AtKyivMidnightTheTermStartDayIsAlreadyToday(t *testing.T) {
 	pinned := time.Date(2026, 11, 5, 0, 40, 0, 0, time.FixedZone("EET", 2*60*60))
 	pool, _, _ := testdb.NewTwoAssociations(t)
-	gov := governance.New(pool)
+	gov := governance.New(pool, nil)
 	idm := identity.New(pool)
 	idm.SetClock(func() time.Time { return pinned })
 	idm.EnableApprovals(identity.ApprovalConfig{

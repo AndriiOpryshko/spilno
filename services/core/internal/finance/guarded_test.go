@@ -48,7 +48,7 @@ func newGuardedServer(t *testing.T) (*httptest.Server, *pgxpool.Pool) {
 	pool := testdb.NewApp(t)
 	idm := identity.New(pool)
 	idm.EnableSignIn(identity.SignInConfig{Provider: financeGuardedFakeProvider{}})
-	gov := governance.New(pool)
+	gov := governance.New(pool, idm.HasStorageConnection)
 	r := httpapi.NewRouter()
 	r.Group(func(r chi.Router) {
 		r.Use(idm.Guard(financeGuardedRoster{gov}))

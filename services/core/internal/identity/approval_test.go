@@ -41,7 +41,7 @@ func newApprovalEnv(t *testing.T, seat func(ctx context.Context, association uui
 func newApprovalEnvWith(t *testing.T, seat func(ctx context.Context, association uuid.UUID, fullName, signInEmail string, termStart, termEnd time.Time, decisionID uuid.UUID) (uuid.UUID, error), end func(ctx context.Context, association, memberID uuid.UUID, date time.Time, decisionID uuid.UUID) error) *reviewEnv {
 	t.Helper()
 	pool, _, _ := testdb.NewTwoAssociations(t)
-	gov := governance.New(pool)
+	gov := governance.New(pool, nil)
 	if seat == nil {
 		seat = func(ctx context.Context, association uuid.UUID, fullName, signInEmail string, termStart, termEnd time.Time, decisionID uuid.UUID) (uuid.UUID, error) {
 			return gov.SeatHead(ctx, association, governance.Person{FullName: fullName, SignInEmail: signInEmail}, governance.Term{Start: termStart, End: termEnd}, decisionID)
@@ -150,7 +150,7 @@ func approvalMember(t *testing.T, e *reviewEnv, assoc, email string, date time.T
 	)
 	id := uuid.MustParse(assoc)
 	err := db.InAssociation(context.Background(), e.pool, id, "test@example.test", func(ctx context.Context) (err error) {
-		m, ok, err = governance.New(e.pool).CurrentMember(ctx, id, email, date)
+		m, ok, err = governance.New(e.pool, nil).CurrentMember(ctx, id, email, date)
 		return err
 	})
 	if err != nil {

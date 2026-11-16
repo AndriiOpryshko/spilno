@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"go.opentelemetry.io/otel"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
@@ -63,8 +64,20 @@ func TestPendingAgeGaugeReportsTheOldestPendingApplicationInDays(t *testing.T) {
 
 	now := time.Now().UTC()
 	identitytest.PendingApplication(t, pool, "11111111", now.AddDate(0, 0, -1))
-	identitytest.PendingApplication(t, pool, "22222222", now.AddDate(0, 0, -4))
+	oldest := identitytest.PendingApplication(t, pool, "22222222", now.AddDate(0, 0, -4))
 	if got, _ := pendingAgeValue(t); got != 4 {
 		t.Errorf("%s = %d, want 4 (the oldest pending)", pendingAgeGauge, got)
+	}
+
+	// The oldest application is refiled today: its age counts from the latest filing,
+	// so the oldest pending is now the one filed a day ago.
+	if _, err := pool.Exec(context.Background(), `INSERT INTO application_filings
+		(id, application_id, extract_id, association_name, association_address, applicant_full_name, position, term_start, created_at)
+		VALUES ($1, $2, $3, 'Test Association', 'Test Address 1', 'Test User', 'head', now()::date, now())`,
+		uuid.Must(uuid.NewV7()), oldest.ApplicationID, oldest.ExtractID); err != nil {
+		t.Fatalf("refile: %v", err)
+	}
+	if got, _ := pendingAgeValue(t); got != 1 {
+		t.Errorf("%s after a refile today = %d, want 1 (age counts from the latest filing)", pendingAgeGauge, got)
 	}
 }

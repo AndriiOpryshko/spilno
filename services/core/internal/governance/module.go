@@ -19,7 +19,6 @@ import (
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/app"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/domain"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/ports"
-	"github.com/AndriiOpryshko/spilno/services/core/internal/identity"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/httpapi"
 )
 
@@ -37,10 +36,12 @@ type Person struct{ FullName, SignInEmail string }
 // Term is a board membership period; a zero End means open.
 type Term = domain.Term
 
-func New(pool *pgxpool.Pool) *Module {
+// New builds the module. hasStorage reports whether an association has connected its storage;
+// cmd/api passes it from the identity module.
+func New(_ *pgxpool.Pool, hasStorage func(context.Context, uuid.UUID) (bool, error)) *Module {
 	meetings := app.NewMeetingService(postgres.NewMeetings())
 	roster := app.NewRosterService(postgres.NewRoster(), postgres.NewRoster())
-	return &Module{handler: governancehttp.NewHandler(meetings, identity.New(pool).HasStorageConnection), roster: roster}
+	return &Module{handler: governancehttp.NewHandler(meetings, hasStorage), roster: roster}
 }
 
 // Routes attaches the context's routes to r inside their own group, validated

@@ -50,7 +50,7 @@ func newFileAppEnv(t *testing.T) *fileAppEnv {
 	idm.EnableSignIn(identity.SignInConfig{Provider: &signInFake{people: people}, OperatorEmail: guardOperatorEmail})
 	r := httpapi.NewRouter()
 	r.Group(func(r chi.Router) {
-		r.Use(idm.Guard(guardRoster{governance.New(pool)}))
+		r.Use(idm.Guard(guardRoster{governance.New(pool, idm.HasStorageConnection)}))
 		if err := idm.Routes(r); err != nil {
 			t.Fatal(err)
 		}

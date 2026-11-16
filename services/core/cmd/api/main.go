@@ -111,7 +111,9 @@ func run() error {
 
 	r := httpapi.NewRouter()
 	idm := identity.New(pool)
-	_ = idm.RegisterMetrics()
+	if err := idm.RegisterMetrics(); err != nil {
+		return err
+	}
 	if cfg.DevSignIn {
 		// Development and e2e only: signs in as the operator address, or a fixed test person.
 		email := cfg.OperatorEmail
@@ -120,7 +122,7 @@ func run() error {
 		}
 		idm.EnableSignIn(identity.SignInConfig{Provider: identity.DevSignInProvider(email), OperatorEmail: cfg.OperatorEmail})
 	}
-	gov := governance.New(pool)
+	gov := governance.New(pool, idm.HasStorageConnection)
 	idm.EnableApprovals(identity.ApprovalConfig{SeatHead: func(ctx context.Context, association uuid.UUID, fullName, signInEmail string, termStart, termEnd time.Time, decisionID uuid.UUID) (uuid.UUID, error) {
 		return gov.SeatHead(ctx, association, governance.Person{FullName: fullName, SignInEmail: signInEmail}, governance.Term{Start: termStart, End: termEnd}, decisionID)
 	}, EndTerm: gov.EndTerm})

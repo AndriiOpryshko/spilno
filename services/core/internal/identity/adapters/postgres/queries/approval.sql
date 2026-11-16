@@ -6,7 +6,7 @@ WHERE a.id = @id
 FOR UPDATE OF a;
 
 -- name: GetLatestFilingForApproval :one
-SELECT id, association_name, association_address, applicant_full_name, term_start, created_at
+SELECT id, association_name, association_address, applicant_full_name, term_start, term_end, created_at
 FROM application_filings
 WHERE application_id = @application_id
 ORDER BY created_at DESC, id DESC
@@ -39,12 +39,13 @@ SELECT edrpou, confirmed_by_decision_id FROM associations WHERE id = @id FOR UPD
 -- name: GetEntryOfDecision :one
 SELECT board_member_id, COALESCE(sign_in_email, '')::text AS sign_in_email, term_start, term_end
 FROM (
-    SELECT DISTINCT ON (board_member_id) board_member_id, sign_in_email, term_start, term_end, decision_id
+    SELECT DISTINCT ON (board_member_id) id, created_at, board_member_id, sign_in_email, term_start, term_end, decision_id
     FROM board_member_revisions
     WHERE association_id = @association_id
     ORDER BY board_member_id, created_at DESC, id DESC
 ) latest
-WHERE decision_id = @decision_id AND term_end IS NULL
+WHERE decision_id = @decision_id
+ORDER BY created_at DESC, id DESC
 LIMIT 1;
 
 -- name: SetAssociationEdrpou :exec

@@ -109,7 +109,7 @@ func (s *Approvals) Approve(ctx context.Context, req ports.ApprovalRequest, deci
 			}
 			return err
 		}
-		if _, err := seat(ctx, assocID, filing.ApplicantFullName, app.ApplicantEmail, filing.TermStart.Time, decisionID); err != nil {
+		if _, err := seat(ctx, assocID, filing.ApplicantFullName, app.ApplicantEmail, filing.TermStart.Time, filing.TermEnd.Time, decisionID); err != nil {
 			return err
 		}
 		doc := pgtype.Text{String: req.Document, Valid: req.Document != ""}

@@ -81,7 +81,10 @@ func (s *RosterService) EndTerm(ctx context.Context, association, memberID uuid.
 	if !ok {
 		return fmt.Errorf("roster entry %s not found", memberID)
 	}
-	entry.Term.End = domain.PreviousHeadTermEnd(date.AddDate(0, 0, 1), entry.Term.Start)
+	end := domain.PreviousHeadTermEnd(date.AddDate(0, 0, 1), entry.Term.Start)
+	if entry.Term.End.IsZero() || end.Before(entry.Term.End) {
+		entry.Term.End = end
+	}
 	entry.DecisionID = decisionID.String()
 	return s.writer.WriteRevision(ctx, association, memberID, entry)
 }

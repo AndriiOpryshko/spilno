@@ -8,7 +8,7 @@ import (
 )
 
 // SeatHeadFunc is the roster step run inside the approval's transaction.
-type SeatHeadFunc func(ctx context.Context, association uuid.UUID, fullName, signInEmail string, termStart time.Time, decisionID uuid.UUID) (uuid.UUID, error)
+type SeatHeadFunc func(ctx context.Context, association uuid.UUID, fullName, signInEmail string, termStart, termEnd time.Time, decisionID uuid.UUID) (uuid.UUID, error)
 
 // EndTermFunc ends the whole roster entry memberID on date, inside the approval's transaction.
 type EndTermFunc func(ctx context.Context, association, memberID uuid.UUID, date time.Time, decisionID uuid.UUID) error

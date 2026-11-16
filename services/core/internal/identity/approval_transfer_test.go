@@ -373,3 +373,109 @@ func TestApprovalTransfer_AFailingRosterStepRollsBackEverything(t *testing.T) {
 		t.Errorf("previous head = %+v ok=%v after the rollback, want unchanged", m, ok)
 	}
 }
+
+// transferApprovalSeedHeadUntil is transferApprovalSeedHead for a заявка that names a term end.
+func transferApprovalSeedHeadUntil(t *testing.T, e *reviewEnv, termEnd string) (assoc string) {
+	t.Helper()
+	fields := fileAppFields()
+	fields["term_end"] = termEnd
+	id := e.fileAs(t, "first", fields, fileAppPDF(512))
+	f := approvalFiled{app: id, filing: e.review(t, id).Filings[0].ID}
+	approvalGoodCheck(t, e, f)
+	if status, body := approvalApprove(e, t, "operator", f, ""); status != http.StatusOK {
+		t.Fatalf("seeding approval = %d: %s", status, body)
+	}
+	return approvalScalar[string](t, e, `SELECT association_id::text FROM applications WHERE id = $1`, f.app)
+}
+
+// AC-08: the term end filed with the заявка lands on the roster entry of the new голова.
+func TestApproval_TheFiledTermEndIsStoredOnTheRosterEntry(t *testing.T) {
+	e := newApprovalEnv(t, nil)
+	assoc := transferApprovalSeedHeadUntil(t, e, "2026-12-31")
+	got := transferApprovalLatest(t, e, assoc, "first@example.test")
+	if got.Position != "head" || !transferApprovalSameDay(got.TermEnd, "2026-12-31") {
+		t.Errorf("head's entry = %+v, want head with term end 2026-12-31", got)
+	}
+	if _, ok := approvalMember(t, e, assoc, "first@example.test", transferApprovalDay("2026-12-31")); !ok {
+		t.Error("head is not a member on the last day of the term")
+	}
+	if _, ok := approvalMember(t, e, assoc, "first@example.test", transferApprovalDay("2027-01-01")); ok {
+		t.Error("head is a member after the filed term end")
+	}
+}
+
+// AC-19, AC-30: the previous голова's entry already has a future term end; the transfer still ends
+// it the day before the new term, seats the applicant, and leaves exactly one current head.
+func TestApprovalTransfer_EndsAPreviousHeadWhoseEntryHasAFutureTermEnd(t *testing.T) {
+	e := newApprovalEnv(t, nil)
+	assoc := transferApprovalSeedHeadUntil(t, e, "2026-12-31")
+	if status, body := transferApprovalProbe(e, t, "first", assoc); status != http.StatusOK {
+		t.Fatalf("previous head before the transfer = %d %s, want 200", status, body)
+	}
+	f := transferApprovalFile(t, e, "second", fileAppEdrpou, "", "2026-11-05")
+	approvalRecordCheck(t, e, f, true, fileAppEdrpou, "Test User")
+	if status, body := approvalApprove(e, t, "operator", f, ""); status != http.StatusOK {
+		t.Fatalf("approveApplication (transfer) = %d, want 200: %s", status, body)
+	}
+	dec := transferApprovalDecision(t, e, f)
+
+	prev := transferApprovalLatest(t, e, assoc, "first@example.test")
+	if !transferApprovalSameDay(prev.TermEnd, "2026-11-04") || prev.Decision == nil || prev.Decision.String() != dec {
+		t.Errorf("previous revision = %+v, want ended 2026-11-04 under decision %s", prev, dec)
+	}
+	if _, ok := approvalMember(t, e, assoc, "first@example.test", transferApprovalDay("2026-11-16")); ok {
+		t.Error("previous head is still current")
+	}
+	if m, ok := approvalMember(t, e, assoc, "second@example.test", transferApprovalDay("2026-11-16")); !ok || m.Position != "head" {
+		t.Errorf("new head = %+v ok=%v, want head", m, ok)
+	}
+	if status, body := transferApprovalProbe(e, t, "first", assoc); status != http.StatusForbidden || assocStateProblemCode(body) != "identity.not_current_member" {
+		t.Errorf("previous head's next request = %d %s, want 403 identity.not_current_member", status, body)
+	}
+	if status, body := transferApprovalProbe(e, t, "second", assoc); status != http.StatusOK {
+		t.Errorf("new head's request = %d %s, want 200", status, body)
+	}
+}
+
+// AC-19: a previous голова whose term end is already earlier than the day before the new term keeps it.
+func TestApprovalTransfer_APreviousHeadKeepsAnEarlierTermEnd(t *testing.T) {
+	e := newApprovalEnv(t, nil)
+	assoc := transferApprovalSeedHeadUntil(t, e, "2026-12-31")
+	transferApprovalInRoster(t, e, assoc, func(ctx context.Context, tx db.DBTX) {
+		tag, err := tx.Exec(ctx, `UPDATE board_member_revisions SET term_end = '2026-11-10' WHERE association_id = $1 AND sign_in_email = 'first@example.test'`, assoc)
+		if err != nil || tag.RowsAffected() != 1 {
+			t.Fatalf("shorten the term: rows=%d err=%v", tag.RowsAffected(), err)
+		}
+	})
+	f := transferApprovalFile(t, e, "second", fileAppEdrpou, "", "2026-11-15")
+	approvalRecordCheck(t, e, f, true, fileAppEdrpou, "Test User")
+	if status, body := approvalApprove(e, t, "operator", f, ""); status != http.StatusOK {
+		t.Fatalf("approveApplication (transfer) = %d, want 200: %s", status, body)
+	}
+	prev := transferApprovalLatest(t, e, assoc, "first@example.test")
+	if !transferApprovalSameDay(prev.TermEnd, "2026-11-10") {
+		t.Errorf("previous revision = %+v, want its own end 2026-11-10 kept", prev)
+	}
+	if m, ok := approvalMember(t, e, assoc, "second@example.test", transferApprovalDay("2026-11-16")); !ok || m.Position != "head" {
+		t.Errorf("new head = %+v ok=%v, want head", m, ok)
+	}
+}
+
+// AC-19c: the hand-made association's member, re-seated from an entry that has a term end, stays one
+// entry, becomes head and keeps that end.
+func TestApprovalTransfer_AHandMadeHeadWithATermEndKeepsItsEntryAndEnd(t *testing.T) {
+	e := newApprovalEnv(t, nil)
+	assoc := transferApprovalHandAssoc
+	transferApprovalInRoster(t, e, assoc, func(_ context.Context, tx db.DBTX) {
+		governancetest.MemberTerm(t, tx, uuid.MustParse(assoc), "first@example.test", "member", transferApprovalDay("2026-01-01"), transferApprovalDay("2026-12-31"))
+	})
+	f := transferApprovalFile(t, e, "first", "55667788", assoc, "2026-11-05")
+	approvalRecordCheck(t, e, f, true, "55667788", "Test User")
+	if status, body := approvalApprove(e, t, "operator", f, ""); status != http.StatusOK {
+		t.Fatalf("approveApplication (hand-made) = %d, want 200: %s", status, body)
+	}
+	got := transferApprovalLatest(t, e, assoc, "first@example.test")
+	if got.Entries != 1 || got.Position != "head" || !transferApprovalSameDay(got.TermEnd, "2026-12-31") {
+		t.Errorf("member's entry = %+v, want one head entry ending 2026-12-31", got)
+	}
+}

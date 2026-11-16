@@ -1,6 +1,7 @@
 package identity
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"net/http"
@@ -31,7 +32,7 @@ type Membership interface {
 	CurrentMember(ctx context.Context, association uuid.UUID, email string, date time.Time) (bool, error)
 }
 
-var errServerFailure = errors.New("identity: handler answered 5xx")
+var errHandlerRefused = errors.New("identity: handler answered 4xx or 5xx")
 
 // Guard is the session, roster and operator middleware. An /identity/operator path needs the
 // оператор; any other path with {association_id} needs a current roster entry there and runs in
@@ -79,6 +80,7 @@ func (m *Module) serveAssociation(w http.ResponseWriter, r *http.Request, next h
 	}
 	actor.AssociationID = rawID
 	refused := false
+	var buf *bufferedResponse
 	err = db.InAssociation(r.Context(), m.pool, id, actor.Email, func(ctx context.Context) error {
 		ok, err := roster.CurrentMember(ctx, id, actor.Email, kyivday.Today(m.now()))
 		if err != nil {
@@ -103,19 +105,22 @@ func (m *Module) serveAssociation(w http.ResponseWriter, r *http.Request, next h
 			}
 			return nil
 		}
-		rec := &statusRecorder{ResponseWriter: w}
-		next.ServeHTTP(rec, r.WithContext(withActor(ctx, actor)))
-		if rec.status >= http.StatusInternalServerError {
-			return errServerFailure
+		buf = newBufferedResponse()
+		next.ServeHTTP(buf, r.WithContext(withActor(ctx, actor)))
+		if buf.status >= http.StatusBadRequest {
+			return errHandlerRefused
 		}
 		return nil
 	})
 	switch {
 	case refused:
 		refuse()
-	case errors.Is(err, errServerFailure):
+	case errors.Is(err, errHandlerRefused):
+		buf.flushTo(w)
 	case err != nil:
 		writeProblem(w, http.StatusInternalServerError, "Internal Server Error", "", "")
+	default:
+		buf.flushTo(w)
 	}
 }
 
@@ -150,23 +155,40 @@ func writeProblem(w http.ResponseWriter, status int, title, detail, code string)
 	httpapi.WriteProblem(w, httpapi.Problem{Title: title, Status: status, Detail: detail, Code: code})
 }
 
-type statusRecorder struct {
-	http.ResponseWriter
+// bufferedResponse holds a handler's response until the association transaction has committed.
+type bufferedResponse struct {
+	header http.Header
 	status int
+	body   bytes.Buffer
 }
 
-func (s *statusRecorder) WriteHeader(code int) {
-	if s.status == 0 {
-		s.status = code
+func newBufferedResponse() *bufferedResponse { return &bufferedResponse{header: http.Header{}} }
+
+func (b *bufferedResponse) Header() http.Header { return b.header }
+
+func (b *bufferedResponse) WriteHeader(code int) {
+	if b.status == 0 {
+		b.status = code
 	}
-	s.ResponseWriter.WriteHeader(code)
 }
 
-func (s *statusRecorder) Write(b []byte) (int, error) {
-	if s.status == 0 {
-		s.status = http.StatusOK
+func (b *bufferedResponse) Write(p []byte) (int, error) {
+	if b.status == 0 {
+		b.status = http.StatusOK
 	}
-	return s.ResponseWriter.Write(b)
+	return b.body.Write(p)
 }
 
-func (s *statusRecorder) Unwrap() http.ResponseWriter { return s.ResponseWriter }
+// Flush is a no-op: nothing leaves before the commit.
+func (b *bufferedResponse) Flush() {}
+
+func (b *bufferedResponse) flushTo(w http.ResponseWriter) {
+	for k, v := range b.header {
+		w.Header()[k] = v
+	}
+	if b.status == 0 {
+		b.status = http.StatusOK
+	}
+	w.WriteHeader(b.status)
+	_, _ = w.Write(b.body.Bytes())
+}

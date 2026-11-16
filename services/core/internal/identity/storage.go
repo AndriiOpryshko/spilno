@@ -45,7 +45,7 @@ type googleConsent struct{ c StorageConsent }
 func (g googleConsent) AuthURL(state string) string { return g.c.AuthURL(state) }
 
 func (g googleConsent) Complete(ctx context.Context, code string) (ports.StorageGrant, error) {
-	grant, err := g.c.Complete(ctx, code)
+	grant, err := g.c.Complete(db.Detached(ctx), code)
 	switch {
 	case errors.Is(err, google.ErrCodeExchangeFailed), errors.Is(err, google.ErrNoRefreshToken), errors.Is(err, google.ErrScopeNotGranted):
 		return ports.StorageGrant{}, ports.ErrStorageCodeRefused

@@ -12,18 +12,6 @@ import (
 	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/httpapi"
 )
 
-func (h *Handler) ListBoardMembers(_ context.Context, _ gen.ListBoardMembersRequestObject) (gen.ListBoardMembersResponseObject, error) {
-	return nil, httpapi.ErrNotImplemented
-}
-
-func (h *Handler) CreateBoardMember(_ context.Context, _ gen.CreateBoardMemberRequestObject) (gen.CreateBoardMemberResponseObject, error) {
-	return nil, httpapi.ErrNotImplemented
-}
-
-func (h *Handler) UpdateBoardMember(_ context.Context, _ gen.UpdateBoardMemberRequestObject) (gen.UpdateBoardMemberResponseObject, error) {
-	return nil, httpapi.ErrNotImplemented
-}
-
 func (h *Handler) ListCases(_ context.Context, _ gen.ListCasesRequestObject) (gen.ListCasesResponseObject, error) {
 	return nil, httpapi.ErrNotImplemented
 }

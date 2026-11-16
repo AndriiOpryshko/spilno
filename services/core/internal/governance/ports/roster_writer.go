@@ -19,4 +19,8 @@ type RosterWriter interface {
 	CreateMember(ctx context.Context, association uuid.UUID) (uuid.UUID, error)
 	// WriteRevision appends a revision to an entry.
 	WriteRevision(ctx context.Context, association, boardMember uuid.UUID, entry domain.BoardMemberEntry) error
+	// WriteRevisionBy is WriteRevision recording the entry of the member who made the change.
+	WriteRevisionBy(ctx context.Context, association, boardMember uuid.UUID, entry domain.BoardMemberEntry, by uuid.UUID) error
+	// ActorEntryID finds the entry of the signed-in person of this transaction, if they sit on the board on date.
+	ActorEntryID(ctx context.Context, association uuid.UUID, date time.Time) (uuid.UUID, bool, error)
 }

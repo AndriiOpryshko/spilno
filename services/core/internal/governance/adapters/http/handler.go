@@ -15,6 +15,7 @@ import (
 
 type Handler struct {
 	meetings *app.MeetingService
+	roster   *app.RosterService
 	storage  StorageConnected
 }
 
@@ -23,8 +24,8 @@ type StorageConnected func(ctx context.Context, association uuid.UUID) (bool, er
 
 var _ gen.StrictServerInterface = (*Handler)(nil)
 
-func NewHandler(meetings *app.MeetingService, storage StorageConnected) *Handler {
-	return &Handler{meetings: meetings, storage: storage}
+func NewHandler(meetings *app.MeetingService, roster *app.RosterService, storage StorageConnected) *Handler {
+	return &Handler{meetings: meetings, roster: roster, storage: storage}
 }
 
 func (h *Handler) CreateMeeting(ctx context.Context, req gen.CreateMeetingRequestObject) (gen.CreateMeetingResponseObject, error) {

@@ -42,4 +42,23 @@ type RosterReader interface {
 	MembershipsOf(ctx context.Context, email string, date time.Time) ([]Membership, error)
 	// MemberSignInAddresses returns the sign-in addresses of the association's members whose term covers date.
 	MemberSignInAddresses(ctx context.Context, association uuid.UUID, date time.Time) ([]string, error)
+	// ListEntries returns up to limit roster entries (the latest revision of each) of the association,
+	// newest entry first, strictly after the key (from the top when nil). A non-nil on keeps the entries
+	// whose term covers that date.
+	ListEntries(ctx context.Context, association uuid.UUID, on *time.Time, after *EntryKey, limit int) ([]RosterEntry, error)
+	// Entry returns one roster entry of the association; false when it has none with the id.
+	Entry(ctx context.Context, association, id uuid.UUID) (RosterEntry, bool, error)
+}
+
+// EntryKey is a roster entry's position in the newest-first listing order; it has the keyset shape
+// of a meeting's.
+type EntryKey = MeetingKey
+
+// RosterEntry is a roster entry as its latest revision shows it.
+type RosterEntry struct {
+	ID                uuid.UUID
+	CreatedAt         time.Time // when the entry (not the revision) was created, for the keyset
+	Entry             domain.BoardMemberEntry
+	RevisedByMemberID uuid.UUID // zero when the revision has no author
+	RevisedAt         time.Time
 }

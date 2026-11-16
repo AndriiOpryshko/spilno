@@ -3,6 +3,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { describe, expect, it } from 'vitest';
 
+import { getStartSignInUrl } from '@/api/gen/endpoints/identity/identity';
 import { Sidebar } from '@/components/app-shell';
 
 import { isNoAccessProblem, resolveEntry } from './entry';
@@ -62,7 +63,7 @@ describe('resolveEntry (AC-04d)', () => {
 describe('SignInPage', () => {
   it('offers the sign-in link that starts the identity flow', () => {
     render(<SignInPage />);
-    expect(screen.getByRole('link')).toHaveAttribute('href', '/identity/sign-in');
+    expect(screen.getByRole('link')).toHaveAttribute('href', getStartSignInUrl());
   });
 });
 

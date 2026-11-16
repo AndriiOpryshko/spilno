@@ -1,8 +1,7 @@
+import { getDownloadConfirmationExtractUrl } from '@/api/gen/endpoints/identity/identity';
 import type { AssociationCard as Card } from '@/api/gen/model';
 import { Badge } from '@/components/ui/badge';
 import { formatDate, uk } from '@/i18n/uk';
-
-import { extractHref } from './extract-href';
 
 export function AssociationCard({ card }: { card: Card }) {
   const t = uk.association.card;
@@ -48,7 +47,7 @@ export function AssociationCard({ card }: { card: Card }) {
               {e.signer_full_name && <p>{t.signer(e.signer_full_name)}</p>}
               {e.extract_dated_on && <p>{t.extractDated(formatDate(e.extract_dated_on))}</p>}
               {e.extract_id && (
-                <a className="underline" href={extractHref(card.id, e.extract_id)}>
+                <a className="underline" href={getDownloadConfirmationExtractUrl(card.id, e.extract_id)}>
                   {t.extractDownload}
                 </a>
               )}

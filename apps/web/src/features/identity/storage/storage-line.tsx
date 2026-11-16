@@ -2,12 +2,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { useEffect, useRef } from 'react';
 
-import { completeStorageConnection, getStorageConnection } from '@/api/gen/endpoints/identity/identity';
+import { completeStorageConnection, getStartStorageConnectionUrl, getStorageConnection } from '@/api/gen/endpoints/identity/identity';
 import { uk } from '@/i18n/uk';
 
 export const storageFlowKey = 'storage-flow-association-id';
-
-const authorizationHref = (associationId: string) => `/api/identity/associations/${associationId}/storage-connection/authorization`;
 
 export function StorageLine({ associationId }: { associationId: string }) {
   const connection = useQuery({ queryKey: ['storage-connection', associationId], queryFn: () => getStorageConnection(associationId) });
@@ -17,7 +15,7 @@ export function StorageLine({ associationId }: { associationId: string }) {
   return (
     <p className="space-x-2">
       <span>{uk.storage.lineNotConnected}</span>
-      <a className="underline" href={authorizationHref(associationId)} onClick={() => sessionStorage.setItem(storageFlowKey, associationId)}>
+      <a className="underline" href={getStartStorageConnectionUrl(associationId)} onClick={() => sessionStorage.setItem(storageFlowKey, associationId)}>
         {uk.storage.connect}
       </a>
     </p>

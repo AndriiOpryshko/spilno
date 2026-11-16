@@ -29,6 +29,7 @@ schema diff empty except the column position of `accounts.association_id` after 
 | 19 | `NNNNN_enable_rls_finance.sql` | PR 3 | 9, 16 | - |
 | 20 | `NNNNN_enable_rls_identity.sql` | PR 3 | 9 | - |
 | 21 | `NNNNN_enable_rls_identity_state_changes.sql` | PR 3 | 5, 9 | - |
+| 22 | `NNNNN_index_board_member_revisions_lower_sign_in_email.sql` | review follow-up | - | - (NO TRANSACTION) |
 
 PR 3 ships together with the app change that connects as a login role in `spilno_app` and runs every
 association-scoped request through `platform/db.InAssociation` (ADR-0003); before that change, enabling
@@ -43,3 +44,7 @@ File 21 was added during implementation (T20, 2026-11-10): the isolation test wa
 `association_id` column and found `association_state_changes` without a policy. `applications` and
 `application_decisions` stay without one on purpose (ADR-0003: no association before approval, reached only
 by account or by the оператор) and are the two named exceptions of that test.
+
+File 22 was added by the review follow-up (T59, 2026-11-16; live `00049`): `MembershipsOf` and the own-entry
+clause of the row-level security policy compare `lower(sign_in_email)`, which the plain index of file 7 cannot
+serve, so the lookup was a sequential scan. The index of file 7 stays until a later release drops it.

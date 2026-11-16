@@ -56,9 +56,24 @@ func NewApp(t testing.TB) *pgxpool.Pool {
 // returns the app-role pool and the ids of A and B.
 func NewTwoAssociations(t testing.TB) (*pgxpool.Pool, string, string) {
 	t.Helper()
+	name, a, b := cloneTwoAssociations(t)
+	return openPool(t, name, appUser), a, b
+}
+
+// NewTwoAssociationsWithOwner is NewTwoAssociations that also returns a pool connected as the
+// owner to the same database, for what the app role may not do (ANALYZE, bulk seeding).
+func NewTwoAssociationsWithOwner(t testing.TB) (app, owner *pgxpool.Pool, a, b string) {
+	t.Helper()
+	name, a, b := cloneTwoAssociations(t)
+	return openPool(t, name, appUser), openPool(t, name, ""), a, b
+}
+
+// cloneTwoAssociations clones a database and seeds associations A and B as the owner.
+func cloneTwoAssociations(t testing.TB) (name, a, b string) {
+	t.Helper()
 	ctx := context.Background()
-	name := clone(t)
-	const a, b = "00000000-0000-7000-8000-0000000000a1", "00000000-0000-7000-8000-0000000000b1"
+	name = clone(t)
+	a, b = "00000000-0000-7000-8000-0000000000a1", "00000000-0000-7000-8000-0000000000b1"
 
 	owner, err := pgx.Connect(ctx, withDatabase(baseURL, name))
 	if err != nil {
@@ -68,7 +83,7 @@ func NewTwoAssociations(t testing.TB) (*pgxpool.Pool, string, string) {
 	if _, err := owner.Exec(ctx, `INSERT INTO associations (id, name, state) VALUES ($1, 'Association A', 'connected'), ($2, 'Association B', 'connected') ON CONFLICT DO NOTHING`, a, b); err != nil {
 		t.Fatalf("testdb: seed associations: %v", err)
 	}
-	return openPool(t, name, appUser), a, b
+	return name, a, b
 }
 
 // clone creates a fresh database from the template and drops it at test end.

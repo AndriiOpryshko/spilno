@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"mime"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -153,7 +154,7 @@ func (h *Handler) DownloadExtractForReview(ctx context.Context, req gen.Download
 	if err != nil {
 		return nil, err
 	}
-	disposition := fmt.Sprintf("attachment; filename=%q", e.OriginalName)
+	disposition := mime.FormatMediaType("attachment", map[string]string{"filename": e.OriginalName})
 	nosniff := "nosniff"
 	return gen.DownloadExtractForReview200ApplicationoctetStreamResponse{ExtractFileApplicationoctetStreamResponse: gen.ExtractFileApplicationoctetStreamResponse{
 		Body: bytes.NewReader(e.Content), ContentLength: int64(len(e.Content)),

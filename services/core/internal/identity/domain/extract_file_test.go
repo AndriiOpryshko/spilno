@@ -30,6 +30,10 @@ func TestExtractFileValidate(t *testing.T) {
 		{"png image", ExtractFile{"vytyah.png", padded([]byte{0x89, 'P', 'N', 'G'}, 1024)}, false},
 		{"separate signature file of a bare signature", ExtractFile{"vytyah.sig", []byte("-----BEGIN SIGNATURE-----")}, false},
 		{"empty", ExtractFile{"vytyah.pdf", nil}, false},
+		{"text starting with ascii zero", ExtractFile{"vytyah.p7s", []byte("0123456789 not a container")}, false},
+		{"html starting with zero", ExtractFile{"vytyah.p7s", []byte("0<html><body>x</body></html>")}, false},
+		{"sequence tag without a valid length", ExtractFile{"vytyah.p7s", padded([]byte{0x30, 0xff}, 1024)}, false},
+		{"real pkcs7 signedData prefix", ExtractFile{"vytyah.pdf.p7s", padded([]byte{0x30, 0x82, 0x0a, 0x2b, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x07, 0x02}, 1024)}, true},
 		{"pdf name but not pdf bytes", ExtractFile{"vytyah.pdf", bytes.Repeat([]byte("x"), 100)}, false},
 	}
 	for _, tc := range tests {

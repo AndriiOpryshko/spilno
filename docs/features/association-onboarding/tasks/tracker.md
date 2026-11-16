@@ -54,18 +54,18 @@
 | [T47](./T47-load-scenarios.md) | Add the load scenarios for the latency and throughput targets of PRD §6 | tests | Andrii Opryshko | M | T26, T30, T32 | done |
 | [T48](./T48-docs-rules-and-amendments.md) | Update the repo rules and environment docs, amend the board-protocol documents and write the оператор's runbook | docs | Andrii Opryshko | M | T20, T33 | done |
 | [T49](./T49-security-review-record.md) | Run and record the security review that PRD §6.1 requires | docs | Andrii Opryshko | M | T45, T46 | done |
-| [T50](./T50-kyiv-calendar-day.md) | Take «today» for every roster date from the Europe/Kyiv calendar | infra | Andrii Opryshko | M | — | todo |
-| [T51](./T51-carry-term-end-end-previous-head.md) | Carry the filed term end into the roster and end the previous голова whatever their term end | app | Andrii Opryshko | M | T50 | todo |
-| [T52](./T52-refuse-stale-filing-and-foreign-code.md) | Refuse a decision on a stale filing and a card transfer that claims another association's code | ports | Andrii Opryshko | M | — | todo |
-| [T53](./T53-limit-request-bodies.md) | Limit request bodies and read time before the request validator runs | infra | Andrii Opryshko | M | — | todo |
-| [T54](./T54-commit-before-response.md) | Commit the association transaction before the response leaves, and keep outside calls out of it | wiring | Andrii Opryshko | L | T50 | todo |
-| [T55](./T55-bound-sign-in-and-consent-state.md) | Bound the sign-in and storage-consent state | app | Andrii Opryshko | M | T54 | todo |
-| [T56](./T56-extract-download-header-and-type-check.md) | Send a valid Content-Disposition on the review download and tighten the extract type check | ports | Andrii Opryshko | S | — | todo |
-| [T57](./T57-refuse-rls-bypassing-role.md) | Refuse to start when the serving role bypasses row-level security | wiring | Andrii Opryshko | S | — | todo |
-| [T58](./T58-storage-check-injection-and-pending-gauge.md) | Pass the storage check into governance from cmd/api and count the pending age from the latest filing | wiring | Andrii Opryshko | S | T57 | todo |
-| [T59](./T59-index-lower-sign-in-email.md) | Make the memberships lookup use an index on the lowered sign-in address | migration | Andrii Opryshko | S | — | todo |
-| [T60](./T60-contract-disabled-and-refile-codes.md) | Advertise the two missing problem codes in the contract and reconcile the sync report | wiring | Andrii Opryshko | M | — | todo |
-| [T61](./T61-record-single-release-migrations.md) | Record that the expand, backfill and contract migrations shipped in one release | docs | Andrii Opryshko | S | T59 | todo |
+| [T50](./T50-kyiv-calendar-day.md) | Take «today» for every roster date from the Europe/Kyiv calendar | infra | Andrii Opryshko | M | — | done |
+| [T51](./T51-carry-term-end-end-previous-head.md) | Carry the filed term end into the roster and end the previous голова whatever their term end | app | Andrii Opryshko | M | T50 | done |
+| [T52](./T52-refuse-stale-filing-and-foreign-code.md) | Refuse a decision on a stale filing and a card transfer that claims another association's code | ports | Andrii Opryshko | M | — | done |
+| [T53](./T53-limit-request-bodies.md) | Limit request bodies and read time before the request validator runs | infra | Andrii Opryshko | M | — | done |
+| [T54](./T54-commit-before-response.md) | Commit the association transaction before the response leaves, and keep outside calls out of it | wiring | Andrii Opryshko | L | T50 | done |
+| [T55](./T55-bound-sign-in-and-consent-state.md) | Bound the sign-in and storage-consent state | app | Andrii Opryshko | M | T54 | done |
+| [T56](./T56-extract-download-header-and-type-check.md) | Send a valid Content-Disposition on the review download and tighten the extract type check | ports | Andrii Opryshko | S | — | done |
+| [T57](./T57-refuse-rls-bypassing-role.md) | Refuse to start when the serving role bypasses row-level security | wiring | Andrii Opryshko | S | — | done |
+| [T58](./T58-storage-check-injection-and-pending-gauge.md) | Pass the storage check into governance from cmd/api and count the pending age from the latest filing | wiring | Andrii Opryshko | S | T57 | done |
+| [T59](./T59-index-lower-sign-in-email.md) | Make the memberships lookup use an index on the lowered sign-in address | migration | Andrii Opryshko | S | — | done |
+| [T60](./T60-contract-disabled-and-refile-codes.md) | Advertise the two missing problem codes in the contract and reconcile the sync report | wiring | Andrii Opryshko | M | — | done |
+| [T61](./T61-record-single-release-migrations.md) | Record that the expand, backfill and contract migrations shipped in one release | docs | Andrii Opryshko | S | T59 | done |
 | [T62](./T62-serve-roster-endpoints.md) | Serve the roster: list, add and change члени правління with their position and decision | ports | Andrii Opryshko | L | T51, T58, T59 | todo |
 | [T63](./T63-serve-registry-read.md) | Serve the реєстр протоколів: search and the signed protocol | ports | Andrii Opryshko | L | T62 | todo |
 | [T64](./T64-serve-file-download-read-only-check.md) | Serve file downloads, and only signed copies while the association is read-only | ports | Andrii Opryshko | M | T58, T63 | todo |

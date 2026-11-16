@@ -13,6 +13,7 @@ import (
 
 	"github.com/AndriiOpryshko/spilno/services/core/internal/identity/domain"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/identity/ports"
+	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/kyivday"
 )
 
 // ErrBadStorageState is returned when the state is unknown, foreign, expired or already used.
@@ -38,13 +39,17 @@ type StorageConnections struct {
 	connections *GoogleConnections
 	repo        ports.GoogleConnectionRepository
 
+	now    func() time.Time
 	mu     sync.Mutex
 	states map[string]storageState
 }
 
 func NewStorageConnections(consent ports.StorageConsent, members StorageMembers, connections *GoogleConnections, repo ports.GoogleConnectionRepository) *StorageConnections {
-	return &StorageConnections{consent: consent, members: members, connections: connections, repo: repo, states: map[string]storageState{}}
+	return &StorageConnections{consent: consent, members: members, connections: connections, repo: repo, states: map[string]storageState{}, now: time.Now}
 }
+
+// SetClock replaces the clock «today» is taken from.
+func (s *StorageConnections) SetClock(now func() time.Time) { s.now = now }
 
 // Start returns the consent link; its single-use state is bound to the account and the association.
 func (s *StorageConnections) Start(account, association uuid.UUID) (string, error) {
@@ -116,7 +121,7 @@ func (s *StorageConnections) ConnectedBy(ctx context.Context, c ports.GoogleConn
 	if c.AuthorizedByEmail == "" {
 		return nil, nil
 	}
-	id, ok, err := s.members.CurrentMemberID(ctx, c.AssociationID, c.AuthorizedByEmail, time.Now().UTC())
+	id, ok, err := s.members.CurrentMemberID(ctx, c.AssociationID, c.AuthorizedByEmail, kyivday.Today(s.now()))
 	if err != nil || !ok {
 		return nil, err
 	}

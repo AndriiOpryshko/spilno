@@ -26,7 +26,9 @@ type MembershipsConfig struct {
 
 // EnableMemberships turns listMemberships on.
 func (m *Module) EnableMemberships(cfg MembershipsConfig) {
-	m.handler.EnableMemberships(app.NewMemberships(scopedRoster{m.pool, cfg}, postgres.NewCards(m.pool)))
+	m.memberships = app.NewMemberships(scopedRoster{m.pool, cfg}, postgres.NewCards(m.pool))
+	m.memberships.SetClock(m.now)
+	m.handler.EnableMemberships(m.memberships)
 }
 
 // scopedRoster runs the roster reads in a transaction: the person's own entries in every

@@ -33,8 +33,10 @@ func (m *Module) EnableStorageConnection(cfg StorageConnectionConfig) {
 	if m.google == nil {
 		return
 	}
-	m.handler.EnableStorageConnections(app.NewStorageConnections(
-		googleConsent{cfg.Consent}, scopedMembers{m.pool, cfg.Members}, m.google.connections, postgres.NewGoogleConnections(m.pool)))
+	m.storage = app.NewStorageConnections(
+		googleConsent{cfg.Consent}, scopedMembers{m.pool, cfg.Members}, m.google.connections, postgres.NewGoogleConnections(m.pool))
+	m.storage.SetClock(m.now)
+	m.handler.EnableStorageConnections(m.storage)
 }
 
 // googleConsent adapts google.Consent to the storage consent port.

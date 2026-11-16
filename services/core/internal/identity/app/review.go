@@ -2,12 +2,12 @@ package app
 
 import (
 	"context"
-	"time"
 
 	"github.com/google/uuid"
 
 	"github.com/AndriiOpryshko/spilno/services/core/internal/identity/domain"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/identity/ports"
+	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/kyivday"
 )
 
 // Reviews serves the оператор's queue and review page and records checks of extracts.
@@ -58,12 +58,7 @@ func warningsOf(d ports.ReviewDetail) []domain.ReviewWarning {
 	if latest == nil {
 		return nil
 	}
-	loc, err := time.LoadLocation("Europe/Kyiv")
-	if err != nil {
-		loc = time.UTC
-	}
-	y, m, day := f.CreatedAt.In(loc).Date()
 	return domain.ReviewWarnings(f.ApplicantFullName, domain.ExtractCheck{
 		SignerName: latest.SignerFullName, HeadFullName: latest.HeadFullName, ExtractDated: latest.ExtractDatedOn,
-	}, time.Date(y, m, day, 0, 0, 0, 0, time.UTC))
+	}, kyivday.Today(f.CreatedAt))
 }

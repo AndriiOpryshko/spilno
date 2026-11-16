@@ -15,6 +15,7 @@ import (
 	"github.com/AndriiOpryshko/spilno/services/core/internal/identity/domain"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/db"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/httpapi"
+	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/kyivday"
 )
 
 const (
@@ -79,7 +80,7 @@ func (m *Module) serveAssociation(w http.ResponseWriter, r *http.Request, next h
 	actor.AssociationID = rawID
 	refused := false
 	err = db.InAssociation(r.Context(), m.pool, id, actor.Email, func(ctx context.Context) error {
-		ok, err := roster.CurrentMember(ctx, id, actor.Email, time.Now().UTC().Truncate(24*time.Hour))
+		ok, err := roster.CurrentMember(ctx, id, actor.Email, kyivday.Today(m.now()))
 		if err != nil {
 			return err
 		}

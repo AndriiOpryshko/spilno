@@ -9,6 +9,7 @@ import (
 
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/domain"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/ports"
+	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/kyivday"
 )
 
 // RosterService answers who sits on which board; every call runs on the
@@ -38,13 +39,13 @@ func (s *RosterService) CurrentMemberID(ctx context.Context, association uuid.UU
 
 // MemberSignInAddresses lists the addresses of today's members.
 func (s *RosterService) MemberSignInAddresses(ctx context.Context, association uuid.UUID) ([]string, error) {
-	return s.roster.MemberSignInAddresses(ctx, association, s.now().UTC())
+	return s.roster.MemberSignInAddresses(ctx, association, kyivday.Today(s.now()))
 }
 
 // SeatHead makes the person head under the decision. A person with a current entry gets a
 // new revision of it, keeping the entry's own term; anyone else gets a new entry with term.
 func (s *RosterService) SeatHead(ctx context.Context, association uuid.UUID, fullName, email string, term domain.Term, decisionID uuid.UUID) (uuid.UUID, error) {
-	today := s.now().UTC()
+	today := kyivday.Today(s.now())
 	id, found, err := s.writer.CurrentMemberID(ctx, association, email, today)
 	if err != nil {
 		return uuid.Nil, err

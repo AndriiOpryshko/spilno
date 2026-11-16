@@ -16,16 +16,23 @@ import (
 	"github.com/AndriiOpryshko/spilno/services/core/internal/identity/adapters/postgres/sqlcgen"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/identity/ports"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/db"
+	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/kyivday"
 )
 
 // Applications implements ports.ApplicationRepository.
 type Applications struct {
 	pool *pgxpool.Pool
+	now  func() time.Time
 }
 
 var _ ports.ApplicationRepository = (*Applications)(nil)
 
-func NewApplications(pool *pgxpool.Pool) *Applications { return &Applications{pool: pool} }
+func NewApplications(pool *pgxpool.Pool) *Applications {
+	return &Applications{pool: pool, now: time.Now}
+}
+
+// SetClock replaces the clock «today» is taken from.
+func (a *Applications) SetClock(now func() time.Time) { a.now = now }
 
 func pgUUID(id uuid.UUID) pgtype.UUID { return pgtype.UUID{Bytes: id, Valid: true} }
 
@@ -96,7 +103,7 @@ func (a *Applications) fileFromCard(ctx context.Context, f ports.NewTransfer) (p
 	}
 	assoc := *f.AssociationID
 	err := db.InAssociation(ctx, a.pool, assoc, f.ApplicantEmail, func(ctx context.Context) error {
-		ok, err := f.Roster.CurrentMember(ctx, assoc, f.ApplicantEmail, time.Now().UTC().Truncate(24*time.Hour))
+		ok, err := f.Roster.CurrentMember(ctx, assoc, f.ApplicantEmail, kyivday.Today(a.now()))
 		if err != nil {
 			return err
 		}

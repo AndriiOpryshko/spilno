@@ -374,11 +374,13 @@ paths:
       description: |
         The filing checks of fileApplication run again (AC-02, AC-30). A заявка на підключення whose code was
         connected meanwhile answers `identity.association_already_connected` (AC-04); a refiled запит на
-        передачу is not checked against AC-18 again.
+        передачу is not checked against AC-18 again. When the same person filed another application for the same
+        code after the rejection and it is still pending, the refile answers `identity.application_already_open`
+        (AC-04b: one open application of a person per code).
       x-problem-types:
         "401": [identity.session_required]
         "404": [about:blank]
-        "409": [identity.application_not_pending, identity.association_already_connected, identity.term_ended]
+        "409": [identity.application_not_pending, identity.association_already_connected, identity.application_already_open, identity.term_ended]
         "422": [identity.application_invalid, about:blank]
       requestBody:
         required: true
@@ -404,13 +406,16 @@ paths:
         "401": { $ref: "#/components/responses/SessionRequired" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409":
-          description: Only a rejected application can be refiled, the code of a заявка was connected meanwhile, or the term has ended.
+          description: |
+            Only a rejected application can be refiled, the code of a заявка was connected meanwhile, the person
+            has another open application for the same code, or the term has ended.
           content:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
               examples:
                 application_not_pending: { $ref: "#/components/examples/ApplicationNotPending" }
                 association_already_connected: { $ref: "#/components/examples/AssociationAlreadyConnected" }
+                application_already_open: { $ref: "#/components/examples/ApplicationAlreadyOpen" }
                 term_ended: { $ref: "#/components/examples/TermEnded" }
         "422":
           description: Missing or wrong fields, all named.
@@ -1527,13 +1532,15 @@ paths:
         "403":
           description: |
             `governance.vote_on_behalf` — `board_member_id` is not the signed-in member (AC-05e); or
-            `identity.not_current_member`.
+            `identity.not_current_member`; or `identity.association_disabled` — a member of a вимкнене ОСББ
+            (ADR-0007; association-onboarding AC-25). Membership is checked first.
           content:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
               examples:
                 vote_on_behalf: { $ref: "#/components/examples/VoteOnBehalf" }
                 not_current_member: { $ref: "#/components/examples/NotCurrentMember" }
+                association_disabled: { $ref: "#/components/examples/AssociationDisabled" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409":
           description: |

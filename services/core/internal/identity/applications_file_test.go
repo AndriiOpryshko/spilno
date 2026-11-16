@@ -335,3 +335,32 @@ func TestFileApplicationAcceptsFiveMegabytesAndRefusesOneByteMore(t *testing.T) 
 		t.Errorf("rows %v -> %v, want unchanged after the oversize upload", before, after)
 	}
 }
+
+// AC-02 (review B1): a body over the limit of its operation is refused 413 as problem+json before
+// the request validator buffers it, with or without a session; nothing is stored.
+func TestFileApplicationRefusesAnOversizeBodyBeforeTheValidatorReadsIt(t *testing.T) {
+	e := newFileAppEnv(t)
+	before := e.counts(t)
+	for _, as := range []string{"", "first"} {
+		name := as
+		if name == "" {
+			name = "no session"
+		}
+		t.Run(name, func(t *testing.T) {
+			got := e.file(t, as, fileAppFields(), fileAppPDF(20*1024*1024))
+			if got.status != http.StatusRequestEntityTooLarge {
+				t.Fatalf("20 MB multipart (%s): status = %d (%.200s), want 413", name, got.status, got.body)
+			}
+			var p struct {
+				Status int    `json:"status"`
+				Title  string `json:"title"`
+			}
+			if err := json.Unmarshal(got.body, &p); err != nil || p.Status != http.StatusRequestEntityTooLarge || p.Title == "" {
+				t.Errorf("body = %.200s, want problem+json with status 413 and a title", got.body)
+			}
+		})
+	}
+	if after := e.counts(t); after != before {
+		t.Errorf("rows %v -> %v, want unchanged after the oversize bodies", before, after)
+	}
+}

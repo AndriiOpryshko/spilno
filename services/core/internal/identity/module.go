@@ -67,7 +67,7 @@ func (m *Module) Routes(r chi.Router) error {
 		return fmt.Errorf("identity: load spec: %w", err)
 	}
 	r.Group(func(r chi.Router) {
-		r.Use(httpapi.RequestValidator(spec), identityhttp.CaptureSession)
+		r.Use(httpapi.BodyLimit(6<<20, 1<<20), httpapi.RequestValidator(spec), identityhttp.CaptureSession)
 		strict := gen.NewStrictHandlerWithOptions(m.handler, nil, gen.StrictHTTPServerOptions{
 			RequestErrorHandlerFunc:  httpapi.StrictRequestError,
 			ResponseErrorHandlerFunc: httpapi.StrictResponseError,

@@ -173,6 +173,7 @@ func run() error {
 		Addr:              cfg.HTTPAddr,
 		Handler:           otelhttp.NewHandler(r, "http.server"),
 		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       60 * time.Second,
 	}
 	errc := make(chan error, 1)
 	go func() {

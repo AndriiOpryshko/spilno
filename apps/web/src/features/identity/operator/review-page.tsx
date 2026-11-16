@@ -1,4 +1,4 @@
-import { useGetApplicationForReview } from '@/api/gen/endpoints/identity/identity';
+import { getDownloadExtractForReviewUrl, useGetApplicationForReview } from '@/api/gen/endpoints/identity/identity';
 import { Badge } from '@/components/ui/badge';
 import { uk } from '@/i18n/uk';
 
@@ -18,16 +18,27 @@ function Row({ label, children, source }: { label: string; children: React.React
   );
 }
 
+function ExtractLink({ applicationId, filingId }: { applicationId: string; filingId: string }) {
+  return (
+    <a href={getDownloadExtractForReviewUrl(applicationId, filingId)} className="self-start text-sm underline">
+      {uk.operator.downloadExtract}
+    </a>
+  );
+}
+
 export function ReviewPage({ applicationId }: { applicationId: string }) {
   const { data } = useGetApplicationForReview(applicationId);
   const review = data?.data;
   if (!review) return null;
 
   const { application, filings, checks, warnings } = review;
-  const filing = filings[filings.length - 1];
-  const check = filing ? checks.find((c) => c.filing_id === filing.id) : undefined;
+  const [filing, ...earlier] = [...filings].sort((a, b) => b.created_at.localeCompare(a.created_at));
+  const check = filing
+    ? checks.filter((c) => c.filing_id === filing.id).sort((a, b) => b.checked_at.localeCompare(a.checked_at))[0]
+    : undefined;
   const transfer = application.kind === 'transfer';
   const markerText = transfer ? uk.operator.competingTransfer : uk.operator.competingConnection;
+  const extractSource = check ? <ExtractSource checkedAt={check.checked_at} /> : <NotChecked />;
   const showMarker = review.competing_application_ids.length > 0;
 
   return (
@@ -56,15 +67,16 @@ export function ReviewPage({ applicationId }: { applicationId: string }) {
                 {filing.association_name}
               </Row>
             </dl>
+            <ExtractLink applicationId={applicationId} filingId={filing.id} />
           </div>
           <dl className="flex flex-col gap-2">
             <Row label={uk.operator.signer} source={check ? <SignatureSource checkedAt={check.checked_at} /> : <NotChecked />}>
               {check?.signer_full_name}
             </Row>
-            <Row label={uk.operator.head} source={check ? <ExtractSource checkedAt={check.checked_at} /> : <NotChecked />}>
+            <Row label={uk.operator.head} source={extractSource}>
               {check?.head_full_name}
             </Row>
-            <Row label={uk.operator.edrpou} source={check ? <ExtractSource checkedAt={check.checked_at} /> : <NotChecked />}>
+            <Row label={uk.operator.edrpou} source={extractSource}>
               {check?.extract_edrpou}
             </Row>
           </dl>
@@ -72,6 +84,19 @@ export function ReviewPage({ applicationId }: { applicationId: string }) {
         </>
       )}
       {filing && <DecisionPanel applicationId={applicationId} filingId={filing.id} review={review} />}
+      {earlier.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <h2 className="text-base font-semibold">{uk.operator.earlierFilings}</h2>
+          <ul className="flex flex-col gap-2">
+            {earlier.map((f) => (
+              <li key={f.id} className="flex flex-col rounded-md border px-3 py-2">
+                <span>{f.applicant_full_name}</span>
+                <ExtractLink applicationId={applicationId} filingId={f.id} />
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </section>
   );
 }

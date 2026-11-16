@@ -133,6 +133,8 @@ export const uk = {
     storageAccount: 'Акаунт зі сховищем файлів',
     extractAgeBefore: 'Витяг сформовано',
     extractAgeAfter: 'старший за 30 днів',
+    downloadExtract: 'Завантажити витяг',
+    earlierFilings: 'Попередні подання',
     approve: 'Схвалити',
     checkTitle: 'Перевірка витягу',
     signer: 'Підписант',

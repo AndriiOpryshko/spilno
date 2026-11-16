@@ -1,9 +1,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { getDownloadExtractForReviewUrl } from '@/api/gen/endpoints/identity/identity';
 import type { ApplicationReview } from '@/api/gen/model';
 
 import { OperatorQueue } from './queue';
@@ -12,6 +13,7 @@ import { ReviewPage } from './review-page';
 const appId = '00000000-0000-7000-8000-0000000000a1';
 const filingId = '00000000-0000-7000-8000-0000000000f1';
 const otherId = '00000000-0000-7000-8000-0000000000a2';
+const refiledId = '00000000-0000-7000-8000-0000000000f2';
 
 const application = {
   id: appId,
@@ -68,13 +70,18 @@ const checked: ApplicationReview = {
 let review: ApplicationReview;
 let queueStatus: number;
 let urls: string[];
+let sent: { path: string; body: unknown }[];
 
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': status >= 400 ? 'application/problem+json' : 'application/json' } });
 
-function fakeApi(input: RequestInfo | URL) {
+function fakeApi(input: RequestInfo | URL, init?: RequestInit) {
   const path = new URL(String(input), 'http://localhost').pathname;
   urls.push(path);
+  if (init?.method === 'POST') {
+    sent.push({ path, body: JSON.parse(String(init.body ?? '{}')) });
+    return Promise.resolve(json(200, {}));
+  }
   if (path.endsWith('/identity/operator/applications')) {
     if (queueStatus !== 200) return Promise.resolve(json(queueStatus, { type: 'about:blank', title: 'x', status: queueStatus, code: 'identity.not_operator' }));
     return Promise.resolve(json(200, { items: [review.application], next_cursor: null }));
@@ -96,6 +103,7 @@ beforeEach(() => {
   review = base;
   queueStatus = 200;
   urls = [];
+  sent = [];
   vi.stubGlobal('fetch', vi.fn(fakeApi));
 });
 afterEach(() => {
@@ -161,6 +169,117 @@ describe('ReviewPage', () => {
     expect(screen.getByLabelText(/Керівник/)).toBeInTheDocument();
     expect(screen.getByLabelText(/ЄДРПОУ/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Записати перевірку/ })).toBeInTheDocument();
+  });
+});
+
+// A refiled заявка as the server returns it: filings newest first, checks oldest first (review.sql).
+const oldFiling = {
+  ...base.filings[0]!,
+  id: filingId,
+  applicant_full_name: 'Попередній Заявник',
+  extract: { ...base.filings[0]!.extract, id: 'e1', original_name: 'old.pdf' },
+  created_at: '2026-11-10T09:00:00Z',
+};
+const newFiling = {
+  ...base.filings[0]!,
+  id: refiledId,
+  applicant_full_name: 'Новий Заявник',
+  extract: { ...base.filings[0]!.extract, id: 'e2', original_name: 'new.pdf' },
+  created_at: '2026-11-12T09:00:00Z',
+};
+const checkOf = (id: string, filing: string, signer: string, checkedAt: string) => ({
+  id,
+  filing_id: filing,
+  signature_valid: true,
+  signer_full_name: signer,
+  signed_on: '2026-11-08',
+  head_full_name: 'Керівник за витягом',
+  extract_edrpou: '12345678',
+  extract_dated_on: '2026-11-05',
+  checked_at: checkedAt,
+});
+const refiled: ApplicationReview = {
+  ...base,
+  filings: [newFiling, oldFiling],
+  checks: [
+    checkOf('c1', filingId, 'Підписант першої заяви', '2026-11-11T08:05:00Z'),
+    checkOf('c2', refiledId, 'Перший підписант нової заяви', '2026-11-13T09:00:00Z'),
+    checkOf('c3', refiledId, 'Останній підписант нової заяви', '2026-11-14T10:00:00Z'),
+  ],
+};
+
+describe('ReviewPage after a refiling', () => {
+  beforeEach(() => {
+    review = refiled;
+  });
+
+  it('presents the newest filing with the latest check of that filing (AC-06, AC-15)', async () => {
+    await renderInRouter(<ReviewPage applicationId={appId} />);
+    expect(await screen.findByText('Новий Заявник')).toBeInTheDocument();
+    expect(screen.getByText('Останній підписант нової заяви')).toBeInTheDocument();
+    expect(screen.getAllByText(/з КЕП, перевірено оператором (14\.11\.2026|14 листопада 2026)/).length).toBeGreaterThan(0);
+    expect(screen.queryByText('Перший підписант нової заяви')).not.toBeInTheDocument();
+  });
+
+  it('lists the earlier filing as history and offers the check form once (AC-06)', async () => {
+    await renderInRouter(<ReviewPage applicationId={appId} />);
+    expect(await screen.findByText('Новий Заявник')).toBeInTheDocument();
+    expect(screen.getByText('Попередній Заявник')).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /Записати перевірку/ })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'Схвалити' })).toHaveLength(1);
+  });
+
+  it('links the extract of each filing through the generated download URL (AC-03, AC-08)', async () => {
+    await renderInRouter(<ReviewPage applicationId={appId} />);
+    await screen.findByText('Новий Заявник');
+    const hrefs = screen.getAllByRole('link', { name: /витяг/i }).map((a) => a.getAttribute('href'));
+    expect(hrefs).toHaveLength(2);
+    expect(hrefs).toContain(getDownloadExtractForReviewUrl(appId, refiledId));
+    expect(hrefs).toContain(getDownloadExtractForReviewUrl(appId, filingId));
+  });
+
+  it('links the extract of a заявка with a single filing (AC-03)', async () => {
+    review = base;
+    await renderInRouter(<ReviewPage applicationId={appId} />);
+    await screen.findByText(/введено заявником/);
+    const links = screen.getAllByRole('link', { name: /витяг/i });
+    expect(links).toHaveLength(1);
+    expect(links[0]).toHaveAttribute('href', getDownloadExtractForReviewUrl(appId, filingId));
+  });
+
+  it('records the check against the newest filing (AC-03, AC-15)', async () => {
+    await renderInRouter(<ReviewPage applicationId={appId} />);
+    await screen.findByText('Новий Заявник');
+    fireEvent.change(screen.getByLabelText(/Підписант/), { target: { value: 'Підписант' } });
+    fireEvent.change(screen.getByLabelText(/Дата підпису/), { target: { value: '2026-11-08' } });
+    fireEvent.change(screen.getByLabelText(/Керівник/), { target: { value: 'Керівник' } });
+    fireEvent.change(screen.getByLabelText(/ЄДРПОУ/), { target: { value: '12345678' } });
+    fireEvent.change(screen.getByLabelText(/Дата витягу/), { target: { value: '2026-11-05' } });
+    fireEvent.click(screen.getByRole('button', { name: /Записати перевірку/ }));
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0]?.path).toMatch(/\/checks$/);
+    expect(sent[0]?.body).toMatchObject({ filing_id: refiledId });
+  });
+
+  it('approves the newest filing (AC-08)', async () => {
+    await renderInRouter(<ReviewPage applicationId={appId} />);
+    await screen.findByText('Новий Заявник');
+    fireEvent.click(screen.getByRole('button', { name: 'Схвалити' }));
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0]?.path).toMatch(/\/approval$/);
+    expect(sent[0]?.body).toMatchObject({ filing_id: refiledId });
+  });
+
+  it('rejects the newest filing (AC-08)', async () => {
+    await renderInRouter(<ReviewPage applicationId={appId} />);
+    await screen.findByText('Новий Заявник');
+    fireEvent.click(screen.getByRole('button', { name: 'Відхилити' }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.change(within(dialog).getByLabelText(/Причина/), { target: { value: 'Витяг нечитабельний' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: /Відхилити/ }));
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0]?.path).toMatch(/\/rejection$/);
+    expect(sent[0]?.body).toMatchObject({ filing_id: refiledId });
   });
 });
 

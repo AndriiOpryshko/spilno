@@ -113,3 +113,28 @@ export const Competing: Story = {
     await expect(await within(canvasElement).findByText(/конкуруюча заявка/)).toBeInTheDocument();
   },
 };
+
+const refiledId = '00000000-0000-7000-8000-0000000000f2';
+
+// A refiled заявка: filings newest first, checks oldest first, as the server returns them.
+export const Refiled: Story = {
+  beforeEach: serve({
+    ...base,
+    filings: [
+      { ...base.filings[0]!, id: refiledId, applicant_full_name: 'Новий Заявник', created_at: '2026-11-12T09:00:00Z' },
+      { ...base.filings[0]!, applicant_full_name: 'Попередній Заявник' },
+    ],
+    checks: [
+      { ...check, signer_full_name: 'Підписант першої заяви' },
+      { ...check, id: 'c2', filing_id: refiledId, signer_full_name: 'Підписант нової заяви', checked_at: '2026-11-13T09:00:00Z' },
+    ],
+  }),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(await canvas.findByText('Новий Заявник')).toBeInTheDocument();
+    await expect(canvas.getByText('Підписант нової заяви')).toBeInTheDocument();
+    await expect(canvas.getByText('Попередній Заявник')).toBeInTheDocument();
+    await expect(canvas.getAllByRole('link', { name: /витяг/i })).toHaveLength(2);
+    await expect(canvas.getAllByRole('button', { name: /Записати перевірку/ })).toHaveLength(1);
+  },
+};

@@ -54,8 +54,44 @@
 | [T47](./T47-load-scenarios.md) | Add the load scenarios for the latency and throughput targets of PRD §6 | tests | Andrii Opryshko | M | T26, T30, T32 | done |
 | [T48](./T48-docs-rules-and-amendments.md) | Update the repo rules and environment docs, amend the board-protocol documents and write the оператор's runbook | docs | Andrii Opryshko | M | T20, T33 | done |
 | [T49](./T49-security-review-record.md) | Run and record the security review that PRD §6.1 requires | docs | Andrii Opryshko | M | T45, T46 | done |
+| [T50](./T50-kyiv-calendar-day.md) | Take «today» for every roster date from the Europe/Kyiv calendar | infra | Andrii Opryshko | M | — | todo |
+| [T51](./T51-carry-term-end-end-previous-head.md) | Carry the filed term end into the roster and end the previous голова whatever their term end | app | Andrii Opryshko | M | T50 | todo |
+| [T52](./T52-refuse-stale-filing-and-foreign-code.md) | Refuse a decision on a stale filing and a card transfer that claims another association's code | ports | Andrii Opryshko | M | — | todo |
+| [T53](./T53-limit-request-bodies.md) | Limit request bodies and read time before the request validator runs | infra | Andrii Opryshko | M | — | todo |
+| [T54](./T54-commit-before-response.md) | Commit the association transaction before the response leaves, and keep outside calls out of it | wiring | Andrii Opryshko | L | T50 | todo |
+| [T55](./T55-bound-sign-in-and-consent-state.md) | Bound the sign-in and storage-consent state | app | Andrii Opryshko | M | T54 | todo |
+| [T56](./T56-extract-download-header-and-type-check.md) | Send a valid Content-Disposition on the review download and tighten the extract type check | ports | Andrii Opryshko | S | — | todo |
+| [T57](./T57-refuse-rls-bypassing-role.md) | Refuse to start when the serving role bypasses row-level security | wiring | Andrii Opryshko | S | — | todo |
+| [T58](./T58-storage-check-injection-and-pending-gauge.md) | Pass the storage check into governance from cmd/api and count the pending age from the latest filing | wiring | Andrii Opryshko | S | T57 | todo |
+| [T59](./T59-index-lower-sign-in-email.md) | Make the memberships lookup use an index on the lowered sign-in address | migration | Andrii Opryshko | S | — | todo |
+| [T60](./T60-contract-disabled-and-refile-codes.md) | Advertise the two missing problem codes in the contract and reconcile the sync report | wiring | Andrii Opryshko | M | — | todo |
+| [T61](./T61-record-single-release-migrations.md) | Record that the expand, backfill and contract migrations shipped in one release | docs | Andrii Opryshko | S | T59 | todo |
+| [T62](./T62-serve-roster-endpoints.md) | Serve the roster: list, add and change члени правління with their position and decision | ports | Andrii Opryshko | L | T51, T58, T59 | todo |
+| [T63](./T63-serve-registry-read.md) | Serve the реєстр протоколів: search and the signed protocol | ports | Andrii Opryshko | L | T62 | todo |
+| [T64](./T64-serve-file-download-read-only-check.md) | Serve file downloads, and only signed copies while the association is read-only | ports | Andrii Opryshko | M | T58, T63 | todo |
+| [T65](./T65-serve-cases-and-document-upload.md) | Serve справи and document upload behind the storage guard | ports | Andrii Opryshko | L | T64 | todo |
+| [T66](./T66-ui-sign-in-link-generated-urls.md) | Point «Увійти» at the API and build every API link from the generated URL helpers | ui | Andrii Opryshko | S | — | todo |
+| [T67](./T67-ui-operator-layout-entry-guard.md) | Give the оператор's section an index, its own navigation and one access guard | ui | Andrii Opryshko | M | T66 | todo |
+| [T68](./T68-ui-association-shell-card-notice.md) | Put the association card in the navigation and the suspended notice in the association layout | ui | Andrii Opryshko | M | T67 | todo |
+| [T69](./T69-ui-review-latest-filing-extract-download.md) | Review the latest filing with its latest check, and let the оператор download the extract | ui | Andrii Opryshko | M | T67 | todo |
+| [T70](./T70-ui-review-source-labels-competing.md) | Label the source of every value on the review page and show competing заявки side by side | ui | Andrii Opryshko | M | T60, T69 | todo |
+| [T71](./T71-ui-ukrainian-warnings-field-errors.md) | Write the warnings and the field errors in Ukrainian from structured data | ui | Andrii Opryshko | M | T70 | todo |
+| [T72](./T72-card-ended-mark-only-when-a-term-ended.md) | Show «повноваження завершено» in the card history only when the decision ended a term | ports | Andrii Opryshko | M | T51, T60 | todo |
+| [T73](./T73-ui-operator-contact-address.md) | Show the оператор's contact address in every environment | ui | Andrii Opryshko | S | — | todo |
+| [T74](./T74-ui-shared-problem-fallback.md) | Give every page a loading state and one fallback for a failed request | ui | Andrii Opryshko | M | T68 | todo |
+| [T75](./T75-ui-mutation-errors-and-focus.md) | Report every failed operator action and keep focus after a decision | ui | Andrii Opryshko | M | T67 | todo |
+| [T76](./T76-ui-one-date-formatter.md) | Format every date with one Europe/Kyiv formatter | ui | Andrii Opryshko | S | — | todo |
+| [T77](./T77-ui-reuse-inline-alert-hooks-links.md) | Reuse InlineAlert, the generated hooks and router links across the identity screens | ui | Andrii Opryshko | M | T71, T74, T75 | todo |
+| [T78](./T78-ui-roster-screen.md) | Build the roster screen: list, add and change члени правління, with the decision mark on each голова | ui | Andrii Opryshko | L | T62, T68 | todo |
+| [T79](./T79-ui-registry-screens.md) | Build the реєстр протоколів: search and the signed protocol with its download | ui | Andrii Opryshko | M | T63, T64, T68 | todo |
+| [T80](./T80-ui-cases-on-api-with-upload.md) | Move the справи list and the case screen to the API, with document upload and the storage message | ui | Andrii Opryshko | L | T65, T68 | todo |
+| [T81](./T81-e2e-review-fixes-through-clicks.md) | Prove the fixed flows end to end by clicking, not by typing addresses | tests | Andrii Opryshko | M | T52, T68, T71, T72, T73 | todo |
+| [T82](./T82-e2e-roster-registry-documents.md) | Prove the roster, the registry and the document refusal end to end | tests | Andrii Opryshko | L | T78, T79, T80 | todo |
+| [T83](./T83-concurrency-and-failure-tests.md) | Test the decisions and the filings under concurrency | tests | Andrii Opryshko | M | T52, T54 | todo |
+| [T84](./T84-refresh-visual-baselines.md) | Refresh the visual baselines of the review page and the association card | tests | Andrii Opryshko | S | T71, T72, T77 | todo |
+| [T85](./T85-sync-test-plan-tracker-board-protocol.md) | Bring the test plan, the trackers and the board-protocol tasks in line with what was built | docs | Andrii Opryshko | M | T61, T81, T82, T83, T84 | todo |
 
-**Total:** 49 tasks, ~29.5 person-days.
+**Total:** 85 tasks, ~48.75 person-days: T01–T49 (~29.5, done, merged in PR #48) and the review follow-up T50–T85 (~19.25, [review of 2026-11-10](../_review/review-2026-11-10.md)).
 
 ## Known gaps (found during implementation)
 

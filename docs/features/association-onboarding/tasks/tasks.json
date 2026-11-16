@@ -779,7 +779,8 @@
         "AC-04d",
         "AC-07",
         "AC-16",
-        "AC-16b"
+        "AC-16b",
+        "AC-19"
       ],
       "dod": "Component tests show that a visitor without a session lands on sign-in, a person on two rosters picks an association whose id is in every link, a person on none lands on their applications, only the оператор sees the operator entry, and a 403 shows a no-access page with no record.",
       "files_hint": [
@@ -1161,6 +1162,795 @@
       "dod": "A review record maps each of the seven abuse cases of PRD §6.1 to the test that covers it or to a finding with an owner and a date, and no High finding is open.",
       "files_hint": [
         "docs/features/association-onboarding/_review/"
+      ]
+    },
+    {
+      "id": "T50",
+      "title": "Take «today» for every roster date from the Europe/Kyiv calendar",
+      "layer": "infra",
+      "deps": [],
+      "acs": [
+        "AC-09",
+        "AC-19",
+        "AC-29"
+      ],
+      "dod": "A test pinned at 00:40 Europe/Kyiv on the first day of a new term shows the new голова admitted and the previous one refused, and no roster date in identity or governance is taken from the UTC day.",
+      "files_hint": [
+        "services/core/internal/platform/kyivday/",
+        "services/core/internal/identity/guard.go",
+        "services/core/internal/identity/adapters/postgres/applications.go",
+        "services/core/internal/identity/app/card.go",
+        "services/core/internal/identity/app/memberships.go",
+        "services/core/internal/identity/app/storage.go",
+        "services/core/internal/identity/app/approval.go",
+        "services/core/internal/identity/app/review.go",
+        "services/core/internal/governance/app/roster.go",
+        "services/core/internal/identity/approval_transfer_test.go"
+      ]
+    },
+    {
+      "id": "T51",
+      "title": "Carry the filed term end into the roster and end the previous голова whatever their term end",
+      "layer": "app",
+      "deps": [
+        "T50"
+      ],
+      "acs": [
+        "AC-08",
+        "AC-19",
+        "AC-19c",
+        "AC-30"
+      ],
+      "dod": "Integration tests show a голова seated with the term end from the заявка, and a transfer that ends a previous голова whose entry already has a future term end, leaving exactly one current head.",
+      "files_hint": [
+        "services/core/internal/identity/adapters/postgres/queries/approval.sql",
+        "services/core/internal/identity/adapters/postgres/approval.go",
+        "services/core/internal/identity/ports/",
+        "services/core/internal/identity/approval.go",
+        "services/core/cmd/api/main.go",
+        "services/core/internal/governance/app/roster.go",
+        "services/core/internal/governance/domain/board_member.go",
+        "services/core/internal/identity/approval_test.go",
+        "services/core/internal/identity/approval_transfer_test.go"
+      ]
+    },
+    {
+      "id": "T52",
+      "title": "Refuse a decision on a stale filing and a card transfer that claims another association's code",
+      "layer": "ports",
+      "deps": [],
+      "acs": [
+        "AC-15",
+        "AC-19c"
+      ],
+      "dod": "A reject that names an earlier filing answers 409 `identity.application_not_pending`, and a card transfer that names a code held by another association is refused at filing with `identity.association_already_connected`; neither path can answer 500.",
+      "files_hint": [
+        "services/core/internal/identity/adapters/postgres/rejection.go",
+        "services/core/internal/identity/adapters/postgres/queries/rejection.sql",
+        "services/core/internal/identity/adapters/postgres/applications.go",
+        "services/core/internal/identity/adapters/postgres/approval.go",
+        "services/core/internal/identity/rejection_test.go",
+        "services/core/internal/identity/applications_transfer_test.go",
+        "services/core/internal/identity/approval_transfer_test.go"
+      ]
+    },
+    {
+      "id": "T53",
+      "title": "Limit request bodies and read time before the request validator runs",
+      "layer": "infra",
+      "deps": [],
+      "acs": [
+        "AC-02"
+      ],
+      "dod": "A request whose body exceeds the limit of its operation is refused with problem+json before the validator reads it, with or without a session, and the server has a read timeout.",
+      "files_hint": [
+        "services/core/internal/platform/httpapi/",
+        "services/core/cmd/api/main.go",
+        "services/core/internal/identity/module.go",
+        "services/core/internal/governance/module.go",
+        "services/core/internal/identity/applications_file_test.go"
+      ]
+    },
+    {
+      "id": "T54",
+      "title": "Commit the association transaction before the response leaves, and keep outside calls out of it",
+      "layer": "wiring",
+      "deps": [
+        "T50"
+      ],
+      "acs": [
+        "AC-25",
+        "AC-27"
+      ],
+      "dod": "A commit that fails after the handler ran answers 500 and no success body reaches the client, and the storage consent exchanges the code outside the association transaction.",
+      "files_hint": [
+        "services/core/internal/identity/guard.go",
+        "services/core/internal/platform/db/db.go",
+        "services/core/internal/platform/db/db_integration_test.go",
+        "services/core/internal/identity/app/storage.go",
+        "services/core/internal/identity/middleware_test.go",
+        "services/core/internal/identity/storage_test.go"
+      ]
+    },
+    {
+      "id": "T55",
+      "title": "Bound the sign-in and storage-consent state",
+      "layer": "app",
+      "deps": [
+        "T54"
+      ],
+      "acs": [
+        "AC-05",
+        "AC-27"
+      ],
+      "dod": "Starting sign-in any number of times does not grow server memory, and a callback with a forged, expired or replayed state is still refused.",
+      "files_hint": [
+        "services/core/internal/identity/app/signin.go",
+        "services/core/internal/identity/app/storage.go",
+        "services/core/internal/identity/adapters/http/handler.go",
+        "services/core/internal/identity/adapters/http/storage.go",
+        "services/core/internal/identity/signin_test.go",
+        "services/core/internal/identity/storage_test.go"
+      ]
+    },
+    {
+      "id": "T56",
+      "title": "Send a valid Content-Disposition on the review download and tighten the extract type check",
+      "layer": "ports",
+      "deps": [],
+      "acs": [
+        "AC-02",
+        "AC-03"
+      ],
+      "dod": "The review download of a file with a Cyrillic name carries the same RFC 6266 header as the two other downloads, and a text file that starts with `0` is refused as an extract.",
+      "files_hint": [
+        "services/core/internal/identity/adapters/http/review.go",
+        "services/core/internal/identity/domain/extract_file.go",
+        "services/core/internal/identity/domain/extract_file_test.go",
+        "services/core/internal/identity/review_test.go"
+      ]
+    },
+    {
+      "id": "T57",
+      "title": "Refuse to start when the serving role bypasses row-level security",
+      "layer": "wiring",
+      "deps": [],
+      "acs": [
+        "AC-04d",
+        "AC-07"
+      ],
+      "dod": "The API exits with a clear error when the role of `DATABASE_URL` is a superuser or has `BYPASSRLS`, and `DATABASE_URL` has no owner default.",
+      "files_hint": [
+        "services/core/internal/platform/config/config.go",
+        "services/core/internal/platform/postgres/",
+        "services/core/cmd/api/main.go",
+        "mise.toml",
+        "README.md",
+        ".env.example"
+      ]
+    },
+    {
+      "id": "T58",
+      "title": "Pass the storage check into governance from cmd/api and count the pending age from the latest filing",
+      "layer": "wiring",
+      "deps": [
+        "T57"
+      ],
+      "acs": [
+        "AC-05",
+        "AC-28"
+      ],
+      "dod": "`governance.New` takes the storage check as an argument and imports no identity constructor, and the gauge reports the age of the latest filing of the oldest pending application and logs a failed query.",
+      "files_hint": [
+        "services/core/internal/governance/module.go",
+        "services/core/cmd/api/main.go",
+        "services/core/internal/identity/metrics.go",
+        "services/core/internal/identity/pending_age_gauge_test.go",
+        "services/core/internal/identity/adapters/postgres/queries/applications.sql"
+      ]
+    },
+    {
+      "id": "T59",
+      "title": "Make the memberships lookup use an index on the lowered sign-in address",
+      "layer": "migration",
+      "deps": [],
+      "acs": [
+        "AC-04d"
+      ],
+      "dod": "`EXPLAIN` of `MembershipsOf` on a seeded roster uses an index for the address predicate, and the data model names that index.",
+      "files_hint": [
+        "docs/features/association-onboarding/migrations/NNNNN_index_board_member_revisions_lower_sign_in_email.sql",
+        "docs/features/association-onboarding/migrations/MANIFEST.md",
+        "services/core/internal/governance/adapters/postgres/queries/roster.sql",
+        "docs/features/association-onboarding/data-model.md"
+      ]
+    },
+    {
+      "id": "T60",
+      "title": "Advertise the two missing problem codes in the contract and reconcile the sync report",
+      "layer": "wiring",
+      "deps": [],
+      "acs": [
+        "AC-06",
+        "AC-25"
+      ],
+      "dod": "The live contract and the feature delta list `identity.association_disabled` on `castPollVote` and `identity.application_already_open` on `refileApplication`, a test shows the second one answered, and `api-sync-report.md` is re-run with a PASS verdict.",
+      "files_hint": [
+        "services/core/api/openapi.yaml",
+        "docs/features/association-onboarding/contracts/openapi.yaml",
+        "docs/features/association-onboarding/contracts/api-sync-report.md",
+        "services/core/internal/identity/applications_follow_test.go",
+        "services/core/internal/governance/adapters/http/gen/",
+        "services/core/internal/identity/adapters/http/gen/",
+        "apps/web/src/api/gen/"
+      ]
+    },
+    {
+      "id": "T61",
+      "title": "Record that the expand, backfill and contract migrations shipped in one release",
+      "layer": "docs",
+      "deps": [
+        "T59"
+      ],
+      "acs": [
+        "AC-04d"
+      ],
+      "dod": "`data-model.md` and `MANIFEST.md` state how the migrations were actually delivered, why that was safe, and the rule for the next expand/contract change.",
+      "files_hint": [
+        "docs/features/association-onboarding/data-model.md",
+        "docs/features/association-onboarding/migrations/MANIFEST.md",
+        "docs/features/association-onboarding/tasks/_epic.md"
+      ]
+    },
+    {
+      "id": "T62",
+      "title": "Serve the roster: list, add and change члени правління with their position and decision",
+      "layer": "ports",
+      "deps": [
+        "T51",
+        "T58",
+        "T59"
+      ],
+      "acs": [
+        "AC-09",
+        "AC-16b",
+        "AC-20",
+        "AC-25"
+      ],
+      "dod": "Handler tests show the approved голова listing the roster with `position` and `decision_id` on each entry, adding and changing a член правління, a 422 that names every broken field, and the three operations refused for a person off the roster and for a вимкнене ОСББ.",
+      "files_hint": [
+        "services/core/internal/governance/app/roster.go",
+        "services/core/internal/governance/adapters/postgres/roster.go",
+        "services/core/internal/governance/adapters/postgres/roster_write.go",
+        "services/core/internal/governance/adapters/postgres/queries/roster.sql",
+        "services/core/internal/governance/adapters/http/board_members.go",
+        "services/core/internal/governance/adapters/http/stubs.go",
+        "services/core/internal/governance/module.go",
+        "services/core/internal/identity/stubs_test.go"
+      ]
+    },
+    {
+      "id": "T63",
+      "title": "Serve the реєстр протоколів: search and the signed protocol",
+      "layer": "ports",
+      "deps": [
+        "T62"
+      ],
+      "acs": [
+        "AC-09",
+        "AC-26"
+      ],
+      "dod": "Integration tests over seeded signed protocols show `searchRegistry` returning cursor pages newest first and an empty page for a new association, and `getSignedProtocol` returning the signed protocol with its file reference, for an enabled and for a вимкнене ОСББ alike.",
+      "files_hint": [
+        "services/core/internal/governance/app/registry.go",
+        "services/core/internal/governance/adapters/postgres/registry.go",
+        "services/core/internal/governance/adapters/postgres/queries/registry.sql",
+        "services/core/internal/governance/adapters/http/registry.go",
+        "services/core/internal/governance/adapters/http/stubs.go",
+        "services/core/internal/governance/governancetest/",
+        "services/core/internal/identity/middleware_readonly_test.go"
+      ]
+    },
+    {
+      "id": "T64",
+      "title": "Serve file downloads, and only signed copies while the association is read-only",
+      "layer": "ports",
+      "deps": [
+        "T58",
+        "T63"
+      ],
+      "acs": [
+        "AC-25",
+        "AC-26"
+      ],
+      "dod": "A member downloads the signed copy of a signed protocol as an attachment in an enabled and in a вимкнене ОСББ, and a file that no signed snapshot pins is refused with «Доступ призупинено» while the association is disabled.",
+      "files_hint": [
+        "services/core/internal/governance/app/files.go",
+        "services/core/internal/governance/adapters/postgres/files.go",
+        "services/core/internal/governance/adapters/postgres/queries/files.sql",
+        "services/core/internal/governance/adapters/http/files.go",
+        "services/core/internal/governance/adapters/http/stubs.go",
+        "services/core/internal/governance/module.go",
+        "services/core/cmd/api/main.go",
+        "services/core/internal/governance/adapters/filesfake/"
+      ]
+    },
+    {
+      "id": "T65",
+      "title": "Serve справи and document upload behind the storage guard",
+      "layer": "ports",
+      "deps": [
+        "T64"
+      ],
+      "acs": [
+        "AC-25",
+        "AC-28"
+      ],
+      "dod": "Handler tests show a справа created, listed and opened, a document attached through the fake `Files` once the storage is connected, 409 `governance.drive_not_connected` before that, and every change refused in a вимкнене ОСББ.",
+      "files_hint": [
+        "services/core/internal/governance/domain/case.go",
+        "services/core/internal/governance/app/cases.go",
+        "services/core/internal/governance/adapters/postgres/cases.go",
+        "services/core/internal/governance/adapters/postgres/queries/cases.sql",
+        "services/core/internal/governance/adapters/http/cases.go",
+        "services/core/internal/governance/adapters/http/stubs.go",
+        "services/core/internal/governance/module.go"
+      ]
+    },
+    {
+      "id": "T66",
+      "title": "Point «Увійти» at the API and build every API link from the generated URL helpers",
+      "layer": "ui",
+      "deps": [],
+      "acs": [
+        "AC-04d",
+        "AC-05"
+      ],
+      "dod": "A component test shows the sign-in link equal to `getStartSignInUrl()`, and no file outside `api/gen` spells an API path by hand.",
+      "files_hint": [
+        "apps/web/src/features/identity/shell/sign-in-page.tsx",
+        "apps/web/src/features/identity/shell/shell.test.tsx",
+        "apps/web/src/features/identity/storage/storage-line.tsx",
+        "apps/web/src/features/identity/association/extract-href.ts",
+        "apps/web/src/features/identity/association/association-card.tsx",
+        "apps/web/src/features/identity/association/roster-decision-mark.tsx"
+      ]
+    },
+    {
+      "id": "T67",
+      "title": "Give the оператор's section an index, its own navigation and one access guard",
+      "layer": "ui",
+      "deps": [
+        "T66"
+      ],
+      "acs": [
+        "AC-16",
+        "AC-16b",
+        "AC-21"
+      ],
+      "dod": "Component tests show «Оператор» opening the queue, links between the queue and the associations list, a non-оператор sent to `/no-access` and an expired session sent to `/sign-in` from every operator page.",
+      "files_hint": [
+        "apps/web/src/routes/operator.tsx",
+        "apps/web/src/routes/operator.index.tsx",
+        "apps/web/src/components/app-shell.tsx",
+        "apps/web/src/features/identity/shell/association-picker.tsx",
+        "apps/web/src/features/identity/shell/shell.test.tsx",
+        "apps/web/src/features/identity/operator/queue.tsx",
+        "apps/web/src/features/identity/operator/associations.tsx",
+        "apps/web/src/features/identity/operator/review-page.tsx"
+      ]
+    },
+    {
+      "id": "T68",
+      "title": "Put the association card in the navigation and the suspended notice in the association layout",
+      "layer": "ui",
+      "deps": [
+        "T67"
+      ],
+      "acs": [
+        "AC-04d",
+        "AC-21",
+        "AC-25",
+        "AC-27",
+        "AC-29"
+      ],
+      "dod": "Component tests show the card linked from the sidebar and the picker, «Доступ призупинено» with its reason on every page under `/o/$associationId` of a вимкнене ОСББ, the mobile case card opening the protocol under the association, and the association's own name in the mobile top bar.",
+      "files_hint": [
+        "apps/web/src/components/app-shell.tsx",
+        "apps/web/src/routes/o.$associationId.tsx",
+        "apps/web/src/routes/index.tsx",
+        "apps/web/src/features/identity/shell/association-picker.tsx",
+        "apps/web/src/features/identity/association/suspended-notice.tsx",
+        "apps/web/src/features/governance/cases-screen.tsx",
+        "apps/web/src/i18n/uk.ts"
+      ]
+    },
+    {
+      "id": "T69",
+      "title": "Review the latest filing with its latest check, and let the оператор download the extract",
+      "layer": "ui",
+      "deps": [
+        "T67"
+      ],
+      "acs": [
+        "AC-03",
+        "AC-06",
+        "AC-08",
+        "AC-15"
+      ],
+      "dod": "Component tests with two filings show the page presenting, checking and deciding the newest one with its latest check, and a download link to the extract of each filing.",
+      "files_hint": [
+        "apps/web/src/features/identity/operator/review-page.tsx",
+        "apps/web/src/features/identity/operator/review-page.test.tsx",
+        "apps/web/src/features/identity/operator/review-page.stories.tsx",
+        "apps/web/src/features/identity/operator/check-form.tsx",
+        "apps/web/src/i18n/uk.ts"
+      ]
+    },
+    {
+      "id": "T70",
+      "title": "Label the source of every value on the review page and show competing заявки side by side",
+      "layer": "ui",
+      "deps": [
+        "T60",
+        "T69"
+      ],
+      "acs": [
+        "AC-04c",
+        "AC-10",
+        "AC-19b"
+      ],
+      "dod": "Component tests assert each value of AC-10 with its source label one by one, and a review of a заявка with a competitor lists the other заявки with links, with the marker in the queue as well.",
+      "files_hint": [
+        "apps/web/src/features/identity/operator/review-page.tsx",
+        "apps/web/src/features/identity/operator/review-page.test.tsx",
+        "apps/web/src/features/identity/operator/review-page.stories.tsx",
+        "apps/web/src/features/identity/operator/source-label.tsx",
+        "apps/web/src/features/identity/operator/queue.tsx",
+        "apps/web/src/i18n/uk.ts",
+        "services/core/api/openapi.yaml",
+        "docs/features/association-onboarding/contracts/openapi.yaml"
+      ]
+    },
+    {
+      "id": "T71",
+      "title": "Write the warnings and the field errors in Ukrainian from structured data",
+      "layer": "ui",
+      "deps": [
+        "T70"
+      ],
+      "acs": [
+        "AC-02",
+        "AC-11",
+        "AC-11b"
+      ],
+      "dod": "Component tests fed with the exact payloads the backend sends show «розбіжність імен» with the three names, the extract-age warning with a `дд.мм.рррр` date, and a Ukrainian message next to each broken field of the filing form, with no English server text on either screen.",
+      "files_hint": [
+        "apps/web/src/features/identity/operator/review-page.tsx",
+        "apps/web/src/features/identity/operator/review-page.test.tsx",
+        "apps/web/src/features/identity/operator/review-page.stories.tsx",
+        "apps/web/src/features/identity/applications/filing-form.tsx",
+        "apps/web/src/features/identity/applications/filing-form.test.tsx",
+        "apps/web/src/features/identity/applications/filing-form.stories.tsx",
+        "apps/web/src/i18n/uk.ts"
+      ]
+    },
+    {
+      "id": "T72",
+      "title": "Show «повноваження завершено» in the card history only when the decision ended a term",
+      "layer": "ports",
+      "deps": [
+        "T51",
+        "T60"
+      ],
+      "acs": [
+        "AC-19c",
+        "AC-20"
+      ],
+      "dod": "The card of an association whose transfer ended a голова shows «повноваження завершено» with that person's name, and the card of the AC-19c association shows «призначено» only; a backend test and a component test assert both.",
+      "files_hint": [
+        "services/core/api/openapi.yaml",
+        "docs/features/association-onboarding/contracts/openapi.yaml",
+        "services/core/internal/identity/adapters/postgres/queries/card.sql",
+        "services/core/internal/identity/adapters/postgres/card.go",
+        "services/core/internal/identity/adapters/http/card.go",
+        "services/core/internal/identity/card_test.go",
+        "apps/web/src/features/identity/association/association-card.tsx",
+        "apps/web/src/features/identity/association/association-card.test.tsx",
+        "apps/web/src/features/identity/association/association-card.stories.tsx"
+      ]
+    },
+    {
+      "id": "T73",
+      "title": "Show the оператор's contact address in every environment",
+      "layer": "ui",
+      "deps": [],
+      "acs": [
+        "AC-05"
+      ],
+      "dod": "`mise run dev` shows the contact line on a pending заявка, and a production build without the address fails with a message that names the variable.",
+      "files_hint": [
+        "apps/web/src/features/identity/applications/status-line.tsx",
+        "apps/web/src/features/identity/applications/status-line.test.tsx",
+        "apps/web/vite.config.ts",
+        "apps/web/.env.example",
+        "mprocs.yaml",
+        "README.md"
+      ]
+    },
+    {
+      "id": "T74",
+      "title": "Give every page a loading state and one fallback for a failed request",
+      "layer": "ui",
+      "deps": [
+        "T68"
+      ],
+      "acs": [
+        "AC-05",
+        "AC-07"
+      ],
+      "dod": "Component tests show each listed page rendering a skeleton while loading, `/sign-in` on 401, `/no-access` on the access codes and an alert with «Спробувати ще раз» on 5xx or a network error.",
+      "files_hint": [
+        "apps/web/src/routes/index.tsx",
+        "apps/web/src/routes/o.$associationId.tsx",
+        "apps/web/src/routes/o.$associationId.association.tsx",
+        "apps/web/src/routes/applications.index.tsx",
+        "apps/web/src/routes/storage.callback.tsx",
+        "apps/web/src/features/identity/applications/application-detail.tsx",
+        "apps/web/src/features/identity/applications/application-detail.test.tsx",
+        "apps/web/src/features/identity/storage/storage-line.tsx",
+        "apps/web/src/features/identity/storage/storage-line.test.tsx",
+        "apps/web/src/features/identity/shell/"
+      ]
+    },
+    {
+      "id": "T75",
+      "title": "Report every failed operator action and keep focus after a decision",
+      "layer": "ui",
+      "deps": [
+        "T67"
+      ],
+      "acs": [
+        "AC-13",
+        "AC-15",
+        "AC-22"
+      ],
+      "dod": "Component tests show a generic message for an unexpected failure of disable and enable, each broken field of the check form named, the review refetched after a 409 on a decision, and focus on the announced outcome after a rejection.",
+      "files_hint": [
+        "apps/web/src/features/identity/operator/associations.tsx",
+        "apps/web/src/features/identity/operator/associations.test.tsx",
+        "apps/web/src/features/identity/operator/check-form.tsx",
+        "apps/web/src/features/identity/operator/decision-panel.tsx",
+        "apps/web/src/features/identity/operator/decision-panel.test.tsx",
+        "apps/web/src/features/identity/operator/decision-panel.stories.tsx",
+        "apps/web/src/i18n/uk.ts"
+      ]
+    },
+    {
+      "id": "T76",
+      "title": "Format every date with one Europe/Kyiv formatter",
+      "layer": "ui",
+      "deps": [],
+      "acs": [
+        "AC-05",
+        "AC-29"
+      ],
+      "dod": "A test shows a decision at 2026-11-10T22:30Z rendered as 11.11.2026 on the applicant's page, the operator panel and the card, and only one date formatter exists in the web app.",
+      "files_hint": [
+        "apps/web/src/i18n/uk.ts",
+        "apps/web/src/features/identity/applications/format-date.ts",
+        "apps/web/src/features/identity/operator/source-label.tsx",
+        "apps/web/src/features/identity/applications/application-detail.tsx",
+        "apps/web/src/features/identity/operator/decision-panel.tsx",
+        "apps/web/src/features/identity/association/association-card.tsx"
+      ]
+    },
+    {
+      "id": "T77",
+      "title": "Reuse InlineAlert, the generated hooks and router links across the identity screens",
+      "layer": "ui",
+      "deps": [
+        "T71",
+        "T74",
+        "T75"
+      ],
+      "acs": [
+        "AC-13",
+        "AC-21"
+      ],
+      "dod": "No identity screen renders an ad-hoc alert paragraph, hand-made query key or in-app `<a href>`, and `label` and `dialog` are either the shadcn primitives or listed as deviations in the design system document.",
+      "files_hint": [
+        "apps/web/src/features/identity/",
+        "apps/web/src/routes/",
+        "apps/web/src/components/ui/label.tsx",
+        "apps/web/src/components/ui/dialog.tsx",
+        "apps/web/src/features/governance/inline-alert.tsx",
+        "docs/design/design-system.md"
+      ]
+    },
+    {
+      "id": "T78",
+      "title": "Build the roster screen: list, add and change члени правління, with the decision mark on each голова",
+      "layer": "ui",
+      "deps": [
+        "T62",
+        "T68"
+      ],
+      "acs": [
+        "AC-09",
+        "AC-20"
+      ],
+      "dod": "Component tests show the roster listed from `listBoardMembers`, a член правління added and changed with every 422 field named, and the entries of the new and the previous голова carrying «призначено / повноваження завершено за запитом на передачу від …, схвалено оператором …» with a link to the extract.",
+      "files_hint": [
+        "apps/web/src/routes/o.$associationId.roster.tsx",
+        "apps/web/src/features/governance/roster/",
+        "apps/web/src/features/identity/association/roster-decision-mark.tsx",
+        "apps/web/src/components/app-shell.tsx",
+        "apps/web/src/i18n/uk.ts"
+      ]
+    },
+    {
+      "id": "T79",
+      "title": "Build the реєстр протоколів: search and the signed protocol with its download",
+      "layer": "ui",
+      "deps": [
+        "T63",
+        "T64",
+        "T68"
+      ],
+      "acs": [
+        "AC-09",
+        "AC-26"
+      ],
+      "dod": "Component tests show the registry searched with cursor pages, an empty registry explained, and the signed protocol view with a download link and no edit, upload or withdraw control; the same screens render under the suspended notice.",
+      "files_hint": [
+        "apps/web/src/routes/o.$associationId.registry.index.tsx",
+        "apps/web/src/routes/o.$associationId.registry.$protocolId.tsx",
+        "apps/web/src/features/governance/registry/",
+        "apps/web/src/components/app-shell.tsx",
+        "apps/web/src/i18n/uk.ts"
+      ]
+    },
+    {
+      "id": "T80",
+      "title": "Move the справи list and the case screen to the API, with document upload and the storage message",
+      "layer": "ui",
+      "deps": [
+        "T65",
+        "T68"
+      ],
+      "acs": [
+        "AC-25",
+        "AC-28"
+      ],
+      "dod": "Component tests show the справи list and the case screen loaded from `listCases` and `getCase`, a document uploaded through `addCaseDocument`, the storage message with a link to the card on `governance.drive_not_connected`, and «Доступ призупинено» on a change in a вимкнене ОСББ.",
+      "files_hint": [
+        "apps/web/src/features/governance/cases-screen.tsx",
+        "apps/web/src/features/governance/case-documents.tsx",
+        "apps/web/src/features/governance/api.ts",
+        "apps/web/src/routes/o.$associationId.cases.index.tsx",
+        "apps/web/src/routes/o.$associationId.cases.$caseId.index.tsx",
+        "apps/web/src/features/identity/association/suspended-notice.tsx"
+      ]
+    },
+    {
+      "id": "T81",
+      "title": "Prove the fixed flows end to end by clicking, not by typing addresses",
+      "layer": "tests",
+      "deps": [
+        "T52",
+        "T68",
+        "T71",
+        "T72",
+        "T73"
+      ],
+      "acs": [
+        "AC-04c",
+        "AC-05",
+        "AC-06",
+        "AC-08",
+        "AC-11",
+        "AC-21",
+        "AC-29"
+      ],
+      "dod": "`mise run e2e` passes with: sign-in by the «Увійти» button, the оператор checking and approving a refiled заявка after downloading its extract, the card and the operator pages reached by clicking, competing заявки opened from the queue, and the exact Ukrainian warning text.",
+      "files_hint": [
+        "apps/web/e2e/us02-follow-and-refile.spec.ts",
+        "apps/web/e2e/us03-decide-application.spec.ts",
+        "apps/web/e2e/us06-disable-enable.spec.ts",
+        "apps/web/e2e/us09-association-card.spec.ts",
+        "apps/web/e2e/refusals.spec.ts",
+        "apps/web/e2e/support.ts"
+      ]
+    },
+    {
+      "id": "T82",
+      "title": "Prove the roster, the registry and the document refusal end to end",
+      "layer": "tests",
+      "deps": [
+        "T78",
+        "T79",
+        "T80"
+      ],
+      "acs": [
+        "AC-09",
+        "AC-16b",
+        "AC-20",
+        "AC-26",
+        "AC-28"
+      ],
+      "dod": "`mise run e2e` passes with no `test.fixme` for this feature: the approved голова adds a член правління, an оператор on a roster works as a member there, a member of a вимкнене ОСББ opens the registry and downloads a signed copy whose bytes match, the roster shows the transfer marks, and attaching a document without a storage shows the message.",
+      "files_hint": [
+        "apps/web/e2e/access.spec.ts",
+        "apps/web/e2e/us03-decide-application.spec.ts",
+        "apps/web/e2e/us07-read-only-association.spec.ts",
+        "apps/web/e2e/us08-connect-storage.spec.ts",
+        "apps/web/e2e/us09-association-card.spec.ts",
+        "apps/web/e2e/association-support.ts",
+        "apps/web/playwright.config.ts"
+      ]
+    },
+    {
+      "id": "T83",
+      "title": "Test the decisions and the filings under concurrency",
+      "layer": "tests",
+      "deps": [
+        "T52",
+        "T54"
+      ],
+      "acs": [
+        "AC-04c",
+        "AC-15"
+      ],
+      "dod": "Integration tests run one application approved twice at once, approved and rejected at once, and two filings racing into the pending unique key, and each ends with exactly one recorded outcome and a 409 for the loser.",
+      "files_hint": [
+        "services/core/internal/identity/approval_test.go",
+        "services/core/internal/identity/rejection_test.go",
+        "services/core/internal/identity/applications_file_test.go"
+      ]
+    },
+    {
+      "id": "T84",
+      "title": "Refresh the visual baselines of the review page and the association card",
+      "layer": "tests",
+      "deps": [
+        "T71",
+        "T72",
+        "T77"
+      ],
+      "acs": [
+        "AC-10",
+        "AC-29"
+      ],
+      "dod": "`pnpm --filter @spilno/web test:stories` passes on linux-arm64 and in CI on linux-x64 with baselines that show the new rows.",
+      "files_hint": [
+        "apps/web/src/features/identity/__screenshots__/"
+      ]
+    },
+    {
+      "id": "T85",
+      "title": "Bring the test plan, the trackers and the board-protocol tasks in line with what was built",
+      "layer": "docs",
+      "deps": [
+        "T61",
+        "T81",
+        "T82",
+        "T83",
+        "T84"
+      ],
+      "acs": [
+        "AC-09",
+        "AC-20",
+        "AC-26",
+        "AC-28"
+      ],
+      "dod": "`test-plan.md` maps every AC to the tests that now exist, the board-protocol tracker and task files say what T62–T65 and T78–T80 delivered and what is left there, and the review record lists each finding with the commit that closed it.",
+      "files_hint": [
+        "docs/features/association-onboarding/test-plan.md",
+        "docs/features/association-onboarding/tasks/tracker.md",
+        "docs/features/association-onboarding/_review/review-2026-11-10.md",
+        "docs/features/board-protocol/tasks/tracker.md",
+        "docs/features/board-protocol/tasks/"
       ]
     }
   ]

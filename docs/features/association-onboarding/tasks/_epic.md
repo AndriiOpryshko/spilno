@@ -9,7 +9,7 @@ A голова правління connects their association to Спільно, 
 ## Scope
 
 - **In:** surfaces `[backend-service, web-frontend]` (sad frontmatter); contexts `identity` (applications, the оператор's queue, association state, storage connection, sign-in and the guards), `governance` (positions on the roster, the roster facade), `finance` (the association on contracts), `platform` (`db.InAssociation`, two database roles, test fixtures); the 20 staged migrations; the contract delta and the path move of ADR-0002 in `services/core/api/openapi.yaml`; the SPA shell, the applicant's pages, the `/operator/` section, the association card and the storage connection.
-- **Out:** everything in PRD §3 (no automatic check of the КЕП or the extract, no periodic re-check of ЄДР, no notifications, one оператор, no co-owners' accounts); editing the association's name and address by the board (named in PRD §9, no AC — api-sync-report §D); a River job (none in this feature); the board-protocol screens and handlers themselves (see «Board-protocol tasks» below).
+- **Out:** everything in PRD §3 (no automatic check of the КЕП or the extract, no periodic re-check of ЄДР, no notifications, one оператор, no co-owners' accounts); editing the association's name and address by the board (named in PRD §9, no AC — api-sync-report §D); a River job (none in this feature); the board-protocol screens and handlers themselves (see «Board-protocol tasks» below), apart from the roster, the registry read, the file download and справи, which the review follow-up brings in (see «Review follow-up»).
 
 ## Task map
 
@@ -226,7 +226,7 @@ See [tracker.md](./tracker.md) for status. Total 49 tasks, ~29.5 person-days (S 
 | [T32](./T32-memberships-and-association-card.md) | Serve my associations and the association card with the confirmation chain | ports | T19, T26 | AC-04d, AC-19c, AC-20, AC-29 | M |
 | [T33](./T33-connect-storage-in-app.md) | Connect the association's document storage from the web app | ports | T14, T19, T20 | AC-27, AC-28b | L |
 | [T34](./T34-refuse-documents-without-storage.md) | Refuse case documents and assistant turns while the storage is not connected | ports | T02, T03, T19 | AC-28 | S |
-| [T35](./T35-ui-shell-sign-in-picker.md) | Build the signed-in shell: sign-in page, association picker, routes under /o/$associationId and the оператор's entry | ui | T02 | AC-04d, AC-07, AC-16, AC-16b | L |
+| [T35](./T35-ui-shell-sign-in-picker.md) | Build the signed-in shell: sign-in page, association picker, routes under /o/$associationId and the оператор's entry | ui | T02 | AC-04d, AC-07, AC-16, AC-16b, AC-19 | L |
 | [T36](./T36-ui-filing-forms.md) | Build the filing forms for a заявка на підключення and a запит на передачу | ui | T35 | AC-01, AC-02, AC-04, AC-04b, AC-17, AC-18, AC-30 | L |
 | [T37](./T37-ui-my-applications.md) | Show my applications: status, the оператор's contact, the reason and refiling | ui | T36 | AC-05, AC-06, AC-14 | M |
 | [T38](./T38-ui-operator-queue-review.md) | Build the оператор's queue and the review page with sources, warnings and the check form | ui | T36 | AC-04c, AC-10, AC-11, AC-11b, AC-16, AC-19b, AC-28b | L |
@@ -243,6 +243,175 @@ See [tracker.md](./tracker.md) for status. Total 49 tasks, ~29.5 person-days (S 
 | [T49](./T49-security-review-record.md) | Run and record the security review that PRD §6.1 requires | docs | T45, T46 | AC-04c, AC-07, AC-16b, AC-16c, AC-28b | M |
 
 **AC coverage:** all 42 acceptance criteria of PRD §5 are in at least one task's `acs` (checked against the AC headings of PRD §5 when these files were written). The NFRs of PRD §6 without an AC are carried by T12 (integrity of the insert-only tables), T20 and T21 (isolation), T29 and T31 (effect of a decision on the next request), T22 (file size, filing latency) and T47 (latency and throughput).
+
+## Review follow-up (2026-11-10)
+
+The [feature review](../_review/review-2026-11-10.md) ran after PR #48 was merged and asked for changes: 22 stage-1 findings (F01–F22) and 15 stage-2 findings (B1–B9, W1–W6), all resolved as «fix now». T50–T85 carry them on a new branch off `main`; T01–T49 stay as built. F22 (no `ui` task claimed AC-19) is closed by this breakdown itself: T35 now lists AC-19.
+
+Same DAG as [tasks.json](./tasks.json), follow-up tasks only. Parallel starts: T50, T52, T53, T56, T57, T59, T60, T66, T73, T76. Longest chain: 9 phases. ~19.25 person-days.
+
+```mermaid
+flowchart LR
+    T50["T50 infra: kyiv-calendar-day"]:::inf
+    T51["T51 app: carry-term-end-end-previous-head"]:::app
+    T52["T52 ports: refuse-stale-filing-and-foreign-code"]:::prt
+    T53["T53 infra: limit-request-bodies"]:::inf
+    T54["T54 wiring: commit-before-response"]:::wir
+    T55["T55 app: bound-sign-in-and-consent-state"]:::app
+    T56["T56 ports: extract-download-header-and-type-check"]:::prt
+    T57["T57 wiring: refuse-rls-bypassing-role"]:::wir
+    T58["T58 wiring: storage-check-injection-and-pending-gauge"]:::wir
+    T59["T59 migration: index-lower-sign-in-email"]:::mig
+    T60["T60 wiring: contract-disabled-and-refile-codes"]:::wir
+    T61["T61 docs: record-single-release-migrations"]:::doc
+    T62["T62 ports: serve-roster-endpoints"]:::prt
+    T63["T63 ports: serve-registry-read"]:::prt
+    T64["T64 ports: serve-file-download-read-only-check"]:::prt
+    T65["T65 ports: serve-cases-and-document-upload"]:::prt
+    T66["T66 ui: ui-sign-in-link-generated-urls"]:::ui
+    T67["T67 ui: ui-operator-layout-entry-guard"]:::ui
+    T68["T68 ui: ui-association-shell-card-notice"]:::ui
+    T69["T69 ui: ui-review-latest-filing-extract-download"]:::ui
+    T70["T70 ui: ui-review-source-labels-competing"]:::ui
+    T71["T71 ui: ui-ukrainian-warnings-field-errors"]:::ui
+    T72["T72 ports: card-ended-mark-only-when-a-term-ended"]:::prt
+    T73["T73 ui: ui-operator-contact-address"]:::ui
+    T74["T74 ui: ui-shared-problem-fallback"]:::ui
+    T75["T75 ui: ui-mutation-errors-and-focus"]:::ui
+    T76["T76 ui: ui-one-date-formatter"]:::ui
+    T77["T77 ui: ui-reuse-inline-alert-hooks-links"]:::ui
+    T78["T78 ui: ui-roster-screen"]:::ui
+    T79["T79 ui: ui-registry-screens"]:::ui
+    T80["T80 ui: ui-cases-on-api-with-upload"]:::ui
+    T81["T81 tests: e2e-review-fixes-through-clicks"]:::tst
+    T82["T82 tests: e2e-roster-registry-documents"]:::tst
+    T83["T83 tests: concurrency-and-failure-tests"]:::tst
+    T84["T84 tests: refresh-visual-baselines"]:::tst
+    T85["T85 docs: sync-test-plan-tracker-board-protocol"]:::doc
+    T50 --> T51
+    T50 --> T54
+    T54 --> T55
+    T57 --> T58
+    T59 --> T61
+    T51 --> T62
+    T58 --> T62
+    T59 --> T62
+    T62 --> T63
+    T58 --> T64
+    T63 --> T64
+    T64 --> T65
+    T66 --> T67
+    T67 --> T68
+    T67 --> T69
+    T60 --> T70
+    T69 --> T70
+    T70 --> T71
+    T51 --> T72
+    T60 --> T72
+    T68 --> T74
+    T67 --> T75
+    T71 --> T77
+    T74 --> T77
+    T75 --> T77
+    T62 --> T78
+    T68 --> T78
+    T63 --> T79
+    T64 --> T79
+    T68 --> T79
+    T65 --> T80
+    T68 --> T80
+    T52 --> T81
+    T68 --> T81
+    T71 --> T81
+    T72 --> T81
+    T73 --> T81
+    T78 --> T82
+    T79 --> T82
+    T80 --> T82
+    T52 --> T83
+    T54 --> T83
+    T71 --> T84
+    T72 --> T84
+    T77 --> T84
+    T61 --> T85
+    T81 --> T85
+    T82 --> T85
+    T83 --> T85
+    T84 --> T85
+    classDef mig fill:#fde68a,stroke:#92400e,color:#111
+    classDef dom fill:#bbf7d0,stroke:#166534,color:#111
+    classDef inf fill:#bfdbfe,stroke:#1e40af,color:#111
+    classDef app fill:#ddd6fe,stroke:#5b21b6,color:#111
+    classDef prt fill:#fbcfe8,stroke:#9d174d,color:#111
+    classDef ui fill:#fed7aa,stroke:#9a3412,color:#111
+    classDef wir fill:#e5e7eb,stroke:#374151,color:#111
+    classDef tst fill:#fecaca,stroke:#991b1b,color:#111
+    classDef doc fill:#f5f5f4,stroke:#57534e,color:#111
+```
+
+| Task | Title | Layer | Blocked by | ACs | Findings | Est. |
+|---|---|---|---|---|---|---|
+| [T50](./T50-kyiv-calendar-day.md) | Take «today» for every roster date from the Europe/Kyiv calendar | infra | — | AC-09, AC-19, AC-29 | F07 | M |
+| [T51](./T51-carry-term-end-end-previous-head.md) | Carry the filed term end into the roster and end the previous голова whatever their term end | app | T50 | AC-08, AC-19, AC-19c, AC-30 | F05, F06 | M |
+| [T52](./T52-refuse-stale-filing-and-foreign-code.md) | Refuse a decision on a stale filing and a card transfer that claims another association's code | ports | — | AC-15, AC-19c | F01 (backend half), B3 | M |
+| [T53](./T53-limit-request-bodies.md) | Limit request bodies and read time before the request validator runs | infra | — | AC-02 | B1 | M |
+| [T54](./T54-commit-before-response.md) | Commit the association transaction before the response leaves, and keep outside calls out of it | wiring | T50 | AC-25, AC-27 | B2 | L |
+| [T55](./T55-bound-sign-in-and-consent-state.md) | Bound the sign-in and storage-consent state | app | T54 | AC-05, AC-27 | B4 | M |
+| [T56](./T56-extract-download-header-and-type-check.md) | Send a valid Content-Disposition on the review download and tighten the extract type check | ports | — | AC-02, AC-03 | B5, B6 | S |
+| [T57](./T57-refuse-rls-bypassing-role.md) | Refuse to start when the serving role bypasses row-level security | wiring | — | AC-04d, AC-07 | F16 | S |
+| [T58](./T58-storage-check-injection-and-pending-gauge.md) | Pass the storage check into governance from cmd/api and count the pending age from the latest filing | wiring | T57 | AC-05, AC-28 | B7, B8 | S |
+| [T59](./T59-index-lower-sign-in-email.md) | Make the memberships lookup use an index on the lowered sign-in address | migration | — | AC-04d | F20 | S |
+| [T60](./T60-contract-disabled-and-refile-codes.md) | Advertise the two missing problem codes in the contract and reconcile the sync report | wiring | — | AC-06, AC-25 | F17, F18, F21 | M |
+| [T61](./T61-record-single-release-migrations.md) | Record that the expand, backfill and contract migrations shipped in one release | docs | T59 | AC-04d | F19 | S |
+| [T62](./T62-serve-roster-endpoints.md) | Serve the roster: list, add and change члени правління with their position and decision | ports | T51, T58, T59 | AC-09, AC-16b, AC-20, AC-25 | F15 | L |
+| [T63](./T63-serve-registry-read.md) | Serve the реєстр протоколів: search and the signed protocol | ports | T62 | AC-09, AC-26 | F15 | L |
+| [T64](./T64-serve-file-download-read-only-check.md) | Serve file downloads, and only signed copies while the association is read-only | ports | T58, T63 | AC-25, AC-26 | F15 | M |
+| [T65](./T65-serve-cases-and-document-upload.md) | Serve справи and document upload behind the storage guard | ports | T64 | AC-25, AC-28 | F15 | L |
+| [T66](./T66-ui-sign-in-link-generated-urls.md) | Point «Увійти» at the API and build every API link from the generated URL helpers | ui | — | AC-04d, AC-05 | F02, W5 (hand-built URLs) | S |
+| [T67](./T67-ui-operator-layout-entry-guard.md) | Give the оператор's section an index, its own navigation and one access guard | ui | T66 | AC-16, AC-16b, AC-21 | F03, W1 | M |
+| [T68](./T68-ui-association-shell-card-notice.md) | Put the association card in the navigation and the suspended notice in the association layout | ui | T67 | AC-04d, AC-21, AC-25, AC-27, AC-29 | F08, F14 | M |
+| [T69](./T69-ui-review-latest-filing-extract-download.md) | Review the latest filing with its latest check, and let the оператор download the extract | ui | T67 | AC-03, AC-06, AC-08, AC-15 | F01 (web half), F04 | M |
+| [T70](./T70-ui-review-source-labels-competing.md) | Label the source of every value on the review page and show competing заявки side by side | ui | T60, T69 | AC-04c, AC-10, AC-19b | F10, F11 | M |
+| [T71](./T71-ui-ukrainian-warnings-field-errors.md) | Write the warnings and the field errors in Ukrainian from structured data | ui | T70 | AC-02, AC-11, AC-11b | F12 | M |
+| [T72](./T72-card-ended-mark-only-when-a-term-ended.md) | Show «повноваження завершено» in the card history only when the decision ended a term | ports | T51, T60 | AC-19c, AC-20 | F09 | M |
+| [T73](./T73-ui-operator-contact-address.md) | Show the оператор's contact address in every environment | ui | — | AC-05 | F13 | S |
+| [T74](./T74-ui-shared-problem-fallback.md) | Give every page a loading state and one fallback for a failed request | ui | T68 | AC-05, AC-07 | W2 | M |
+| [T75](./T75-ui-mutation-errors-and-focus.md) | Report every failed operator action and keep focus after a decision | ui | T67 | AC-13, AC-15, AC-22 | W3, W6 | M |
+| [T76](./T76-ui-one-date-formatter.md) | Format every date with one Europe/Kyiv formatter | ui | — | AC-05, AC-29 | W4 | S |
+| [T77](./T77-ui-reuse-inline-alert-hooks-links.md) | Reuse InlineAlert, the generated hooks and router links across the identity screens | ui | T71, T74, T75 | AC-13, AC-21 | W5 | M |
+| [T78](./T78-ui-roster-screen.md) | Build the roster screen: list, add and change члени правління, with the decision mark on each голова | ui | T62, T68 | AC-09, AC-20 | F15 | L |
+| [T79](./T79-ui-registry-screens.md) | Build the реєстр протоколів: search and the signed protocol with its download | ui | T63, T64, T68 | AC-09, AC-26 | F15 | M |
+| [T80](./T80-ui-cases-on-api-with-upload.md) | Move the справи list and the case screen to the API, with document upload and the storage message | ui | T65, T68 | AC-25, AC-28 | F15, F08 (the mock) | L |
+| [T81](./T81-e2e-review-fixes-through-clicks.md) | Prove the fixed flows end to end by clicking, not by typing addresses | tests | T52, T68, T71, T72, T73 | AC-04c, AC-05, AC-06, AC-08, AC-11, AC-21, AC-29 | F01, F02, F03, F04, F08, F11, F12 (e2e halves) | M |
+| [T82](./T82-e2e-roster-registry-documents.md) | Prove the roster, the registry and the document refusal end to end | tests | T78, T79, T80 | AC-09, AC-16b, AC-20, AC-26, AC-28 | F15 | L |
+| [T83](./T83-concurrency-and-failure-tests.md) | Test the decisions and the filings under concurrency | tests | T52, T54 | AC-04c, AC-15 | B9 | M |
+| [T84](./T84-refresh-visual-baselines.md) | Refresh the visual baselines of the review page and the association card | tests | T71, T72, T77 | AC-10, AC-29 | follow-up of F09, F10, F11, F12 | S |
+| [T85](./T85-sync-test-plan-tracker-board-protocol.md) | Bring the test plan, the trackers and the board-protocol tasks in line with what was built | docs | T61, T81, T82, T83, T84 | AC-09, AC-20, AC-26, AC-28 | F15 (bookkeeping), F21 | M |
+
+**Finding coverage:** every finding of the review record is named by at least one task above, F22 excepted (closed here). F15 is carried by T62–T65 (handlers), T78–T80 (screens) and T82 (e2e).
+
+### Board-protocol work carried here (F15)
+
+The product owner chose to deliver AC-09, AC-20, AC-26, AC-28 and the on-roster part of AC-16b in this feature. That takes work out of six board-protocol tasks; each is built once, here, and T85 updates the board-protocol tracker.
+
+| board-protocol task | Carried here by | Left in board-protocol |
+|---|---|---|
+| [T10](../../board-protocol/tasks/T10-settings-roster-endpoints.md) settings and roster endpoints | T62: the three board-member operations | the settings operations, `governance.register_start_locked` |
+| [T31](../../board-protocol/tasks/T31-registry-search.md) registry search | T63: whole | nothing |
+| [T21](../../board-protocol/tasks/T21-cases-endpoints.md) cases and files | T64: `downloadFile` with the ADR-0007 check; T65: the four case operations | the domain event for the needs-review hook, the upload-duration metric |
+| [T35](../../board-protocol/tasks/T35-ui-settings-roster.md) settings and roster screens | T78: the roster screen | the settings screen |
+| [T43](../../board-protocol/tasks/T43-ui-registry.md) registry screens | T79: whole | nothing |
+| [T36](../../board-protocol/tasks/T36-ui-cases-documents.md) cases and documents screens | T80: whole | nothing |
+
+Not carried: the lock with a signed copy (board-protocol T29) and everything before it. Until it exists no protocol can be signed in the app, so the registry is proven on seeded signed protocols (T63, T82), and the Drive adapter (board-protocol T13) stays there: files are served through the in-memory `Files` fake under `SPILNO_DEV_STORAGE=true` and answer 503 without it (T64).
+
+### Risks of the follow-up
+
+- **T54 changes the path of every association-scoped request** (commit before the response). It is the one L task with a wide blast radius; the review did not verify B2, so the task starts by reproducing it.
+- **T51 fixes two defects that hide each other.** Storing the filed term end without the change to `GetEntryOfDecision` would stop transfers from ending the previous голова.
+- **Three findings rest on the reviewer's read alone** (B3 in T52, F18 in T60, F20 in T59): each task starts with a failing test or an `EXPLAIN`, and records in the review record if the finding does not reproduce.
+- **T65 and T80 are the slice to drop first.** They exist only for the UI half of AC-28; without them that half needs an explicit de-scope in PRD §8.
+- **Contract lane.** T60, T70 and T72 edit `services/core/api/openapi.yaml`; their shared `files_hint` serializes them, and each lands with its generated code.
 
 ## Board-protocol tasks this epic replaces or needs
 

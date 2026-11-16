@@ -3,7 +3,7 @@ id: T35
 title: "Build the signed-in shell: sign-in page, association picker, routes under /o/$associationId and the оператор's entry"
 layer: "ui"
 deps: ["T02"]
-acs: ["AC-04d", "AC-07", "AC-16", "AC-16b"]
+acs: ["AC-04d", "AC-07", "AC-16", "AC-16b", "AC-19"]
 files_hint:
   - "apps/web/src/routes/__root.tsx"
   - "apps/web/src/routes/index.tsx"
@@ -28,7 +28,7 @@ status: "todo"
 
 [ADR-0001](../adr/0001-serve-the-operator-back-office-as-an-operator-only-section-of-the-web-app.md), [ADR-0002](../adr/0002-put-the-association-id-in-every-association-scoped-path.md), [ADR-0009](../adr/0009-treat-the-operator-role-and-a-roster-membership-as-independent-grants-on-one-account.md); [sad](../sad.md) §4 pillar 5: association routes under `/o/{association_id}/`, a picker after sign-in, `/applications` for an applicant, `/operator/` for the оператор. The choice is in the address, not in the session (AC-04d: two windows, two associations).
 
-**Satisfies:** [PRD §5](../PRD.md) AC-04d, AC-07, AC-16, AC-16b · **Blocked by:** [T02](./T02-merge-contract-delta.md)
+**Satisfies:** [PRD §5](../PRD.md) AC-04d, AC-07, AC-16, AC-16b, AC-19 · **Blocked by:** [T02](./T02-merge-contract-delta.md)
 
 ## What
 

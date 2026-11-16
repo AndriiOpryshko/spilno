@@ -125,6 +125,7 @@ export const uk = {
     kindTransfer: 'Запит на передачу',
     reviewTitle: 'Розгляд',
     enteredByApplicant: 'введено заявником',
+    term: 'Строк повноважень',
     notChecked: 'не перевірено',
     fromExtract: 'з витягу з ЄДР, внесено оператором',
     fromSignature: 'з КЕП, перевірено оператором',

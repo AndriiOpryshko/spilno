@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import type { Meta, StoryObj } from '@storybook/react-vite';
+import type { Decorator, Meta, StoryObj } from '@storybook/react-vite';
+import { RouterProvider, createMemoryHistory, createRootRoute, createRouter } from '@tanstack/react-router';
 import { expect, within } from 'storybook/test';
 import { expect as vitestExpect } from 'vitest';
 import { page } from 'vitest/browser';
@@ -61,11 +62,21 @@ const serve = (review: ApplicationReview) => () => {
     Promise.resolve(new Response(JSON.stringify(review), { status: 200, headers: { 'Content-Type': 'application/json' } }));
 };
 
+// The competing list links to the other заявки.
+const withRouter: Decorator = (Story) => {
+  const router = createRouter({
+    routeTree: createRootRoute({ component: () => <Story /> }),
+    history: createMemoryHistory({ initialEntries: ['/'] }),
+  });
+  return <RouterProvider router={router} />;
+};
+
 const meta = {
   title: 'Identity/ReviewPage',
   component: ReviewPage,
   args: { applicationId: appId },
   decorators: [
+    withRouter,
     (Story) => (
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
         <Story />
@@ -107,10 +118,64 @@ export const OldExtract: Story = {
   },
 };
 
+const otherIds = ['00000000-0000-7000-8000-0000000000a2', '00000000-0000-7000-8000-0000000000a3'];
+
+const competitor = (id: string, kind: 'connection' | 'transfer', applicant: string, filedAt: string): ApplicationReview => ({
+  ...base,
+  application: { ...base.application, id, kind, filed_at: filedAt, created_at: filedAt },
+  filings: [{ ...base.filings[0]!, id: `${id}-filing`, applicant_full_name: applicant, created_at: filedAt }],
+});
+
+// The page asks for each competitor by its own id.
+const serveEach = (reviews: Record<string, ApplicationReview>) => () => {
+  globalThis.fetch = (input) => {
+    const path = new URL(String(input), 'http://localhost').pathname;
+    const found = Object.entries(reviews).find(([id]) => path.endsWith(`/identity/operator/applications/${id}`));
+    return Promise.resolve(
+      new Response(JSON.stringify(found?.[1] ?? {}), { status: found ? 200 : 404, headers: { 'Content-Type': 'application/json' } }),
+    );
+  };
+};
+
 export const Competing: Story = {
   beforeEach: serve({ ...base, competing_application_ids: ['00000000-0000-7000-8000-0000000000a2'] }),
   play: async ({ canvasElement }) => {
     await expect(await within(canvasElement).findByText(/конкуруюча заявка/)).toBeInTheDocument();
+  },
+};
+
+export const TwoCompetingApplications: Story = {
+  beforeEach: serveEach({
+    [appId]: { ...base, competing_application_ids: otherIds },
+    [otherIds[0]!]: competitor(otherIds[0]!, 'connection', 'Конкурент Перший', '2026-11-12T09:00:00Z'),
+    [otherIds[1]!]: competitor(otherIds[1]!, 'connection', 'Конкурент Другий', '2026-11-13T09:00:00Z'),
+  }),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(await canvas.findByText('Конкурент Перший')).toBeInTheDocument();
+    await expect(canvas.getByText('Конкурент Другий')).toBeInTheDocument();
+    await expect(canvas.getByText('конкуруюча заявка')).toBeInTheDocument();
+    await expect(canvas.getByText(/12\.11\.2026/)).toBeInTheDocument();
+    await expect(canvas.getByText(/13\.11\.2026/)).toBeInTheDocument();
+    const hrefs = canvas.getAllByRole('link').map((a) => a.getAttribute('href') ?? '');
+    await expect(hrefs.some((h) => h.endsWith(`/operator/applications/${otherIds[0]}`))).toBe(true);
+    await expect(hrefs.some((h) => h.endsWith(`/operator/applications/${otherIds[1]}`))).toBe(true);
+  },
+};
+
+export const TwoCompetingTransfers: Story = {
+  beforeEach: serveEach({
+    [appId]: { ...base, application: { ...base.application, kind: 'transfer' }, competing_application_ids: otherIds },
+    [otherIds[0]!]: competitor(otherIds[0]!, 'transfer', 'Претендент Перший', '2026-11-14T09:00:00Z'),
+    [otherIds[1]!]: competitor(otherIds[1]!, 'transfer', 'Претендент Другий', '2026-11-15T09:00:00Z'),
+  }),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(await canvas.findByText('Претендент Перший')).toBeInTheDocument();
+    await expect(canvas.getByText('Претендент Другий')).toBeInTheDocument();
+    await expect(canvas.getByText('конкуруючий запит')).toBeInTheDocument();
+    await expect(canvas.getByText(/14\.11\.2026/)).toBeInTheDocument();
+    await expect(canvas.getByText(/15\.11\.2026/)).toBeInTheDocument();
   },
 };
 

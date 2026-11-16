@@ -105,7 +105,7 @@ async function renderPage() {
     history: createMemoryHistory({ initialEntries: ['/'] }),
   });
   render(<RouterProvider router={router} />);
-  await screen.findByText(/введено заявником/);
+  await screen.findAllByText(/введено заявником/);
 }
 
 const type = (el: HTMLElement, value: string) => fireEvent.change(el, { target: { value } });

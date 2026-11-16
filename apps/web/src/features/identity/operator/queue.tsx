@@ -8,6 +8,7 @@ export function OperatorQueue() {
   const { data } = useListApplicationsForReview();
   if (!data) return null;
   const items = data.data.items;
+  const pendingCount = (a: { edrpou: string }) => items.filter((o) => o.state === 'pending' && o.edrpou === a.edrpou).length;
   return (
     <section className="mx-auto mt-8 flex max-w-2xl flex-col gap-3">
       <h1 className="text-xl font-semibold">{uk.operator.queueTitle}</h1>
@@ -17,7 +18,12 @@ export function OperatorQueue() {
             <Link to="/operator/applications/$applicationId" params={{ applicationId: a.id }} className="font-medium">
               {a.association_name}
             </Link>
-            <Badge variant="secondary">{a.kind === 'transfer' ? uk.operator.kindTransfer : uk.operator.kindConnection}</Badge>
+            <div className="flex items-center gap-2">
+              {a.state === 'pending' && pendingCount(a) > 1 && (
+                <Badge variant="secondary">{a.kind === 'transfer' ? uk.operator.competingTransfer : uk.operator.competingConnection}</Badge>
+              )}
+              <Badge variant="secondary">{a.kind === 'transfer' ? uk.operator.kindTransfer : uk.operator.kindConnection}</Badge>
+            </div>
           </li>
         ))}
       </ul>

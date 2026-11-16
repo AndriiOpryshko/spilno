@@ -19,3 +19,7 @@ export function SignatureSource({ checkedAt }: { checkedAt: string }) {
 export function NotChecked() {
   return <span className={sourceClass}>{uk.operator.notChecked}</span>;
 }
+
+export function EnteredByApplicant() {
+  return <span className={sourceClass}>{uk.operator.enteredByApplicant}</span>;
+}

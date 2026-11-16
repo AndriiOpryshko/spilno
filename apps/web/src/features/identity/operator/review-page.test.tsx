@@ -7,8 +7,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getDownloadExtractForReviewUrl } from '@/api/gen/endpoints/identity/identity';
 import type { ApplicationReview } from '@/api/gen/model';
 
+import { uk } from '@/i18n/uk';
+
 import { OperatorQueue } from './queue';
 import { ReviewPage } from './review-page';
+import { formatDay } from './source-label';
 
 const appId = '00000000-0000-7000-8000-0000000000a1';
 const filingId = '00000000-0000-7000-8000-0000000000f1';
@@ -68,6 +71,8 @@ const checked: ApplicationReview = {
 };
 
 let review: ApplicationReview;
+let queueItems: ApplicationReview['application'][];
+let otherReviews: Record<string, ApplicationReview>;
 let queueStatus: number;
 let urls: string[];
 let sent: { path: string; body: unknown }[];
@@ -84,9 +89,11 @@ function fakeApi(input: RequestInfo | URL, init?: RequestInit) {
   }
   if (path.endsWith('/identity/operator/applications')) {
     if (queueStatus !== 200) return Promise.resolve(json(queueStatus, { type: 'about:blank', title: 'x', status: queueStatus, code: 'identity.not_operator' }));
-    return Promise.resolve(json(200, { items: [review.application], next_cursor: null }));
+    return Promise.resolve(json(200, { items: queueItems, next_cursor: null }));
   }
   if (path.endsWith(`/identity/operator/applications/${appId}`)) return Promise.resolve(json(200, review));
+  const other = Object.entries(otherReviews).find(([id]) => path.endsWith(`/identity/operator/applications/${id}`));
+  if (other) return Promise.resolve(json(200, other[1]));
   return Promise.resolve(json(404, {}));
 }
 
@@ -101,6 +108,8 @@ async function renderInRouter(ui: ReactNode) {
 
 beforeEach(() => {
   review = base;
+  queueItems = [application];
+  otherReviews = {};
   queueStatus = 200;
   urls = [];
   sent = [];
@@ -123,7 +132,7 @@ describe('ReviewPage', () => {
   it('shows the three source labels with the check date after the check (AC-10)', async () => {
     review = checked;
     await renderInRouter(<ReviewPage applicationId={appId} />);
-    await screen.findByText(/введено заявником/);
+    await screen.findAllByText(/введено заявником/);
     expect(screen.getAllByText(/з витягу з ЄДР, внесено оператором (11\.11\.2026|11 листопада 2026)/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/з КЕП, перевірено оператором (11\.11\.2026|11 листопада 2026)/).length).toBeGreaterThan(0);
     expect(screen.queryByText(/не перевірено/)).not.toBeInTheDocument();
@@ -164,11 +173,144 @@ describe('ReviewPage', () => {
 
   it('offers the check form with the fields of the check', async () => {
     await renderInRouter(<ReviewPage applicationId={appId} />);
-    await screen.findByText(/введено заявником/);
+    await screen.findAllByText(/введено заявником/);
     expect(screen.getByLabelText(/Підписант/)).toBeInTheDocument();
     expect(screen.getByLabelText(/Керівник/)).toBeInTheDocument();
     expect(screen.getByLabelText(/ЄДРПОУ/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Записати перевірку/ })).toBeInTheDocument();
+  });
+});
+
+// AC-10: every value on the page names its source, one label per value.
+const loaded = () => screen.findByText(uk.applications.filing.fullName, { selector: 'dt' });
+const rowOf = (label: string) => screen.getByText(label, { selector: 'dt' }).parentElement as HTMLElement;
+const termLabel = 'Строк повноважень';
+const withTerm: ApplicationReview = {
+  ...base,
+  filings: [{ ...base.filings[0]!, term_start: '2026-01-01', term_end: '2027-12-31' }],
+};
+const typedRows: [string, string, string | RegExp][] = [
+  ['the head name', uk.applications.filing.fullName, 'Тестовий Голова Правління'],
+  ['the association name', uk.applications.filing.name, 'ОСББ «Тестовий Будинок»'],
+  ['the ЄДРПОУ', uk.applications.filing.edrpou, '12345678'],
+  ['the address', uk.applications.filing.address, 'м. Київ, вул. Тестова, 1'],
+  ['the position', uk.applications.filing.positionCaption, uk.applications.filing.positionHead],
+];
+const sourceAt = (text: string, date: string) => `${text} ${formatDay(date)}`;
+const checkedAt = '2026-11-11T08:05:00Z';
+
+describe('ReviewPage source of every value (AC-10)', () => {
+  it.each(typedRows)('labels %s as entered by the applicant', async (_name, label, value) => {
+    review = withTerm;
+    await renderInRouter(<ReviewPage applicationId={appId} />);
+    await loaded();
+    const row = rowOf(label);
+    expect(within(row).getByText(value)).toBeInTheDocument();
+    expect(within(row).getByText(uk.operator.enteredByApplicant)).toBeInTheDocument();
+  });
+
+  it('labels the term as entered by the applicant with both of its dates', async () => {
+    review = withTerm;
+    await renderInRouter(<ReviewPage applicationId={appId} />);
+    await loaded();
+    const row = rowOf(termLabel);
+    expect(within(row).getByText(/01\.01\.2026|1 січня 2026/)).toBeInTheDocument();
+    expect(within(row).getByText(/31\.12\.2027|31 грудня 2027/)).toBeInTheDocument();
+    expect(within(row).getByText(uk.operator.enteredByApplicant)).toBeInTheDocument();
+  });
+
+  it('labels a term without an end as entered by the applicant', async () => {
+    await renderInRouter(<ReviewPage applicationId={appId} />);
+    await loaded();
+    const row = rowOf(termLabel);
+    expect(within(row).getByText(/01\.01\.2026|1 січня 2026/)).toBeInTheDocument();
+    expect(within(row).getByText(uk.operator.enteredByApplicant)).toBeInTheDocument();
+  });
+
+  const checkedRows: [string, string, string | RegExp, 'signature' | 'extract'][] = [
+    ['the signer', uk.operator.signer, 'Тестовий Голова Правління', 'signature'],
+    ['the signing date', uk.operator.signedOn, /^(08\.11\.2026|8 листопада 2026)$/, 'signature'],
+    ['the head named in the extract', uk.operator.head, 'Тестовий Голова Правління', 'extract'],
+    ['the ЄДРПОУ of the extract', uk.operator.edrpou, '12345678', 'extract'],
+    ['the extract date', uk.operator.extractDatedOn, /^(05\.11\.2026|5 листопада 2026)$/, 'extract'],
+  ];
+
+  it.each(checkedRows)('labels %s with the source and the check date', async (_name, label, value, source) => {
+    review = checked;
+    await renderInRouter(<ReviewPage applicationId={appId} />);
+    await loaded();
+    const row = rowOf(label);
+    expect(within(row).getByText(value)).toBeInTheDocument();
+    const text = source === 'signature' ? uk.operator.fromSignature : uk.operator.fromExtract;
+    expect(within(row).getByText(sourceAt(text, checkedAt))).toBeInTheDocument();
+    expect(within(row).queryByText(uk.operator.notChecked)).not.toBeInTheDocument();
+  });
+
+  it.each(checkedRows)('marks %s as «не перевірено» before the check', async (_name, label) => {
+    await renderInRouter(<ReviewPage applicationId={appId} />);
+    await loaded();
+    expect(within(rowOf(label)).getByText(uk.operator.notChecked)).toBeInTheDocument();
+  });
+});
+
+// AC-04c, AC-19b: competing заявки and запити side by side.
+const otherIds = ['00000000-0000-7000-8000-0000000000a2', '00000000-0000-7000-8000-0000000000a3'];
+const competitor = (
+  id: string,
+  kind: 'connection' | 'transfer',
+  applicant: string,
+  filedAt: string,
+): ApplicationReview => ({
+  ...base,
+  application: { ...application, id, kind, filed_at: filedAt, created_at: filedAt },
+  filings: [{ ...base.filings[0]!, id: `${id}-filing`, applicant_full_name: applicant, created_at: filedAt }],
+});
+const linkTo = (id: string) =>
+  screen.getAllByRole('link').find((a) => a.getAttribute('href')?.endsWith(`/operator/applications/${id}`)) as HTMLElement;
+
+describe('ReviewPage competing applications (AC-04c, AC-19b)', () => {
+  it('lists two competing заявки with applicant, filing date and a link to each', async () => {
+    review = { ...base, competing_application_ids: otherIds };
+    otherReviews = {
+      [otherIds[0]!]: competitor(otherIds[0]!, 'connection', 'Конкурент Перший', '2026-11-12T09:00:00Z'),
+      [otherIds[1]!]: competitor(otherIds[1]!, 'connection', 'Конкурент Другий', '2026-11-13T09:00:00Z'),
+    };
+    await renderInRouter(<ReviewPage applicationId={appId} />);
+    expect(await screen.findByText('Конкурент Перший')).toBeInTheDocument();
+    expect(screen.getByText('Конкурент Другий')).toBeInTheDocument();
+
+    const first = linkTo(otherIds[0]!).closest('li') as HTMLElement;
+    expect(within(first).getByText('Конкурент Перший')).toBeInTheDocument();
+    expect(within(first).getByText(/12\.11\.2026|12 листопада 2026/)).toBeInTheDocument();
+    const second = linkTo(otherIds[1]!).closest('li') as HTMLElement;
+    expect(within(second).getByText('Конкурент Другий')).toBeInTheDocument();
+    expect(within(second).getByText(/13\.11\.2026|13 листопада 2026/)).toBeInTheDocument();
+    expect(screen.getByText(uk.operator.competingConnection)).toBeInTheDocument();
+  });
+
+  it('lists two competing запити with applicant, filing date and a link to each', async () => {
+    review = { ...base, application: { ...application, kind: 'transfer' }, competing_application_ids: otherIds };
+    otherReviews = {
+      [otherIds[0]!]: competitor(otherIds[0]!, 'transfer', 'Претендент Перший', '2026-11-14T09:00:00Z'),
+      [otherIds[1]!]: competitor(otherIds[1]!, 'transfer', 'Претендент Другий', '2026-11-15T09:00:00Z'),
+    };
+    await renderInRouter(<ReviewPage applicationId={appId} />);
+    expect(await screen.findByText('Претендент Перший')).toBeInTheDocument();
+
+    const first = linkTo(otherIds[0]!).closest('li') as HTMLElement;
+    expect(within(first).getByText('Претендент Перший')).toBeInTheDocument();
+    expect(within(first).getByText(/14\.11\.2026|14 листопада 2026/)).toBeInTheDocument();
+    const second = linkTo(otherIds[1]!).closest('li') as HTMLElement;
+    expect(within(second).getByText('Претендент Другий')).toBeInTheDocument();
+    expect(within(second).getByText(/15\.11\.2026|15 листопада 2026/)).toBeInTheDocument();
+    expect(screen.getByText(uk.operator.competingTransfer)).toBeInTheDocument();
+  });
+
+  it('lists no competitors for a заявка that has none', async () => {
+    await renderInRouter(<ReviewPage applicationId={appId} />);
+    await loaded();
+    expect(screen.queryByText(uk.operator.competingConnection)).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Конкурент/ })).not.toBeInTheDocument();
   });
 });
 
@@ -241,7 +383,7 @@ describe('ReviewPage after a refiling', () => {
   it('links the extract of a заявка with a single filing (AC-03)', async () => {
     review = base;
     await renderInRouter(<ReviewPage applicationId={appId} />);
-    await screen.findByText(/введено заявником/);
+    await screen.findAllByText(/введено заявником/);
     const links = screen.getAllByRole('link', { name: /витяг/i });
     expect(links).toHaveLength(1);
     expect(links[0]).toHaveAttribute('href', getDownloadExtractForReviewUrl(appId, filingId));
@@ -295,5 +437,43 @@ describe('OperatorQueue', () => {
     await waitFor(() => expect(urls.some((path) => path.endsWith('/identity/operator/applications'))).toBe(true));
     expect(screen.queryByText(/Тестовий Будинок/)).not.toBeInTheDocument();
     expect(screen.queryByText('Немає доступу')).not.toBeInTheDocument();
+  });
+
+  const pendingOf = (id: string, name: string, kind: 'connection' | 'transfer', edrpou: string, state = 'pending') =>
+    ({ ...application, id, association_name: name, kind, edrpou, state }) as ApplicationReview['application'];
+  const queueRow = (name: string) => screen.getByRole('link', { name }).closest('li') as HTMLElement;
+
+  it('marks both rows of two pending заявки for one ЄДРПОУ as competing, and no other row (AC-04c)', async () => {
+    queueItems = [
+      pendingOf(appId, 'ОСББ Перше', 'connection', '12345678'),
+      pendingOf(otherIds[0]!, 'ОСББ Друге', 'connection', '12345678'),
+      pendingOf(otherIds[1]!, 'ОСББ Окреме', 'connection', '87654321'),
+    ];
+    await renderInRouter(<OperatorQueue />);
+    await screen.findByRole('link', { name: 'ОСББ Перше' });
+    expect(within(queueRow('ОСББ Перше')).getByText(uk.operator.competingConnection)).toBeInTheDocument();
+    expect(within(queueRow('ОСББ Друге')).getByText(uk.operator.competingConnection)).toBeInTheDocument();
+    expect(within(queueRow('ОСББ Окреме')).queryByText(uk.operator.competingConnection)).not.toBeInTheDocument();
+  });
+
+  it('marks both rows of two pending запити for one ЄДРПОУ as competing (AC-19b)', async () => {
+    queueItems = [
+      pendingOf(appId, 'ОСББ Перше', 'transfer', '12345678'),
+      pendingOf(otherIds[0]!, 'ОСББ Друге', 'transfer', '12345678'),
+    ];
+    await renderInRouter(<OperatorQueue />);
+    await screen.findByRole('link', { name: 'ОСББ Перше' });
+    expect(within(queueRow('ОСББ Перше')).getByText(uk.operator.competingTransfer)).toBeInTheDocument();
+    expect(within(queueRow('ОСББ Друге')).getByText(uk.operator.competingTransfer)).toBeInTheDocument();
+  });
+
+  it('does not mark a pending заявка because of a decided one with the same ЄДРПОУ', async () => {
+    queueItems = [
+      pendingOf(appId, 'ОСББ Перше', 'connection', '12345678'),
+      pendingOf(otherIds[0]!, 'ОСББ Друге', 'connection', '12345678', 'rejected'),
+    ];
+    await renderInRouter(<OperatorQueue />);
+    await screen.findByRole('link', { name: 'ОСББ Перше' });
+    expect(within(queueRow('ОСББ Перше')).queryByText(uk.operator.competingConnection)).not.toBeInTheDocument();
   });
 });

@@ -28,7 +28,7 @@ test('US-03: the оператор records the check and approves, the applicant 
   // AC-10: before the check every checked value says so; after it, the source and date.
   await openReview(operator, id);
   await expect(operator.getByText('не перевірено').first()).toBeVisible();
-  await expect(operator.getByText('введено заявником')).toBeVisible();
+  await expect(operator.getByText('введено заявником').first()).toBeVisible();
   await recordCheck(operator, checkFor(f));
   await expect(operator.getByText(/^з витягу з ЄДР, внесено оператором/).first()).toBeVisible();
   await expect(operator.getByText('не перевірено')).toHaveCount(0);

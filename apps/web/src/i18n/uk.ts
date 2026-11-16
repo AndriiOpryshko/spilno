@@ -292,7 +292,21 @@ export const uk = {
   },
 };
 
-export const formatDate = (iso: string) => new Date(iso).toLocaleDateString('uk-UA');
+const kyivDay = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Europe/Kyiv',
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+});
+
+// Instants are shown as the Kyiv calendar day; date-only values are calendar dates and never shift.
+export const formatDate = (iso: string) => {
+  const day = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (day) return `${day[3]}.${day[2]}.${day[1]}`;
+  const parts = kyivDay.formatToParts(new Date(iso));
+  const part = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
+  return `${part('day')}.${part('month')}.${part('year')}`;
+};
 
 const uahParts = new Intl.NumberFormat('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 

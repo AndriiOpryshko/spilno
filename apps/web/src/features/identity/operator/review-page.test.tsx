@@ -7,11 +7,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getDownloadExtractForReviewUrl } from '@/api/gen/endpoints/identity/identity';
 import type { ApplicationReview } from '@/api/gen/model';
 
-import { uk } from '@/i18n/uk';
+import { formatDate, uk } from '@/i18n/uk';
 
 import { OperatorQueue } from './queue';
 import { ReviewPage } from './review-page';
-import { formatDay } from './source-label';
 
 const appId = '00000000-0000-7000-8000-0000000000a1';
 const filingId = '00000000-0000-7000-8000-0000000000f1';
@@ -218,7 +217,7 @@ const typedRows: [string, string, string | RegExp][] = [
   ['the address', uk.applications.filing.address, 'м. Київ, вул. Тестова, 1'],
   ['the position', uk.applications.filing.positionCaption, uk.applications.filing.positionHead],
 ];
-const sourceAt = (text: string, date: string) => `${text} ${formatDay(date)}`;
+const sourceAt = (text: string, date: string) => `${text} ${formatDate(date)}`;
 const checkedAt = '2026-11-11T08:05:00Z';
 
 describe('ReviewPage source of every value (AC-10)', () => {

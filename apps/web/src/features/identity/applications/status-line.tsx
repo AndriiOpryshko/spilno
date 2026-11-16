@@ -1,7 +1,6 @@
 import type { Application } from '@/api/gen/model';
-import { uk } from '@/i18n/uk';
+import { formatDate, uk } from '@/i18n/uk';
 
-import { formatDate } from './format-date';
 
 const t = uk.applications.status;
 

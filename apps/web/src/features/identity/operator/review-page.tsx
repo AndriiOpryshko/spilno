@@ -3,11 +3,11 @@ import { Link } from '@tanstack/react-router';
 import { getDownloadExtractForReviewUrl, useGetApplicationForReview } from '@/api/gen/endpoints/identity/identity';
 import type { ExtractCheck } from '@/api/gen/model';
 import { Badge } from '@/components/ui/badge';
-import { uk } from '@/i18n/uk';
+import { formatDate, uk } from '@/i18n/uk';
 
 import { CheckForm } from './check-form';
 import { DecisionPanel } from './decision-panel';
-import { EnteredByApplicant, ExtractSource, formatDay, NotChecked, SignatureSource } from './source-label';
+import { EnteredByApplicant, ExtractSource, NotChecked, SignatureSource } from './source-label';
 
 function Row({ label, children, source }: { label: string; children: React.ReactNode; source: React.ReactNode }) {
   return (
@@ -40,7 +40,7 @@ function CompetingItem({ id }: { id: string }) {
         {review.application.association_name}
       </Link>
       {filing && <span>{filing.applicant_full_name}</span>}
-      <span className="text-xs text-muted-foreground">{formatDay(filing?.created_at ?? review.application.created_at)}</span>
+      <span className="text-xs text-muted-foreground">{formatDate(filing?.created_at ?? review.application.created_at)}</span>
     </li>
   );
 }
@@ -49,7 +49,7 @@ function CompetingItem({ id }: { id: string }) {
 function warningText(kind: string, typedName: string, check: ExtractCheck) {
   if (kind === 'name_mismatch') return uk.operator.nameMismatch(typedName, check.signer_full_name, check.head_full_name);
   if (kind === 'extract_age') {
-    return `${uk.operator.extractAgeBefore} ${formatDay(check.extract_dated_on)} — ${uk.operator.extractAgeAfter}`;
+    return `${uk.operator.extractAgeBefore} ${formatDate(check.extract_dated_on)} — ${uk.operator.extractAgeAfter}`;
   }
   return undefined;
 }
@@ -118,7 +118,7 @@ export function ReviewPage({ applicationId }: { applicationId: string }) {
                 {uk.applications.filing.positionHead}
               </Row>
               <Row label={uk.operator.term} source={<EnteredByApplicant />}>
-                {[filing.term_start, filing.term_end].filter(Boolean).map((d) => formatDay(d as string)).join(' — ')}
+                {[filing.term_start, filing.term_end].filter(Boolean).map((d) => formatDate(d as string)).join(' — ')}
               </Row>
             </dl>
             <ExtractLink applicationId={applicationId} filingId={filing.id} />
@@ -128,7 +128,7 @@ export function ReviewPage({ applicationId }: { applicationId: string }) {
               {check?.signer_full_name}
             </Row>
             <Row label={uk.operator.signedOn} source={signatureSource}>
-              {check && formatDay(check.signed_on)}
+              {check && formatDate(check.signed_on)}
             </Row>
             <Row label={uk.operator.head} source={extractSource}>
               {check?.head_full_name}
@@ -137,7 +137,7 @@ export function ReviewPage({ applicationId }: { applicationId: string }) {
               {check?.extract_edrpou}
             </Row>
             <Row label={uk.operator.extractDatedOn} source={extractSource}>
-              {check && formatDay(check.extract_dated_on)}
+              {check && formatDate(check.extract_dated_on)}
             </Row>
           </dl>
           <CheckForm applicationId={applicationId} filingId={filing.id} />

@@ -4,10 +4,9 @@ import { useState } from 'react';
 import { getGetMyApplicationQueryKey, useGetMyApplication } from '@/api/gen/endpoints/identity/identity';
 import { Button } from '@/components/ui/button';
 import { PageSkeleton, RequestFallback } from '@/features/identity/shell/request-fallback';
-import { uk } from '@/i18n/uk';
+import { formatDate, uk } from '@/i18n/uk';
 
 import { FilingForm } from './filing-form';
-import { formatDate } from './format-date';
 import { StatusLine } from './status-line';
 
 const t = uk.applications.detail;

@@ -2,10 +2,14 @@ import { createFileRoute } from '@tanstack/react-router';
 
 import { useListMyApplications } from '@/api/gen/endpoints/identity/identity';
 import { StatusLine } from '@/features/identity/applications/status-line';
+import { PageSkeleton, RequestFallback } from '@/features/identity/shell/request-fallback';
 import { uk } from '@/i18n/uk';
 
 function ApplicationsList() {
-  const items = useListMyApplications().data?.data.items ?? [];
+  const query = useListMyApplications();
+  if (query.isError) return <RequestFallback error={query.error} onRetry={() => void query.refetch()} />;
+  if (!query.data) return <PageSkeleton />;
+  const items = query.data.data.items;
   return (
     <div className="mx-auto grid max-w-xl gap-4 px-4 py-8">
       <h1 className="text-2xl font-semibold">{uk.applications.title}</h1>

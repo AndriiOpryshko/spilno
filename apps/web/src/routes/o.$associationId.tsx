@@ -7,6 +7,7 @@ import { Sidebar } from '@/components/app-shell';
 import { listCases } from '@/features/governance/api';
 import { SuspendedNotice } from '@/features/identity/association/suspended-notice';
 import { isNoAccessProblem } from '@/features/identity/shell/entry';
+import { PageSkeleton, RequestFallback } from '@/features/identity/shell/request-fallback';
 
 export const Route = createFileRoute('/o/$associationId')({
   component: AssociationLayout,
@@ -35,9 +36,10 @@ function AssociationLayout() {
     void refetchMemberships();
   }, [pathname, refetchMemberships]);
 
-  if (session.isError) return <Navigate to="/sign-in" replace />;
   if (isNoAccessProblem(memberships.error) || isNoAccessProblem(cases.error)) return <Navigate to="/no-access" replace />;
-  if (!session.data || !memberships.data) return null;
+  if (session.isError) return <RequestFallback error={session.error} onRetry={() => void session.refetch()} />;
+  if (memberships.isError && !memberships.data) return <RequestFallback error={memberships.error} onRetry={() => void memberships.refetch()} />;
+  if (!session.data || !memberships.data) return <PageSkeleton />;
 
   const membership = memberships.data.data.items.find((m) => m.association_id === associationId);
   // Not on this roster: the same page as for a missing association, nothing is read.

@@ -1,15 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { useEffect, useRef } from 'react';
 
 import { completeStorageConnection, getStartStorageConnectionUrl, getStorageConnection } from '@/api/gen/endpoints/identity/identity';
+import { Skeleton } from '@/components/ui/skeleton';
+import { InlineAlert } from '@/features/governance/inline-alert';
+import { RequestFallback } from '@/features/identity/shell/request-fallback';
 import { uk } from '@/i18n/uk';
 
 export const storageFlowKey = 'storage-flow-association-id';
 
 export function StorageLine({ associationId }: { associationId: string }) {
   const connection = useQuery({ queryKey: ['storage-connection', associationId], queryFn: () => getStorageConnection(associationId) });
-  if (!connection.data) return null;
+  if (connection.isError) return <RequestFallback error={connection.error} onRetry={() => void connection.refetch()} />;
+  if (!connection.data) return <Skeleton className="h-5 w-48" />;
   const { connected, google_account_email: email } = connection.data.data;
   if (connected) return <p>{uk.storage.line(email ?? '')}</p>;
   return (
@@ -40,11 +44,36 @@ export function StorageCallback({ associationId, code, state }: { associationId:
     mutate();
   }, [mutate]);
 
-  const code409 = (complete.error as { info?: { code?: string } } | null)?.info?.code;
+  if (!complete.isError) return <Skeleton className="m-8 h-24 max-w-md" />;
+  if ((complete.error as { info?: { code?: string } } | null)?.info?.code !== 'identity.storage_account_personal') {
+    return <RequestFallback error={complete.error} onRetry={() => mutate()} />;
+  }
   return (
     <div className="mx-auto max-w-2xl space-y-4 px-4 py-8">
-      {code409 === 'identity.storage_account_personal' && <p role="alert">{uk.storage.personalAccount}</p>}
-      {complete.isError && <StorageLine associationId={associationId} />}
+      <p role="alert">{uk.storage.personalAccount}</p>
+      <StorageLine associationId={associationId} />
+    </div>
+  );
+}
+
+// The consent page was opened without what it needs to finish: say so and point the way back.
+export function StorageCallbackLost({ associationId }: { associationId: string | null }) {
+  return (
+    <div className="mx-auto max-w-2xl px-4 py-8">
+      <InlineAlert
+        title={uk.storage.callbackLost}
+        action={
+          associationId ? (
+            <Link className="underline" to="/o/$associationId/association" params={{ associationId }}>
+              {uk.storage.callbackBack}
+            </Link>
+          ) : (
+            <Link className="underline" to="/">
+              {uk.storage.callbackBack}
+            </Link>
+          )
+        }
+      />
     </div>
   );
 }

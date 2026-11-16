@@ -85,6 +85,10 @@ func run() error {
 		}
 	}()
 
+	if cfg.DatabaseURL == "" || cfg.MigrationsDatabaseURL == "" {
+		return errors.New("DATABASE_URL (the spilno_app_login role) and MIGRATIONS_DATABASE_URL (the owner) must both be set")
+	}
+
 	// goose runs as the owner; the API serves as a login role in spilno_app.
 	migrationsPool, err := postgres.Open(ctx, cfg.MigrationsDatabaseURL)
 	if err != nil {
@@ -101,6 +105,9 @@ func run() error {
 		return err
 	}
 	defer pool.Close()
+	if err := postgres.RequireRLSEnforced(ctx, pool); err != nil {
+		return err
+	}
 
 	r := httpapi.NewRouter()
 	idm := identity.New(pool)

@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router';
 
 import { getDownloadExtractForReviewUrl, useGetApplicationForReview } from '@/api/gen/endpoints/identity/identity';
+import type { ExtractCheck } from '@/api/gen/model';
 import { Badge } from '@/components/ui/badge';
 import { uk } from '@/i18n/uk';
 
@@ -44,6 +45,15 @@ function CompetingItem({ id }: { id: string }) {
   );
 }
 
+// The warning is worded here from its kind and the values the page already holds; the server's detail is English.
+function warningText(kind: string, typedName: string, check: ExtractCheck) {
+  if (kind === 'name_mismatch') return uk.operator.nameMismatch(typedName, check.signer_full_name, check.head_full_name);
+  if (kind === 'extract_age') {
+    return `${uk.operator.extractAgeBefore} ${formatDay(check.extract_dated_on)} — ${uk.operator.extractAgeAfter}`;
+  }
+  return undefined;
+}
+
 export function ReviewPage({ applicationId }: { applicationId: string }) {
   const { data } = useGetApplicationForReview(applicationId);
   const review = data?.data;
@@ -78,11 +88,16 @@ export function ReviewPage({ applicationId }: { applicationId: string }) {
       {review.storage_account_email && (
         <p className="text-sm">{`${uk.operator.storageAccount}: ${review.storage_account_email}`}</p>
       )}
-      {warnings.map((w) => (
-        <p key={w.kind} role="status" className="rounded-md border px-3 py-2 text-sm">
-          {w.kind === 'extract_age' ? `${uk.operator.extractAgeBefore} ${w.detail.match(/\d{4}-\d{2}-\d{2}/)?.[0] ?? w.detail} — ${uk.operator.extractAgeAfter}` : w.detail}
-        </p>
-      ))}
+      {warnings.map((w) => {
+        const text = check && warningText(w.kind, filing?.applicant_full_name ?? '', check);
+        return (
+          text && (
+            <p key={w.kind} role="status" className="rounded-md border px-3 py-2 text-sm">
+              {text}
+            </p>
+          )
+        );
+      })}
       {filing && (
         <>
           <div className="flex flex-col gap-2">

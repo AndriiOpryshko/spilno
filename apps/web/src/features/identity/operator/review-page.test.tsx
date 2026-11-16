@@ -138,18 +138,40 @@ describe('ReviewPage', () => {
     expect(screen.queryByText(/не перевірено/)).not.toBeInTheDocument();
   });
 
-  it('names the differing values in the name warning and keeps «Схвалити» available (AC-11)', async () => {
-    review = { ...checked, warnings: [{ kind: 'name_mismatch', detail: 'Іваненко І. І. ≠ Петренко П. П.' }] };
+  // The payload the backend sends: domain.ReviewWarnings fills detail with English text (review_warning.go).
+  it('writes the name warning in Ukrainian with the three names, never the server text, and keeps «Схвалити» available (AC-11)', async () => {
+    review = {
+      ...checked,
+      filings: [{ ...checked.filings[0]!, applicant_full_name: 'Іваненко Іван Іванович' }],
+      checks: [{ ...checked.checks[0]!, signer_full_name: 'Петренко Петро Петрович', head_full_name: 'Сидоренко Сидір Сидорович' }],
+      warnings: [
+        {
+          kind: 'name_mismatch',
+          detail: 'names differ: typed name "Іваненко Іван Іванович", extract signer "Петренко Петро Петрович", head in extract "Сидоренко Сидір Сидорович"',
+        },
+      ],
+    };
     await renderInRouter(<ReviewPage applicationId={appId} />);
-    expect(await screen.findByText(/Іваненко І\. І\. ≠ Петренко П\. П\./)).toBeInTheDocument();
+    const warning = await screen.findByText(/розбіжність імен/i);
+    const box = warning.closest('[role="status"]') as HTMLElement;
+    expect(box).toHaveTextContent('Іваненко Іван Іванович');
+    expect(box).toHaveTextContent('Петренко Петро Петрович');
+    expect(box).toHaveTextContent('Сидоренко Сидір Сидорович');
+    expect(screen.queryByText(/names differ|typed name|extract signer|head in extract/)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Схвалити/ })).toBeEnabled();
   });
 
-  it('warns that the extract is older than 30 days and keeps «Схвалити» available (AC-11b)', async () => {
-    review = { ...checked, warnings: [{ kind: 'extract_age', detail: '2026-09-01' }] };
+  it('writes the extract-age warning with a дд.мм.рррр date, never the server text, and keeps «Схвалити» available (AC-11b)', async () => {
+    review = {
+      ...checked,
+      checks: [{ ...checked.checks[0]!, extract_dated_on: '2026-09-01' }],
+      warnings: [{ kind: 'extract_age', detail: 'extract dated 2026-09-01 is more than 30 days old' }],
+    };
     await renderInRouter(<ReviewPage applicationId={appId} />);
-    expect(await screen.findByText(/старший за 30 днів/)).toBeInTheDocument();
-    expect(screen.getByText(/Витяг сформовано/)).toBeInTheDocument();
+    const warning = await screen.findByText(/старший за 30 днів/);
+    expect(warning.closest('[role="status"]')).toHaveTextContent('Витяг сформовано 01.09.2026 — старший за 30 днів');
+    expect(screen.queryByText(/extract dated|more than 30 days/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/2026-09-01/)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Схвалити/ })).toBeEnabled();
   });
 

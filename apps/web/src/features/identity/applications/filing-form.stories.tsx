@@ -55,9 +55,9 @@ const stubFetch = (response: () => Response) => () => {
 export const WithErrors: Story = {
   args: { kind: 'connection' },
   beforeEach: stubFetch(() =>
-    problem(422, 'identity.application_invalid', 'Перевірте поля заявки: edrpou, term_start, extract', [
+    problem(422, 'identity.application_invalid', 'The application is not valid.', [
       { pointer: '/edrpou', detail: 'must be 8 digits' },
-      { pointer: '/term_start', detail: 'must not be later than the filing date' },
+      { pointer: '/term_start', detail: 'must be a date not later than the filing date' },
       { pointer: '/extract', detail: 'is required' },
     ]),
   ),
@@ -67,9 +67,10 @@ export const WithErrors: Story = {
     await waitFor(() => expect(canvas.getByLabelText(/ЄДРПОУ/)).toHaveAttribute('aria-invalid', 'true'));
     await expect(canvas.getByLabelText(/Початок строку/)).toHaveAttribute('aria-invalid', 'true');
     await expect(canvas.getByLabelText(/Витяг/)).toHaveAttribute('aria-invalid', 'true');
-    await expect(canvas.getByText('must be 8 digits')).toBeInTheDocument();
-    await expect(canvas.getByText('must not be later than the filing date')).toBeInTheDocument();
-    await expect(canvas.getByText('is required')).toBeInTheDocument();
+    await expect(canvas.getByRole('alert')).toHaveTextContent('Перевірте поля заявки: ЄДРПОУ, Початок строку, Витяг');
+    await expect(canvas.getByText('ЄДРПОУ має містити 8 цифр')).toBeInTheDocument();
+    await expect(canvas.getByText('Додайте файл витягу')).toBeInTheDocument();
+    await expect(canvas.queryByText(/must be|is required/)).not.toBeInTheDocument();
   },
 };
 
@@ -78,7 +79,7 @@ const alreadyConnected =
 
 export const AlreadyConnected: Story = {
   args: { kind: 'connection' },
-  beforeEach: stubFetch(() => problem(409, 'identity.association_already_connected', alreadyConnected)),
+  beforeEach: stubFetch(() => problem(409, 'identity.association_already_connected', 'The application cannot be filed.')),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole('button', { name: /Подати/ }));

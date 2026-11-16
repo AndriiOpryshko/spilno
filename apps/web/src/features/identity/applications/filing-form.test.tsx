@@ -97,35 +97,75 @@ describe('FilingForm', () => {
     expect((calls[0]![1].body as FormData).get('kind')).toBe('transfer');
   });
 
-  it('marks every broken field after one submit (AC-02)', async () => {
+  // The payload the backend sends (applications.go fileProblem, domain/filing.go): English detail, pointers per field.
+  const invalidFiling = () =>
+    problem(422, 'identity.application_invalid', 'The application is not valid.', [
+      { pointer: '/edrpou', detail: 'must be 8 digits' },
+      { pointer: '/association_name', detail: 'must be 1 to 200 characters' },
+      { pointer: '/association_address', detail: 'must be 1 to 500 characters' },
+      { pointer: '/applicant_full_name', detail: 'must be 1 to 200 characters' },
+      { pointer: '/term_start', detail: 'must be a date not later than the filing date' },
+      { pointer: '/extract', detail: 'is required' },
+    ]);
+
+  const fieldLabels = [/ЄДРПОУ/, /Назва ОСББ/, /Адреса/, /ПІБ/, /Початок строку/, /Витяг/];
+
+  const messageOf = (label: RegExp) => {
+    const field = screen.getByLabelText(label);
+    const id = field.getAttribute('aria-describedby');
+    expect(id).toBeTruthy();
+    return document.getElementById(id as string)?.textContent ?? '';
+  };
+
+  it('writes a Ukrainian message next to every broken field after one submit (AC-02)', async () => {
+    stubApi(invalidFiling);
+    await renderForm('connection');
+    submit();
+    await waitFor(() => {
+      for (const label of fieldLabels) expect(screen.getByLabelText(label)).toHaveAttribute('aria-invalid', 'true');
+    });
+    const messages = fieldLabels.map(messageOf);
+    for (const m of messages) {
+      expect(m).toMatch(/[А-Яа-яІіЇїЄєҐґ]/);
+      expect(m).not.toMatch(/[A-Za-z]/);
+    }
+    expect(messages[0]).toMatch(/8/);
+    expect(new Set(messages).size).toBeGreaterThan(2);
+    expect(screen.queryByText(/must be|is required|not valid/)).not.toBeInTheDocument();
+  });
+
+  it('shows the «Перевірте поля заявки: …» summary naming the broken fields, not the server text (AC-02, PRD 5.1)', async () => {
     stubApi(() =>
-      problem(422, 'identity.application_invalid', 'Перевірте поля заявки: edrpou, term_start, extract', [
+      problem(422, 'identity.application_invalid', 'The application is not valid.', [
         { pointer: '/edrpou', detail: 'must be 8 digits' },
-        { pointer: '/term_start', detail: 'must not be later than the filing date' },
+        { pointer: '/term_start', detail: 'must be a date not later than the filing date' },
         { pointer: '/extract', detail: 'is required' },
       ]),
     );
     await renderForm('connection');
     submit();
-    await waitFor(() => {
-      expect(screen.getByLabelText(/ЄДРПОУ/)).toHaveAttribute('aria-invalid', 'true');
-      expect(screen.getByLabelText(/Початок строку/)).toHaveAttribute('aria-invalid', 'true');
-      expect(screen.getByLabelText(/Витяг/)).toHaveAttribute('aria-invalid', 'true');
-    });
-    expect(screen.getByText('must be 8 digits')).toBeInTheDocument();
-    expect(screen.getByText('must not be later than the filing date')).toBeInTheDocument();
-    expect(screen.getByText('is required')).toBeInTheDocument();
+    const summary = await screen.findByRole('alert');
+    expect(summary.textContent).toMatch(/^Перевірте поля заявки: /);
+    expect(summary.textContent).toMatch(/ЄДРПОУ/);
+    expect(summary.textContent).toMatch(/Початок строку/);
+    expect(summary.textContent).toMatch(/Витяг/);
+    expect(summary.textContent).not.toMatch(/not valid/);
     expect(screen.getByLabelText(/Назва ОСББ/)).not.toHaveAttribute('aria-invalid', 'true');
     expect(screen.getByLabelText(/Адреса/)).not.toHaveAttribute('aria-invalid', 'true');
   });
 
+  it('shows «Не вдалося подати» for a code it does not know, not the English server detail', async () => {
+    stubApi(() => problem(409, 'identity.something_new', 'The application cannot be filed.'));
+    await renderForm('connection');
+    fillValid();
+    submit();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Не вдалося подати. Спробуйте ще раз');
+    expect(screen.queryByText(/cannot be filed/)).not.toBeInTheDocument();
+  });
+
   it('offers the запит form when the association is already connected (AC-04)', async () => {
     stubApi(() =>
-      problem(
-        409,
-        'identity.association_already_connected',
-        'Це ОСББ вже підключене — зверніться до голови вашого ОСББ або подайте запит на передачу',
-      ),
+      problem(409, 'identity.association_already_connected', 'The application cannot be filed.'),
     );
     await renderForm('connection');
     fillValid();
@@ -139,7 +179,7 @@ describe('FilingForm', () => {
   });
 
   it('shows the open заявка when one already exists (AC-04b)', async () => {
-    stubApi(() => problem(409, 'identity.application_already_open', 'У вас уже є заявка на це ОСББ'));
+    stubApi(() => problem(409, 'identity.application_already_open', 'The application cannot be filed.'));
     await renderForm('connection');
     fillValid();
     submit();
@@ -149,7 +189,7 @@ describe('FilingForm', () => {
 
   it('offers the заявка form when the association is not connected (AC-18)', async () => {
     stubApi(() =>
-      problem(409, 'identity.association_not_connected', 'Це ОСББ ще не підключене — подайте заявку на підключення'),
+      problem(409, 'identity.association_not_connected', 'The application cannot be filed.'),
     );
     await renderForm('transfer');
     fillValid();
@@ -161,11 +201,7 @@ describe('FilingForm', () => {
 
   it('shows the refusal of an ended term (AC-30)', async () => {
     stubApi(() =>
-      problem(
-        409,
-        'identity.term_ended',
-        'Строк повноважень голови вже завершився — подайте витяг після переобрання',
-      ),
+      problem(409, 'identity.term_ended', 'The application cannot be filed.'),
     );
     await renderForm('connection');
     fillValid();

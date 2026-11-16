@@ -58,6 +58,7 @@ export function FilingForm({ kind, associationId, refile }: FilingFormProps) {
   });
   const [extract, setExtract] = useState<File | undefined>();
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [summary, setSummary] = useState<string | undefined>();
   const [refusal, setRefusal] = useState<Problem | undefined>();
   const [filed, setFiled] = useState(false);
   const fileMutation = useFileApplication();
@@ -71,6 +72,7 @@ export function FilingForm({ kind, associationId, refile }: FilingFormProps) {
     e.preventDefault();
     setFieldErrors({});
     setRefusal(undefined);
+    setSummary(undefined);
     setFiled(false);
     const common = {
       association_name: values.association_name,
@@ -91,10 +93,9 @@ export function FilingForm({ kind, associationId, refile }: FilingFormProps) {
         if (knownRefusalMessage(problem)) {
           setRefusal(problem);
         } else if (problem.errors?.length) {
-          setFieldErrors({
-            ...(extract ? {} : { extract: t.extractRequired }),
-            ...Object.fromEntries(problem.errors.map((x) => [x.pointer.replace(/^\//, ''), x.detail])),
-          });
+          const broken = problem.errors.map((x) => x.pointer.replace(/^\//, ''));
+          setFieldErrors(Object.fromEntries(broken.map((name) => [name, t.fieldErrors[name] ?? t.fieldInvalid])));
+          setSummary(uk.applications.invalid(broken.map((name) => t.fieldNames[name] ?? name).join(', ')));
         } else {
           setRefusal(problem);
         }
@@ -138,7 +139,6 @@ export function FilingForm({ kind, associationId, refile }: FilingFormProps) {
 
   const link = refusal?.code ? refusalLinks[refusal.code] : undefined;
   const refusalMessage = knownRefusalMessage(refusal);
-  const unknownRefusal = refusal && !refusal.detail && !refusalMessage;
 
   return (
     <form noValidate onSubmit={submit} className="mx-auto grid max-w-xl gap-4 px-4 py-8">
@@ -148,10 +148,11 @@ export function FilingForm({ kind, associationId, refile }: FilingFormProps) {
           {kind === 'connection' ? t.filedConnection : t.filedTransfer}
         </p>
       )}
+      {summary && <InlineAlert title={summary} />}
       {refusal && (
         <InlineAlert
-          title={refusalMessage ?? refusal.detail ?? t.failed}
-          action={link && !unknownRefusal ? <a className="text-sm underline" href={link.href}>{link.label}</a> : undefined}
+          title={refusalMessage ?? t.failed}
+          action={link ? <a className="text-sm underline" href={link.href}>{link.label}</a> : undefined}
         />
       )}
       {!refile &&

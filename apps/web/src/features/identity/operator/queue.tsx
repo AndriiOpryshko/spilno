@@ -5,10 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { uk } from '@/i18n/uk';
 
 export function OperatorQueue() {
-  const { data, error } = useListApplicationsForReview();
-  if (error && (error as { status?: number }).status === 403) {
-    return <p className="mx-auto mt-8 max-w-2xl">{uk.operator.notOperator}</p>;
-  }
+  const { data } = useListApplicationsForReview();
   if (!data) return null;
   const items = data.data.items;
   return (

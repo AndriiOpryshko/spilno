@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -170,10 +170,11 @@ describe('OperatorQueue', () => {
     expect(await screen.findByText(/Тестовий Будинок/)).toBeInTheDocument();
   });
 
-  it('shows the no-access page and no queue to a person who is not the оператор (AC-16)', async () => {
+  it('shows no queue to a person who is not the оператор, and leaves the refusal to the section guard (AC-16)', async () => {
     queueStatus = 403;
     await renderInRouter(<OperatorQueue />);
-    expect(await screen.findByText('Немає доступу')).toBeInTheDocument();
+    await waitFor(() => expect(urls.some((path) => path.endsWith('/identity/operator/applications'))).toBe(true));
     expect(screen.queryByText(/Тестовий Будинок/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Немає доступу')).not.toBeInTheDocument();
   });
 });

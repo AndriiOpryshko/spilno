@@ -34,9 +34,9 @@ export function Sidebar({ associationId, associationName, isOperator, casesCount
           {casesCount !== undefined && <span className="text-xs opacity-50">{casesCount}</span>}
         </Link>
         {isOperator && (
-          <a href="/operator/" className="flex items-center justify-between rounded-md px-3 py-2 opacity-75 hover:bg-sidebar-accent">
+          <Link to="/operator" className="flex items-center justify-between rounded-md px-3 py-2 opacity-75 hover:bg-sidebar-accent">
             {uk.operator.entry}
-          </a>
+          </Link>
         )}
         {soon.map((label) => (
           <span key={label} title={uk.nav.soon} aria-disabled className="flex cursor-default items-center justify-between rounded-md px-3 py-2 opacity-40">

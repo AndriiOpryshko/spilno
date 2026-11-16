@@ -46,7 +46,7 @@ function fakeApi(input: RequestInfo | URL, init?: RequestInit) {
   );
 }
 
-async function renderPage() {
+async function renderPage(ready: () => Promise<unknown> = () => screen.findByText(/Липки/)) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   const router = createRouter({
     routeTree: createRootRoute({
@@ -59,7 +59,7 @@ async function renderPage() {
     history: createMemoryHistory({ initialEntries: ['/'] }),
   });
   render(<RouterProvider router={router} />);
-  await screen.findByText(/Липки/);
+  await ready();
 }
 
 const rowOf = (name: RegExp) => screen.getByText(name).closest('tr, li, article, [data-slot="card"], div')!.parentElement!;
@@ -82,6 +82,18 @@ afterEach(() => {
 });
 
 describe('OperatorAssociations', () => {
+  it('shows no list, empty or not, to a person the server refuses (AC-16)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve(problem(403, 'identity.not_operator'))),
+    );
+    await renderPage(() => waitFor(() => expect(vi.mocked(fetch)).toHaveBeenCalled()));
+    // let the refused read settle before looking
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(screen.queryByRole('list')).toBeNull();
+    expect(screen.queryByText('Немає доступу')).toBeNull();
+  });
+
   it('lists the name, the ЄДРПОУ and the state of each association', async () => {
     await renderPage();
     expect(screen.getByText(/Липки/)).toBeInTheDocument();

@@ -17,9 +17,9 @@ export function AssociationPicker({ memberships, isOperator }: { memberships: Me
           </Link>
         ))}
         {isOperator && (
-          <a href="/operator/" className="rounded-md border px-3 py-2 hover:bg-accent">
+          <Link to="/operator" className="rounded-md border px-3 py-2 hover:bg-accent">
             {uk.operator.entry}
-          </a>
+          </Link>
         )}
       </CardContent>
     </Card>

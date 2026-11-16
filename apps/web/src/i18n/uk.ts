@@ -85,6 +85,8 @@ export const uk = {
   },
   operator: {
     entry: 'Оператор',
+    navApplications: 'Заявки',
+    navAssociations: 'ОСББ',
     notOperator: 'Немає доступу',
     ownApplication: 'Це ваша власна заявка — оператор не ухвалює рішення щодо себе',
     associationsTitle: 'ОСББ',

@@ -19,10 +19,7 @@ function Row({ label, children, source }: { label: string; children: React.React
 }
 
 export function ReviewPage({ applicationId }: { applicationId: string }) {
-  const { data, error } = useGetApplicationForReview(applicationId);
-  if (error && (error as { status?: number }).status === 403) {
-    return <p className="mx-auto mt-8 max-w-2xl">{uk.operator.notOperator}</p>;
-  }
+  const { data } = useGetApplicationForReview(applicationId);
   const review = data?.data;
   if (!review) return null;
 

@@ -86,7 +86,8 @@ function AssociationRow({ association, onChanged }: { association: OperatorAssoc
 export function OperatorAssociations() {
   const client = useQueryClient();
   const { data } = useListAssociationsForOperator();
-  const items = data?.data.items ?? [];
+  if (!data) return null;
+  const items = data.data.items;
   const refresh = () => client.invalidateQueries({ queryKey: getListAssociationsForOperatorQueryKey() });
 
   return (

@@ -9,7 +9,7 @@ const pick = (n: number, forms: { one: string; few: string; many: string }) => {
 
 export const uk = {
   app: { name: 'Спільно', osbb: 'ОСББ «Січових Стрільців, 12»', search: 'Пошук і команди' },
-  nav: { cases: 'Справи', association: 'ОСББ', protocols: 'Протоколи', meetings: 'Збори', documents: 'Документи', soon: 'Незабаром' },
+  nav: { cases: 'Справи', association: 'ОСББ', roster: 'Правління', protocols: 'Протоколи', meetings: 'Збори', documents: 'Документи', soon: 'Незабаром' },
   association: {
     signInTitle: 'Вхід до Спільно',
     signIn: 'Увійти',
@@ -38,6 +38,24 @@ export const uk = {
       markAppointed: 'призначено',
       markEnded: 'повноваження завершено',
       mark: (what: string, filed: string, approved: string) => `${what} за запитом на передачу від ${filed}, схвалено оператором ${approved}`,
+    },
+    roster: {
+      title: 'Правління',
+      empty: 'Правління ще не заповнене',
+      add: 'Додати члена правління',
+      edit: 'Змінити',
+      editEntry: (name: string) => `Змінити ${name}`,
+      addTitle: 'Новий член правління',
+      editTitle: 'Зміна запису правління',
+      formHint: 'Строк повноважень задається датами; порожній кінець строку означає, що строк відкритий.',
+      position: { head: 'голова правління', member: 'член правління' },
+      term: (start: string, end?: string) => (end ? `${start} — ${end}` : `з ${start}`),
+      fullName: 'ПІБ',
+      email: 'Електронна пошта',
+      termStart: 'Початок строку',
+      termEnd: 'Кінець строку',
+      save: 'Зберегти',
+      failed: 'Не вдалося зберегти запис',
     },
   },
   applications: {

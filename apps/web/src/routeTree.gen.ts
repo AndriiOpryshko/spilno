@@ -24,6 +24,7 @@ import { Route as OperatorAssociationsRouteImport } from './routes/operator.asso
 import { Route as StorageCallbackRouteImport } from './routes/storage.callback'
 import { Route as CasesCaseIdProtocolRouteImport } from './routes/cases.$caseId.protocol'
 import { Route as OAssociationIdAssociationRouteImport } from './routes/o.$associationId.association'
+import { Route as OAssociationIdRosterRouteImport } from './routes/o.$associationId.roster'
 import { Route as OperatorApplicationsIndexRouteImport } from './routes/operator.applications.index'
 import { Route as OperatorApplicationsApplicationIdRouteImport } from './routes/operator.applications.$applicationId'
 import { Route as OAssociationIdCasesIndexRouteImport } from './routes/o.$associationId.cases.index'
@@ -106,6 +107,11 @@ const OAssociationIdAssociationRoute =
     path: '/association',
     getParentRoute: () => OAssociationIdRoute,
   } as any)
+const OAssociationIdRosterRoute = OAssociationIdRosterRouteImport.update({
+  id: '/roster',
+  path: '/roster',
+  getParentRoute: () => OAssociationIdRoute,
+} as any)
 const OperatorApplicationsIndexRoute =
   OperatorApplicationsIndexRouteImport.update({
     id: '/applications/',
@@ -147,6 +153,7 @@ export interface FileRoutesByFullPath {
   '/operator/': typeof OperatorIndexRoute
   '/cases/$caseId/protocol': typeof CasesCaseIdProtocolRoute
   '/o/$associationId/association': typeof OAssociationIdAssociationRoute
+  '/o/$associationId/roster': typeof OAssociationIdRosterRoute
   '/operator/applications/$applicationId': typeof OperatorApplicationsApplicationIdRoute
   '/operator/applications/': typeof OperatorApplicationsIndexRoute
   '/o/$associationId/cases/': typeof OAssociationIdCasesIndexRoute
@@ -167,6 +174,7 @@ export interface FileRoutesByTo {
   '/operator': typeof OperatorIndexRoute
   '/cases/$caseId/protocol': typeof CasesCaseIdProtocolRoute
   '/o/$associationId/association': typeof OAssociationIdAssociationRoute
+  '/o/$associationId/roster': typeof OAssociationIdRosterRoute
   '/operator/applications/$applicationId': typeof OperatorApplicationsApplicationIdRoute
   '/operator/applications': typeof OperatorApplicationsIndexRoute
   '/o/$associationId/cases': typeof OAssociationIdCasesIndexRoute
@@ -189,6 +197,7 @@ export interface FileRoutesById {
   '/operator/': typeof OperatorIndexRoute
   '/cases/$caseId/protocol': typeof CasesCaseIdProtocolRoute
   '/o/$associationId/association': typeof OAssociationIdAssociationRoute
+  '/o/$associationId/roster': typeof OAssociationIdRosterRoute
   '/operator/applications/$applicationId': typeof OperatorApplicationsApplicationIdRoute
   '/operator/applications/': typeof OperatorApplicationsIndexRoute
   '/o/$associationId/cases/': typeof OAssociationIdCasesIndexRoute
@@ -212,6 +221,7 @@ export interface FileRouteTypes {
     | '/operator/'
     | '/cases/$caseId/protocol'
     | '/o/$associationId/association'
+    | '/o/$associationId/roster'
     | '/operator/applications/$applicationId'
     | '/operator/applications/'
     | '/o/$associationId/cases/'
@@ -232,6 +242,7 @@ export interface FileRouteTypes {
     | '/operator'
     | '/cases/$caseId/protocol'
     | '/o/$associationId/association'
+    | '/o/$associationId/roster'
     | '/operator/applications/$applicationId'
     | '/operator/applications'
     | '/o/$associationId/cases'
@@ -253,6 +264,7 @@ export interface FileRouteTypes {
     | '/operator/'
     | '/cases/$caseId/protocol'
     | '/o/$associationId/association'
+    | '/o/$associationId/roster'
     | '/operator/applications/$applicationId'
     | '/operator/applications/'
     | '/o/$associationId/cases/'
@@ -381,6 +393,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OAssociationIdAssociationRouteImport
       parentRoute: typeof OAssociationIdRoute
     }
+    '/o/$associationId/roster': {
+      id: '/o/$associationId/roster'
+      path: '/roster'
+      fullPath: '/o/$associationId/roster'
+      preLoaderRoute: typeof OAssociationIdRosterRouteImport
+      parentRoute: typeof OAssociationIdRoute
+    }
     '/operator/applications/': {
       id: '/operator/applications/'
       path: '/applications'
@@ -433,12 +452,14 @@ const OperatorRouteWithChildren = OperatorRoute._addFileChildren(
 
 interface OAssociationIdRouteChildren {
   OAssociationIdAssociationRoute: typeof OAssociationIdAssociationRoute
+  OAssociationIdRosterRoute: typeof OAssociationIdRosterRoute
   OAssociationIdCasesIndexRoute: typeof OAssociationIdCasesIndexRoute
   OAssociationIdCasesCaseIdProtocolRoute: typeof OAssociationIdCasesCaseIdProtocolRoute
 }
 
 const OAssociationIdRouteChildren: OAssociationIdRouteChildren = {
   OAssociationIdAssociationRoute: OAssociationIdAssociationRoute,
+  OAssociationIdRosterRoute: OAssociationIdRosterRoute,
   OAssociationIdCasesIndexRoute: OAssociationIdCasesIndexRoute,
   OAssociationIdCasesCaseIdProtocolRoute:
     OAssociationIdCasesCaseIdProtocolRoute,

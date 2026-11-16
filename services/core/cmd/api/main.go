@@ -85,6 +85,10 @@ func run() error {
 		}
 	}()
 
+	if cfg.DatabaseURL == "" || cfg.MigrationsDatabaseURL == "" {
+		return errors.New("DATABASE_URL (the spilno_app_login role) and MIGRATIONS_DATABASE_URL (the owner) must both be set")
+	}
+
 	// goose runs as the owner; the API serves as a login role in spilno_app.
 	migrationsPool, err := postgres.Open(ctx, cfg.MigrationsDatabaseURL)
 	if err != nil {
@@ -101,10 +105,15 @@ func run() error {
 		return err
 	}
 	defer pool.Close()
+	if err := postgres.RequireRLSEnforced(ctx, pool); err != nil {
+		return err
+	}
 
 	r := httpapi.NewRouter()
 	idm := identity.New(pool)
-	_ = idm.RegisterMetrics()
+	if err := idm.RegisterMetrics(); err != nil {
+		return err
+	}
 	if cfg.DevSignIn {
 		// Development and e2e only: signs in as the operator address, or a fixed test person.
 		email := cfg.OperatorEmail
@@ -113,9 +122,14 @@ func run() error {
 		}
 		idm.EnableSignIn(identity.SignInConfig{Provider: identity.DevSignInProvider(email), OperatorEmail: cfg.OperatorEmail})
 	}
-	gov := governance.New(pool)
-	idm.EnableApprovals(identity.ApprovalConfig{SeatHead: func(ctx context.Context, association uuid.UUID, fullName, signInEmail string, termStart time.Time, decisionID uuid.UUID) (uuid.UUID, error) {
-		return gov.SeatHead(ctx, association, governance.Person{FullName: fullName, SignInEmail: signInEmail}, governance.Term{Start: termStart}, decisionID)
+	gov := governance.New(pool, idm.HasStorageConnection)
+	if cfg.DevStorage {
+		// Development only: downloads read from an in-memory storage. Without it downloadFile
+		// answers 503 until the Drive adapter exists.
+		gov.WithFiles(governance.NewDevFiles())
+	}
+	idm.EnableApprovals(identity.ApprovalConfig{SeatHead: func(ctx context.Context, association uuid.UUID, fullName, signInEmail string, termStart, termEnd time.Time, decisionID uuid.UUID) (uuid.UUID, error) {
+		return gov.SeatHead(ctx, association, governance.Person{FullName: fullName, SignInEmail: signInEmail}, governance.Term{Start: termStart, End: termEnd}, decisionID)
 	}, EndTerm: gov.EndTerm})
 	idm.EnableMemberships(identity.MembershipsConfig{
 		MembershipsOf: func(ctx context.Context, email string, date time.Time) ([]identity.RosterSeat, error) {
@@ -173,6 +187,7 @@ func run() error {
 		Addr:              cfg.HTTPAddr,
 		Handler:           otelhttp.NewHandler(r, "http.server"),
 		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       60 * time.Second,
 	}
 	errc := make(chan error, 1)
 	go func() {

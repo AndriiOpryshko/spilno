@@ -1183,7 +1183,9 @@ export const getRefileApplicationUrl = (applicationId: string,) => {
 /**
  * The filing checks of fileApplication run again (AC-02, AC-30). A заявка на підключення whose code was
  * connected meanwhile answers `identity.association_already_connected` (AC-04); a refiled запит на
- * передачу is not checked against AC-18 again.
+ * передачу is not checked against AC-18 again. When the same person filed another application for the same
+ * code after the rejection and it is still pending, the refile answers `identity.application_already_open`
+ * (AC-04b: one open application of a person per code).
  * @summary Fix and file a rejected application again (US-02, AC-06, Flow 5)
  */
 export const refileApplication = async (applicationId: string,

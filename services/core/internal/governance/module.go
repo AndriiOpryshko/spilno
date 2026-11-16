@@ -13,19 +13,21 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/adapters/filesfake"
 	governancehttp "github.com/AndriiOpryshko/spilno/services/core/internal/governance/adapters/http"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/adapters/http/gen"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/adapters/postgres"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/app"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/domain"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/ports"
-	"github.com/AndriiOpryshko/spilno/services/core/internal/identity"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/httpapi"
 )
 
 type Module struct {
 	handler *governancehttp.Handler
 	roster  *app.RosterService
+	files   *app.FileService
+	cases   *app.CaseService
 }
 
 // Membership is a person's current seat on one association's board.
@@ -37,10 +39,28 @@ type Person struct{ FullName, SignInEmail string }
 // Term is a board membership period; a zero End means open.
 type Term = domain.Term
 
-func New(pool *pgxpool.Pool) *Module {
+// New builds the module. hasStorage reports whether an association has connected its storage;
+// cmd/api passes it from the identity module.
+func New(_ *pgxpool.Pool, hasStorage func(context.Context, uuid.UUID) (bool, error)) *Module {
 	meetings := app.NewMeetingService(postgres.NewMeetings())
 	roster := app.NewRosterService(postgres.NewRoster(), postgres.NewRoster())
-	return &Module{handler: governancehttp.NewHandler(meetings, identity.New(pool).HasStorageConnection), roster: roster}
+	files := app.NewFileService(postgres.NewFiles())
+	cases := app.NewCaseService(postgres.NewCases(), postgres.NewRoster())
+	return &Module{handler: governancehttp.NewHandler(meetings, roster, app.NewRegistryService(postgres.NewRegistry()), files, cases, hasStorage), roster: roster, files: files, cases: cases}
+}
+
+// Files is the association-owned file storage the downloads read from.
+type Files = ports.Files
+
+// NewDevFiles is an in-memory Files for development (SPILNO_DEV_STORAGE=true); it forgets on restart.
+func NewDevFiles() Files { return filesfake.New() }
+
+// WithFiles wires the storage behind downloadFile and addCaseDocument; without it they answer 503
+// governance.storage_unavailable. Call it before Routes.
+func (m *Module) WithFiles(files Files) *Module {
+	m.files.SetFiles(files)
+	m.cases.SetFiles(files)
+	return m
 }
 
 // Routes attaches the context's routes to r inside their own group, validated
@@ -51,7 +71,7 @@ func (m *Module) Routes(r chi.Router) error {
 		return fmt.Errorf("governance: load spec: %w", err)
 	}
 	r.Group(func(r chi.Router) {
-		r.Use(httpapi.RequestValidator(spec))
+		r.Use(httpapi.BodyLimit(21<<20, 1<<20), httpapi.RequestValidator(spec))
 		strict := gen.NewStrictHandlerWithOptions(m.handler, nil, gen.StrictHTTPServerOptions{
 			RequestErrorHandlerFunc:  httpapi.StrictRequestError,
 			ResponseErrorHandlerFunc: httpapi.StrictResponseError,

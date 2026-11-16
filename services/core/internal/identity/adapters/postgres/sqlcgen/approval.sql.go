@@ -135,12 +135,13 @@ func (q *Queries) GetAssociationForApproval(ctx context.Context, id pgtype.UUID)
 const getEntryOfDecision = `-- name: GetEntryOfDecision :one
 SELECT board_member_id, COALESCE(sign_in_email, '')::text AS sign_in_email, term_start, term_end
 FROM (
-    SELECT DISTINCT ON (board_member_id) board_member_id, sign_in_email, term_start, term_end, decision_id
+    SELECT DISTINCT ON (board_member_id) id, created_at, board_member_id, sign_in_email, term_start, term_end, decision_id
     FROM board_member_revisions
     WHERE association_id = $1
     ORDER BY board_member_id, created_at DESC, id DESC
 ) latest
-WHERE decision_id = $2 AND term_end IS NULL
+WHERE decision_id = $2
+ORDER BY created_at DESC, id DESC
 LIMIT 1
 `
 
@@ -169,7 +170,7 @@ func (q *Queries) GetEntryOfDecision(ctx context.Context, arg GetEntryOfDecision
 }
 
 const getLatestFilingForApproval = `-- name: GetLatestFilingForApproval :one
-SELECT id, association_name, association_address, applicant_full_name, term_start, created_at
+SELECT id, association_name, association_address, applicant_full_name, term_start, term_end, created_at
 FROM application_filings
 WHERE application_id = $1
 ORDER BY created_at DESC, id DESC
@@ -182,6 +183,7 @@ type GetLatestFilingForApprovalRow struct {
 	AssociationAddress string
 	ApplicantFullName  string
 	TermStart          pgtype.Date
+	TermEnd            pgtype.Date
 	CreatedAt          pgtype.Timestamptz
 }
 
@@ -194,6 +196,7 @@ func (q *Queries) GetLatestFilingForApproval(ctx context.Context, applicationID 
 		&i.AssociationAddress,
 		&i.ApplicantFullName,
 		&i.TermStart,
+		&i.TermEnd,
 		&i.CreatedAt,
 	)
 	return i, err

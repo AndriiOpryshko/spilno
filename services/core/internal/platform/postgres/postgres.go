@@ -3,6 +3,7 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/exaring/otelpgx"
@@ -43,6 +44,21 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 	}
 	if _, err := provider.Up(ctx); err != nil {
 		return fmt.Errorf("migrate up: %w", err)
+	}
+	return nil
+}
+
+// RequireRLSEnforced fails when the pool's role is a superuser or has BYPASSRLS,
+// because row-level security (ADR-0003) would not apply to it.
+func RequireRLSEnforced(ctx context.Context, pool *pgxpool.Pool) error {
+	var bypass bool
+	err := pool.QueryRow(ctx,
+		`SELECT rolsuper OR rolbypassrls FROM pg_roles WHERE rolname = current_user`).Scan(&bypass)
+	if err != nil {
+		return fmt.Errorf("check serving role: %w", err)
+	}
+	if bypass {
+		return errors.New("DATABASE_URL names a role that bypasses row-level security (superuser or BYPASSRLS); serve as spilno_app_login and keep the owner in MIGRATIONS_DATABASE_URL")
 	}
 	return nil
 }

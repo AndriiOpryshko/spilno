@@ -42,6 +42,13 @@ func (s *Rejections) Reject(ctx context.Context, r ports.NewRejection, decide fu
 	} else if err != nil {
 		return ports.ReviewDecision{}, err
 	}
+	latest, err := q.GetLatestFilingForApproval(ctx, pgUUID(r.ApplicationID))
+	if err != nil {
+		return ports.ReviewDecision{}, err
+	}
+	if latest.ID.Bytes != r.FilingID {
+		return ports.ReviewDecision{}, &domain.CodedError{Code: domain.CodeApplicationNotPending}
+	}
 	next, err := decide(domain.Application{
 		Kind: domain.ApplicationKind(row.Kind), State: domain.ApplicationState(row.State),
 		AccountID: uuid.UUID(row.AccountID.Bytes).String(), EDRPOU: row.Edrpou,
@@ -58,6 +65,9 @@ func (s *Rejections) Reject(ctx context.Context, r ports.NewRejection, decide fu
 		Reason: pgText(r.Reason), DecidedByEmail: r.OperatorEmail,
 	})
 	if err != nil {
+		if isUniqueViolation(err) {
+			return ports.ReviewDecision{}, &domain.CodedError{Code: domain.CodeApplicationNotPending}
+		}
 		return ports.ReviewDecision{}, err
 	}
 	if err := q.UpdateApplicationState(ctx, sqlcgen.UpdateApplicationStateParams{ID: pgUUID(r.ApplicationID), State: string(next.State)}); err != nil {

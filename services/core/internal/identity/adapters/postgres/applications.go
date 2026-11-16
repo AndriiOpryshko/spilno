@@ -16,16 +16,23 @@ import (
 	"github.com/AndriiOpryshko/spilno/services/core/internal/identity/adapters/postgres/sqlcgen"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/identity/ports"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/db"
+	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/kyivday"
 )
 
 // Applications implements ports.ApplicationRepository.
 type Applications struct {
 	pool *pgxpool.Pool
+	now  func() time.Time
 }
 
 var _ ports.ApplicationRepository = (*Applications)(nil)
 
-func NewApplications(pool *pgxpool.Pool) *Applications { return &Applications{pool: pool} }
+func NewApplications(pool *pgxpool.Pool) *Applications {
+	return &Applications{pool: pool, now: time.Now}
+}
+
+// SetClock replaces the clock «today» is taken from.
+func (a *Applications) SetClock(now func() time.Time) { a.now = now }
 
 func pgUUID(id uuid.UUID) pgtype.UUID { return pgtype.UUID{Bytes: id, Valid: true} }
 
@@ -96,7 +103,7 @@ func (a *Applications) fileFromCard(ctx context.Context, f ports.NewTransfer) (p
 	}
 	assoc := *f.AssociationID
 	err := db.InAssociation(ctx, a.pool, assoc, f.ApplicantEmail, func(ctx context.Context) error {
-		ok, err := f.Roster.CurrentMember(ctx, assoc, f.ApplicantEmail, time.Now().UTC().Truncate(24*time.Hour))
+		ok, err := f.Roster.CurrentMember(ctx, assoc, f.ApplicantEmail, kyivday.Today(a.now()))
 		if err != nil {
 			return err
 		}
@@ -107,7 +114,15 @@ func (a *Applications) fileFromCard(ctx context.Context, f ports.NewTransfer) (p
 		if err != nil {
 			return err
 		}
-		out, err = storeChecked(ctx, sqlcgen.New(tx), f.NewFiling, &assoc)
+		q := sqlcgen.New(tx)
+		if holder, err := q.GetAssociationByEdrpou(ctx, pgtype.Text{String: f.Edrpou, Valid: true}); err == nil {
+			if holder.Bytes != assoc {
+				return ports.ErrAssociationConnected
+			}
+		} else if !errors.Is(err, pgx.ErrNoRows) {
+			return err
+		}
+		out, err = storeChecked(ctx, q, f.NewFiling, &assoc)
 		return err
 	})
 	return out, err
@@ -170,11 +185,15 @@ func assocOf(id *uuid.UUID) pgtype.UUID {
 
 // mapOpen turns the unique-index race of two concurrent filings into ErrApplicationOpen.
 func mapOpen(err error) error {
-	var pg *pgconn.PgError
-	if errors.As(err, &pg) && pg.Code == "23505" {
+	if isUniqueViolation(err) {
 		return ports.ErrApplicationOpen
 	}
 	return err
+}
+
+func isUniqueViolation(err error) bool {
+	var pg *pgconn.PgError
+	return errors.As(err, &pg) && pg.Code == "23505"
 }
 
 func optDate(d pgtype.Date) *time.Time {

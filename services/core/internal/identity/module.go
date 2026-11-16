@@ -6,6 +6,7 @@ package identity
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -24,17 +25,38 @@ type Module struct {
 	signIn  *app.SignIn  // nil until EnableSignIn
 
 	applications *app.Applications
+	pgApps       *postgres.Applications
+	cards        *app.Cards
+	memberships  *app.Memberships        // nil until EnableMemberships
+	storage      *app.StorageConnections // nil until EnableStorage
+	now          func() time.Time
+}
+
+// SetClock replaces the clock the guard, the card filing, the card, the memberships and the storage
+// consent take «today» from (default time.Now). Call it before the Enable* methods.
+func (m *Module) SetClock(now func() time.Time) {
+	m.now = now
+	m.pgApps.SetClock(now)
+	m.cards.SetClock(now)
+	if m.memberships != nil {
+		m.memberships.SetClock(now)
+	}
+	if m.storage != nil {
+		m.storage.SetClock(now)
+	}
 }
 
 func New(pool *pgxpool.Pool) *Module {
 	h := identityhttp.NewHandler()
-	applications := app.NewApplications(postgres.NewApplications(pool))
+	pgApps := postgres.NewApplications(pool)
+	applications := app.NewApplications(pgApps)
 	h.EnableApplications(applications)
 	h.EnableAssociationStates(app.NewAssociationStates(postgres.NewAssociations(pool)))
 	h.EnableReviews(app.NewReviews(postgres.NewReviews(pool)))
 	h.EnableRejections(app.NewRejections(postgres.NewRejections(pool)))
-	h.EnableCards(app.NewCards(postgres.NewCards(pool)))
-	return &Module{handler: h, pool: pool, applications: applications}
+	cards := app.NewCards(postgres.NewCards(pool))
+	h.EnableCards(cards)
+	return &Module{handler: h, pool: pool, applications: applications, pgApps: pgApps, cards: cards, now: time.Now}
 }
 
 // Routes attaches the context's routes to r inside their own group, validated
@@ -45,7 +67,7 @@ func (m *Module) Routes(r chi.Router) error {
 		return fmt.Errorf("identity: load spec: %w", err)
 	}
 	r.Group(func(r chi.Router) {
-		r.Use(httpapi.RequestValidator(spec), identityhttp.CaptureSession)
+		r.Use(httpapi.BodyLimit(6<<20, 1<<20), httpapi.RequestValidator(spec), identityhttp.CaptureSession)
 		strict := gen.NewStrictHandlerWithOptions(m.handler, nil, gen.StrictHTTPServerOptions{
 			RequestErrorHandlerFunc:  httpapi.StrictRequestError,
 			ResponseErrorHandlerFunc: httpapi.StrictResponseError,

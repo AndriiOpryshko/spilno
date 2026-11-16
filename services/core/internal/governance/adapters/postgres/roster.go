@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/adapters/postgres/sqlcgen"
+	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/domain"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/ports"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/db"
 )
@@ -66,4 +67,60 @@ func (Roster) MemberSignInAddresses(ctx context.Context, association uuid.UUID, 
 	return sqlcgen.New(tx).MemberSignInAddresses(ctx, sqlcgen.MemberSignInAddressesParams{
 		AssociationID: uuidOf(association), OnDate: dateOf(date),
 	})
+}
+
+func (Roster) ListEntries(ctx context.Context, association uuid.UUID, on *time.Time, after *ports.EntryKey, limit int) ([]ports.RosterEntry, error) {
+	// limit is bounded by app.MaxPageSize, so it fits int32.
+	arg := sqlcgen.ListRosterEntriesParams{AssociationID: uuidOf(association), RowLimit: int32(limit)}
+	if on != nil {
+		arg.OnDate = dateOf(*on)
+	}
+	if after != nil {
+		arg.AfterCreatedAt = pgtype.Timestamptz{Time: after.CreatedAt, Valid: true}
+		arg.AfterID = uuidOf(after.ID)
+	}
+	return listEntries(ctx, arg)
+}
+
+func (Roster) Entry(ctx context.Context, association, id uuid.UUID) (ports.RosterEntry, bool, error) {
+	rows, err := listEntries(ctx, sqlcgen.ListRosterEntriesParams{AssociationID: uuidOf(association), EntryID: uuidOf(id), RowLimit: 1})
+	if err != nil || len(rows) == 0 {
+		return ports.RosterEntry{}, false, err
+	}
+	return rows[0], true, nil
+}
+
+func listEntries(ctx context.Context, arg sqlcgen.ListRosterEntriesParams) ([]ports.RosterEntry, error) {
+	tx, err := db.From(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := sqlcgen.New(tx).ListRosterEntries(ctx, arg)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]ports.RosterEntry, len(rows))
+	for i, r := range rows {
+		e := ports.RosterEntry{
+			ID:        uuid.UUID(r.ID.Bytes),
+			CreatedAt: r.EntryCreatedAt.Time,
+			RevisedAt: r.RevisedAt.Time,
+			Entry: domain.BoardMemberEntry{
+				FullName: r.FullName, SignInEmail: r.SignInEmail.String,
+				Term:     domain.Term{Start: r.TermStart.Time},
+				Position: domain.Position(r.Position),
+			},
+		}
+		if r.TermEnd.Valid {
+			e.Entry.Term.End = r.TermEnd.Time
+		}
+		if r.DecisionID.Valid {
+			e.Entry.DecisionID = uuid.UUID(r.DecisionID.Bytes).String()
+		}
+		if r.RevisedByMemberID.Valid {
+			e.RevisedByMemberID = uuid.UUID(r.RevisedByMemberID.Bytes)
+		}
+		out[i] = e
+	}
+	return out, nil
 }

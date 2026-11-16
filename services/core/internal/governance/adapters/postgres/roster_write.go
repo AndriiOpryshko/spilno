@@ -18,7 +18,12 @@ import (
 
 // WriteRevision appends a revision of a roster entry on the transaction in ctx. The entry
 // is validated in Go first: a missing or unknown position never reaches the database.
-func (Roster) WriteRevision(ctx context.Context, association, boardMember uuid.UUID, entry domain.BoardMemberEntry) error {
+func (r Roster) WriteRevision(ctx context.Context, association, boardMember uuid.UUID, entry domain.BoardMemberEntry) error {
+	return r.WriteRevisionBy(ctx, association, boardMember, entry, uuid.Nil)
+}
+
+// WriteRevisionBy is WriteRevision recording the entry of the member who made the change; a nil by records none.
+func (Roster) WriteRevisionBy(ctx context.Context, association, boardMember uuid.UUID, entry domain.BoardMemberEntry, by uuid.UUID) error {
 	if err := validateForWrite(entry); err != nil {
 		return err
 	}
@@ -45,6 +50,9 @@ func (Roster) WriteRevision(ctx context.Context, association, boardMember uuid.U
 		TermStart:   dateOf(entry.Term.Start),
 		Position:    string(entry.Position),
 		DecisionID:  decision,
+	}
+	if by != uuid.Nil {
+		params.CreatedByMemberID = uuidOf(by)
 	}
 	if !entry.Term.End.IsZero() {
 		params.TermEnd = dateOf(entry.Term.End)
@@ -105,7 +113,7 @@ func (Roster) LatestEntry(ctx context.Context, association, boardMember uuid.UUI
 	entry := domain.BoardMemberEntry{
 		FullName: row.FullName, SignInEmail: row.SignInEmail,
 		Term:     domain.Term{Start: row.TermStart.Time},
-		Position: domain.Position(row.Position),
+		Position: domain.Position(row.Position), DecisionID: row.DecisionID,
 	}
 	if row.TermEnd.Valid {
 		entry.Term.End = row.TermEnd.Time
@@ -127,4 +135,20 @@ func (Roster) CreateMember(ctx context.Context, association uuid.UUID) (uuid.UUI
 		return uuid.Nil, err
 	}
 	return id, nil
+}
+
+// ActorEntryID finds the entry of the person whose address db.InAssociation set for this transaction.
+func (r Roster) ActorEntryID(ctx context.Context, association uuid.UUID, date time.Time) (uuid.UUID, bool, error) {
+	tx, err := db.From(ctx)
+	if err != nil {
+		return uuid.Nil, false, err
+	}
+	email, err := sqlcgen.New(tx).ActorEmail(ctx)
+	if err != nil {
+		return uuid.Nil, false, err
+	}
+	if email == "" {
+		return uuid.Nil, false, nil
+	}
+	return r.CurrentMemberID(ctx, association, email, date)
 }

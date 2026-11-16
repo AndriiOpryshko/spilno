@@ -171,3 +171,31 @@ func TestFileTransferValidatesItsFieldsAndRefusesADuplicate(t *testing.T) {
 		t.Fatalf("duplicate: status = %d code = %q (%s), want 409 identity.application_already_open", dup.status, dup.code(), dup.body)
 	}
 }
+
+// AC-19c: a card transfer whose typed code another association holds is 409
+// identity.association_already_connected at filing, and nothing is stored.
+func TestFileTransferFromTheCardWithAnotherAssociationsCodeIsRefused(t *testing.T) {
+	e := newFileAppEnv(t)
+	bid := uuid.MustParse(e.assocB)
+	code := "55667788"
+	err := db.InAssociation(context.Background(), e.pool, bid, "seed@example.test", func(ctx context.Context) error {
+		tx, err := db.From(ctx)
+		if err != nil {
+			return err
+		}
+		_, err = tx.Exec(ctx, `UPDATE associations SET edrpou = $2, state = 'connected' WHERE id = $1`, bid, code)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := transferFields(code)
+	f["association_id"] = e.assocA
+	got := e.file(t, "head", f, fileAppPDF(64))
+	if got.status != http.StatusConflict || got.code() != "identity.association_already_connected" {
+		t.Fatalf("status = %d code = %q (%s), want 409 identity.association_already_connected", got.status, got.code(), got.body)
+	}
+	if c := e.counts(t); c != [3]int{} {
+		t.Errorf("rows = %v, want none stored", c)
+	}
+}

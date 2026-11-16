@@ -41,10 +41,10 @@ type cardEnv struct {
 func newCardEnv(t *testing.T) *cardEnv {
 	t.Helper()
 	pool, a, b := testdb.NewTwoAssociations(t)
-	gov := governance.New(pool)
+	gov := governance.New(pool, nil)
 	idm := identity.New(pool)
-	idm.EnableApprovals(identity.ApprovalConfig{SeatHead: func(ctx context.Context, association uuid.UUID, fullName, signInEmail string, termStart time.Time, decisionID uuid.UUID) (uuid.UUID, error) {
-		return gov.SeatHead(ctx, association, governance.Person{FullName: fullName, SignInEmail: signInEmail}, governance.Term{Start: termStart}, decisionID)
+	idm.EnableApprovals(identity.ApprovalConfig{SeatHead: func(ctx context.Context, association uuid.UUID, fullName, signInEmail string, termStart, termEnd time.Time, decisionID uuid.UUID) (uuid.UUID, error) {
+		return gov.SeatHead(ctx, association, governance.Person{FullName: fullName, SignInEmail: signInEmail}, governance.Term{Start: termStart, End: termEnd}, decisionID)
 	}, EndTerm: gov.EndTerm})
 	idm.EnableMemberships(identity.MembershipsConfig{
 		MembershipsOf: func(ctx context.Context, email string, date time.Time) ([]identity.RosterSeat, error) {

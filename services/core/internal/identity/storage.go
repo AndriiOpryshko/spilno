@@ -33,8 +33,10 @@ func (m *Module) EnableStorageConnection(cfg StorageConnectionConfig) {
 	if m.google == nil {
 		return
 	}
-	m.handler.EnableStorageConnections(app.NewStorageConnections(
-		googleConsent{cfg.Consent}, scopedMembers{m.pool, cfg.Members}, m.google.connections, postgres.NewGoogleConnections(m.pool)))
+	m.storage = app.NewStorageConnections(
+		googleConsent{cfg.Consent}, scopedMembers{m.pool, cfg.Members}, m.google.connections, postgres.NewGoogleConnections(m.pool))
+	m.storage.SetClock(m.now)
+	m.handler.EnableStorageConnections(m.storage)
 }
 
 // googleConsent adapts google.Consent to the storage consent port.
@@ -43,7 +45,7 @@ type googleConsent struct{ c StorageConsent }
 func (g googleConsent) AuthURL(state string) string { return g.c.AuthURL(state) }
 
 func (g googleConsent) Complete(ctx context.Context, code string) (ports.StorageGrant, error) {
-	grant, err := g.c.Complete(ctx, code)
+	grant, err := g.c.Complete(db.Detached(ctx), code)
 	switch {
 	case errors.Is(err, google.ErrCodeExchangeFailed), errors.Is(err, google.ErrNoRefreshToken), errors.Is(err, google.ErrScopeNotGranted):
 		return ports.StorageGrant{}, ports.ErrStorageCodeRefused

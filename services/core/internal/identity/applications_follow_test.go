@@ -230,6 +230,33 @@ func TestRefileIsRefusedForPendingAndForACodeConnectedMeanwhile(t *testing.T) {
 	}
 }
 
+// AC-04b, AC-06 (review of 2026-11-10, F18): after a rejection the person files a new заявка for the
+// same code; refiling the rejected one would give them two open applications for it, so the refile
+// is refused and both applications stay as they were.
+func TestRefileIsRefusedWhileAnotherApplicationForTheCodeIsOpen(t *testing.T) {
+	e := newFileAppEnv(t)
+	old := e.followFile(t, "first", fileAppPDF(64))
+	e.followReject(t, old.ID, "wrong head in the extract")
+	fresh := e.followFile(t, "first", fileAppPDF(72))
+	if fresh.ID == old.ID || fresh.State != "pending" {
+		t.Fatalf("new application = %+v, want another one, pending", fresh)
+	}
+
+	got := e.followRefile(t, "first", old.ID, fileAppPDF(80))
+	if got.status != http.StatusConflict || got.code() != "identity.application_already_open" {
+		t.Fatalf("refile beside an open application: status = %d code = %q (%s), want 409 identity.application_already_open", got.status, got.code(), got.body)
+	}
+	if d := e.followDetail(t, "first", old.ID); d.Application.State != "rejected" || len(d.Filings) != 1 {
+		t.Errorf("rejected application after the refusal = %+v, want rejected with one filing", d)
+	}
+	if d := e.followDetail(t, "first", fresh.ID); d.Application.State != "pending" || len(d.Filings) != 1 {
+		t.Errorf("open application after the refusal = %+v, want pending with one filing", d)
+	}
+	if c := e.counts(t); c != [3]int{2, 2, 2} {
+		t.Errorf("rows (applications, filings, extracts) = %v, want [2 2 2]: the refused refile stores nothing", c)
+	}
+}
+
 // ADR-0005: the applicant downloads their own extract byte for byte as an attachment; another
 // account's extract answers the same 404 as a missing one.
 func TestApplicantDownloadsOnlyTheirOwnExtract(t *testing.T) {

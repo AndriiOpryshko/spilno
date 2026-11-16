@@ -33,6 +33,7 @@ type fileAppEnv struct {
 	srv     *httptest.Server
 	pool    *pgxpool.Pool
 	assocA  string
+	assocB  string
 	cookies map[string]*http.Cookie
 }
 
@@ -40,7 +41,7 @@ type fileAppEnv struct {
 // (no roster) and head (a член правління of association A).
 func newFileAppEnv(t *testing.T) *fileAppEnv {
 	t.Helper()
-	pool, a, _ := testdb.NewTwoAssociations(t)
+	pool, a, b := testdb.NewTwoAssociations(t)
 	idm := identity.New(pool)
 	people := map[string]identity.ProviderIdentity{}
 	for _, p := range []string{"first", "second", "head"} {
@@ -49,7 +50,7 @@ func newFileAppEnv(t *testing.T) *fileAppEnv {
 	idm.EnableSignIn(identity.SignInConfig{Provider: &signInFake{people: people}, OperatorEmail: guardOperatorEmail})
 	r := httpapi.NewRouter()
 	r.Group(func(r chi.Router) {
-		r.Use(idm.Guard(guardRoster{governance.New(pool)}))
+		r.Use(idm.Guard(guardRoster{governance.New(pool, idm.HasStorageConnection)}))
 		if err := idm.Routes(r); err != nil {
 			t.Fatal(err)
 		}
@@ -69,7 +70,7 @@ func newFileAppEnv(t *testing.T) *fileAppEnv {
 	if err != nil {
 		t.Fatal(err)
 	}
-	env := &fileAppEnv{srv: srv, pool: pool, assocA: a, cookies: map[string]*http.Cookie{}}
+	env := &fileAppEnv{srv: srv, pool: pool, assocA: a, assocB: b, cookies: map[string]*http.Cookie{}}
 	for p := range people {
 		c := sessionCookieOf(signInAs(t, srv, p))
 		if c == nil {
@@ -332,5 +333,34 @@ func TestFileApplicationAcceptsFiveMegabytesAndRefusesOneByteMore(t *testing.T) 
 	}
 	if after := e.counts(t); after != before {
 		t.Errorf("rows %v -> %v, want unchanged after the oversize upload", before, after)
+	}
+}
+
+// AC-02 (review B1): a body over the limit of its operation is refused 413 as problem+json before
+// the request validator buffers it, with or without a session; nothing is stored.
+func TestFileApplicationRefusesAnOversizeBodyBeforeTheValidatorReadsIt(t *testing.T) {
+	e := newFileAppEnv(t)
+	before := e.counts(t)
+	for _, as := range []string{"", "first"} {
+		name := as
+		if name == "" {
+			name = "no session"
+		}
+		t.Run(name, func(t *testing.T) {
+			got := e.file(t, as, fileAppFields(), fileAppPDF(20*1024*1024))
+			if got.status != http.StatusRequestEntityTooLarge {
+				t.Fatalf("20 MB multipart (%s): status = %d (%.200s), want 413", name, got.status, got.body)
+			}
+			var p struct {
+				Status int    `json:"status"`
+				Title  string `json:"title"`
+			}
+			if err := json.Unmarshal(got.body, &p); err != nil || p.Status != http.StatusRequestEntityTooLarge || p.Title == "" {
+				t.Errorf("body = %.200s, want problem+json with status 413 and a title", got.body)
+			}
+		})
+	}
+	if after := e.counts(t); after != before {
+		t.Errorf("rows %v -> %v, want unchanged after the oversize bodies", before, after)
 	}
 }

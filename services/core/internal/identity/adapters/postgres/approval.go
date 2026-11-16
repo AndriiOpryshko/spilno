@@ -8,7 +8,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -93,6 +92,9 @@ func (s *Approvals) Approve(ctx context.Context, req ports.ApprovalRequest, deci
 
 		if transfer {
 			if err := q.SetAssociationEdrpou(ctx, sqlcgen.SetAssociationEdrpouParams{ID: pgUUID(assocID), Edrpou: pgtype.Text{String: app.Edrpou, Valid: true}}); err != nil {
+				if isUniqueViolation(err) {
+					return ports.ErrAssociationConnected
+				}
 				return err
 			}
 			if err := endPreviousHead(ctx, q, end, assocID, assoc.ConfirmedByDecisionID, app.ApplicantEmail, filing.TermStart.Time, decisionID); err != nil {
@@ -102,13 +104,12 @@ func (s *Approvals) Approve(ctx context.Context, req ports.ApprovalRequest, deci
 			ID: pgUUID(assocID), Name: filing.AssociationName, Edrpou: pgtype.Text{String: app.Edrpou, Valid: true},
 			Address: pgtype.Text{String: filing.AssociationAddress, Valid: true},
 		}); err != nil {
-			var pg *pgconn.PgError
-			if errors.As(err, &pg) && pg.Code == "23505" {
+			if isUniqueViolation(err) {
 				return ports.ErrAssociationConnected
 			}
 			return err
 		}
-		if _, err := seat(ctx, assocID, filing.ApplicantFullName, app.ApplicantEmail, filing.TermStart.Time, decisionID); err != nil {
+		if _, err := seat(ctx, assocID, filing.ApplicantFullName, app.ApplicantEmail, filing.TermStart.Time, filing.TermEnd.Time, decisionID); err != nil {
 			return err
 		}
 		doc := pgtype.Text{String: req.Document, Valid: req.Document != ""}

@@ -91,6 +91,11 @@ func TestGuardMakesADisabledAssociationReadOnly(t *testing.T) {
 					if got.code() == "identity.association_disabled" || got.code() == "identity.not_current_member" {
 						t.Errorf("%s (%s %s) on a disabled association: code = %q, want it past the guard", opID, m, path, got.code())
 					}
+					// T63: the two registry reads have real handlers now. Past the guard on a disabled association
+					// the empty registry is a 200 and a protocol that does not exist is a 404; never the 501 stub.
+					if want, served := map[string]int{"searchRegistry": http.StatusOK, "getSignedProtocol": http.StatusNotFound}[opID]; served && got.status != want {
+						t.Errorf("%s (%s %s) on a disabled association: status = %d (%s), want %d from its handler", opID, m, path, got.status, got.body, want)
+					}
 					continue
 				}
 				refusedN++

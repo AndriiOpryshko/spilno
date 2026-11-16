@@ -16,8 +16,10 @@ import (
 )
 
 const (
-	stateTTL   = 10 * time.Minute
-	sessionTTL = 30 * 24 * time.Hour
+	stateTTL = 10 * time.Minute
+	// maxPendingStates caps the in-flight sign-in and consent states held in memory.
+	maxPendingStates = 1000
+	sessionTTL       = 30 * 24 * time.Hour
 )
 
 // ErrNoSession is returned when the token names no live session.
@@ -75,11 +77,7 @@ func (s *SignIn) Start() (string, error) {
 	now := s.now()
 
 	s.mu.Lock()
-	for k, v := range s.states {
-		if now.After(v.expires) {
-			delete(s.states, k)
-		}
-	}
+	evictToCap(s.states, now, func(p pending) time.Time { return p.expires })
 	s.states[state] = pending{verifier: verifier, nonce: nonce, expires: now.Add(stateTTL)}
 	s.mu.Unlock()
 
@@ -143,4 +141,28 @@ func (s *SignIn) SignOut(ctx context.Context, token string) error {
 		return err
 	}
 	return s.sessions.Delete(ctx, hashToken(token))
+}
+
+// evictToCap makes room for one more entry: it drops expired states once the map
+// is at maxPendingStates and, if it is still full of live states, forgets the
+// one closest to expiry.
+func evictToCap[V any](states map[string]V, now time.Time, expires func(V) time.Time) {
+	if len(states) < maxPendingStates {
+		return
+	}
+	for k, v := range states {
+		if now.After(expires(v)) {
+			delete(states, k)
+		}
+	}
+	for len(states) >= maxPendingStates {
+		var oldest string
+		var at time.Time
+		for k, v := range states {
+			if oldest == "" || expires(v).Before(at) {
+				oldest, at = k, expires(v)
+			}
+		}
+		delete(states, oldest)
+	}
 }

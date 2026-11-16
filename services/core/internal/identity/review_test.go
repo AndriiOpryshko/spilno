@@ -5,8 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"mime"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/textproto"
 	"strings"
 	"testing"
 	"time"
@@ -42,7 +45,7 @@ func newReviewEnv(t *testing.T) *reviewEnv {
 	idm.EnableSignIn(identity.SignInConfig{Provider: &signInFake{people: people}, OperatorEmail: guardOperatorEmail})
 	r := httpapi.NewRouter()
 	r.Group(func(r chi.Router) {
-		r.Use(idm.Guard(guardRoster{governance.New(pool)}))
+		r.Use(idm.Guard(guardRoster{governance.New(pool, idm.HasStorageConnection)}))
 		if err := idm.Routes(r); err != nil {
 			t.Fatal(err)
 		}
@@ -346,5 +349,49 @@ func TestReview_NonOperatorsAreRefusedOnAllFourOperations(t *testing.T) {
 	}
 	if after := count(t, e.pool, "application_checks"); after != before {
 		t.Fatalf("extract_checks rows = %d after refused attempts, want %d", after, before)
+	}
+}
+
+// AC-02: the review download of a file with a Cyrillic name carries the RFC 6266 header the
+// other two downloads send, not a Go-quoted string.
+func TestReview_ExtractDownloadSendsRFC6266DispositionForACyrillicName(t *testing.T) {
+	e := newReviewEnv(t)
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+	for k, v := range fileAppFields() {
+		_ = w.WriteField(k, v)
+	}
+	h := textproto.MIMEHeader{}
+	h.Set("Content-Disposition", `form-data; name="extract"; filename="витяг.pdf.p7s"`)
+	h.Set("Content-Type", "application/pkcs7-signature")
+	fw, err := w.CreatePart(h)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = fw.Write(append([]byte{0x30, 0x82, 0x0a, 0x2b, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x07, 0x02}, make([]byte, 600)...))
+	_ = w.Close()
+	req, _ := http.NewRequest("POST", e.srv.URL+"/identity/applications", &buf)
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	req.AddCookie(e.cookies["first"])
+	resp, err := signInNoRedirect.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("filing = %d (%s), want 201", resp.StatusCode, b)
+	}
+	var app struct{ ID string }
+	_ = json.Unmarshal(b, &app)
+
+	filing := e.review(t, app.ID).Filings[0].ID
+	status, hdr, _ := e.do(t, "operator", http.MethodGet, "/identity/operator/applications/"+app.ID+"/filings/"+filing+"/extract", "")
+	if status != http.StatusOK {
+		t.Fatalf("downloadExtractForReview = %d", status)
+	}
+	want := mime.FormatMediaType("attachment", map[string]string{"filename": "витяг.pdf.p7s"})
+	if got := hdr.Get("Content-Disposition"); got != want {
+		t.Fatalf("Content-Disposition = %q, want %q", got, want)
 	}
 }

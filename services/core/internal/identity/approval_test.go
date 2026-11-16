@@ -27,24 +27,24 @@ import (
 //
 //	func (m *Module) EnableApprovals(cfg ApprovalConfig)
 //	type ApprovalConfig struct {
-//		SeatHead func(ctx context.Context, association uuid.UUID, fullName, signInEmail string, termStart time.Time, decisionID uuid.UUID) (uuid.UUID, error)
+//		SeatHead func(ctx context.Context, association uuid.UUID, fullName, signInEmail string, termStart, termEnd time.Time, decisionID uuid.UUID) (uuid.UUID, error)
 //	}
 
 // newApprovalEnv is newReviewEnv with approvals enabled; seat nil seats through governance.SeatHead.
-func newApprovalEnv(t *testing.T, seat func(ctx context.Context, association uuid.UUID, fullName, signInEmail string, termStart time.Time, decisionID uuid.UUID) (uuid.UUID, error)) *reviewEnv {
+func newApprovalEnv(t *testing.T, seat func(ctx context.Context, association uuid.UUID, fullName, signInEmail string, termStart, termEnd time.Time, decisionID uuid.UUID) (uuid.UUID, error)) *reviewEnv {
 	t.Helper()
 	return newApprovalEnvWith(t, seat, nil)
 }
 
 // newApprovalEnvWith also takes the end-of-term step (ApprovalConfig.EndTerm); nil ends through
 // governance.EndTerm. The router serves /probe/associations/{association_id} behind the guard.
-func newApprovalEnvWith(t *testing.T, seat func(ctx context.Context, association uuid.UUID, fullName, signInEmail string, termStart time.Time, decisionID uuid.UUID) (uuid.UUID, error), end func(ctx context.Context, association, memberID uuid.UUID, date time.Time, decisionID uuid.UUID) error) *reviewEnv {
+func newApprovalEnvWith(t *testing.T, seat func(ctx context.Context, association uuid.UUID, fullName, signInEmail string, termStart, termEnd time.Time, decisionID uuid.UUID) (uuid.UUID, error), end func(ctx context.Context, association, memberID uuid.UUID, date time.Time, decisionID uuid.UUID) error) *reviewEnv {
 	t.Helper()
 	pool, _, _ := testdb.NewTwoAssociations(t)
-	gov := governance.New(pool)
+	gov := governance.New(pool, nil)
 	if seat == nil {
-		seat = func(ctx context.Context, association uuid.UUID, fullName, signInEmail string, termStart time.Time, decisionID uuid.UUID) (uuid.UUID, error) {
-			return gov.SeatHead(ctx, association, governance.Person{FullName: fullName, SignInEmail: signInEmail}, governance.Term{Start: termStart}, decisionID)
+		seat = func(ctx context.Context, association uuid.UUID, fullName, signInEmail string, termStart, termEnd time.Time, decisionID uuid.UUID) (uuid.UUID, error) {
+			return gov.SeatHead(ctx, association, governance.Person{FullName: fullName, SignInEmail: signInEmail}, governance.Term{Start: termStart, End: termEnd}, decisionID)
 		}
 	}
 	if end == nil {
@@ -150,7 +150,7 @@ func approvalMember(t *testing.T, e *reviewEnv, assoc, email string, date time.T
 	)
 	id := uuid.MustParse(assoc)
 	err := db.InAssociation(context.Background(), e.pool, id, "test@example.test", func(ctx context.Context) (err error) {
-		m, ok, err = governance.New(e.pool).CurrentMember(ctx, id, email, date)
+		m, ok, err = governance.New(e.pool, nil).CurrentMember(ctx, id, email, date)
 		return err
 	})
 	if err != nil {
@@ -386,7 +386,7 @@ func TestApproval_CompetingApplicationsCreateExactlyOneAssociation(t *testing.T)
 
 // The roster step failing rolls everything back: no association, no decision, the заявка pending.
 func TestApproval_RosterFailureRollsBackTheWholeApproval(t *testing.T) {
-	e := newApprovalEnv(t, func(context.Context, uuid.UUID, string, string, time.Time, uuid.UUID) (uuid.UUID, error) {
+	e := newApprovalEnv(t, func(context.Context, uuid.UUID, string, string, time.Time, time.Time, uuid.UUID) (uuid.UUID, error) {
 		return uuid.Nil, errors.New("roster unavailable")
 	})
 	f := approvalFile(t, e, "first")

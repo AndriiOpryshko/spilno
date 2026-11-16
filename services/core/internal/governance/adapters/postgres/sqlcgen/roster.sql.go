@@ -11,6 +11,18 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const actorEmail = `-- name: ActorEmail :one
+SELECT COALESCE(current_setting('app.actor_email', true), '')::text AS email
+`
+
+// The sign-in address db.InAssociation set for this transaction; empty when none.
+func (q *Queries) ActorEmail(ctx context.Context) (string, error) {
+	row := q.db.QueryRow(ctx, actorEmail)
+	var email string
+	err := row.Scan(&email)
+	return email, err
+}
+
 const currentMemberIDByEmail = `-- name: CurrentMemberIDByEmail :one
 SELECT board_member_id
 FROM (
@@ -82,21 +94,22 @@ func (q *Queries) InsertBoardMember(ctx context.Context, arg InsertBoardMemberPa
 }
 
 const insertBoardMemberRevision = `-- name: InsertBoardMemberRevision :exec
-INSERT INTO board_member_revisions (id, association_id, board_member_id, full_name, sign_in_email, term_start, term_end, position, decision_id)
+INSERT INTO board_member_revisions (id, association_id, board_member_id, full_name, sign_in_email, term_start, term_end, position, decision_id, created_by_member_id)
 VALUES ($1, $2, $3, $4, $5,
-        $6, $7, $8, $9)
+        $6, $7, $8, $9, $10)
 `
 
 type InsertBoardMemberRevisionParams struct {
-	ID            pgtype.UUID
-	AssociationID pgtype.UUID
-	BoardMemberID pgtype.UUID
-	FullName      string
-	SignInEmail   pgtype.Text
-	TermStart     pgtype.Date
-	TermEnd       pgtype.Date
-	Position      string
-	DecisionID    pgtype.UUID
+	ID                pgtype.UUID
+	AssociationID     pgtype.UUID
+	BoardMemberID     pgtype.UUID
+	FullName          string
+	SignInEmail       pgtype.Text
+	TermStart         pgtype.Date
+	TermEnd           pgtype.Date
+	Position          string
+	DecisionID        pgtype.UUID
+	CreatedByMemberID pgtype.UUID
 }
 
 func (q *Queries) InsertBoardMemberRevision(ctx context.Context, arg InsertBoardMemberRevisionParams) error {
@@ -110,13 +123,14 @@ func (q *Queries) InsertBoardMemberRevision(ctx context.Context, arg InsertBoard
 		arg.TermEnd,
 		arg.Position,
 		arg.DecisionID,
+		arg.CreatedByMemberID,
 	)
 	return err
 }
 
 const latestRevisionOfMember = `-- name: LatestRevisionOfMember :one
 SELECT full_name::text AS full_name, COALESCE(sign_in_email, '')::text AS sign_in_email, term_start, term_end,
-       COALESCE(position, 'member')::text AS position
+       COALESCE(position, 'member')::text AS position, COALESCE(decision_id::text, '')::text AS decision_id
 FROM board_member_revisions
 WHERE association_id = $1 AND board_member_id = $2
 ORDER BY created_at DESC, id DESC
@@ -134,6 +148,7 @@ type LatestRevisionOfMemberRow struct {
 	TermStart   pgtype.Date
 	TermEnd     pgtype.Date
 	Position    string
+	DecisionID  string
 }
 
 func (q *Queries) LatestRevisionOfMember(ctx context.Context, arg LatestRevisionOfMemberParams) (LatestRevisionOfMemberRow, error) {
@@ -145,8 +160,93 @@ func (q *Queries) LatestRevisionOfMember(ctx context.Context, arg LatestRevision
 		&i.TermStart,
 		&i.TermEnd,
 		&i.Position,
+		&i.DecisionID,
 	)
 	return i, err
+}
+
+const listRosterEntries = `-- name: ListRosterEntries :many
+SELECT bm.id AS id, bm.created_at AS entry_created_at,
+       r.full_name::text AS full_name, r.sign_in_email, r.term_start, r.term_end,
+       COALESCE(r.position, 'member')::text AS position, r.decision_id,
+       r.created_by_member_id AS revised_by_member_id, r.created_at AS revised_at
+FROM board_members bm
+JOIN LATERAL (
+  SELECT id, association_id, board_member_id, full_name, sign_in_email, term_start, term_end, created_by_member_id, created_at, position, decision_id FROM board_member_revisions
+  WHERE board_member_id = bm.id AND association_id = bm.association_id
+  ORDER BY created_at DESC, id DESC
+  LIMIT 1
+) r ON true
+WHERE bm.association_id = $1
+  AND ($2::uuid IS NULL OR bm.id = $2::uuid)
+  AND ($3::date IS NULL
+   OR (r.term_start <= $3::date AND (r.term_end IS NULL OR r.term_end >= $3::date)))
+  AND ($4::timestamptz IS NULL
+   OR (bm.created_at, bm.id) < ($4::timestamptz, $5::uuid))
+ORDER BY bm.created_at DESC, bm.id DESC
+LIMIT $6
+`
+
+type ListRosterEntriesParams struct {
+	AssociationID  pgtype.UUID
+	EntryID        pgtype.UUID
+	OnDate         pgtype.Date
+	AfterCreatedAt pgtype.Timestamptz
+	AfterID        pgtype.UUID
+	RowLimit       int32
+}
+
+type ListRosterEntriesRow struct {
+	ID                pgtype.UUID
+	EntryCreatedAt    pgtype.Timestamptz
+	FullName          string
+	SignInEmail       pgtype.Text
+	TermStart         pgtype.Date
+	TermEnd           pgtype.Date
+	Position          string
+	DecisionID        pgtype.UUID
+	RevisedByMemberID pgtype.UUID
+	RevisedAt         pgtype.Timestamptz
+}
+
+// One row per entry (its latest revision), newest entry first by the (created_at, id) keyset; a NULL
+// on_date, after_created_at or entry_id leaves that filter off.
+func (q *Queries) ListRosterEntries(ctx context.Context, arg ListRosterEntriesParams) ([]ListRosterEntriesRow, error) {
+	rows, err := q.db.Query(ctx, listRosterEntries,
+		arg.AssociationID,
+		arg.EntryID,
+		arg.OnDate,
+		arg.AfterCreatedAt,
+		arg.AfterID,
+		arg.RowLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListRosterEntriesRow
+	for rows.Next() {
+		var i ListRosterEntriesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.EntryCreatedAt,
+			&i.FullName,
+			&i.SignInEmail,
+			&i.TermStart,
+			&i.TermEnd,
+			&i.Position,
+			&i.DecisionID,
+			&i.RevisedByMemberID,
+			&i.RevisedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const memberSignInAddresses = `-- name: MemberSignInAddresses :many

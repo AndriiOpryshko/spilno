@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/AndriiOpryshko/spilno/services/core/internal/identity/ports"
+	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/kyivday"
 )
 
 // MembershipSeat is one roster entry of a person.
@@ -37,12 +38,15 @@ type Memberships struct {
 	now    func() time.Time
 }
 
+// SetClock replaces the clock «today» is taken from.
+func (m *Memberships) SetClock(now func() time.Time) { m.now = now }
+
 func NewMemberships(roster RosterReader, repo ports.CardRepository) *Memberships {
 	return &Memberships{roster: roster, repo: repo, now: time.Now}
 }
 
 func (m *Memberships) List(ctx context.Context, email string) ([]Membership, error) {
-	today := m.now().UTC().Truncate(24 * time.Hour)
+	today := kyivday.Today(m.now())
 	seats, err := m.roster.MembershipsOf(ctx, email, today)
 	if err != nil {
 		return nil, err

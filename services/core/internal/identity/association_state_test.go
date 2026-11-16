@@ -38,7 +38,7 @@ func newAssocStateEnv(t *testing.T) *assocStateEnv {
 		people[p] = identity.ProviderIdentity{Issuer: "https://accounts.example.test", Subject: "sub-" + p, Email: email, EmailVerified: true}
 	}
 	idm.EnableSignIn(identity.SignInConfig{Provider: &signInFake{people: people}, OperatorEmail: guardOperatorEmail})
-	gov := governance.New(pool)
+	gov := governance.New(pool, idm.HasStorageConnection)
 	r := httpapi.NewRouter()
 	r.Group(func(r chi.Router) {
 		r.Use(idm.Guard(guardRoster{gov}))

@@ -31,7 +31,7 @@ func TestRosterFacade(t *testing.T) {
 	var pool *pgxpool.Pool
 	setup := func(t *testing.T) (*governance.Module, func(assoc uuid.UUID, fn func(ctx context.Context, tx db.DBTX))) {
 		pool = testdb.NewApp(t)
-		m := governance.New(pool)
+		m := governance.New(pool, nil)
 		return m, func(assoc uuid.UUID, fn func(ctx context.Context, tx db.DBTX)) {
 			t.Helper()
 			err := db.InAssociation(context.Background(), pool, assoc, "actor@example.test", func(ctx context.Context) error {

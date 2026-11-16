@@ -35,8 +35,8 @@ mise run dev          # infra + core API (hot reload) + web, in mprocs panes
 
 | Variable | Meaning |
 | --- | --- |
-| `DATABASE_URL` | The API's connection, as `spilno_app_login` (no `BYPASSRLS`) |
-| `MIGRATIONS_DATABASE_URL` | Migrations, as the database owner |
+| `DATABASE_URL` | The API's connection, as `spilno_app_login` (no `BYPASSRLS`); required, no default, the API refuses a superuser or `BYPASSRLS` role |
+| `MIGRATIONS_DATABASE_URL` | Migrations, as the database owner; required, no default |
 | `SPILNO_DEV_SIGN_IN` | `true` turns on the development sign-in shim, the only sign-in for now |
 | `SPILNO_OPERATOR_EMAIL` | Address of the оператор who reviews applications |
 | `SPILNO_WEB_ORIGIN` | Where the web app is served (default `http://localhost:5180`); the storage connection returns to `<origin>/storage/callback`, register that address with the Google OAuth client |

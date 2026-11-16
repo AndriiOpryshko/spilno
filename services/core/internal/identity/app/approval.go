@@ -2,10 +2,10 @@ package app
 
 import (
 	"context"
-	"time"
 
 	"github.com/AndriiOpryshko/spilno/services/core/internal/identity/domain"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/identity/ports"
+	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/kyivday"
 )
 
 // Approvals approves a заявка на підключення.
@@ -48,14 +48,9 @@ func (a *Approvals) Approve(ctx context.Context, in ApproveInput) (ports.ReviewD
 }
 
 func nameMismatchOpen(f ports.ApprovalFacts) bool {
-	loc, err := time.LoadLocation("Europe/Kyiv")
-	if err != nil {
-		loc = time.UTC
-	}
-	y, m, d := f.FiledAt.In(loc).Date()
 	for _, w := range domain.ReviewWarnings(f.ApplicantName, domain.ExtractCheck{
 		SignerName: f.SignerFullName, HeadFullName: f.HeadFullName, ExtractDated: f.ExtractDatedOn,
-	}, time.Date(y, m, d, 0, 0, 0, 0, time.UTC)) {
+	}, kyivday.Today(f.FiledAt)) {
 		if w.Kind == domain.WarningNameMismatch {
 			return true
 		}

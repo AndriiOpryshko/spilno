@@ -12,45 +12,6 @@ import (
 	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/httpapi"
 )
 
-func (h *Handler) ListBoardMembers(_ context.Context, _ gen.ListBoardMembersRequestObject) (gen.ListBoardMembersResponseObject, error) {
-	return nil, httpapi.ErrNotImplemented
-}
-
-func (h *Handler) CreateBoardMember(_ context.Context, _ gen.CreateBoardMemberRequestObject) (gen.CreateBoardMemberResponseObject, error) {
-	return nil, httpapi.ErrNotImplemented
-}
-
-func (h *Handler) UpdateBoardMember(_ context.Context, _ gen.UpdateBoardMemberRequestObject) (gen.UpdateBoardMemberResponseObject, error) {
-	return nil, httpapi.ErrNotImplemented
-}
-
-func (h *Handler) ListCases(_ context.Context, _ gen.ListCasesRequestObject) (gen.ListCasesResponseObject, error) {
-	return nil, httpapi.ErrNotImplemented
-}
-
-func (h *Handler) CreateCase(_ context.Context, _ gen.CreateCaseRequestObject) (gen.CreateCaseResponseObject, error) {
-	return nil, httpapi.ErrNotImplemented
-}
-
-func (h *Handler) GetCase(_ context.Context, _ gen.GetCaseRequestObject) (gen.GetCaseResponseObject, error) {
-	return nil, httpapi.ErrNotImplemented
-}
-
-func (h *Handler) AddCaseDocument(ctx context.Context, req gen.AddCaseDocumentRequestObject) (gen.AddCaseDocumentResponseObject, error) {
-	connected, err := h.storage(ctx, req.AssociationId)
-	if err != nil {
-		return nil, err
-	}
-	if !connected {
-		return gen.AddCaseDocument409ApplicationProblemPlusJSONResponse(driveNotConnectedProblem()), nil
-	}
-	return nil, httpapi.ErrNotImplemented
-}
-
-func (h *Handler) DownloadFile(_ context.Context, _ gen.DownloadFileRequestObject) (gen.DownloadFileResponseObject, error) {
-	return nil, httpapi.ErrNotImplemented
-}
-
 func (h *Handler) GetJob(_ context.Context, _ gen.GetJobRequestObject) (gen.GetJobResponseObject, error) {
 	return nil, httpapi.ErrNotImplemented
 }
@@ -127,14 +88,6 @@ func (h *Handler) CorrectDecisionSlot(_ context.Context, _ gen.CorrectDecisionSl
 }
 
 func (h *Handler) WithdrawProtocol(_ context.Context, _ gen.WithdrawProtocolRequestObject) (gen.WithdrawProtocolResponseObject, error) {
-	return nil, httpapi.ErrNotImplemented
-}
-
-func (h *Handler) SearchRegistry(_ context.Context, _ gen.SearchRegistryRequestObject) (gen.SearchRegistryResponseObject, error) {
-	return nil, httpapi.ErrNotImplemented
-}
-
-func (h *Handler) GetSignedProtocol(_ context.Context, _ gen.GetSignedProtocolRequestObject) (gen.GetSignedProtocolResponseObject, error) {
 	return nil, httpapi.ErrNotImplemented
 }
 

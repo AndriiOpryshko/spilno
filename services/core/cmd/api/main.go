@@ -123,6 +123,11 @@ func run() error {
 		idm.EnableSignIn(identity.SignInConfig{Provider: identity.DevSignInProvider(email), OperatorEmail: cfg.OperatorEmail})
 	}
 	gov := governance.New(pool, idm.HasStorageConnection)
+	if cfg.DevStorage {
+		// Development only: downloads read from an in-memory storage. Without it downloadFile
+		// answers 503 until the Drive adapter exists.
+		gov.WithFiles(governance.NewDevFiles())
+	}
 	idm.EnableApprovals(identity.ApprovalConfig{SeatHead: func(ctx context.Context, association uuid.UUID, fullName, signInEmail string, termStart, termEnd time.Time, decisionID uuid.UUID) (uuid.UUID, error) {
 		return gov.SeatHead(ctx, association, governance.Person{FullName: fullName, SignInEmail: signInEmail}, governance.Term{Start: termStart, End: termEnd}, decisionID)
 	}, EndTerm: gov.EndTerm})

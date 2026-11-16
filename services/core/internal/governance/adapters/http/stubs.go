@@ -35,10 +35,6 @@ func (h *Handler) AddCaseDocument(ctx context.Context, req gen.AddCaseDocumentRe
 	return nil, httpapi.ErrNotImplemented
 }
 
-func (h *Handler) DownloadFile(_ context.Context, _ gen.DownloadFileRequestObject) (gen.DownloadFileResponseObject, error) {
-	return nil, httpapi.ErrNotImplemented
-}
-
 func (h *Handler) GetJob(_ context.Context, _ gen.GetJobRequestObject) (gen.GetJobResponseObject, error) {
 	return nil, httpapi.ErrNotImplemented
 }

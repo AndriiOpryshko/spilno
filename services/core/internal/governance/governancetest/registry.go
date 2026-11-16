@@ -2,6 +2,7 @@ package governancetest
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"testing"
@@ -29,6 +30,10 @@ type SignedSpec struct {
 	LockedBy uuid.UUID
 	// CorrectionsNote is the note of the handwritten corrections; empty means none were reported.
 	CorrectionsNote string
+	// PrintBytes and ScanBytes, when set, are the real content of the print copy and the signed scan: their
+	// sha256 and length replace the synthetic ones in the files rows and the snapshot, so a download test
+	// can serve bytes the stored digest really matches.
+	PrintBytes, ScanBytes []byte
 }
 
 // Signed is what SeedSigned wrote, for the assertions of a test.
@@ -74,6 +79,15 @@ func SeedSigned(t testing.TB, tx db.DBTX, association uuid.UUID, spec SignedSpec
 		DocumentSHA256: sha(3),
 		LockedAt:       spec.MeetingDate.Add(40 * time.Hour).UTC(),
 	}
+	printSize, scanSize := int64(91234), int64(1834221)
+	if spec.PrintBytes != nil {
+		sum := sha256.Sum256(spec.PrintBytes)
+		s.PrintSHA256, printSize = hex.EncodeToString(sum[:]), int64(len(spec.PrintBytes))
+	}
+	if spec.ScanBytes != nil {
+		sum := sha256.Sum256(spec.ScanBytes)
+		s.ScanSHA256, scanSize = hex.EncodeToString(sum[:]), int64(len(spec.ScanBytes))
+	}
 	tag := s.ProtocolID.String()
 	drive := map[string][2]string{
 		"print": {"gdrv-file-print-" + tag, "gdrv-rev-print-" + tag},
@@ -101,8 +115,8 @@ func SeedSigned(t testing.TB, tx db.DBTX, association uuid.UUID, spec SignedSpec
 			VALUES ($1, $2, $3, $4, $5, $6, 'application/pdf', $7, $8)`,
 			fileID, association, drive[key][0], drive[key][1], b, size, name, uploader)
 	}
-	file(s.PrintFileID, "print", s.PrintFileName, s.PrintSHA256, 91234, nil)
-	file(s.ScanFileID, "scan", s.ScanFileName, s.ScanSHA256, 1834221, spec.LockedBy)
+	file(s.PrintFileID, "print", s.PrintFileName, s.PrintSHA256, printSize, nil)
+	file(s.ScanFileID, "scan", s.ScanFileName, s.ScanSHA256, scanSize, spec.LockedBy)
 	file(s.DocumentFileID, "doc", s.DocumentFileName, s.DocumentSHA256, 482113, spec.LockedBy)
 	exec(`INSERT INTO case_documents (id, association_id, case_id, file_id, created_by_member_id) VALUES ($1, $2, $3, $4, $5)`,
 		s.DocumentID, association, caseID, s.DocumentFileID, spec.LockedBy)
@@ -148,11 +162,11 @@ func SeedSigned(t testing.TB, tx db.DBTX, association uuid.UUID, spec SignedSpec
 		}},
 		"print_copy": map[string]any{
 			"id": s.PrintCopyID.String(), "protocol_revision": 8, "number": spec.Number,
-			"file":                   fileObj(s.PrintFileID, "print", s.PrintFileName, s.PrintSHA256, 91234, nil),
+			"file":                   fileObj(s.PrintFileID, "print", s.PrintFileName, s.PrintSHA256, printSize, nil),
 			"requested_by_member_id": by, "created_at": rfc(s.LockedAt.Add(-30 * time.Hour)), "voided_at": nil,
 		},
 		"meeting_facts": map[string]any{
-			"signed_scan":        fileObj(s.ScanFileID, "scan", s.ScanFileName, s.ScanSHA256, 1834221, by),
+			"signed_scan":        fileObj(s.ScanFileID, "scan", s.ScanFileName, s.ScanSHA256, scanSize, by),
 			"present_member_ids": []any{by},
 			"item_votes": []any{map[string]any{
 				"agenda_item_id": s.AgendaItemID.String(), "votes_for": 3, "votes_against": 0, "votes_abstained": 0,

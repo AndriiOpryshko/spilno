@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { api, base, connected, problemOf } from './association-support';
-import { applicationIdOf, connectAssociation, fileAndConfirm, newEmail, newFiling, operatorEmail, sessionFor } from './support';
+import { applicationIdOf, connectAssociation, fileAndConfirm, newEmail, newFiling, openCard, openQueue, operatorEmail, sessionFor } from './support';
 
 const noAccess = 'Немає доступу';
 const missingId = '0198a0a0-0000-7000-8000-00000000dead';
@@ -23,8 +23,12 @@ test('AC-04d: two windows of one person hold two associations and keep them afte
   await expect(first.getByRole('link', { name: a.f.name })).toBeVisible();
   await expect(first.getByRole('link', { name: fb.name })).toBeVisible();
 
-  await first.goto(`/o/${a.associationId}/association`);
-  await second.goto(`/o/${b.associationId}/association`);
+  // Each window picks its association and opens the card from the sidebar.
+  await first.getByRole('link', { name: a.f.name }).click();
+  await openCard(first);
+  await second.goto('/');
+  await second.getByRole('link', { name: fb.name }).click();
+  await openCard(second);
   for (let i = 0; i < 2; i++) {
     await first.reload();
     await second.reload();
@@ -84,7 +88,7 @@ test('AC-16: a person who is not the оператор sees nothing of the queue 
   // Nothing was decided or switched off.
   await pending.goto(`/applications/${pendingId}`);
   await expect(pending.getByText(/^очікує розгляду з/)).toBeVisible();
-  await c.head.goto(`/o/${c.associationId}/association`);
+  await openCard(c.head);
   await expect(c.head.getByRole('heading', { name: c.f.name })).toBeVisible();
 });
 
@@ -97,8 +101,7 @@ test('AC-16b: the оператор sees the queue and no association records', a
   expect(before).toMatchObject({ status: 403, code: 'identity.not_current_member' });
   await operator.goto(`/o/${foreign.associationId}/cases`);
   await expect(operator.getByRole('heading', { name: noAccess })).toBeVisible();
-  await operator.goto('/operator/applications');
-  await expect(operator.getByRole('heading', { name: 'Заявки та запити' })).toBeVisible();
+  await openQueue(operator);
 
 });
 

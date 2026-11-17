@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { api, base, connected, disabled, enableAs, meetingTitles, problemOf, reasonText, scheduleMeeting, suspendedText } from './association-support';
-import { newFiling } from './support';
+import { newFiling, openCard } from './support';
 
 const pdf = { name: 'estimate.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4 test estimate') };
 const someCase = '0198a0a0-0000-7000-8000-00000000ca5e';
@@ -28,7 +28,7 @@ test('US-07: in a disabled association every change is refused with the reason a
   ).toMatchObject(refused);
 
   // The member sees the notice on the screen.
-  await c.head.goto(`/o/${c.associationId}/association`);
+  await openCard(c.head);
   await expect(c.head.getByText(suspendedText)).toBeVisible();
 
   // Nothing was saved: after enabling, only the meeting from before exists.

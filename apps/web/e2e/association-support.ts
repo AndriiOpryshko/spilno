@@ -1,6 +1,6 @@
 import { expect, type APIResponse, type Browser, type Page } from '@playwright/test';
 
-import { connectAssociation, newEmail, operatorEmail, sessionFor, type Filing } from './support';
+import { connectAssociation, newEmail, openQueue, operatorEmail, sessionFor, type Filing } from './support';
 import { associationIdOf } from './transfer-support';
 
 // Helpers of the disabling, read-only, storage and access specs (US-06, US-07, US-08, AC-04d, AC-07, AC-16, AC-16b).
@@ -50,8 +50,11 @@ export async function connected(browser: Browser, f: Filing): Promise<Connected>
 
 const rowOf = (page: Page, name: string) => page.getByRole('listitem').filter({ hasText: name });
 
+// The оператор's list of associations, reached from the queue by the section's own navigation.
 export async function openOperatorAssociations(page: Page, name: string) {
-  await page.goto('/operator/associations');
+  await openQueue(page);
+  await page.getByRole('link', { name: 'ОСББ', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'ОСББ', exact: true })).toBeVisible();
   const row = rowOf(page, name);
   await expect(row).toBeVisible();
   return row;

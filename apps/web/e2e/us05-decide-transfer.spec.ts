@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { checkFor, connectAssociation, newEmail, newFiling, openReview, operatorEmail, recordCheck, sessionFor } from './support';
+import { checkFor, connectAssociation, newEmail, newFiling, openCard, openReview, operatorEmail, recordCheck, sessionFor } from './support';
 import { approveTransfer, associationIdOf, pendingTransfer } from './transfer-support';
 
 const newHead = 'Новий Голова Правлінович';
@@ -13,7 +13,7 @@ test('US-05: the оператор approves, the new голова takes over and 
   const { applicant: previous } = await connectAssociation(browser, f, oldEmail);
   // The previous голова has the association open before the approval.
   const associationId = await associationIdOf(previous);
-  await previous.goto(`/o/${associationId}/association`);
+  await openCard(previous);
   await expect(previous.getByRole('heading', { name: f.name })).toBeVisible();
 
   const { page: incoming, id } = await pendingTransfer(browser, f, newEmail('newhead'), newHead);
@@ -23,13 +23,14 @@ test('US-05: the оператор approves, the new голова takes over and 
   await incoming.goto('/applications');
   await incoming.getByRole('link', { name: `Перейти до ОСББ ${f.name}` }).click();
   await expect(incoming.getByText(f.name).first()).toBeVisible();
-  await incoming.goto(`/o/${associationId}/association`);
+  await openCard(incoming);
   await expect(incoming.getByRole('heading', { name: f.name })).toBeVisible();
   await expect(incoming.getByText(newHead).first()).toBeVisible();
 
   // The previous голова's open page: the next action is refused, no new sign-in.
   await previous.getByRole('link', { name: 'Справи' }).click();
   await expect(previous.getByRole('heading', { name: 'Немає доступу' })).toBeVisible();
+  // The address typed by hand answers the same: the page of no access has no navigation to click.
   await previous.goto(`/o/${associationId}/association`);
   await expect(previous.getByRole('heading', { name: 'Немає доступу' })).toBeVisible();
 });

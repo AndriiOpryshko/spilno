@@ -1,16 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import {
-  applicationIdOf,
-  checkFor,
-  fileAndConfirm,
-  newEmail,
-  newFiling,
-  openReview,
-  operatorEmail,
-  recordCheck,
-  sessionFor,
-} from './support';
+import { checkFor, fileAndConfirm, newEmail, newFiling, openReviewFromQueue, recordCheck, sessionFor, signInByButton } from './support';
 
 test('US-03: the оператор records the check and approves, the applicant opens the new association (AC-08, AC-09, AC-10)', async ({
   browser,
@@ -18,15 +8,13 @@ test('US-03: the оператор records the check and approves, the applicant 
   const f = newFiling();
   const applicant = await sessionFor(browser, newEmail('head'));
   await fileAndConfirm(applicant, f);
-  const id = await applicationIdOf(applicant, f.name);
 
-  const operator = await sessionFor(browser, operatorEmail);
-  await operator.goto('/operator/applications/');
-  await expect(operator.getByRole('heading', { name: 'Заявки та запити' })).toBeVisible();
-  await expect(operator.getByRole('link', { name: f.name, exact: true })).toBeVisible();
+  // The оператор signs in with the button and reaches the заявка through the queue.
+  const operator = await (await browser.newContext()).newPage();
+  await signInByButton(operator);
+  await openReviewFromQueue(operator, f.name);
 
   // AC-10: before the check every checked value says so; after it, the source and date.
-  await openReview(operator, id);
   await expect(operator.getByText('не перевірено').first()).toBeVisible();
   await expect(operator.getByText('введено заявником').first()).toBeVisible();
   await recordCheck(operator, checkFor(f));

@@ -33,6 +33,16 @@ const (
 	CodeNoteRequired       = "governance.correction_note_required"
 )
 
+// Problem codes of uploads, the registry search, printing and the register start; each is listed in ErrorRegistry.
+const (
+	// CodeFileInvalid is answered for an upload over MaxDocumentSize or not PDF, JPEG or PNG by content.
+	CodeFileInvalid = "governance.file_invalid"
+	// CodeSearchInvalid is answered for a registry search the filters of which are invalid.
+	CodeSearchInvalid = "governance.search_invalid"
+	// CodeSlotUnconfirmed blocks printing while a слот рішення is unconfirmed or needs review (AC-21, AC-28b, AC-09).
+	CodeSlotUnconfirmed = "governance.slot_unconfirmed"
+)
+
 // CodeStorageUnavailable is answered when the association's file storage
 // cannot be reached; the request changes nothing (sad §6 Flow 8).
 const CodeStorageUnavailable = "governance.storage_unavailable"
@@ -79,13 +89,13 @@ var ErrorRegistry = []ErrorDef{
 	{CodeSettingsMissing, http.StatusConflict},
 	{CodeSettingsInvalid, http.StatusUnprocessableEntity},
 	{CodeRosterEntryInvalid, http.StatusUnprocessableEntity},
-	{"governance.file_invalid", http.StatusUnprocessableEntity},
+	{CodeFileInvalid, http.StatusUnprocessableEntity},
 	{CodeDraftIncomplete, http.StatusConflict},
 	{CodeSlotUnconfirmed, http.StatusConflict},
 	{CodeFactsMissing, http.StatusUnprocessableEntity},
 	{CodeNoteRequired, http.StatusUnprocessableEntity},
 	{CodeReasonRequired, http.StatusUnprocessableEntity},
-	{"governance.search_invalid", http.StatusUnprocessableEntity},
+	{CodeSearchInvalid, http.StatusUnprocessableEntity},
 	{CodeVoteOnBehalf, http.StatusForbidden},
 	{CodeRevisionConflict, http.StatusConflict},
 	{CodeNotReadyForSigning, http.StatusConflict},

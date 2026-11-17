@@ -31,10 +31,8 @@ func (h *Handler) DownloadFile(ctx context.Context, req gen.DownloadFileRequestO
 			detail = disabledDetail
 		}
 		return gen.DownloadFile403ApplicationProblemPlusJSONResponse{
-			NotCurrentMemberApplicationProblemPlusJSONResponse: gen.NotCurrentMemberApplicationProblemPlusJSONResponse{
-				Type: "about:blank", Title: "Forbidden", Status: http.StatusForbidden,
-				Code: ptr("identity.association_disabled"), Detail: ptr(detail),
-			},
+			Type: "about:blank", Title: "Forbidden", Status: http.StatusForbidden,
+			Code: ptr(identity.CodeAssociationDisabled), Detail: ptr(detail),
 		}, nil
 	}
 	if de, ok := errors.AsType[*domain.DomainError](err); ok && de.Code == domain.CodeStorageUnavailable {

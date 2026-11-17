@@ -84,3 +84,18 @@ func TestErrorRegistry_DriveNotConnected(t *testing.T) {
 		t.Errorf("%d registry entries for %s, want exactly 1", n, CodeDriveNotConnected)
 	}
 }
+
+func TestErrorRegistry_SearchInvalidHasAConstant(t *testing.T) {
+	if CodeSearchInvalid != "governance.search_invalid" {
+		t.Fatalf("CodeSearchInvalid = %q", CodeSearchInvalid)
+	}
+	n := 0
+	for _, def := range ErrorRegistry {
+		if def.Code == CodeSearchInvalid {
+			n++
+		}
+	}
+	if n != 1 {
+		t.Errorf("registry has %d entries of %s, want 1", n, CodeSearchInvalid)
+	}
+}

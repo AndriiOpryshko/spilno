@@ -320,9 +320,10 @@ func TestDownloadFileRefusesAnUnsignedFileWhileDisabled(t *testing.T) {
 	e.disableA(t)
 	before := e.files.opened()
 	got := e.fetch(t, e.a, e.unsignedID)
-	if got.status != http.StatusForbidden || got.code() != "identity.association_disabled" {
-		t.Fatalf("download of an unsigned file while disabled: status = %d code = %q, want 403 identity.association_disabled; body %s", got.status, got.code(), got.body)
+	if got.status != http.StatusForbidden || got.code() != identity.CodeAssociationDisabled {
+		t.Fatalf("download of an unsigned file while disabled: status = %d code = %q, want 403 %s; body %s", got.status, got.code(), identity.CodeAssociationDisabled, got.body)
 	}
+	requireMatchesContractExample(t, got, "AssociationDisabled")
 	var p struct {
 		Detail string `json:"detail"`
 	}

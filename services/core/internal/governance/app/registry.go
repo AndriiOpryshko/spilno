@@ -19,8 +19,7 @@ import (
 var ErrSignedProtocolNotFound = errors.New("signed protocol not found")
 
 const (
-	codeSearchInvalid = "governance.search_invalid"
-	dateLayout        = "2006-01-02"
+	dateLayout = "2006-01-02"
 )
 
 // RegistryService serves the реєстр протоколів, which is the same read for an enabled and for a
@@ -106,7 +105,7 @@ func validateFilter(f ports.RegistryFilter) error {
 	if len(issues) == 0 {
 		return nil
 	}
-	return &domain.CodedFieldsError{Code: codeSearchInvalid, Fields: issues}
+	return &domain.CodedFieldsError{Code: domain.CodeSearchInvalid, Fields: issues}
 }
 
 // A registry cursor is "<meeting date>:<entry id>" in unpadded base64url.

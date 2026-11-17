@@ -15,6 +15,7 @@ import (
 	"github.com/AndriiOpryshko/spilno/services/core/internal/identity/adapters/http/gen"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/identity/adapters/postgres"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/identity/app"
+	identitydomain "github.com/AndriiOpryshko/spilno/services/core/internal/identity/domain"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/httpapi"
 )
 
@@ -76,3 +77,7 @@ func (m *Module) Routes(r chi.Router) error {
 	})
 	return nil
 }
+
+// CodeAssociationDisabled is the problem code of a request refused because the association is
+// вимкнене (ADR-0007); other contexts answer it through this constant.
+const CodeAssociationDisabled = identitydomain.CodeAssociationDisabled

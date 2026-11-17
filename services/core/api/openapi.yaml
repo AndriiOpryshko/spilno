@@ -1139,7 +1139,16 @@ paths:
             image/png:
               schema: { type: string, contentMediaType: image/png }
         "401": { $ref: "#/components/responses/SessionRequired" }
-        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "403":
+          description: |
+            Not a current член правління (`identity.not_current_member`), or a вимкнене ОСББ asking for a file
+            that is not a signed protocol's (`identity.association_disabled`, ADR-0007).
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+              examples:
+                not_current_member: { $ref: "#/components/examples/NotCurrentMember" }
+                association_disabled: { $ref: "#/components/examples/AssociationDisabled" }
         "404": { $ref: "#/components/responses/NotFound" }
         "503": { $ref: "#/components/responses/StorageUnavailable" }
 

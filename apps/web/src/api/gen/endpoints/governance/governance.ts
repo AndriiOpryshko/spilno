@@ -1813,7 +1813,7 @@ export type downloadFileResponse401 = {
 }
 
 export type downloadFileResponse403 = {
-  data: NotCurrentMemberResponse
+  data: Problem
   status: 403
 }
 
@@ -1885,7 +1885,7 @@ export const getDownloadFileQueryKey = (associationId: string,
     }
 
 
-export const getDownloadFileQueryOptions = <TData = Awaited<ReturnType<typeof downloadFile>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | StorageUnavailableResponse; status?: number }>(associationId: string,
+export const getDownloadFileQueryOptions = <TData = Awaited<ReturnType<typeof downloadFile>>, TError = globalThis.Error & { info?: SessionRequiredResponse | Problem | NotFoundResponse | StorageUnavailableResponse; status?: number }>(associationId: string,
     fileId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof downloadFile>>, TError, TData>>, fetch?: RequestInit}
 ) => {
 
@@ -1905,10 +1905,10 @@ const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 }
 
 export type DownloadFileQueryResult = NonNullable<Awaited<ReturnType<typeof downloadFile>>>
-export type DownloadFileQueryError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | StorageUnavailableResponse; status?: number }
+export type DownloadFileQueryError = globalThis.Error & { info?: SessionRequiredResponse | Problem | NotFoundResponse | StorageUnavailableResponse; status?: number }
 
 
-export function useDownloadFile<TData = Awaited<ReturnType<typeof downloadFile>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | StorageUnavailableResponse; status?: number }>(
+export function useDownloadFile<TData = Awaited<ReturnType<typeof downloadFile>>, TError = globalThis.Error & { info?: SessionRequiredResponse | Problem | NotFoundResponse | StorageUnavailableResponse; status?: number }>(
  associationId: string,
     fileId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof downloadFile>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
@@ -1919,7 +1919,7 @@ export function useDownloadFile<TData = Awaited<ReturnType<typeof downloadFile>>
       >, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useDownloadFile<TData = Awaited<ReturnType<typeof downloadFile>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | StorageUnavailableResponse; status?: number }>(
+export function useDownloadFile<TData = Awaited<ReturnType<typeof downloadFile>>, TError = globalThis.Error & { info?: SessionRequiredResponse | Problem | NotFoundResponse | StorageUnavailableResponse; status?: number }>(
  associationId: string,
     fileId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof downloadFile>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
@@ -1930,7 +1930,7 @@ export function useDownloadFile<TData = Awaited<ReturnType<typeof downloadFile>>
       >, fetch?: RequestInit}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useDownloadFile<TData = Awaited<ReturnType<typeof downloadFile>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | StorageUnavailableResponse; status?: number }>(
+export function useDownloadFile<TData = Awaited<ReturnType<typeof downloadFile>>, TError = globalThis.Error & { info?: SessionRequiredResponse | Problem | NotFoundResponse | StorageUnavailableResponse; status?: number }>(
  associationId: string,
     fileId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof downloadFile>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient
@@ -1939,7 +1939,7 @@ export function useDownloadFile<TData = Awaited<ReturnType<typeof downloadFile>>
  * @summary Download a stored file — case document, print copy or signed scan (US-07, Flow 13)
  */
 
-export function useDownloadFile<TData = Awaited<ReturnType<typeof downloadFile>>, TError = globalThis.Error & { info?: SessionRequiredResponse | NotCurrentMemberResponse | NotFoundResponse | StorageUnavailableResponse; status?: number }>(
+export function useDownloadFile<TData = Awaited<ReturnType<typeof downloadFile>>, TError = globalThis.Error & { info?: SessionRequiredResponse | Problem | NotFoundResponse | StorageUnavailableResponse; status?: number }>(
  associationId: string,
     fileId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof downloadFile>>, TError, TData>>, fetch?: RequestInit}
  , queryClient?: QueryClient

@@ -81,3 +81,7 @@ func (m *Module) Routes(r chi.Router) error {
 // CodeAssociationDisabled is the problem code of a request refused because the association is
 // вимкнене (ADR-0007); other contexts answer it through this constant.
 const CodeAssociationDisabled = identitydomain.CodeAssociationDisabled
+
+// CodeNotCurrentMember is the problem code of a request by a person who is not a current член
+// правління of the association in the path; other contexts answer it through this constant.
+const CodeNotCurrentMember = identitydomain.CodeNotCurrentMember

@@ -18,6 +18,9 @@ type ReviewApplication struct {
 	AssociationName string
 	FiledAt         time.Time
 	RejectionReason *string
+	// Competing is set by List for a pending application that has another pending one for the same
+	// code (AC-04c); Get leaves it unset and returns the ids in ReviewDetail.Competing.
+	Competing bool
 }
 
 // ReviewFiling is one filing with its extract's metadata.

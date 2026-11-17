@@ -26,12 +26,15 @@
 | Application.id, kind, edrpou, association_id, state, created_at | applications.* | high |
 | Application.association_name, filed_at | latest application_filings row (computed) | medium |
 | Application.rejection_reason | latest application_decisions.reason with outcome `rejected` (computed) | medium |
+| QueueApplication.* | Application fields (a closed shape, not allOf; returned only by listApplicationsForReview) | high |
+| QueueApplication.competing | true when another applications row with the same edrpou is `pending`, for a pending row (computed over the whole queue, as `competing_application_ids`; AC-04c) | medium |
 | ApplicationFiling.* | application_filings.* | high |
 | ExtractRef.* | application_extracts (no content) | high |
 | ApplicationDecision.* | application_decisions.* (`decided_at` = created_at) | high |
 | recordExtractCheck.* / ExtractCheck.* | application_checks.* (`checked_at` = created_at) | high |
 | ApplicationReview.applicant_email | accounts.email via applications.account_id | high |
 | ApplicationReview.warnings | computed from filings + checks (AC-11 on levelled names — SAD §8 Name comparison, nothing levelled is stored; AC-11b) | medium |
+| ReviewWarning.differing | computed with `warnings`: the values among typed, signer, head that differ from the other two (AC-11); empty for `extract_age` | medium |
 | ApplicationReview.competing_application_ids | applications where edrpou = $1 and state = pending | medium |
 | ApplicationReview.storage_account_email | google_connections.google_account_email (AC-28b) | high |
 | approveApplication.relied_on_document | application_decisions.relied_on_document VARCHAR(500); PRD AC-12 «up to 500 characters», typed text | high |

@@ -1,54 +1,22 @@
 import { formatUah } from '@/i18n/uk';
 
-import type { CaseDocument, CaseSummary, ProtocolDraft, ProtocolSlot } from './types';
+import type { CaseDocument, ProtocolDraft, ProtocolSlot } from './types';
 
 const roofDocs = [
   { id: 'd-1', kind: 'offer' as const, title: 'Комерційна пропозиція ТОВ «Дах-Сервіс»' },
   { id: 'd-2', kind: 'contract' as const, title: 'Договір № 14/10' },
 ];
 
-export const cases: CaseSummary[] = [
-  { id: 'c-101', title: 'Гідроізоляція покрівлі, під’їзд 2', createdAt: '2026-10-02', status: 'review', amountUah: 184500, documents: roofDocs },
-  { id: 'c-102', title: 'Щорічний огляд ліфта', createdAt: '2026-10-09', status: 'draft', amountUah: null, documents: [{ id: 'd-3', kind: 'invoice', title: 'Рахунок № 2291' }] },
-  {
-    id: 'c-103',
-    title: 'Заміна освітлення в підвалі',
-    createdAt: '2026-09-18',
-    status: 'ready',
-    amountUah: 23760,
-    documents: [
-      { id: 'd-4', kind: 'invoice', title: 'Рахунок № 118' },
-      { id: 'd-5', kind: 'contract', title: 'Договір № 9/09' },
-    ],
-  },
-  {
-    id: 'c-104',
-    title: 'Ремонт дитячого майданчика',
-    createdAt: '2026-08-27',
-    status: 'printed',
-    amountUah: 61200,
-    documents: [
-      { id: 'd-6', kind: 'contract', title: 'Договір № 3/08' },
-      { id: 'd-7', kind: 'act', title: 'Акт виконаних робіт' },
-    ],
-  },
-  {
-    id: 'c-105',
-    title: 'Прибирання прибудинкової території',
-    createdAt: '2026-07-14',
-    status: 'printed',
-    amountUah: 38400,
-    documents: [{ id: 'd-8', kind: 'contract', title: 'Договір № 5/07' }],
-  },
-  {
-    id: 'c-106',
-    title: 'Встановлення шлагбаума у дворі',
-    createdAt: '2026-08-05',
-    status: 'draft',
-    amountUah: 96000,
-    documents: [{ id: 'd-9', kind: 'offer', title: 'Комерційна пропозиція ТОВ «Брама-Плюс»' }],
-  },
+const lightingDocs = [
+  { id: 'd-4', kind: 'invoice' as const, title: 'Рахунок № 118' },
+  { id: 'd-5', kind: 'contract' as const, title: 'Договір № 9/09' },
 ];
+const playgroundDocs = [
+  { id: 'd-6', kind: 'contract' as const, title: 'Договір № 3/08' },
+  { id: 'd-7', kind: 'act' as const, title: 'Акт виконаних робіт' },
+];
+const cleaningDocs = [{ id: 'd-8', kind: 'contract' as const, title: 'Договір № 5/07' }];
+const barrierDocs = [{ id: 'd-9', kind: 'offer' as const, title: 'Комерційна пропозиція ТОВ «Брама-Плюс»' }];
 
 const board = ['О. Коваленко (голова)', 'І. Мельник', 'Т. Шевчук', 'Н. Бондар'];
 
@@ -150,7 +118,7 @@ export const protocols: Record<string, ProtocolDraft> = {
     number: '16/2026',
     date: '2026-10-14',
     board,
-    documents: cases[2]!.documents,
+    documents: lightingDocs,
     slots: confirmedSlots({
       agenda: 'Заміна світильників у підвалі на світлодіодні',
       amount: 23760,
@@ -158,7 +126,7 @@ export const protocols: Record<string, ProtocolDraft> = {
       contractor: 'ФОП Савчук О. П.',
       funding: 'Фонд ремонту',
       decision: 'Замовити заміну світильників у ФОП Савчук О. П. за рахунком № 118.',
-      contract: cases[2]!.documents[1]!,
+      contract: lightingDocs[1]!,
     }),
     warnings: [],
     poll: {
@@ -178,7 +146,7 @@ export const protocols: Record<string, ProtocolDraft> = {
     number: '15/2026',
     date: '2026-09-30',
     board,
-    documents: cases[3]!.documents,
+    documents: playgroundDocs,
     slots: confirmedSlots({
       agenda: 'Ремонт дитячого майданчика у дворі будинку',
       amount: 61200,
@@ -186,7 +154,7 @@ export const protocols: Record<string, ProtocolDraft> = {
       contractor: 'ТОВ «Ігросвіт»',
       funding: 'Внески співвласників',
       decision: 'Затвердити договір № 3/08 і прийняти роботи за актом.',
-      contract: cases[3]!.documents[0]!,
+      contract: playgroundDocs[0]!,
     }),
     warnings: [],
   },
@@ -197,7 +165,7 @@ export const protocols: Record<string, ProtocolDraft> = {
     number: '12/2026',
     date: '2026-07-28',
     board,
-    documents: cases[4]!.documents,
+    documents: cleaningDocs,
     slots: confirmedSlots({
       agenda: 'Договір на прибирання прибудинкової території на 2026 рік',
       amount: 38400,
@@ -205,7 +173,7 @@ export const protocols: Record<string, ProtocolDraft> = {
       contractor: 'ФОП Гнатюк Л. М.',
       funding: 'Внески співвласників',
       decision: 'Укласти договір № 5/07 на рік.',
-      contract: cases[4]!.documents[0]!,
+      contract: cleaningDocs[0]!,
     }),
     warnings: [],
   },
@@ -216,7 +184,7 @@ export const protocols: Record<string, ProtocolDraft> = {
     number: '13/2026',
     date: '2026-08-19',
     board,
-    documents: cases[5]!.documents,
+    documents: barrierDocs,
     slots: confirmedSlots({
       agenda: 'Встановлення шлагбаума на в’їзді у двір',
       amount: 96000,
@@ -224,7 +192,7 @@ export const protocols: Record<string, ProtocolDraft> = {
       contractor: 'ТОВ «Брама-Плюс»',
       funding: 'Фонд ремонту',
       decision: 'Замовити встановлення шлагбаума у ТОВ «Брама-Плюс».',
-      contract: cases[5]!.documents[0]!,
+      contract: barrierDocs[0]!,
     }),
     warnings: [],
     poll: {

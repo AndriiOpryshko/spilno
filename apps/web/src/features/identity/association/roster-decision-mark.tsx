@@ -1,7 +1,6 @@
+import { getDownloadConfirmationExtractUrl } from '@/api/gen/endpoints/identity/identity';
 import type { AssociationEvent } from '@/api/gen/model';
 import { formatDate, uk } from '@/i18n/uk';
-
-import { extractHref } from './extract-href';
 
 type Props = { kind: 'appointed' | 'ended'; decisionId: string; history: AssociationEvent[]; associationId: string };
 
@@ -16,7 +15,7 @@ export function RosterDecisionMark({ kind, decisionId, history, associationId }:
       {event.extract_id && (
         <>
           {' '}
-          <a className="underline" href={extractHref(associationId, event.extract_id)}>
+          <a className="underline" href={getDownloadConfirmationExtractUrl(associationId, event.extract_id)}>
             {t.extract}
           </a>
         </>

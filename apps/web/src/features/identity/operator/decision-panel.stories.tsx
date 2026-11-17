@@ -118,3 +118,28 @@ export const OwnApplication: Story = {
     await expect(canvas.queryByRole('button', { name: 'Відхилити' })).not.toBeInTheDocument();
   },
 };
+
+export const Decided: Story = {
+  args: {
+    review: {
+      ...review,
+      application: { ...review.application, state: 'rejected', rejection_reason: 'Витяг нечитабельний' } as ApplicationReview['application'],
+      decisions: [
+        {
+          id: 'd1',
+          filing_id: filingId,
+          outcome: 'rejected',
+          reason: 'Витяг нечитабельний',
+          relied_on_document: null,
+          association_id: null,
+          decided_at: '2026-11-12T08:00:00Z',
+        },
+      ],
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    expect((await canvas.findByRole('status')).textContent).toMatch(/відхилена/);
+    await expect(canvas.queryByRole('button', { name: 'Схвалити' })).not.toBeInTheDocument();
+  },
+};

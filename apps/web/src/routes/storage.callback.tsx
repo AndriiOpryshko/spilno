@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 
-import { StorageCallback, storageFlowKey } from '@/features/identity/storage/storage-line';
+import { StorageCallback, StorageCallbackLost, storageFlowKey } from '@/features/identity/storage/storage-line';
 
 // The association id is stashed in sessionStorage by whoever starts the consent flow.
 export const Route = createFileRoute('/storage/callback')({
@@ -11,6 +11,6 @@ export const Route = createFileRoute('/storage/callback')({
 function CallbackPage() {
   const { code, state } = Route.useSearch();
   const associationId = sessionStorage.getItem(storageFlowKey);
-  if (!associationId || !code || !state) return null;
+  if (!associationId || !code || !state) return <StorageCallbackLost associationId={associationId} />;
   return <StorageCallback associationId={associationId} code={code} state={state} />;
 }

@@ -125,33 +125,48 @@ func (q *Queries) GetCardHeadFullName(ctx context.Context, arg GetCardHeadFullNa
 const listCardHistory = `-- name: ListCardHistory :many
 SELECT CASE WHEN a.kind = 'connection' THEN 'connected' ELSE 'transfer_approved' END::text AS kind,
        d.created_at AS occurred_at, d.id AS decision_id, f.created_at AS filed_at, NULL::text AS reason,
-       k.head_full_name, k.signer_full_name, f.extract_id, k.extract_dated_on, d.id AS tie
+       k.head_full_name,
+       COALESCE(ended.full_name, '')::text AS ended_head_full_name,
+       k.signer_full_name, f.extract_id, k.extract_dated_on, d.id AS tie
 FROM application_decisions d
 JOIN applications a ON a.id = d.application_id
 JOIN application_filings f ON f.id = d.filing_id
 LEFT JOIN application_checks k ON k.id = d.check_id
+LEFT JOIN (
+    SELECT DISTINCT ON (r.decision_id) r.decision_id, r.full_name
+    FROM board_member_revisions r
+    WHERE r.association_id = $1 AND r.decision_id IS NOT NULL
+      AND EXISTS (
+        SELECT 1 FROM board_member_revisions s
+        WHERE s.association_id = r.association_id AND s.decision_id = r.decision_id
+          AND s.board_member_id <> r.board_member_id AND s.id > r.id)
+    ORDER BY r.decision_id, r.id DESC
+) ended ON ended.decision_id = d.id
 WHERE d.association_id = $1 AND d.outcome = 'approved'
 UNION ALL
 SELECT CASE WHEN c.to_state = 'disabled' THEN 'disabled' ELSE 'enabled' END::text,
-       c.created_at, NULL::uuid, NULL::timestamptz, c.reason, NULL::text, NULL::text, NULL::uuid, NULL::date, c.id
+       c.created_at, NULL::uuid, NULL::timestamptz, c.reason, NULL::text, ''::text, NULL::text, NULL::uuid, NULL::date, c.id
 FROM association_state_changes c
 WHERE c.association_id = $1
 ORDER BY occurred_at DESC, tie DESC
 `
 
 type ListCardHistoryRow struct {
-	Kind           string
-	OccurredAt     pgtype.Timestamptz
-	DecisionID     pgtype.UUID
-	FiledAt        pgtype.Timestamptz
-	Reason         pgtype.Text
-	HeadFullName   pgtype.Text
-	SignerFullName pgtype.Text
-	ExtractID      pgtype.UUID
-	ExtractDatedOn pgtype.Date
-	Tie            pgtype.UUID
+	Kind              string
+	OccurredAt        pgtype.Timestamptz
+	DecisionID        pgtype.UUID
+	FiledAt           pgtype.Timestamptz
+	Reason            pgtype.Text
+	HeadFullName      pgtype.Text
+	EndedHeadFullName string
+	SignerFullName    pgtype.Text
+	ExtractID         pgtype.UUID
+	ExtractDatedOn    pgtype.Date
+	Tie               pgtype.UUID
 }
 
+// A decision writes the ended entry first and the seated one after it (approval.go), so the entry it ended
+// is the revision of the decision that a later revision of the same decision, of another board member, follows.
 func (q *Queries) ListCardHistory(ctx context.Context, associationID pgtype.UUID) ([]ListCardHistoryRow, error) {
 	rows, err := q.db.Query(ctx, listCardHistory, associationID)
 	if err != nil {
@@ -168,6 +183,7 @@ func (q *Queries) ListCardHistory(ctx context.Context, associationID pgtype.UUID
 			&i.FiledAt,
 			&i.Reason,
 			&i.HeadFullName,
+			&i.EndedHeadFullName,
 			&i.SignerFullName,
 			&i.ExtractID,
 			&i.ExtractDatedOn,

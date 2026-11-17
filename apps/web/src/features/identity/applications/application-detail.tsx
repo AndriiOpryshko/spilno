@@ -3,10 +3,10 @@ import { useState } from 'react';
 
 import { getGetMyApplicationQueryKey, useGetMyApplication } from '@/api/gen/endpoints/identity/identity';
 import { Button } from '@/components/ui/button';
-import { uk } from '@/i18n/uk';
+import { PageSkeleton, RequestFallback } from '@/features/identity/shell/request-fallback';
+import { formatDate, uk } from '@/i18n/uk';
 
 import { FilingForm } from './filing-form';
-import { formatDate } from './format-date';
 import { StatusLine } from './status-line';
 
 const t = uk.applications.detail;
@@ -16,8 +16,9 @@ export function ApplicationDetail({ applicationId }: { applicationId: string }) 
   const query = useGetMyApplication(applicationId);
   const [refiling, setRefiling] = useState(false);
 
+  if (query.isError) return <RequestFallback error={query.error} onRetry={() => void query.refetch()} />;
   const detail = query.data?.data;
-  if (!detail) return <p className="px-4 py-8">{t.loading}</p>;
+  if (!detail) return <PageSkeleton />;
 
   const { application, filings, decisions } = detail;
   const latest = [...filings].sort((a, b) => b.created_at.localeCompare(a.created_at))[0];

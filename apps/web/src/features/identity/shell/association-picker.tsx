@@ -12,14 +12,19 @@ export function AssociationPicker({ memberships, isOperator }: { memberships: Me
       </CardHeader>
       <CardContent className="flex flex-col gap-2 text-sm">
         {memberships.map((m) => (
-          <Link key={m.association_id} to="/o/$associationId/cases" params={{ associationId: m.association_id }} className="rounded-md border px-3 py-2 hover:bg-accent">
-            {m.association_name}
-          </Link>
+          <div key={m.association_id} className="flex gap-2">
+            <Link to="/o/$associationId/cases" params={{ associationId: m.association_id }} className="flex-1 rounded-md border px-3 py-2 hover:bg-accent">
+              {m.association_name}
+            </Link>
+            <Link to="/o/$associationId/association" params={{ associationId: m.association_id }} className="rounded-md border px-3 py-2 hover:bg-accent">
+              {uk.association.openCard}
+            </Link>
+          </div>
         ))}
         {isOperator && (
-          <a href="/operator/" className="rounded-md border px-3 py-2 hover:bg-accent">
+          <Link to="/operator" className="rounded-md border px-3 py-2 hover:bg-accent">
             {uk.operator.entry}
-          </a>
+          </Link>
         )}
       </CardContent>
     </Card>

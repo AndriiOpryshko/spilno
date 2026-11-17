@@ -1,12 +1,12 @@
+import { Link } from '@tanstack/react-router';
+
+import { getDownloadConfirmationExtractUrl } from '@/api/gen/endpoints/identity/identity';
 import type { AssociationCard as Card } from '@/api/gen/model';
 import { Badge } from '@/components/ui/badge';
 import { formatDate, uk } from '@/i18n/uk';
 
-import { extractHref } from './extract-href';
-
 export function AssociationCard({ card }: { card: Card }) {
   const t = uk.association.card;
-  const newRequest = `/applications/new?kind=transfer&association_id=${card.id}`;
   return (
     <article className="mx-auto max-w-2xl space-y-6 px-4 py-8">
       <header className="space-y-1">
@@ -21,9 +21,9 @@ export function AssociationCard({ card }: { card: Card }) {
           <div className="space-y-2">
             <Badge variant="outline">{t.byHand}</Badge>
             <div>
-              <a className="underline" href={newRequest}>
+              <Link className="underline" to="/applications/new" search={{ kind: 'transfer', association_id: card.id }}>
                 {t.fileTransfer}
-              </a>
+              </Link>
             </div>
           </div>
         )}
@@ -39,16 +39,22 @@ export function AssociationCard({ card }: { card: Card }) {
               {e.reason && <p>{e.reason}</p>}
               {e.kind === 'transfer_approved' &&
                 e.filed_at &&
-                [t.markAppointed, t.markEnded].map((what) => (
-                  <p key={what} className="text-sm text-muted-foreground">
-                    {t.mark(what, formatDate(e.filed_at as string), formatDate(e.occurred_at))}
-                  </p>
-                ))}
+                [
+                  { what: t.markAppointed, name: e.head_full_name },
+                  { what: t.markEnded, name: e.ended_head_full_name },
+                ].map(
+                  ({ what, name }) =>
+                    name && (
+                      <p key={what} className="text-sm text-muted-foreground">
+                        {t.markOf(what, name, formatDate(e.filed_at as string), formatDate(e.occurred_at))}
+                      </p>
+                    ),
+                )}
               {e.head_full_name && <p>{e.head_full_name}</p>}
               {e.signer_full_name && <p>{t.signer(e.signer_full_name)}</p>}
               {e.extract_dated_on && <p>{t.extractDated(formatDate(e.extract_dated_on))}</p>}
               {e.extract_id && (
-                <a className="underline" href={extractHref(card.id, e.extract_id)}>
+                <a className="underline" href={getDownloadConfirmationExtractUrl(card.id, e.extract_id)}>
                   {t.extractDownload}
                 </a>
               )}

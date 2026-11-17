@@ -6,6 +6,7 @@
  *
  * OpenAPI spec version: 0.1.0
  */
+import type { ReviewWarningDifferingItem } from './reviewWarningDifferingItem';
 import type { ReviewWarningKind } from './reviewWarningKind';
 
 export interface ReviewWarning {
@@ -15,4 +16,6 @@ export interface ReviewWarning {
      * @maxLength 500
      */
   detail: string;
+  /** For name_mismatch, the values that differ from the other two (all three when none agree), in the order typed, signer, head; empty for extract_age. The review page already holds the three values (AC-11). */
+  differing: ReviewWarningDifferingItem[];
 }

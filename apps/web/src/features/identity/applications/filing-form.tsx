@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router';
 import { Fragment, useState } from 'react';
 
 import { useFileApplication, useRefileApplication } from '@/api/gen/endpoints/identity/identity';
@@ -32,11 +33,19 @@ const textFields = [
   ['applicant_full_name', t.fullName],
 ] as const;
 
-const refusalLinks: Record<string, { href: string; label: string }> = {
-  'identity.association_already_connected': { href: '/applications/new?kind=transfer', label: t.linkTransfer },
-  'identity.application_already_open': { href: '/applications', label: t.linkOpen },
-  'identity.association_not_connected': { href: '/applications/new?kind=connection', label: t.linkConnection },
-};
+// The way out of a refusal: the заявка of the other kind, or the open one.
+function RefusalLink({ code }: { code: string }) {
+  switch (code) {
+    case 'identity.association_already_connected':
+      return <Link className="text-sm underline" to="/applications/new" search={{ kind: 'transfer' }}>{t.linkTransfer}</Link>;
+    case 'identity.application_already_open':
+      return <Link className="text-sm underline" to="/applications">{t.linkOpen}</Link>;
+    case 'identity.association_not_connected':
+      return <Link className="text-sm underline" to="/applications/new" search={{ kind: 'connection' }}>{t.linkConnection}</Link>;
+    default:
+      return null;
+  }
+}
 
 const refusalMessages: Record<string, string> = {
   'identity.term_ended': uk.applications.termEnded,
@@ -58,6 +67,7 @@ export function FilingForm({ kind, associationId, refile }: FilingFormProps) {
   });
   const [extract, setExtract] = useState<File | undefined>();
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [summary, setSummary] = useState<string | undefined>();
   const [refusal, setRefusal] = useState<Problem | undefined>();
   const [filed, setFiled] = useState(false);
   const fileMutation = useFileApplication();
@@ -71,6 +81,7 @@ export function FilingForm({ kind, associationId, refile }: FilingFormProps) {
     e.preventDefault();
     setFieldErrors({});
     setRefusal(undefined);
+    setSummary(undefined);
     setFiled(false);
     const common = {
       association_name: values.association_name,
@@ -91,10 +102,15 @@ export function FilingForm({ kind, associationId, refile }: FilingFormProps) {
         if (knownRefusalMessage(problem)) {
           setRefusal(problem);
         } else if (problem.errors?.length) {
-          setFieldErrors({
-            ...(extract ? {} : { extract: t.extractRequired }),
-            ...Object.fromEntries(problem.errors.map((x) => [x.pointer.replace(/^\//, ''), x.detail])),
-          });
+          const reported = problem.errors.map((x) => x.pointer.replace(/^\//, '')).filter((name) => name in t.fieldNames);
+          // The server leaves /extract out when the multipart file is empty next to other errors.
+          const broken = [...new Set(extract ? reported : [...reported, 'extract'])];
+          if (broken.length) {
+            setFieldErrors(Object.fromEntries(broken.map((name) => [name, t.fieldErrors[name] ?? t.fieldInvalid])));
+            setSummary(uk.applications.invalid(broken.map((name) => t.fieldNames[name]).join(', ')));
+          } else {
+            setRefusal(problem);
+          }
         } else {
           setRefusal(problem);
         }
@@ -136,9 +152,7 @@ export function FilingForm({ kind, associationId, refile }: FilingFormProps) {
     );
   };
 
-  const link = refusal?.code ? refusalLinks[refusal.code] : undefined;
   const refusalMessage = knownRefusalMessage(refusal);
-  const unknownRefusal = refusal && !refusal.detail && !refusalMessage;
 
   return (
     <form noValidate onSubmit={submit} className="mx-auto grid max-w-xl gap-4 px-4 py-8">
@@ -148,10 +162,11 @@ export function FilingForm({ kind, associationId, refile }: FilingFormProps) {
           {kind === 'connection' ? t.filedConnection : t.filedTransfer}
         </p>
       )}
+      {summary && <InlineAlert title={summary} />}
       {refusal && (
         <InlineAlert
-          title={refusalMessage ?? refusal.detail ?? t.failed}
-          action={link && !unknownRefusal ? <a className="text-sm underline" href={link.href}>{link.label}</a> : undefined}
+          title={refusalMessage ?? t.failed}
+          action={refusal.code ? <RefusalLink code={refusal.code} /> : undefined}
         />
       )}
       {!refile &&

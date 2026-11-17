@@ -11,13 +11,14 @@ import type { OperatorAssociation } from '@/api/gen/model';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { InlineAlert } from '@/features/governance/inline-alert';
 import { uk } from '@/i18n/uk';
 
 const messageFor = (err: unknown) => {
   const code = (err as { info?: { code?: string } }).info?.code;
   if (code === 'identity.reason_required') return uk.operator.reasonRequired;
   if (code === 'identity.association_state_unchanged') return uk.association.stateUnchanged;
-  return null;
+  return uk.operator.actionFailed;
 };
 
 function AssociationRow({ association, onChanged }: { association: OperatorAssociation; onChanged: () => void }) {
@@ -74,9 +75,7 @@ function AssociationRow({ association, onChanged }: { association: OperatorAssoc
           </Button>
         )}
         {error && (
-          <p role="alert" className="w-full text-sm text-destructive">
-            {error}
-          </p>
+          <InlineAlert title={error} className="w-full" />
         )}
       </div>
     </li>
@@ -86,7 +85,8 @@ function AssociationRow({ association, onChanged }: { association: OperatorAssoc
 export function OperatorAssociations() {
   const client = useQueryClient();
   const { data } = useListAssociationsForOperator();
-  const items = data?.data.items ?? [];
+  if (!data) return null;
+  const items = data.data.items;
   const refresh = () => client.invalidateQueries({ queryKey: getListAssociationsForOperatorQueryKey() });
 
   return (

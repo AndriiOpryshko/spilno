@@ -1,7 +1,8 @@
-import type { Application } from '@/api/gen/model';
-import { uk } from '@/i18n/uk';
+import { Link } from '@tanstack/react-router';
 
-import { formatDate } from './format-date';
+import type { Application } from '@/api/gen/model';
+import { formatDate, uk } from '@/i18n/uk';
+
 
 const t = uk.applications.status;
 
@@ -11,9 +12,9 @@ export function StatusLine({ application }: { application: Application }) {
       <p>
         <span className="font-semibold">{t.approved}</span>{' '}
         {application.association_id && (
-          <a className="underline" href={`/o/${application.association_id}/association`}>
+          <Link className="underline" to="/o/$associationId/association" params={{ associationId: application.association_id }}>
             {t.openAssociation(application.association_name)}
-          </a>
+          </Link>
         )}
       </p>
     );
@@ -30,7 +31,7 @@ export function StatusLine({ application }: { application: Application }) {
   return (
     <div>
       <p className="font-semibold">{t.pending(formatDate(application.filed_at))}</p>
-      {email && <p>{t.contact(email)}</p>}
+      <p>{email ? t.contact(email) : t.contactMissing}</p>
     </div>
   );
 }

@@ -36,7 +36,8 @@ type Story = StoryObj<typeof meta>;
 
 export const TwoAssociations: Story = {
   play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getAllByRole('link')).toHaveLength(2);
+    // Each association offers its cases and its card.
+    await expect(within(canvasElement).getAllByRole('link')).toHaveLength(4);
   },
 };
 

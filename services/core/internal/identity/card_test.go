@@ -101,15 +101,16 @@ func newCardEnv(t *testing.T) *cardEnv {
 }
 
 type cardEvent struct {
-	Kind           string  `json:"kind"`
-	OccurredAt     string  `json:"occurred_at"`
-	DecisionID     *string `json:"decision_id"`
-	FiledAt        *string `json:"filed_at"`
-	Reason         *string `json:"reason"`
-	HeadFullName   *string `json:"head_full_name"`
-	SignerFullName *string `json:"signer_full_name"`
-	ExtractID      *string `json:"extract_id"`
-	ExtractDatedOn *string `json:"extract_dated_on"`
+	Kind              string  `json:"kind"`
+	OccurredAt        string  `json:"occurred_at"`
+	DecisionID        *string `json:"decision_id"`
+	FiledAt           *string `json:"filed_at"`
+	Reason            *string `json:"reason"`
+	HeadFullName      *string `json:"head_full_name"`
+	EndedHeadFullName *string `json:"ended_head_full_name"`
+	SignerFullName    *string `json:"signer_full_name"`
+	ExtractID         *string `json:"extract_id"`
+	ExtractDatedOn    *string `json:"extract_dated_on"`
 }
 
 type cardView struct {
@@ -379,12 +380,156 @@ func TestCard_ATransferAppearsInTheHistoryWithItsConfirmation(t *testing.T) {
 	if got, _ := time.Parse(time.RFC3339, *ev.FiledAt); got.Sub(filedAt).Abs() > time.Millisecond {
 		t.Errorf("transfer filed_at = %s, want %s", *ev.FiledAt, filedAt)
 	}
+	// AC-20: the transfer ended the first голова's term and names them; the connection ended none.
+	if ev.EndedHeadFullName == nil || *ev.EndedHeadFullName != "Test User" {
+		t.Errorf("transfer ended_head_full_name = %v, want the голова whose term it ended", ev.EndedHeadFullName)
+	}
+	if card.History[1].EndedHeadFullName != nil {
+		t.Errorf("connection ended_head_full_name = %v, want null", *card.History[1].EndedHeadFullName)
+	}
 	if card.History[1].DecisionID == nil || *card.History[1].DecisionID != firstDecision {
 		t.Errorf("connection event = %+v, want decision %s", card.History[1], firstDecision)
 	}
 	// The extract of the transfer downloads for the new голова.
 	if status, _, body := e.do(t, "second", http.MethodGet, "/identity/associations/"+assoc+"/extracts/"+extract, ""); status != http.StatusOK || !bytes.Equal(body, fileAppPDF(256)) {
 		t.Errorf("download of the transfer extract = %d with %d bytes, want 200 and 256 bytes", status, len(body))
+	}
+}
+
+// cardTransferBy files and approves a запит на передачу as `as` for the connected association under
+// a different name than the first голова's, and returns the new голова's name.
+func cardTransferBy(t *testing.T, e *cardEnv, as, name string) {
+	t.Helper()
+	fields := transferFields(fileAppEdrpou)
+	fields["term_start"] = "2026-11-05"
+	fields["applicant_full_name"] = name
+	id := e.fileAs(t, as, fields, fileAppPDF(256))
+	f := approvalFiled{app: id, filing: e.review(t, id).Filings[0].ID}
+	approvalRecordCheck(t, e.reviewEnv, f, true, fileAppEdrpou, name)
+	// The extract is signed by "Test User", so the name mismatch needs a document to rely on.
+	if status, body := approvalApprove(e.reviewEnv, t, "operator", f, "Протокол зборів від 01.11.2026"); status != http.StatusOK {
+		t.Fatalf("approve transfer = %d: %s", status, body)
+	}
+}
+
+// cardEnded is the ended head's name of an event, "<null>" when there is none.
+func cardEnded(ev cardEvent) string {
+	if ev.EndedHeadFullName == nil {
+		return "<null>"
+	}
+	return *ev.EndedHeadFullName
+}
+
+// cardSeatSolo makes solo a member of the association, so the card can be read after the
+// applicants' own accounts change.
+func cardSeatSolo(t *testing.T, e *cardEnv, assoc string) {
+	t.Helper()
+	id := uuid.MustParse(assoc)
+	if err := db.InAssociation(context.Background(), e.pool, id, "seed@example.test", func(ctx context.Context) error {
+		tx, err := db.From(ctx)
+		if err != nil {
+			return err
+		}
+		governancetest.Member(t, tx, id, "solo@example.test", "member")
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// cardChangeAccountEmail is what a later sign-in with another provider address does to accounts.email.
+func cardChangeAccountEmail(t *testing.T, e *cardEnv, from, to string) {
+	t.Helper()
+	tag, err := e.pool.Exec(context.Background(), `UPDATE accounts SET email = $2 WHERE email = $1`, from, to)
+	if err != nil || tag.RowsAffected() != 1 {
+		t.Fatalf("change account email %s -> %s: %v, rows %d", from, to, err, tag.RowsAffected())
+	}
+}
+
+// AC-19c, AC-20: the ended entry is the голова whose term the decision ended, told apart from the new
+// голова by name, and it does not depend on the applicants' current account emails.
+func TestCard_TheEndedEntryIsTheFormerHeadNotTheNewOne(t *testing.T) {
+	e := newCardEnv(t)
+	assoc, _, _ := cardApproved(t, e)
+	const newHead = "Новий Голова Правлінович"
+	cardTransferBy(t, e, "second", newHead)
+
+	check := func(when string) {
+		t.Helper()
+		card := cardGet(t, e, "second", assoc)
+		if card.HeadFullName == nil || *card.HeadFullName != newHead {
+			t.Errorf("%s: head_full_name = %v, want %q", when, card.HeadFullName, newHead)
+		}
+		ev := card.History[0]
+		if ev.Kind != "transfer_approved" || ev.HeadFullName == nil || *ev.HeadFullName != newHead {
+			t.Errorf("%s: transfer event = %+v, want head_full_name %q", when, ev, newHead)
+		}
+		if got := cardEnded(ev); got != "Test User" {
+			t.Errorf("%s: ended_head_full_name = %q, want the first голова %q, not the new one", when, got, "Test User")
+		}
+	}
+	check("after the transfer")
+
+	// The new голова signs in later with another provider address: the ended entry stays the first голова.
+	cardSeatSolo(t, e, assoc)
+	cardChangeAccountEmail(t, e, "second@example.test", "second-new@example.test")
+	cardChangeAccountEmail(t, e, "first@example.test", "first-new@example.test")
+	status, _, body := e.do(t, "solo", http.MethodGet, "/identity/associations/"+assoc, "")
+	if status != http.StatusOK {
+		t.Fatalf("card as solo = %d: %s", status, body)
+	}
+	var card cardView
+	if err := json.Unmarshal(body, &card); err != nil {
+		t.Fatal(err)
+	}
+	ev := card.History[0]
+	if got := cardEnded(ev); got != "Test User" {
+		t.Errorf("after the account emails changed: ended_head_full_name = %q, want %q", got, "Test User")
+	}
+	if card.History[1].EndedHeadFullName != nil {
+		t.Errorf("after the account emails changed: connection ended_head_full_name = %q, want null", *card.History[1].EndedHeadFullName)
+	}
+}
+
+// AC-19c: a first connection ends no term, also after the applicant's account email has changed
+// (accounts.email is overwritten on every sign-in).
+func TestCard_AFirstConnectionShowsNoEndedEntryAfterTheAccountEmailChanged(t *testing.T) {
+	e := newCardEnv(t)
+	assoc, _, _ := cardApproved(t, e)
+	cardSeatSolo(t, e, assoc)
+	cardChangeAccountEmail(t, e, "first@example.test", "first-new@example.test")
+
+	status, _, body := e.do(t, "solo", http.MethodGet, "/identity/associations/"+assoc, "")
+	if status != http.StatusOK {
+		t.Fatalf("card as solo = %d: %s", status, body)
+	}
+	var card cardView
+	if err := json.Unmarshal(body, &card); err != nil {
+		t.Fatal(err)
+	}
+	if got := cardKinds(card); len(got) != 1 || got[0] != "connected" {
+		t.Fatalf("history kinds = %v, want [connected]", got)
+	}
+	if ev := card.History[0]; ev.EndedHeadFullName != nil {
+		t.Errorf("ended_head_full_name = %q, want null for a first connection", *ev.EndedHeadFullName)
+	}
+}
+
+// AC-19c: a transfer filed from the card of the hand-made association ends no term, so its event
+// names nobody as ended.
+func TestCard_ATransferOnAHandMadeAssociationEndsNoOne(t *testing.T) {
+	e := newCardEnv(t)
+	f := transferApprovalFile(t, e.reviewEnv, "solo", fileAppEdrpou, e.a, "2026-11-05")
+	approvalRecordCheck(t, e.reviewEnv, f, true, fileAppEdrpou, "Test User")
+	if status, body := approvalApprove(e.reviewEnv, t, "operator", f, ""); status != http.StatusOK {
+		t.Fatalf("approve transfer = %d: %s", status, body)
+	}
+	card := cardGet(t, e, "solo", e.a)
+	if got := cardKinds(card); len(got) != 1 || got[0] != "transfer_approved" {
+		t.Fatalf("history kinds = %v, want [transfer_approved]", got)
+	}
+	if ev := card.History[0]; ev.EndedHeadFullName != nil {
+		t.Errorf("ended_head_full_name = %v, want null on the hand-made association", *ev.EndedHeadFullName)
 	}
 }
 

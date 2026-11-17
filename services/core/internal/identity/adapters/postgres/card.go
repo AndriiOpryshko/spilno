@@ -31,6 +31,14 @@ func optTime(t pgtype.Timestamptz) *time.Time {
 	return &t.Time
 }
 
+// endedName is nil when the approval ended no term; the query answers an empty name then.
+func endedName(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}
+
 // Briefs reads the associations table only; it has no policy.
 func (s *Cards) Briefs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]ports.AssociationBrief, error) {
 	out := map[uuid.UUID]ports.AssociationBrief{}
@@ -85,7 +93,7 @@ func (s *Cards) Card(ctx context.Context, id uuid.UUID, today time.Time) (ports.
 	for _, r := range rows {
 		c.History = append(c.History, ports.CardEvent{
 			Kind: r.Kind, OccurredAt: r.OccurredAt.Time, DecisionID: optUUID(r.DecisionID), FiledAt: optTime(r.FiledAt),
-			Reason: optText(r.Reason), HeadFullName: optText(r.HeadFullName), SignerFullName: optText(r.SignerFullName),
+			Reason: optText(r.Reason), HeadFullName: optText(r.HeadFullName), EndedHeadFullName: endedName(r.EndedHeadFullName), SignerFullName: optText(r.SignerFullName),
 			ExtractID: optUUID(r.ExtractID), ExtractDatedOn: optDate(r.ExtractDatedOn),
 		})
 	}

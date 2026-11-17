@@ -11,7 +11,7 @@ export function BrandMark({ className }: { className?: string }) {
   );
 }
 
-const soon = [uk.nav.protocols, uk.nav.meetings, uk.nav.documents];
+const soon = [uk.nav.meetings, uk.nav.documents];
 
 // Desktop navigation (Sidebar in Figma). Hidden below lg; screens render their own mobile top bar.
 export function Sidebar({ associationId, associationName, isOperator, casesCount }: { associationId: string; associationName: string; isOperator: boolean; casesCount?: number }) {
@@ -33,10 +33,19 @@ export function Sidebar({ associationId, associationName, isOperator, casesCount
           <span>{uk.nav.cases}</span>
           {casesCount !== undefined && <span className="text-xs opacity-50">{casesCount}</span>}
         </Link>
+        <Link to="/o/$associationId/association" params={{ associationId }} className="flex items-center justify-between rounded-md px-3 py-2 opacity-75 hover:bg-sidebar-accent" activeProps={{ className: 'bg-sidebar-accent font-medium !opacity-100' }}>
+          {uk.nav.association}
+        </Link>
+        <Link to="/o/$associationId/roster" params={{ associationId }} className="flex items-center justify-between rounded-md px-3 py-2 opacity-75 hover:bg-sidebar-accent" activeProps={{ className: 'bg-sidebar-accent font-medium !opacity-100' }}>
+          {uk.nav.roster}
+        </Link>
+        <Link to="/o/$associationId/registry" params={{ associationId }} className="flex items-center justify-between rounded-md px-3 py-2 opacity-75 hover:bg-sidebar-accent" activeProps={{ className: 'bg-sidebar-accent font-medium !opacity-100' }}>
+          {uk.nav.registry}
+        </Link>
         {isOperator && (
-          <a href="/operator/" className="flex items-center justify-between rounded-md px-3 py-2 opacity-75 hover:bg-sidebar-accent">
+          <Link to="/operator" className="flex items-center justify-between rounded-md px-3 py-2 opacity-75 hover:bg-sidebar-accent">
             {uk.operator.entry}
-          </a>
+          </Link>
         )}
         {soon.map((label) => (
           <span key={label} title={uk.nav.soon} aria-disabled className="flex cursor-default items-center justify-between rounded-md px-3 py-2 opacity-40">
@@ -48,7 +57,20 @@ export function Sidebar({ associationId, associationName, isOperator, casesCount
   );
 }
 
-export function TopBar({ crumbs, end }: { crumbs: { label: string; to?: string }[]; end?: React.ReactNode }) {
+// The association layout (T68): the sidebar, then the page under the notice of a вимкнене ОСББ, when there is one.
+export function AssociationShell({ notice, children, ...sidebar }: React.ComponentProps<typeof Sidebar> & { notice?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div className="flex min-h-svh">
+      <Sidebar {...sidebar} />
+      <main className="min-w-0 flex-1">
+        {notice && <div className="px-4 pt-4 lg:px-8">{notice}</div>}
+        {children}
+      </main>
+    </div>
+  );
+}
+
+export function TopBar({ crumbs, end, associationName }: { crumbs: { label: string; to?: string }[]; end?: React.ReactNode; associationName?: string }) {
   return (
     <div className="flex items-center gap-2 border-b bg-card px-4 py-3 text-[13px] lg:px-8">
       <BrandMark className="lg:hidden" />
@@ -71,6 +93,7 @@ export function TopBar({ crumbs, end }: { crumbs: { label: string; to?: string }
           );
         })}
       </nav>
+      {associationName && <span className="truncate text-[13px] text-muted-foreground lg:hidden">{associationName}</span>}
       {end}
     </div>
   );

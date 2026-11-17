@@ -18,6 +18,7 @@ const approval: AssociationEvent = {
   filed_at: '2026-11-10T09:00:00Z',
   reason: null,
   head_full_name: 'Тестовий Голова Правління',
+  ended_head_full_name: null,
   signer_full_name: 'Тестовий Голова Правління',
   extract_id: extractId,
   extract_dated_on: '2026-11-08',

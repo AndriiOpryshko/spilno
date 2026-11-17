@@ -3,6 +3,8 @@ import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } fr
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { uk } from '@/i18n/uk';
+
 import { OperatorAssociations } from './associations';
 
 const lypkyId = '00000000-0000-7000-8000-000000000001';
@@ -46,7 +48,7 @@ function fakeApi(input: RequestInfo | URL, init?: RequestInit) {
   );
 }
 
-async function renderPage() {
+async function renderPage(ready: () => Promise<unknown> = () => screen.findByText(/Липки/)) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   const router = createRouter({
     routeTree: createRootRoute({
@@ -59,7 +61,7 @@ async function renderPage() {
     history: createMemoryHistory({ initialEntries: ['/'] }),
   });
   render(<RouterProvider router={router} />);
-  await screen.findByText(/Липки/);
+  await ready();
 }
 
 const rowOf = (name: RegExp) => screen.getByText(name).closest('tr, li, article, [data-slot="card"], div')!.parentElement!;
@@ -82,6 +84,18 @@ afterEach(() => {
 });
 
 describe('OperatorAssociations', () => {
+  it('shows no list, empty or not, to a person the server refuses (AC-16)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve(problem(403, 'identity.not_operator'))),
+    );
+    await renderPage(() => waitFor(() => expect(vi.mocked(fetch)).toHaveBeenCalled()));
+    // let the refused read settle before looking
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(screen.queryByRole('list')).toBeNull();
+    expect(screen.queryByText('Немає доступу')).toBeNull();
+  });
+
   it('lists the name, the ЄДРПОУ and the state of each association', async () => {
     await renderPage();
     expect(screen.getByText(/Липки/)).toBeInTheDocument();
@@ -137,5 +151,41 @@ describe('OperatorAssociations', () => {
     await u.click(within(rowOf(/Сонячний/)).getByRole('button', { name: /Увімкнути/ }));
 
     expect(await screen.findByText('ОСББ уже в цьому стані')).toBeInTheDocument();
+  });
+
+  // AC-22: every refusal has a message, also one the page does not know.
+  it.each([
+    ['a 500', () => Promise.resolve(problem(500, 'system.internal'))],
+    ['a network error', () => Promise.reject(new TypeError('Failed to fetch'))],
+  ])('shows a message when disabling fails with %s (AC-22)', async (_name, failure) => {
+    await renderPage();
+    const u = user();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL, init?: RequestInit) => (init?.method === 'POST' ? failure() : fakeApi(input, init))),
+    );
+    const row = rowOf(/Липки/);
+    await u.click(within(row).getByRole('button', { name: /Вимкнути/ }));
+    await u.type(within(row).getByRole('textbox'), 'причина');
+    await u.click(within(row).getAllByRole('button', { name: /Вимкнути/ }).at(-1)!);
+
+    const alert = await within(rowOf(/Липки/)).findByRole('alert');
+    expect(alert).toHaveTextContent(uk.operator.actionFailed);
+    expect(within(rowOf(/Липки/)).getByText(/підключене/i)).toBeInTheDocument();
+  });
+
+  it('shows a message when enabling fails with an unexpected error (AC-23)', async () => {
+    await renderPage();
+    const u = user();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL, init?: RequestInit) =>
+        init?.method === 'POST' ? Promise.resolve(problem(500, 'system.internal')) : fakeApi(input, init),
+      ),
+    );
+    await u.click(within(rowOf(/Сонячний/)).getByRole('button', { name: /Увімкнути/ }));
+
+    const alert = await within(rowOf(/Сонячний/)).findByRole('alert');
+    expect(alert).toHaveTextContent(uk.operator.actionFailed);
   });
 });

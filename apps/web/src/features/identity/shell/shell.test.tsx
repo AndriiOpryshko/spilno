@@ -1,8 +1,9 @@
-import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { createMemoryHistory, createRootRoute, createRoute, createRouter, RouterProvider } from '@tanstack/react-router';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { describe, expect, it } from 'vitest';
 
+import { getStartSignInUrl } from '@/api/gen/endpoints/identity/identity';
 import { Sidebar } from '@/components/app-shell';
 
 import { isNoAccessProblem, resolveEntry } from './entry';
@@ -31,6 +32,17 @@ async function renderInRouter(ui: ReactNode) {
   });
   render(<RouterProvider router={router} />);
   await waitFor(() => expect(document.body.textContent).not.toBe(''));
+}
+
+// The same, with the оператор's section as a second route, to follow the link.
+async function renderWithOperatorSection(ui: ReactNode) {
+  const root = createRootRoute();
+  const home = createRoute({ getParentRoute: () => root, path: '/', component: () => <>{ui}</> });
+  const section = createRoute({ getParentRoute: () => root, path: '/operator', component: () => <p>Розділ оператора</p> });
+  const router = createRouter({ routeTree: root.addChildren([home, section]), history: createMemoryHistory({ initialEntries: ['/'] }) });
+  render(<RouterProvider router={router} />);
+  await screen.findByRole('link', { name: 'Оператор' });
+  return router;
 }
 
 describe('resolveEntry (AC-04d)', () => {
@@ -62,7 +74,7 @@ describe('resolveEntry (AC-04d)', () => {
 describe('SignInPage', () => {
   it('offers the sign-in link that starts the identity flow', () => {
     render(<SignInPage />);
-    expect(screen.getByRole('link')).toHaveAttribute('href', '/identity/sign-in');
+    expect(screen.getByRole('link')).toHaveAttribute('href', getStartSignInUrl());
   });
 });
 
@@ -84,8 +96,24 @@ describe('AssociationPicker (AC-04d)', () => {
 
   it('shows the operator entry next to the picker for an operator who is also a member', async () => {
     await renderInRouter(<AssociationPicker memberships={memberships} isOperator />);
-    expect(screen.getByRole('link', { name: 'Оператор' }).getAttribute('href')).toContain('/operator');
+    expect(screen.getByRole('link', { name: 'Оператор' }).getAttribute('href')).toBe('/operator');
     expect(screen.getAllByRole('link', { name: /Липки|Сонячний/ })).toHaveLength(2);
+  });
+});
+
+describe('the operator entry navigates inside the app (AC-16)', () => {
+  it('opens the section from the picker without leaving the page', async () => {
+    const router = await renderWithOperatorSection(<AssociationPicker memberships={[]} isOperator />);
+    fireEvent.click(screen.getByRole('link', { name: 'Оператор' }));
+    expect(await screen.findByText('Розділ оператора')).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/operator');
+  });
+
+  it('opens the section from the sidebar without leaving the page', async () => {
+    const router = await renderWithOperatorSection(<Sidebar associationId={lypky} associationName="ОСББ «Липки»" isOperator />);
+    fireEvent.click(screen.getByRole('link', { name: 'Оператор' }));
+    expect(await screen.findByText('Розділ оператора')).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/operator');
   });
 });
 
@@ -100,7 +128,7 @@ describe('Sidebar', () => {
 
   it('shows the operator link only to the operator', async () => {
     await renderInRouter(<Sidebar associationId={lypky} associationName="ОСББ «Липки»" isOperator />);
-    expect(screen.getByRole('link', { name: 'Оператор' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Оператор' }).getAttribute('href')).toBe('/operator');
   });
 });
 

@@ -40,7 +40,8 @@ test('AC-24: disabling a disabled and enabling an enabled association is refused
   const second = await operatorPage(browser);
   const staleDisable = await openOperatorAssociations(second, c.f.name);
 
-  await disableAs(first, c.f.name, reasonText);
+  // The first оператор's change has landed before the stale window acts.
+  await expect((await disableAs(first, c.f.name, reasonText)).getByText('Вимкнене')).toBeVisible();
   await staleDisable.getByRole('button', { name: 'Вимкнути' }).click();
   await staleDisable.getByLabel('Причина').fill('інша причина');
   await staleDisable.getByRole('button', { name: 'Вимкнути' }).click();
@@ -51,7 +52,7 @@ test('AC-24: disabling a disabled and enabling an enabled association is refused
   await expect(c.head.getByText(suspendedText)).toBeVisible();
 
   const staleEnable = await openOperatorAssociations(second, c.f.name);
-  await enableAs(first, c.f.name);
+  await expect((await enableAs(first, c.f.name)).getByText('Підключене')).toBeVisible();
   await staleEnable.getByRole('button', { name: 'Увімкнути' }).click();
   await expect(staleEnable.getByText('ОСББ уже в цьому стані')).toBeVisible();
   expect((await scheduleMeeting(c.head, c.associationId)).status()).toBe(201);

@@ -61,4 +61,29 @@ describe('CheckForm refusals (AC-13)', () => {
     expect(screen.getByLabelText(uk.operator.extractDatedOn)).toHaveAttribute('aria-invalid', 'true');
     expect(screen.getByLabelText(uk.operator.signer)).not.toHaveAttribute('aria-invalid', 'true');
   });
+
+  it('writes a Ukrainian message next to each broken field, wired with aria-describedby', async () => {
+    renderForm();
+    fireEvent.change(screen.getByLabelText(uk.operator.edrpou), { target: { value: '123' } });
+    fireEvent.change(screen.getByLabelText(uk.operator.extractDatedOn), { target: { value: '2026-13-45' } });
+    fireEvent.click(screen.getByRole('button', { name: uk.operator.recordCheck }));
+
+    await screen.findByRole('alert');
+    const messageOf = (label: string) => {
+      const id = screen.getByLabelText(label).getAttribute('aria-describedby');
+      expect(id, label).toBeTruthy();
+      return document.getElementById(id as string)?.textContent ?? '';
+    };
+    const edrpou = messageOf(uk.operator.edrpou);
+    const datedOn = messageOf(uk.operator.extractDatedOn);
+    for (const m of [edrpou, datedOn]) {
+      expect(m).toMatch(/[А-Яа-яІіЇїЄєҐґ]/);
+      expect(m).not.toMatch(/[A-Za-z]/);
+    }
+    expect(edrpou).toMatch(/8/);
+    expect(edrpou).not.toBe(datedOn);
+    expect(screen.queryByText(/must be/)).not.toBeInTheDocument();
+    // A field that is not broken has no message.
+    expect(screen.getByLabelText(uk.operator.signer)).not.toHaveAttribute('aria-describedby');
+  });
 });

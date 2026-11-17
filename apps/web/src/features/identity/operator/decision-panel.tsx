@@ -65,10 +65,14 @@ export function DecisionPanel({
   if (application.state !== 'pending') {
     if (!decision) return null;
     const date = formatDate(decision.decided_at);
+    const refusal = error ?? reasonError;
     return (
-      <p ref={statusRef} role="status" tabIndex={-1} className="outline-none">
-        {application.state === 'approved' ? t.approvedOn(date) : t.rejectedOn(date)}
-      </p>
+      <div className="flex flex-col gap-2">
+        <p ref={statusRef} role="status" tabIndex={-1} className="outline-none">
+          {application.state === 'approved' ? t.approvedOn(date) : t.rejectedOn(date)}
+        </p>
+        {refusal && <ErrorText>{refusal}</ErrorText>}
+      </div>
     );
   }
   const email = session.data?.data.email;

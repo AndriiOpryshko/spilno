@@ -217,6 +217,8 @@ describe('DecisionPanel on the review page', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Схвалити' }));
     expect(await screen.findByText(/відхилена/)).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Схвалити' })).not.toBeInTheDocument());
+    // The refusal stays next to the outcome after the refetch.
+    expect(screen.getByText('Рішення за цією заявкою вже ухвалено')).toBeInTheDocument();
   });
 
   it('refetches the review after a 409 on rejection (AC-15)', async () => {
@@ -228,6 +230,8 @@ describe('DecisionPanel on the review page', () => {
     fireEvent.click(confirm);
     expect(await screen.findByText(/схвалена/)).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Відхилити' })).not.toBeInTheDocument());
+    // The refusal stays next to the outcome after the refetch.
+    expect(screen.getByText('Рішення за цією заявкою вже ухвалено')).toBeInTheDocument();
   });
 
   it('announces the outcome as a status and moves focus to it after a rejection (AC-13)', async () => {

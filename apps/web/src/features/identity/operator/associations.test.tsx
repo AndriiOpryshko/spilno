@@ -3,6 +3,8 @@ import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } fr
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { uk } from '@/i18n/uk';
+
 import { OperatorAssociations } from './associations';
 
 const lypkyId = '00000000-0000-7000-8000-000000000001';
@@ -168,7 +170,7 @@ describe('OperatorAssociations', () => {
     await u.click(within(row).getAllByRole('button', { name: /Вимкнути/ }).at(-1)!);
 
     const alert = await within(rowOf(/Липки/)).findByRole('alert');
-    expect(alert.textContent?.trim()).not.toBe('');
+    expect(alert).toHaveTextContent(uk.operator.actionFailed);
     expect(within(rowOf(/Липки/)).getByText(/підключене/i)).toBeInTheDocument();
   });
 
@@ -184,6 +186,6 @@ describe('OperatorAssociations', () => {
     await u.click(within(rowOf(/Сонячний/)).getByRole('button', { name: /Увімкнути/ }));
 
     const alert = await within(rowOf(/Сонячний/)).findByRole('alert');
-    expect(alert.textContent?.trim()).not.toBe('');
+    expect(alert).toHaveTextContent(uk.operator.actionFailed);
   });
 });

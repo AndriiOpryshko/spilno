@@ -413,6 +413,146 @@ Not carried: the lock with a signed copy (board-protocol T29) and everything bef
 - **T65 and T80 are the slice to drop first.** They exist only for the UI half of AC-28; without them that half needs an explicit de-scope in PRD §8.
 - **Contract lane.** T60, T70 and T72 edit `services/core/api/openapi.yaml`; their shared `files_hint` serializes them, and each lands with its generated code.
 
+## Review follow-up (2026-11-17)
+
+The [re-review](../_review/review-2026-11-17.md) of the first follow-up asked for changes again: 9 stage-1 findings (N01–N09) and 17 stage-2 findings (Q01–Q17), all resolved as «fix now», the wiring of the real file storage (N09) included. T86–T111 carry them on new branches off `main`; T01–T85 stay as built.
+
+Same DAG as [tasks.json](./tasks.json), tasks of this follow-up only. Parallel starts: T86, T87, T89, T90, T92, T93, T98, T99, T100, T102, T103, T106. Longest chain: 5 phases. 26 tasks, ~13 person-days.
+
+```mermaid
+flowchart LR
+    T86["T86 infra: decision-entries-by-first-revision"]:::inf
+    T87["T87 ports: roster-decision-effect-and-no-reopen"]:::prt
+    T88["T88 ui: ui-roster-marks-by-effect-and-kind"]:::ui
+    T89["T89 ui: ui-entry-to-connection-form"]:::ui
+    T90["T90 ports: one-definition-per-problem-code"]:::prt
+    T91["T91 wiring: governance-actor-lookup-injected"]:::wir
+    T92["T92 ports: files-per-association"]:::prt
+    T93["T93 wiring: guard-check-then-handler-for-outside-io"]:::wir
+    T94["T94 app: upload-outside-transaction"]:::app
+    T95["T95 app: download-outside-transaction"]:::app
+    T96["T96 app: code-exchange-outside-transaction"]:::app
+    T97["T97 wiring: wire-drive-storage-per-association"]:::wir
+    T98["T98 infra: oversize-body-413-everywhere"]:::inf
+    T99["T99 app: sign-in-state-in-sealed-cookie"]:::app
+    T100["T100 infra: competing-within-one-kind"]:::inf
+    T101["T101 tests: race-tests-and-term-dates-that-last"]:::tst
+    T102["T102 ui: ui-operator-fallback-and-focus"]:::ui
+    T103["T103 ui: ui-governance-generated-hooks-and-fallback"]:::ui
+    T104["T104 ui: ui-page-roster-and-memberships"]:::ui
+    T105["T105 ui: ui-page-operator-lists"]:::ui
+    T106["T106 ui: ui-extract-file-check-before-upload"]:::ui
+    T107["T107 tests: load-smoke-in-ci"]:::tst
+    T108["T108 tests: e2e-second-review-fixes"]:::tst
+    T109["T109 tests: refresh-visual-baselines-second-review"]:::tst
+    T110["T110 wiring: contract-texts-and-reconcile"]:::wir
+    T111["T111 docs: sync-docs-after-second-review"]:::doc
+    T87 --> T88
+    T90 --> T91
+    T92 --> T94
+    T93 --> T94
+    T91 --> T95
+    T92 --> T95
+    T93 --> T95
+    T93 --> T96
+    T94 --> T97
+    T95 --> T97
+    T86 --> T101
+    T88 --> T104
+    T102 --> T105
+    T99 --> T107
+    T88 --> T108
+    T89 --> T108
+    T99 --> T108
+    T88 --> T109
+    T89 --> T109
+    T102 --> T109
+    T104 --> T109
+    T105 --> T109
+    T106 --> T109
+    T87 --> T110
+    T90 --> T110
+    T100 --> T110
+    T96 --> T111
+    T97 --> T111
+    T98 --> T111
+    T101 --> T111
+    T103 --> T111
+    T107 --> T111
+    T108 --> T111
+    T109 --> T111
+    T110 --> T111
+    classDef mig fill:#fde68a,stroke:#92400e,color:#111
+    classDef dom fill:#bbf7d0,stroke:#166534,color:#111
+    classDef inf fill:#bfdbfe,stroke:#1e40af,color:#111
+    classDef app fill:#ddd6fe,stroke:#5b21b6,color:#111
+    classDef prt fill:#fbcfe8,stroke:#9d174d,color:#111
+    classDef ui fill:#fed7aa,stroke:#9a3412,color:#111
+    classDef wir fill:#e5e7eb,stroke:#374151,color:#111
+    classDef tst fill:#fecaca,stroke:#991b1b,color:#111
+    classDef doc fill:#f5f5f4,stroke:#57534e,color:#111
+```
+
+| Task | Title | Layer | Blocked by | ACs | Findings | Est. |
+|---|---|---|---|---|---|---|
+| [T86](./T86-decision-entries-by-first-revision.md) | Find the голова a decision seated and the entry it ended by the first revision that carries the decision | infra | — | AC-19, AC-19b, AC-20, AC-29 | N01 | M |
+| [T87](./T87-roster-decision-effect-and-no-reopen.md) | Tell each roster entry what its decision did to it, and refuse to reopen an entry an approval ended | ports | — | AC-19, AC-20 | N01 | M |
+| [T88](./T88-ui-roster-marks-by-effect-and-kind.md) | Mark roster entries by the decision's effect and word the mark by the kind of the decision | ui | T87 | AC-20, AC-29 | N01 (web half), N02 | M |
+| [T89](./T89-ui-entry-to-connection-form.md) | Lead a signed-in person to the заявка на підключення form | ui | — | AC-01, AC-04d | N03 | S |
+| [T90](./T90-one-definition-per-problem-code.md) | Advertise the disabled refusal of a file download and define every problem code once | ports | — | AC-25, AC-26 | N05, Q08 | M |
+| [T91](./T91-governance-actor-lookup-injected.md) | Pass the read-only lookup into governance from cmd/api and refuse a request without an actor | wiring | T90 | AC-26 | Q09 | S |
+| [T92](./T92-files-per-association.md) | Resolve the file storage per association | ports | — | AC-26, AC-28 | N09 (port half) | M |
+| [T93](./T93-guard-check-then-handler-for-outside-io.md) | Run operations with outside I/O after the guard's check transaction, not inside it | wiring | — | AC-25, AC-28 | N06, Q01, B2 (remainder) | L |
+| [T94](./T94-upload-outside-transaction.md) | Upload a case document before the write transaction and remove the file when the write fails | app | T92, T93 | AC-28 | N06, Q04 (checksum) | M |
+| [T95](./T95-download-outside-transaction.md) | Read a download from the storage outside the transaction and answer 503 when the read fails | app | T91, T92, T93 | AC-26 | Q01, Q04 | M |
+| [T96](./T96-code-exchange-outside-transaction.md) | Exchange the storage consent code with Google outside the transaction | app | T93 | AC-27, AC-28b | B2 (remainder) | M |
+| [T97](./T97-wire-drive-storage-per-association.md) | Build each association's Drive storage from its Google connection in cmd/api | wiring | T94, T95 | AC-26, AC-28 | N09 | L |
+| [T98](./T98-oversize-body-413-everywhere.md) | Answer 413 for every oversized body and limit the bodies of finance and system | infra | — | AC-02 | Q02, B9 (remainder) | M |
+| [T99](./T99-sign-in-state-in-sealed-cookie.md) | Keep the pending sign-in in a sealed cookie of the browser that started it | app | — | AC-05, AC-27 | Q03 (also SEC-02 of the security review) | L |
+| [T100](./T100-competing-within-one-kind.md) | Mark as competing only pending applications of the same kind for the same code | infra | — | AC-04c, AC-19b | Q07 | S |
+| [T101](./T101-race-tests-and-term-dates-that-last.md) | Report race-test failures on the test goroutine and stop the term-end tests from expiring | tests | T86 | AC-08, AC-15, AC-19c, AC-30 | Q05, Q06 | S |
+| [T102](./T102-ui-operator-fallback-and-focus.md) | Show the shared fallback on the оператор's review and associations pages and keep focus after an approval | ui | — | AC-10, AC-15, AC-21 | Q11, Q14 (W1, W2, W6 remainders) | M |
+| [T103](./T103-ui-governance-generated-hooks-and-fallback.md) | Use the generated hooks, their query keys and the shared fallback in the governance screens | ui | — | AC-19, AC-26, AC-28 | Q12, Q13 (W2, W5 remainders) | M |
+| [T104](./T104-ui-page-roster-and-memberships.md) | Read every page of the roster and of a person's memberships | ui | T88 | AC-04d, AC-20 | Q15 | M |
+| [T105](./T105-ui-page-operator-lists.md) | Read every page of the оператор's queue and list of associations | ui | T102 | AC-04c, AC-21 | Q15 (known gap of T81) | M |
+| [T106](./T106-ui-extract-file-check-before-upload.md) | Check the extract's size and type before the upload and name the field on a 413 | ui | — | AC-02 | Q16 | S |
+| [T107](./T107-load-smoke-in-ci.md) | Run the load smoke of PRD §6 in CI | tests | T99 | AC-01, AC-05, AC-08, AC-29 | Q10 | M |
+| [T108](./T108-e2e-second-review-fixes.md) | Prove the second review's fixes end to end | tests | T88, T89, T99 | AC-01, AC-04d, AC-05, AC-20, AC-29 | N03, N04, Q17, N01 and N02 (e2e halves) | M |
+| [T109](./T109-refresh-visual-baselines-second-review.md) | Refresh the visual baselines the second review's fixes changed | tests | T88, T89, T102, T104, T105, T106 | AC-01, AC-20, AC-29 | follow-up of N01, N02, N03, Q11, Q15 | S |
+| [T110](./T110-contract-texts-and-reconcile.md) | Correct the contract's descriptions and reconcile the sync report | wiring | T87, T90, T100 | AC-04c, AC-26 | N07, N08 (F21) | M |
+| [T111](./T111-sync-docs-after-second-review.md) | Bring the test plan, the trackers and the review record in line with the second follow-up | docs | T96, T97, T98, T101, T103, T107, T108, T109, T110 | AC-01, AC-19, AC-20, AC-26, AC-28 | bookkeeping of N01–N09, Q01–Q17 | M |
+
+**Finding coverage:** every finding of the record is named by at least one task above. N01 is carried by T86 (identity queries), T87 (roster rule and contract), T88 (screen) and T108 (e2e); N06 and Q01 by T93 (the guard) with T94–T96 (the three handlers); N09 by T92 (port) and T97 (wiring).
+
+### Board-protocol work carried here (N09)
+
+The product owner chose to wire the real storage in this feature. board-protocol T13b left the wiring to «the first use case that stores a file» (its T21), and that use case was built here as T64 and T65.
+
+| board-protocol task | Carried here by | Left in board-protocol |
+|---|---|---|
+| [T13b](../../board-protocol/tasks/T13b-drive-files-adapter.md) the Drive adapter | T94: `Remove` on the port, the fake and the adapter; T97: the fake Drive moved where a module test can import it | the run of the contract against real Google |
+| [T21](../../board-protocol/tasks/T21-cases-endpoints.md) cases and files | T92: the storage resolved per association; T97: the adapter built from the association's Google connection in `cmd/api` | the domain event for the needs-review hook, the upload-duration metric |
+| [T14](../../board-protocol/tasks/T14-river-worker-jobs.md) the River worker | nothing: T94 removes an orphaned file best effort, in the request | the `remove_orphan_file` job |
+
+### Decisions taken in this breakdown
+
+Each is the default of its task and is named in the task's Notes with the alternative; none needed an ADR by the blast-radius gate, T93 excepted, which amends ADR-0003.
+
+- **N01 without a migration (T86).** The seated and the ended entry of a decision are found by the first revision that carries it. The alternative is a column on `board_member_revisions` with an expand and a backfill.
+- **An entry an approval ended cannot be reopened (T87).** PRD AC-19: «the board adds them again». The alternative is to reset a reopened entry to член правління without a decision.
+- **The pending sign-in moves into a sealed cookie (T99).** It closes Q03 and SEC-02 of the security review together. The alternative, a rate limit per client address, needs a trusted proxy header.
+- **Operations with outside I/O leave the guard's single transaction (T93).** Their checks, their outside call and their write become three steps; ADR-0003 and SAD §8 get a dated amendment.
+
+### Risks of the second follow-up
+
+- **T93 changes the path of every association-scoped request**, as T54 did. It lands alone, before T94–T96; the three handlers only get one transaction around their body, their logic moves in T94–T96.
+- **T97 cannot be proven against real Google here.** It is proven on a fake Drive through HTTP; the tracker keeps the run against real Google as a known gap.
+- **T99 changes how every test signs in.** The e2e support and the load client keep the cookie between the start and the callback; T107 and T108 wait for it.
+- **Contract lane.** T87, T90 and T110 edit `services/core/api/openapi.yaml`; their shared `files_hint` serializes them, each lands with its generated code, and T110 reconciles last.
+- **Shared files outside the DAG edges.** T92, T94, T95 and T97 meet in `governance/app` and `module.go`; T88 and T104 in the roster screen; T102 and T105 in the оператор's lists. The `deps` already order them.
+- **Three findings rest on the reviewer's read alone** (Q03 in T99, Q05 in T101, Q13 in T103): each task starts by reproducing its finding and records in the review record if it does not reproduce.
+
+
 ## Board-protocol tasks this epic replaces or needs
 
 `tasks.json` holds only this epic's ids, so these are not `deps`; they are named in the Notes of the task on the right.

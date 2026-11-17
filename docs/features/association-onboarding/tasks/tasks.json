@@ -1952,6 +1952,562 @@
         "docs/features/board-protocol/tasks/tracker.md",
         "docs/features/board-protocol/tasks/"
       ]
+    },
+    {
+      "id": "T86",
+      "title": "Find the голова a decision seated and the entry it ended by the first revision that carries the decision",
+      "layer": "infra",
+      "deps": [],
+      "acs": [
+        "AC-19",
+        "AC-19b",
+        "AC-20",
+        "AC-29"
+      ],
+      "dod": "Integration tests show that after a transfer, an edit of the previous голова's entry and a second transfer, the second transfer ends the голова the first one seated, and the card names the previous голова as ended.",
+      "files_hint": [
+        "services/core/internal/identity/adapters/postgres/queries/approval.sql",
+        "services/core/internal/identity/adapters/postgres/queries/card.sql",
+        "services/core/internal/identity/adapters/postgres/approval.go",
+        "services/core/internal/identity/adapters/postgres/card.go",
+        "services/core/internal/identity/approval_transfer_test.go",
+        "services/core/internal/identity/card_test.go"
+      ]
+    },
+    {
+      "id": "T87",
+      "title": "Tell each roster entry what its decision did to it, and refuse to reopen an entry an approval ended",
+      "layer": "ports",
+      "deps": [],
+      "acs": [
+        "AC-19",
+        "AC-20"
+      ],
+      "dod": "Handler tests show `listBoardMembers` returning `decision_effect` `seated` or `ended` for the entries of a transfer, and `updateBoardMember` refusing with 422 `governance.roster_entry_invalid` on `/term_end` to clear or move later the term end of an entry an approval ended, while a name fix is saved.",
+      "files_hint": [
+        "services/core/api/openapi.yaml",
+        "docs/features/association-onboarding/contracts/openapi.yaml",
+        "services/core/internal/governance/adapters/postgres/queries/roster.sql",
+        "services/core/internal/governance/adapters/postgres/roster.go",
+        "services/core/internal/governance/app/roster.go",
+        "services/core/internal/governance/ports/",
+        "services/core/internal/governance/adapters/http/board_members.go",
+        "services/core/internal/governance/roster_endpoints_test.go"
+      ]
+    },
+    {
+      "id": "T88",
+      "title": "Mark roster entries by the decision's effect and word the mark by the kind of the decision",
+      "layer": "ui",
+      "deps": [
+        "T87"
+      ],
+      "acs": [
+        "AC-20",
+        "AC-29"
+      ],
+      "dod": "Component tests show the ended mark on the entry with `decision_effect` `ended` when both голови share a name, «призначено за заявкою на підключення від …» for the голова of a connection, and the term fields of an ended entry replaced by a hint to add the person again.",
+      "files_hint": [
+        "apps/web/src/features/identity/association/roster-decision-mark.tsx",
+        "apps/web/src/features/identity/association/roster-decision-mark.test.tsx",
+        "apps/web/src/features/governance/roster/roster-screen.tsx",
+        "apps/web/src/features/governance/roster/roster-form.tsx",
+        "apps/web/src/features/governance/roster/roster-screen.test.tsx",
+        "apps/web/src/features/governance/roster/roster-screen.stories.tsx",
+        "apps/web/src/features/identity/association/association-card.tsx",
+        "apps/web/src/i18n/uk.ts"
+      ]
+    },
+    {
+      "id": "T89",
+      "title": "Lead a signed-in person to the заявка на підключення form",
+      "layer": "ui",
+      "deps": [],
+      "acs": [
+        "AC-01",
+        "AC-04d"
+      ],
+      "dod": "Component tests show a «Подати заявку на підключення» link on the applications list, empty and not, and in the association picker, each leading to `/applications/new?kind=connection`.",
+      "files_hint": [
+        "apps/web/src/routes/applications.index.tsx",
+        "apps/web/src/features/identity/shell/association-picker.tsx",
+        "apps/web/src/features/identity/shell/association-picker.stories.tsx",
+        "apps/web/src/features/identity/shell/shell.test.tsx",
+        "apps/web/src/features/identity/shell/page-states.test.tsx",
+        "apps/web/src/i18n/uk.ts"
+      ]
+    },
+    {
+      "id": "T90",
+      "title": "Advertise the disabled refusal of a file download and define every problem code once",
+      "layer": "ports",
+      "deps": [],
+      "acs": [
+        "AC-25",
+        "AC-26"
+      ],
+      "dod": "The 403 of `downloadFile` lists `identity.not_current_member` and `identity.association_disabled` with an example of each, the handler takes the code from the constant the identity module exports, and `governance.file_invalid` and `governance.search_invalid` each have one definition that a test compares with the contract.",
+      "files_hint": [
+        "services/core/api/openapi.yaml",
+        "docs/features/association-onboarding/contracts/openapi.yaml",
+        "services/core/internal/governance/adapters/http/files.go",
+        "services/core/internal/governance/domain/errors.go",
+        "services/core/internal/governance/domain/case.go",
+        "services/core/internal/governance/app/registry.go",
+        "services/core/internal/governance/app/cases.go",
+        "services/core/internal/identity/module.go",
+        "services/core/internal/governance/file_download_test.go"
+      ]
+    },
+    {
+      "id": "T91",
+      "title": "Pass the read-only lookup into governance from cmd/api and refuse a request without an actor",
+      "layer": "wiring",
+      "deps": [
+        "T90"
+      ],
+      "acs": [
+        "AC-26"
+      ],
+      "dod": "The governance HTTP adapter imports nothing from identity, and a download that reaches the handler without an actor in the context is refused, shown by a handler test.",
+      "files_hint": [
+        "services/core/internal/governance/adapters/http/files.go",
+        "services/core/internal/governance/adapters/http/handler.go",
+        "services/core/internal/governance/module.go",
+        "services/core/cmd/api/main.go",
+        "services/core/internal/governance/file_download_test.go"
+      ]
+    },
+    {
+      "id": "T92",
+      "title": "Resolve the file storage per association",
+      "layer": "ports",
+      "deps": [],
+      "acs": [
+        "AC-26",
+        "AC-28"
+      ],
+      "dod": "Integration tests on two associations show a file uploaded in one is not readable through the storage of the other, and an association without a storage answers 409 `governance.drive_not_connected` on upload and 503 `governance.storage_unavailable` on download.",
+      "files_hint": [
+        "services/core/internal/governance/ports/files.go",
+        "services/core/internal/governance/app/files.go",
+        "services/core/internal/governance/app/cases.go",
+        "services/core/internal/governance/module.go",
+        "services/core/internal/governance/adapters/filesfake/",
+        "services/core/cmd/api/main.go",
+        "services/core/internal/governance/cases_endpoints_test.go",
+        "services/core/internal/governance/file_download_test.go"
+      ]
+    },
+    {
+      "id": "T93",
+      "title": "Run operations with outside I/O after the guard's check transaction, not inside it",
+      "layer": "wiring",
+      "deps": [],
+      "acs": [
+        "AC-25",
+        "AC-28"
+      ],
+      "dod": "For `addCaseDocument`, `downloadFile` and `completeStorageConnection` a test shows that no pool connection is held while the request body is read and while the handler runs its outside call, the roster and read-only refusals are unchanged, and every other operation still runs in one transaction.",
+      "files_hint": [
+        "services/core/internal/identity/guard.go",
+        "services/core/internal/platform/db/db.go",
+        "services/core/internal/platform/db/db_integration_test.go",
+        "services/core/internal/identity/middleware_test.go",
+        "services/core/internal/identity/middleware_readonly_test.go",
+        "services/core/internal/identity/commit_before_response_test.go",
+        "services/core/internal/governance/adapters/http/cases.go",
+        "services/core/internal/governance/adapters/http/files.go",
+        "services/core/internal/identity/adapters/http/storage.go",
+        "docs/features/association-onboarding/adr/0003-enforce-association-isolation-with-postgres-row-level-security.md",
+        "docs/features/association-onboarding/sad.md"
+      ]
+    },
+    {
+      "id": "T94",
+      "title": "Upload a case document before the write transaction and remove the file when the write fails",
+      "layer": "app",
+      "deps": [
+        "T92",
+        "T93"
+      ],
+      "acs": [
+        "AC-28"
+      ],
+      "dod": "An integration test with a failing insert after a successful upload shows no file left in the storage and a 5xx problem, a checksum mismatch answers 503 `governance.storage_unavailable`, and a successful upload records the file and the document in one transaction opened after the upload.",
+      "files_hint": [
+        "services/core/internal/governance/app/cases.go",
+        "services/core/internal/governance/adapters/http/cases.go",
+        "services/core/internal/governance/ports/files.go",
+        "services/core/internal/governance/adapters/filesfake/",
+        "services/core/internal/governance/adapters/filestest/",
+        "services/core/internal/governance/adapters/gdrive/files.go",
+        "services/core/internal/governance/adapters/gdrive/files_test.go",
+        "services/core/internal/governance/cases_endpoints_test.go"
+      ]
+    },
+    {
+      "id": "T95",
+      "title": "Read a download from the storage outside the transaction and answer 503 when the read fails",
+      "layer": "app",
+      "deps": [
+        "T91",
+        "T92",
+        "T93"
+      ],
+      "acs": [
+        "AC-26"
+      ],
+      "dod": "Handler tests show the record and the pinned check read in a short transaction, the bytes read with no transaction open and held in memory once, and a storage failure in the middle of the read answering 503 `governance.storage_unavailable`.",
+      "files_hint": [
+        "services/core/internal/governance/app/files.go",
+        "services/core/internal/governance/adapters/http/files.go",
+        "services/core/internal/governance/file_download_test.go",
+        "services/core/internal/governance/adapters/filesfake/"
+      ]
+    },
+    {
+      "id": "T96",
+      "title": "Exchange the storage consent code with Google outside the transaction",
+      "layer": "app",
+      "deps": [
+        "T93"
+      ],
+      "acs": [
+        "AC-27",
+        "AC-28b"
+      ],
+      "dod": "A test shows `completeStorageConnection` exchanging the code with no transaction open and writing the connection in one transaction afterwards, with the refusals of a bad state, a refused code and a member's sign-in address unchanged.",
+      "files_hint": [
+        "services/core/internal/identity/storage.go",
+        "services/core/internal/identity/app/storage.go",
+        "services/core/internal/identity/adapters/http/storage.go",
+        "services/core/internal/identity/storage_test.go"
+      ]
+    },
+    {
+      "id": "T97",
+      "title": "Build each association's Drive storage from its Google connection in cmd/api",
+      "layer": "wiring",
+      "deps": [
+        "T94",
+        "T95"
+      ],
+      "acs": [
+        "AC-26",
+        "AC-28"
+      ],
+      "dod": "With `SPILNO_DEV_STORAGE` unset, a test API whose Drive addresses point at a fake Drive uploads a case document into the folder of the association's connection with its token and downloads it back byte for byte; an association without a connection or a folder answers `governance.drive_not_connected` / `governance.storage_unavailable`.",
+      "files_hint": [
+        "services/core/cmd/api/main.go",
+        "services/core/internal/governance/module.go",
+        "services/core/internal/governance/adapters/gdrive/",
+        "services/core/internal/identity/google.go",
+        "services/core/internal/identity/app/google_connections.go",
+        "services/core/internal/platform/config/google.go",
+        "services/core/internal/platform/config/google_test.go",
+        "services/core/internal/governance/cases_endpoints_test.go",
+        ".env.example"
+      ]
+    },
+    {
+      "id": "T98",
+      "title": "Answer 413 for every oversized body and limit the bodies of finance and system",
+      "layer": "infra",
+      "deps": [],
+      "acs": [
+        "AC-02"
+      ],
+      "dod": "Tests show a chunked body over the limit answering 413 problem+json on an identity, a governance and a finance operation, and the 21 MB multipart limit of governance refused before the handler.",
+      "files_hint": [
+        "services/core/internal/platform/httpapi/bodylimit.go",
+        "services/core/internal/platform/httpapi/problem.go",
+        "services/core/internal/platform/httpapi/problem_test.go",
+        "services/core/internal/finance/module.go",
+        "services/core/internal/system/module.go",
+        "services/core/internal/governance/adapters/http/cases.go",
+        "services/core/internal/governance/cases_endpoints_test.go",
+        "services/core/internal/identity/applications_file_test.go",
+        "services/core/internal/finance/module_test.go"
+      ]
+    },
+    {
+      "id": "T99",
+      "title": "Keep the pending sign-in in a sealed cookie of the browser that started it",
+      "layer": "app",
+      "deps": [],
+      "acs": [
+        "AC-05",
+        "AC-27"
+      ],
+      "dod": "Tests show that any number of sign-in starts leaves a sign-in already in progress able to finish, a callback without the cookie of its `state` is refused, a forged, expired or replayed state is refused, and one account holds at most one pending storage consent.",
+      "files_hint": [
+        "services/core/internal/identity/app/signin.go",
+        "services/core/internal/identity/app/storage.go",
+        "services/core/internal/identity/adapters/http/handler.go",
+        "services/core/internal/identity/signin.go",
+        "services/core/internal/identity/signin_test.go",
+        "services/core/internal/identity/state_bounded_test.go",
+        "tests/load/client.go",
+        "apps/web/e2e/support.ts",
+        "docs/features/association-onboarding/sad.md",
+        "docs/features/association-onboarding/tasks/tracker.md"
+      ]
+    },
+    {
+      "id": "T100",
+      "title": "Mark as competing only pending applications of the same kind for the same code",
+      "layer": "infra",
+      "deps": [],
+      "acs": [
+        "AC-04c",
+        "AC-19b"
+      ],
+      "dod": "An integration test shows a pending заявка на підключення and a pending запит на передачу for one ЄДРПОУ not marking each other, while two заявки, and two запити, still do.",
+      "files_hint": [
+        "services/core/internal/identity/adapters/postgres/queries/review.sql",
+        "services/core/internal/identity/review_queue_competing_test.go",
+        "services/core/internal/identity/review_transfer_test.go"
+      ]
+    },
+    {
+      "id": "T101",
+      "title": "Report race-test failures on the test goroutine and stop the term-end tests from expiring",
+      "layer": "tests",
+      "deps": [
+        "T86"
+      ],
+      "acs": [
+        "AC-08",
+        "AC-15",
+        "AC-19c",
+        "AC-30"
+      ],
+      "dod": "The identity tests pass with the module clock set to 2027-06-01, and no goroutine of a race test calls `t.Fatal`.",
+      "files_hint": [
+        "services/core/internal/identity/approval_transfer_test.go",
+        "services/core/internal/identity/decision_race_test.go",
+        "services/core/internal/identity/approval_test.go",
+        "services/core/internal/identity/review_test.go"
+      ]
+    },
+    {
+      "id": "T102",
+      "title": "Show the shared fallback on the оператор's review and associations pages and keep focus after an approval",
+      "layer": "ui",
+      "deps": [],
+      "acs": [
+        "AC-10",
+        "AC-15",
+        "AC-21"
+      ],
+      "dod": "Component tests show a skeleton while loading and `RequestFallback` with a retry on a 404, a 5xx and a network error on the review page, the competing item and the associations list, and focus on the announced outcome after an approval.",
+      "files_hint": [
+        "apps/web/src/features/identity/operator/review-page.tsx",
+        "apps/web/src/features/identity/operator/associations.tsx",
+        "apps/web/src/features/identity/operator/decision-panel.tsx",
+        "apps/web/src/features/identity/operator/decision-panel.test.tsx",
+        "apps/web/src/features/identity/operator/review-page.test.tsx",
+        "apps/web/src/features/identity/operator/associations.test.tsx",
+        "apps/web/src/features/identity/shell/page-states.test.tsx"
+      ]
+    },
+    {
+      "id": "T103",
+      "title": "Use the generated hooks, their query keys and the shared fallback in the governance screens",
+      "layer": "ui",
+      "deps": [],
+      "acs": [
+        "AC-19",
+        "AC-26",
+        "AC-28"
+      ],
+      "dod": "The справи, реєстр and signed-protocol screens read memberships from the layout's cache entry and the cases once, an expired session leads to sign-in from each of them, and the reuse test fails on a hand-made query key anywhere under `src/features`.",
+      "files_hint": [
+        "apps/web/src/features/governance/cases-screen.tsx",
+        "apps/web/src/features/governance/registry/registry-screen.tsx",
+        "apps/web/src/features/governance/registry/signed-protocol-screen.tsx",
+        "apps/web/src/features/governance/cases.test.tsx",
+        "apps/web/src/features/governance/registry/registry.test.tsx",
+        "apps/web/src/features/identity/reuse.test.tsx"
+      ]
+    },
+    {
+      "id": "T104",
+      "title": "Read every page of the roster and of a person's memberships",
+      "layer": "ui",
+      "deps": [
+        "T88"
+      ],
+      "acs": [
+        "AC-04d",
+        "AC-20"
+      ],
+      "dod": "Component tests show the roster offering «Показати ще» until `next_cursor` is null, with the marks on entries of later pages, and a person on 21 rosters opening the twenty-first association.",
+      "files_hint": [
+        "apps/web/src/features/governance/roster/roster-screen.tsx",
+        "apps/web/src/features/governance/roster/roster-screen.test.tsx",
+        "apps/web/src/routes/o.$associationId.tsx",
+        "apps/web/src/routes/index.tsx",
+        "apps/web/src/features/identity/shell/association-shell.test.tsx"
+      ]
+    },
+    {
+      "id": "T105",
+      "title": "Read every page of the оператор's queue and list of associations",
+      "layer": "ui",
+      "deps": [
+        "T102"
+      ],
+      "acs": [
+        "AC-04c",
+        "AC-21"
+      ],
+      "dod": "Component tests show both lists offering «Показати ще» until `next_cursor` is null, and the e2e suite passes twice in a row on one database.",
+      "files_hint": [
+        "apps/web/src/features/identity/operator/queue.tsx",
+        "apps/web/src/features/identity/operator/associations.tsx",
+        "apps/web/src/features/identity/operator/operator-section.test.tsx",
+        "apps/web/src/features/identity/operator/associations.test.tsx",
+        "CLAUDE.md",
+        "docs/features/association-onboarding/tasks/tracker.md"
+      ]
+    },
+    {
+      "id": "T106",
+      "title": "Check the extract's size and type before the upload and name the field on a 413",
+      "layer": "ui",
+      "deps": [],
+      "acs": [
+        "AC-02"
+      ],
+      "dod": "Component tests show an extract over 5 MB or of another type refused under the field without a request, and a 413 answer shown as the same field message.",
+      "files_hint": [
+        "apps/web/src/features/identity/applications/filing-form.tsx",
+        "apps/web/src/features/identity/applications/filing-form.test.tsx",
+        "apps/web/src/i18n/uk.ts"
+      ]
+    },
+    {
+      "id": "T107",
+      "title": "Run the load smoke of PRD §6 in CI",
+      "layer": "tests",
+      "deps": [
+        "T99"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-05",
+        "AC-08",
+        "AC-29"
+      ],
+      "dod": "A CI job starts the API as the e2e job does, runs `mise run load` with the PRD §6 thresholds and fails the workflow when one is missed.",
+      "files_hint": [
+        ".github/workflows/ci.yml",
+        "tests/load/",
+        "mise.toml"
+      ]
+    },
+    {
+      "id": "T108",
+      "title": "Prove the second review's fixes end to end",
+      "layer": "tests",
+      "deps": [
+        "T88",
+        "T89",
+        "T99"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-04d",
+        "AC-05",
+        "AC-20",
+        "AC-29"
+      ],
+      "dod": "`mise run e2e` passes with: the connection form reached by clicking from `/`, AC-04d in two pages of one browser context, dates compared in Europe/Kyiv, the first голова's roster mark worded for a connection, and the card naming the previous голова as ended after their entry was edited.",
+      "files_hint": [
+        "apps/web/e2e/support.ts",
+        "apps/web/e2e/access.spec.ts",
+        "apps/web/e2e/us01-file-application.spec.ts",
+        "apps/web/e2e/us03-decide-application.spec.ts",
+        "apps/web/e2e/us05-decide-transfer.spec.ts",
+        "apps/web/e2e/us09-association-card.spec.ts",
+        "apps/web/e2e/transfer-support.ts"
+      ]
+    },
+    {
+      "id": "T109",
+      "title": "Refresh the visual baselines the second review's fixes changed",
+      "layer": "tests",
+      "deps": [
+        "T88",
+        "T89",
+        "T102",
+        "T104",
+        "T105",
+        "T106"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-20",
+        "AC-29"
+      ],
+      "dod": "`pnpm --filter @spilno/web test:stories` passes on linux-arm64 and in CI on linux-x64 with baselines that show the new links, marks and «Показати ще».",
+      "files_hint": [
+        "apps/web/src/features/identity/__screenshots__/",
+        "apps/web/src/features/governance/"
+      ]
+    },
+    {
+      "id": "T110",
+      "title": "Correct the contract's descriptions and reconcile the sync report",
+      "layer": "wiring",
+      "deps": [
+        "T87",
+        "T90",
+        "T100"
+      ],
+      "acs": [
+        "AC-04c",
+        "AC-26"
+      ],
+      "dod": "The descriptions of `approveApplication` and `fileApplication` name the refusal of a transfer that claims another association's code, and `api-sync-report.md` of a new `--reconcile` run has a field-origin row for every response field, no claim the code contradicts, and `**Verdict:**` `PASS` or `PASS (with deferrals)`.",
+      "files_hint": [
+        "services/core/api/openapi.yaml",
+        "docs/features/association-onboarding/contracts/openapi.yaml",
+        "docs/features/association-onboarding/contracts/api-sync-report.md"
+      ]
+    },
+    {
+      "id": "T111",
+      "title": "Bring the test plan, the trackers and the review record in line with the second follow-up",
+      "layer": "docs",
+      "deps": [
+        "T96",
+        "T97",
+        "T98",
+        "T101",
+        "T103",
+        "T107",
+        "T108",
+        "T109",
+        "T110"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-19",
+        "AC-20",
+        "AC-26",
+        "AC-28"
+      ],
+      "dod": "`test-plan.md` maps every AC to the tests that now exist, the board-protocol tracker and its T13, T13b and T21 files say what T92, T94 and T97 delivered and what is left there, and the review record of 2026-11-17 lists each finding with the commit that closed it.",
+      "files_hint": [
+        "docs/features/association-onboarding/test-plan.md",
+        "docs/features/association-onboarding/tasks/tracker.md",
+        "docs/features/association-onboarding/_review/review-2026-11-17.md",
+        "docs/features/board-protocol/tasks/tracker.md",
+        "docs/features/board-protocol/tasks/"
+      ]
     }
   ]
 }

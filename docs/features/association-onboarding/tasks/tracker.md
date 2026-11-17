@@ -90,8 +90,34 @@
 | [T83](./T83-concurrency-and-failure-tests.md) | Test the decisions and the filings under concurrency | tests | Andrii Opryshko | M | T52, T54 | done |
 | [T84](./T84-refresh-visual-baselines.md) | Refresh the visual baselines of the review page and the association card | tests | Andrii Opryshko | S | T71, T72, T77 | done |
 | [T85](./T85-sync-test-plan-tracker-board-protocol.md) | Bring the test plan, the trackers and the board-protocol tasks in line with what was built | docs | Andrii Opryshko | M | T61, T81, T82, T83, T84 | done |
+| [T86](./T86-decision-entries-by-first-revision.md) | Find the голова a decision seated and the entry it ended by the first revision that carries the decision | infra | Andrii Opryshko | M | — | todo |
+| [T87](./T87-roster-decision-effect-and-no-reopen.md) | Tell each roster entry what its decision did to it, and refuse to reopen an entry an approval ended | ports | Andrii Opryshko | M | — | todo |
+| [T88](./T88-ui-roster-marks-by-effect-and-kind.md) | Mark roster entries by the decision's effect and word the mark by the kind of the decision | ui | Andrii Opryshko | M | T87 | todo |
+| [T89](./T89-ui-entry-to-connection-form.md) | Lead a signed-in person to the заявка на підключення form | ui | Andrii Opryshko | S | — | todo |
+| [T90](./T90-one-definition-per-problem-code.md) | Advertise the disabled refusal of a file download and define every problem code once | ports | Andrii Opryshko | M | — | todo |
+| [T91](./T91-governance-actor-lookup-injected.md) | Pass the read-only lookup into governance from cmd/api and refuse a request without an actor | wiring | Andrii Opryshko | S | T90 | todo |
+| [T92](./T92-files-per-association.md) | Resolve the file storage per association | ports | Andrii Opryshko | M | — | todo |
+| [T93](./T93-guard-check-then-handler-for-outside-io.md) | Run operations with outside I/O after the guard's check transaction, not inside it | wiring | Andrii Opryshko | L | — | todo |
+| [T94](./T94-upload-outside-transaction.md) | Upload a case document before the write transaction and remove the file when the write fails | app | Andrii Opryshko | M | T92, T93 | todo |
+| [T95](./T95-download-outside-transaction.md) | Read a download from the storage outside the transaction and answer 503 when the read fails | app | Andrii Opryshko | M | T91, T92, T93 | todo |
+| [T96](./T96-code-exchange-outside-transaction.md) | Exchange the storage consent code with Google outside the transaction | app | Andrii Opryshko | M | T93 | todo |
+| [T97](./T97-wire-drive-storage-per-association.md) | Build each association's Drive storage from its Google connection in cmd/api | wiring | Andrii Opryshko | L | T94, T95 | todo |
+| [T98](./T98-oversize-body-413-everywhere.md) | Answer 413 for every oversized body and limit the bodies of finance and system | infra | Andrii Opryshko | M | — | todo |
+| [T99](./T99-sign-in-state-in-sealed-cookie.md) | Keep the pending sign-in in a sealed cookie of the browser that started it | app | Andrii Opryshko | L | — | todo |
+| [T100](./T100-competing-within-one-kind.md) | Mark as competing only pending applications of the same kind for the same code | infra | Andrii Opryshko | S | — | todo |
+| [T101](./T101-race-tests-and-term-dates-that-last.md) | Report race-test failures on the test goroutine and stop the term-end tests from expiring | tests | Andrii Opryshko | S | T86 | todo |
+| [T102](./T102-ui-operator-fallback-and-focus.md) | Show the shared fallback on the оператор's review and associations pages and keep focus after an approval | ui | Andrii Opryshko | M | — | todo |
+| [T103](./T103-ui-governance-generated-hooks-and-fallback.md) | Use the generated hooks, their query keys and the shared fallback in the governance screens | ui | Andrii Opryshko | M | — | todo |
+| [T104](./T104-ui-page-roster-and-memberships.md) | Read every page of the roster and of a person's memberships | ui | Andrii Opryshko | M | T88 | todo |
+| [T105](./T105-ui-page-operator-lists.md) | Read every page of the оператор's queue and list of associations | ui | Andrii Opryshko | M | T102 | todo |
+| [T106](./T106-ui-extract-file-check-before-upload.md) | Check the extract's size and type before the upload and name the field on a 413 | ui | Andrii Opryshko | S | — | todo |
+| [T107](./T107-load-smoke-in-ci.md) | Run the load smoke of PRD §6 in CI | tests | Andrii Opryshko | M | T99 | todo |
+| [T108](./T108-e2e-second-review-fixes.md) | Prove the second review's fixes end to end | tests | Andrii Opryshko | M | T88, T89, T99 | todo |
+| [T109](./T109-refresh-visual-baselines-second-review.md) | Refresh the visual baselines the second review's fixes changed | tests | Andrii Opryshko | S | T88, T89, T102, T104, T105, T106 | todo |
+| [T110](./T110-contract-texts-and-reconcile.md) | Correct the contract's descriptions and reconcile the sync report | wiring | Andrii Opryshko | M | T87, T90, T100 | todo |
+| [T111](./T111-sync-docs-after-second-review.md) | Bring the test plan, the trackers and the review record in line with the second follow-up | docs | Andrii Opryshko | M | T96, T97, T98, T101, T103, T107, T108, T109, T110 | todo |
 
-**Total:** 85 tasks, ~48.75 person-days: T01–T49 (~29.5, done, merged in PR #48) and the review follow-up T50–T85 (~19.25, done, PRs #52–#55, [review of 2026-11-10](../_review/review-2026-11-10.md) with the commit that closed each finding).
+**Total:** 111 tasks, ~61.75 person-days: T01–T49 (~29.5, done, merged in PR #48), the review follow-up T50–T85 (~19.25, done, PRs #52–#55, [review of 2026-11-10](../_review/review-2026-11-10.md) with the commit that closed each finding) and the second follow-up T86–T111 (~13, todo, [review of 2026-11-17](../_review/review-2026-11-17.md)).
 
 ## Known gaps (found during implementation)
 
@@ -107,7 +133,7 @@
   deployed where anyone but the developer can reach it until the real provider adapter exists.
 - **The оператор's queue and list of associations show their first page only** (20 rows), though both
   operations page by cursor. The queue is oldest first, so with more than 20 pending заявки a new one is not on
-  the screen; the e2e suite therefore needs a fresh database per run. Found by T81; not yet a task.
+  the screen; the e2e suite therefore needs a fresh database per run. Found by T81; task T105.
 - **No screen creates a справа.** The справи list and the case screen read the API (T80); a справа is created
   only through `createCase` until board-protocol builds the draft flow. The e2e specs create it through the API.
 - **Board-protocol work still open behind this feature's ACs:** the association settings (board-protocol T10,

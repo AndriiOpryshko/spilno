@@ -11,6 +11,7 @@ import (
 	"github.com/AndriiOpryshko/spilno/services/core/internal/identity/app"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/identity/domain"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/identity/ports"
+	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/db"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/httpapi"
 )
 
@@ -63,7 +64,16 @@ func (h *Handler) StartStorageConnection(ctx context.Context, req gen.StartStora
 	return gen.StartStorageConnection302Response{Headers: gen.StartStorageConnection302ResponseHeaders{Location: &link}}, nil
 }
 
-func (h *Handler) CompleteStorageConnection(ctx context.Context, req gen.CompleteStorageConnectionRequestObject) (gen.CompleteStorageConnectionResponseObject, error) {
+func (h *Handler) CompleteStorageConnection(ctx context.Context, req gen.CompleteStorageConnectionRequestObject) (out gen.CompleteStorageConnectionResponseObject, err error) {
+	// One transaction around the whole body until the operation moves its outside call out of it.
+	err = db.InScope(ctx, func(ctx context.Context) (e error) {
+		out, e = h.completeStorageConnection(ctx, req)
+		return e
+	})
+	return out, err
+}
+
+func (h *Handler) completeStorageConnection(ctx context.Context, req gen.CompleteStorageConnectionRequestObject) (gen.CompleteStorageConnectionResponseObject, error) {
 	if h.storage == nil || h.signIn == nil {
 		return nil, httpapi.ErrNotImplemented
 	}

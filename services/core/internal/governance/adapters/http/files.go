@@ -9,6 +9,7 @@ import (
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/adapters/http/gen"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/app"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/domain"
+	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/db"
 )
 
 const (
@@ -28,7 +29,12 @@ func (h *Handler) DownloadFile(ctx context.Context, req gen.DownloadFileRequestO
 			Code: ptr(domain.CodeNotCurrentMember), Detail: ptr(notMemberDetail),
 		}, nil
 	}
-	d, err := h.files.Download(ctx, req.AssociationId, req.FileId, readOnly)
+	var d app.Download
+	// One transaction around the download until the operation moves its outside call out of it.
+	err := db.InScope(ctx, func(ctx context.Context) (e error) {
+		d, e = h.files.Download(ctx, req.AssociationId, req.FileId, readOnly)
+		return e
+	})
 	switch {
 	case errors.Is(err, app.ErrFileNotFound):
 		return gen.DownloadFile404ApplicationProblemPlusJSONResponse{

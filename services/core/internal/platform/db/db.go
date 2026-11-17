@@ -90,3 +90,32 @@ func From(ctx context.Context) (DBTX, error) {
 func Detached(ctx context.Context) context.Context {
 	return context.WithValue(ctx, scopeKey{}, nil)
 }
+
+type scopeSpecKey struct{}
+
+type scopeSpec struct {
+	pool        *pgxpool.Pool
+	association uuid.UUID
+	email       string
+}
+
+// WithScope returns ctx carrying the association and actor a handler opens its own transactions for
+// with InScope. It holds no connection: the guard uses it for operations with outside I/O, which
+// run after its check transaction has committed.
+func WithScope(ctx context.Context, pool *pgxpool.Pool, associationID uuid.UUID, actorEmail string) context.Context {
+	return context.WithValue(ctx, scopeSpecKey{}, &scopeSpec{pool: pool, association: associationID, email: actorEmail})
+}
+
+// InScope runs fn in an association transaction. Inside an InAssociation transaction it reuses
+// it; otherwise it opens one for the scope WithScope put in ctx, and fails with ErrNoTransaction
+// when there is none.
+func InScope(ctx context.Context, fn func(ctx context.Context) error) error {
+	if _, ok := ctx.Value(scopeKey{}).(*scope); ok {
+		return fn(ctx)
+	}
+	spec, ok := ctx.Value(scopeSpecKey{}).(*scopeSpec)
+	if !ok {
+		return ErrNoTransaction
+	}
+	return InAssociation(ctx, spec.pool, spec.association, spec.email, fn)
+}

@@ -92,7 +92,10 @@ export function DecisionPanel({
             approve.mutate(
               { applicationId, data: { filing_id: filingId, ...(document ? { relied_on_document: document } : {}) } },
               {
-                onSuccess: refresh,
+                onSuccess: () => {
+                  setFocusOutcome(true);
+                  void refresh();
+                },
                 onError: (err) => {
                   setError(messageFor(err));
                   if (isConflict(err)) void refresh();

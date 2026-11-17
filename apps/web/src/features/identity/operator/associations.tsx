@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { InlineAlert } from '@/features/governance/inline-alert';
+import { PageSkeleton, RequestFallback } from '@/features/identity/shell/request-fallback';
 import { uk } from '@/i18n/uk';
 
 const messageFor = (err: unknown) => {
@@ -84,9 +85,10 @@ function AssociationRow({ association, onChanged }: { association: OperatorAssoc
 
 export function OperatorAssociations() {
   const client = useQueryClient();
-  const { data } = useListAssociationsForOperator();
-  if (!data) return null;
-  const items = data.data.items;
+  const query = useListAssociationsForOperator();
+  if (query.isError) return <RequestFallback error={query.error} onRetry={() => void query.refetch()} />;
+  if (!query.data) return <PageSkeleton />;
+  const items = query.data.data.items;
   const refresh = () => client.invalidateQueries({ queryKey: getListAssociationsForOperatorQueryKey() });
 
   return (

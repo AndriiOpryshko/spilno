@@ -93,9 +93,15 @@ export function FilingForm({ kind, associationId, refile }: FilingFormProps) {
         if (knownRefusalMessage(problem)) {
           setRefusal(problem);
         } else if (problem.errors?.length) {
-          const broken = problem.errors.map((x) => x.pointer.replace(/^\//, ''));
-          setFieldErrors(Object.fromEntries(broken.map((name) => [name, t.fieldErrors[name] ?? t.fieldInvalid])));
-          setSummary(uk.applications.invalid(broken.map((name) => t.fieldNames[name] ?? name).join(', ')));
+          const reported = problem.errors.map((x) => x.pointer.replace(/^\//, '')).filter((name) => name in t.fieldNames);
+          // The server leaves /extract out when the multipart file is empty next to other errors.
+          const broken = [...new Set(extract ? reported : [...reported, 'extract'])];
+          if (broken.length) {
+            setFieldErrors(Object.fromEntries(broken.map((name) => [name, t.fieldErrors[name] ?? t.fieldInvalid])));
+            setSummary(uk.applications.invalid(broken.map((name) => t.fieldNames[name]).join(', ')));
+          } else {
+            setRefusal(problem);
+          }
         } else {
           setRefusal(problem);
         }

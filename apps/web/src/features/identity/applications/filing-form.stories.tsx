@@ -4,6 +4,8 @@ import { expect, userEvent, waitFor, within } from 'storybook/test';
 import { expect as vitestExpect } from 'vitest';
 import { page } from 'vitest/browser';
 
+import { uk } from '@/i18n/uk';
+
 import { FilingForm } from './filing-form';
 
 const withQuery: Decorator = (Story) => (
@@ -69,7 +71,7 @@ export const WithErrors: Story = {
     await expect(canvas.getByLabelText(/Витяг/)).toHaveAttribute('aria-invalid', 'true');
     await expect(canvas.getByRole('alert')).toHaveTextContent('Перевірте поля заявки: ЄДРПОУ, Початок строку, Витяг');
     await expect(canvas.getByText('ЄДРПОУ має містити 8 цифр')).toBeInTheDocument();
-    await expect(canvas.getByText('Додайте файл витягу')).toBeInTheDocument();
+    await expect(canvas.getByText(uk.applications.filing.fieldErrors.extract as string)).toBeInTheDocument();
     await expect(canvas.queryByText(/must be|is required/)).not.toBeInTheDocument();
   },
 };

@@ -127,7 +127,8 @@ describe('FilingForm', () => {
     const messages = fieldLabels.map(messageOf);
     for (const m of messages) {
       expect(m).toMatch(/[А-Яа-яІіЇїЄєҐґ]/);
-      expect(m).not.toMatch(/[A-Za-z]/);
+      // A file format keeps its usual name; nothing else is in Latin letters.
+      expect(m.replace(/\bPDF\b/g, '')).not.toMatch(/[A-Za-z]/);
     }
     expect(messages[0]).toMatch(/8/);
     expect(new Set(messages).size).toBeGreaterThan(2);
@@ -152,6 +153,91 @@ describe('FilingForm', () => {
     expect(summary.textContent).not.toMatch(/not valid/);
     expect(screen.getByLabelText(/Назва ОСББ/)).not.toHaveAttribute('aria-invalid', 'true');
     expect(screen.getByLabelText(/Адреса/)).not.toHaveAttribute('aria-invalid', 'true');
+  });
+
+  it('marks the extract on the client when no file is chosen, though the server does not report it (AC-02)', async () => {
+    // The server leaves /extract out when the multipart file is empty alongside other errors.
+    stubApi(() =>
+      problem(422, 'identity.application_invalid', 'The application is not valid.', [
+        { pointer: '/edrpou', detail: 'must be 8 digits' },
+        { pointer: '/association_name', detail: 'must be 1 to 200 characters' },
+        { pointer: '/association_address', detail: 'must be 1 to 500 characters' },
+        { pointer: '/applicant_full_name', detail: 'must be 1 to 200 characters' },
+        { pointer: '/term_start', detail: 'must be a date not later than the filing date' },
+      ]),
+    );
+    await renderForm('connection');
+    submit();
+    const summary = await screen.findByRole('alert');
+    await waitFor(() => expect(screen.getByLabelText(/Витяг/)).toHaveAttribute('aria-invalid', 'true'));
+    const message = document.getElementById('filing-extract-error');
+    expect(message).not.toBeNull();
+    expect(message?.textContent).toMatch(/[А-Яа-яІіЇїЄєҐґ]/);
+    expect(screen.getByLabelText(/Витяг/)).toHaveAttribute('aria-describedby', 'filing-extract-error');
+    expect(summary.textContent).toMatch(/Витяг/);
+  });
+
+  it('does not mark the extract when a file is chosen and the server does not report it (AC-02)', async () => {
+    stubApi(() =>
+      problem(422, 'identity.application_invalid', 'The application is not valid.', [
+        { pointer: '/edrpou', detail: 'must be 8 digits' },
+      ]),
+    );
+    await renderForm('connection');
+    fillValid();
+    submit();
+    await screen.findByRole('alert');
+    expect(screen.getByLabelText(/Витяг/)).not.toHaveAttribute('aria-invalid', 'true');
+    expect(document.getElementById('filing-extract-error')).toBeNull();
+  });
+
+  it('names a field once in the summary when the server sends two errors for it (AC-02)', async () => {
+    stubApi(() =>
+      problem(422, 'identity.application_invalid', 'The application is not valid.', [
+        { pointer: '/edrpou', detail: 'must be 8 digits' },
+        { pointer: '/edrpou', detail: 'must not be empty' },
+        { pointer: '/term_start', detail: 'must be a date not later than the filing date' },
+      ]),
+    );
+    await renderForm('connection');
+    fillValid();
+    submit();
+    const summary = await screen.findByRole('alert');
+    expect(summary.textContent?.match(/ЄДРПОУ/g)).toHaveLength(1);
+    expect(summary.textContent).toMatch(/Початок строку/);
+  });
+
+  it('leaves a pointer the form has no field for out of the summary, with no English key (AC-02)', async () => {
+    // The shared request validator names /association_id and /kind.
+    stubApi(() =>
+      problem(422, 'identity.application_invalid', 'The application is not valid.', [
+        { pointer: '/kind', detail: 'must be one of connection, transfer' },
+        { pointer: '/association_id', detail: 'must be a UUID' },
+        { pointer: '/edrpou', detail: 'must be 8 digits' },
+      ]),
+    );
+    await renderForm('connection');
+    fillValid();
+    submit();
+    const summary = await screen.findByRole('alert');
+    expect(summary.textContent).toMatch(/^Перевірте поля заявки: ЄДРПОУ$/);
+    expect(summary.textContent).not.toMatch(/kind|association_id/);
+  });
+
+  it.each([
+    ['is required'],
+    ['the extract file is larger than 5 MB'],
+    ['the extract must be a PDF or a signed container'],
+  ])('words the extract message so it is true for the server detail «%s» (AC-02)', async (detail) => {
+    stubApi(() => problem(422, 'identity.application_invalid', 'The application is not valid.', [{ pointer: '/extract', detail }]));
+    await renderForm('connection');
+    fillValid();
+    submit();
+    await screen.findByRole('alert');
+    const message = document.getElementById('filing-extract-error')?.textContent ?? '';
+    // Missing, too large (5 MB) and wrong type (PDF or a signed container) all get the same text.
+    expect(message).toMatch(/5\s*(МБ|Мб|MB)/);
+    expect(message).toMatch(/PDF/);
   });
 
   it('shows «Не вдалося подати» for a code it does not know, not the English server detail', async () => {
@@ -199,16 +285,23 @@ describe('FilingForm', () => {
     expect(link.getAttribute('href')).toContain('kind=connection');
   });
 
-  it('shows the refusal of an ended term (AC-30)', async () => {
+  it('shows the refusal of an ended term, not the field summary or the English detail (AC-30)', async () => {
+    // The payload the backend sends (applications.go fileProblem, domain/filing.go): the 409 code carries the
+    // fields detail and the /term_end pointer.
     stubApi(() =>
-      problem(409, 'identity.term_ended', 'The application cannot be filed.'),
+      problem(409, 'identity.term_ended', 'The application is not valid.', [
+        { pointer: '/term_end', detail: 'the term ended before the filing date' },
+      ]),
     );
     await renderForm('connection');
     fillValid();
     fireEvent.change(screen.getByLabelText(/Кінець строку/), { target: { value: '2026-11-09' } });
     submit();
-    expect(
-      await screen.findByText('Строк повноважень голови вже завершився — подайте витяг після переобрання'),
-    ).toBeInTheDocument();
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Строк повноважень голови вже завершився — подайте витяг після переобрання');
+    expect(screen.getAllByRole('alert')).toHaveLength(1);
+    expect(screen.queryByText(/Перевірте поля заявки/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/not valid|term ended/)).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/Кінець строку/)).not.toHaveAttribute('aria-invalid', 'true');
   });
 });

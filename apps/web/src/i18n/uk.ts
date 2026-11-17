@@ -120,7 +120,7 @@ export const uk = {
         position: 'Оберіть посаду голови правління',
         term_start: 'Вкажіть дату початку строку, не пізніше дня подання',
         term_end: 'Кінець строку не може бути раніше за початок',
-        extract: 'Додайте файл витягу',
+        extract: 'Додайте файл витягу: PDF або підписаний контейнер, до 5 МБ',
       } as Record<string, string>,
       fieldNames: {
         edrpou: 'ЄДРПОУ',
@@ -183,6 +183,13 @@ export const uk = {
     recordCheck: 'Записати перевірку',
     checkFailed: 'Не вдалося записати перевірку',
     checkFieldsBroken: (fields: string) => `Перевірте поля: ${fields}`,
+    checkFieldMessages: {
+      signer_full_name: 'Вкажіть ПІБ підписанта',
+      signed_on: 'Вкажіть дату підпису',
+      head_full_name: 'Вкажіть ПІБ керівника за витягом',
+      extract_edrpou: 'ЄДРПОУ має містити 8 цифр',
+      extract_dated_on: 'Вкажіть дату витягу',
+    } as Record<string, string>,
     actionFailed: 'Не вдалося виконати дію. Спробуйте ще раз',
     reject: 'Відхилити',
     rejectTitle: 'Відхилити заявку',

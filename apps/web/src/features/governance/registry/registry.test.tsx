@@ -360,6 +360,19 @@ describe('the signed protocol (AC-18, AC-26, AC-15, AC-17, AC-41)', () => {
     expect(screen.getByText(/лише новим/i)).toBeInTheDocument();
   });
 
+  it('links «нове рішення, що посилається на цей протокол» to the справи of the association, where a draft starts (AC-17, T43, F4.1)', async () => {
+    open(signedPath);
+    await screen.findByRole('heading', { level: 1, name: /14/ });
+    const link = within(screen.getByRole('main')).getByRole('link', { name: /нове рішення/i });
+    expect(link.getAttribute('href')).toBe(`/o/${lypky}/cases`);
+  });
+
+  it('names the association in the top bar of the signed protocol (AC-04d, F4.2)', async () => {
+    open(signedPath);
+    await screen.findByRole('heading', { level: 1, name: /14/ });
+    expect(await within(screen.getByRole('main')).findByText('ОСББ «Липки»')).toBeInTheDocument();
+  });
+
   it('has no edit, upload or withdraw control', async () => {
     open(signedPath);
     await screen.findByRole('heading', { level: 1, name: /14/ });

@@ -1,3 +1,5 @@
+import { Link } from '@tanstack/react-router';
+
 import type { AgendaItem, DecisionSlot, FileRef, MeetingFacts, SignedProtocol, TextFragment } from '@/api/gen/model';
 import { getDownloadFileUrl } from '@/api/gen/endpoints/governance/governance';
 import { formatDate, formatUah, uk } from '@/i18n/uk';
@@ -35,6 +37,11 @@ export function SignedProtocolView({ associationId, protocol }: { associationId:
         <h1 className="text-[22px] leading-7 font-semibold lg:text-[28px] lg:leading-9">{t.title(protocol.number)}</h1>
         <p className="text-sm text-muted-foreground">{t.meetingDate(formatDate(protocol.meeting_date))}</p>
         <p className="text-sm text-muted-foreground">{uk.protocol.stateIntro.signed}</p>
+        <p className="text-sm">
+          <Link className="underline underline-offset-2" to="/o/$associationId/cases" params={{ associationId }}>
+            {t.newDecision}
+          </Link>
+        </p>
       </header>
 
       <section aria-labelledby="signed-agenda" className="space-y-4">

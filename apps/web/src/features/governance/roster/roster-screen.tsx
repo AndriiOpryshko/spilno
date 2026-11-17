@@ -2,7 +2,7 @@ import { useState } from 'react';
 
 import { useListBoardMembers } from '@/api/gen/endpoints/governance/governance';
 import { useGetAssociationCard, useListMemberships } from '@/api/gen/endpoints/identity/identity';
-import type { AssociationEvent, BoardMember } from '@/api/gen/model';
+import type { BoardMember } from '@/api/gen/model';
 import { TopBar } from '@/components/app-shell';
 import { Button } from '@/components/ui/button';
 import { RosterDecisionMark } from '@/features/identity/association/roster-decision-mark';
@@ -14,9 +14,6 @@ import { RosterForm } from './roster-form';
 const t = uk.association.roster;
 
 type Editing = { member?: BoardMember } | null;
-
-// The mark is decided by the history event of the decision: the entry it ended is named by `ended_head_full_name`.
-const endedBy = (m: BoardMember, history: AssociationEvent[]) => history.find((e) => e.decision_id === m.decision_id)?.ended_head_full_name === m.full_name;
 
 export function RosterScreen({ associationId }: { associationId: string }) {
   const [editing, setEditing] = useState<Editing>(null);
@@ -59,7 +56,7 @@ export function RosterScreen({ associationId }: { associationId: string }) {
                 </div>
                 <p className="text-sm">{t.position[m.position]}</p>
                 <p className="text-sm text-muted-foreground">{t.term(formatDate(m.term_start), m.term_end ? formatDate(m.term_end) : undefined)}</p>
-                {m.decision_id && <RosterDecisionMark kind={endedBy(m, history) ? 'ended' : 'appointed'} decisionId={m.decision_id} history={history} associationId={associationId} />}
+                {m.decision_id && <RosterDecisionMark kind={m.decision_effect === 'ended' ? 'ended' : 'appointed'} decisionId={m.decision_id} history={history} associationId={associationId} />}
               </li>
             ))}
           </ul>

@@ -37,7 +37,9 @@ export const uk = {
       kind: { connected: 'Підключено', transfer_approved: 'Передачу схвалено', disabled: 'Доступ призупинено', enabled: 'Доступ відновлено' },
       markAppointed: 'призначено',
       markEnded: 'повноваження завершено',
-      mark: (what: string, filed: string, approved: string) => `${what} за запитом на передачу від ${filed}, схвалено оператором ${approved}`,
+      markBasis: (kind?: string) => (kind === 'connected' ? 'за заявкою на підключення' : 'за запитом на передачу'),
+      mark: (what: string, filed: string, approved: string, kind?: string) =>
+        `${what} ${uk.association.card.markBasis(kind)} від ${filed}, схвалено оператором ${approved}`,
       markOf: (what: string, name: string, filed: string, approved: string) =>
         `${what}: ${name} за запитом на передачу від ${filed}, схвалено оператором ${approved}`,
     },
@@ -49,6 +51,7 @@ export const uk = {
       editEntry: (name: string) => `Змінити ${name}`,
       addTitle: 'Новий член правління',
       editTitle: 'Зміна запису правління',
+      endedTermHint: 'Щоб повернути людину до правління, додайте запис знову',
       formHint: 'Строк повноважень задається датами; порожній кінець строку означає, що строк відкритий.',
       position: { head: 'голова правління', member: 'член правління' },
       term: (start: string, end?: string) => (end ? `${start} — ${end}` : `з ${start}`),

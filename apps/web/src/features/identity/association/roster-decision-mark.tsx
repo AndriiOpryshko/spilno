@@ -11,7 +11,7 @@ export function RosterDecisionMark({ kind, decisionId, history, associationId }:
   const what = kind === 'appointed' ? t.markAppointed : t.markEnded;
   return (
     <p className="text-sm text-muted-foreground">
-      {t.mark(what, formatDate(event.filed_at), formatDate(event.occurred_at))}
+      {t.mark(what, formatDate(event.filed_at), formatDate(event.occurred_at), event.kind)}
       {event.extract_id && (
         <>
           {' '}

@@ -479,3 +479,54 @@ func TestApprovalTransfer_AHandMadeHeadWithATermEndKeepsItsEntryAndEnd(t *testin
 		t.Errorf("member's entry = %+v, want one head entry ending 2026-12-31", got)
 	}
 }
+
+// transferApprovalEditEntry is what updateBoardMember does to an entry: a new revision with a fixed name
+// that keeps the position and the decision of the latest one (ChangeMember copies the decision forward).
+func transferApprovalEditEntry(t *testing.T, e *reviewEnv, assoc, email, name string) {
+	t.Helper()
+	transferApprovalInRoster(t, e, assoc, func(ctx context.Context, tx db.DBTX) {
+		_, err := tx.Exec(ctx, `INSERT INTO board_member_revisions
+			(id, association_id, board_member_id, full_name, sign_in_email, term_start, term_end, position, decision_id)
+			SELECT $3, association_id, board_member_id, $4, sign_in_email, term_start, term_end, position, decision_id
+			FROM board_member_revisions WHERE association_id = $1 AND sign_in_email = $2 ORDER BY id DESC LIMIT 1`,
+			assoc, email, uuid.Must(uuid.NewV7()), name)
+		if err != nil {
+			t.Fatalf("edit entry of %s: %v", email, err)
+		}
+	})
+}
+
+// AC-19b: a later transfer ends the term of the голова confirmed by the first approval. An edit of the
+// previous голова's entry (it carries the first transfer's decision too) turns neither answer around:
+// the second transfer ends the голова the first transfer seated.
+func TestApprovalTransfer_AnEditOfThePreviousHeadDoesNotTurnTheNextTransferAround(t *testing.T) {
+	e := newApprovalEnv(t, nil)
+	assoc, _ := transferApprovalSeedHead(t, e)
+
+	f1 := transferApprovalFile(t, e, "second", fileAppEdrpou, "", "2026-11-05")
+	approvalRecordCheck(t, e, f1, true, fileAppEdrpou, "Test User")
+	if status, body := approvalApprove(e, t, "operator", f1, ""); status != http.StatusOK {
+		t.Fatalf("first transfer = %d: %s", status, body)
+	}
+	transferApprovalEditEntry(t, e, assoc, "first@example.test", "Test User Fixed")
+
+	f2 := transferApprovalFile(t, e, "head", fileAppEdrpou, "", "2026-11-10")
+	approvalRecordCheck(t, e, f2, true, fileAppEdrpou, "Test User")
+	if status, body := approvalApprove(e, t, "operator", f2, ""); status != http.StatusOK {
+		t.Fatalf("second transfer = %d: %s", status, body)
+	}
+
+	if _, ok := approvalMember(t, e, assoc, "second@example.test", transferApprovalDay("2026-11-10")); ok {
+		t.Error("the голова the first transfer seated is still current on the second term start")
+	}
+	if _, ok := approvalMember(t, e, assoc, "second@example.test", transferApprovalDay("2026-11-09")); !ok {
+		t.Error("the голова the first transfer seated is not a member on 2026-11-09, the last day of the term")
+	}
+	status, body := transferApprovalProbe(e, t, "second", assoc)
+	if status != http.StatusForbidden || assocStateProblemCode(body) != "identity.not_current_member" {
+		t.Errorf("first transfer's голова next request = %d %s, want 403 identity.not_current_member", status, body)
+	}
+	if status, body := transferApprovalProbe(e, t, "head", assoc); status != http.StatusOK {
+		t.Errorf("second transfer's голова request = %d %s, want 200", status, body)
+	}
+}

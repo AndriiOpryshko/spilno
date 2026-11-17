@@ -562,3 +562,22 @@ func TestCard_ADisablingAndEnablingAfterATransferAreDated(t *testing.T) {
 		t.Errorf("state = %s, want connected after the enabling", card.State)
 	}
 }
+
+// AC-19b, AC-20: an edit of the previous голова's entry (a later revision that carries the same
+// decision) leaves the ended entry of the transfer the previous голова.
+func TestCard_AnEditOfThePreviousHeadKeepsItAsTheEndedEntry(t *testing.T) {
+	e := newCardEnv(t)
+	assoc, _, _ := cardApproved(t, e)
+	const newHead = "Новий Голова Правлінович"
+	cardTransferBy(t, e, "second", newHead)
+	transferApprovalEditEntry(t, e.reviewEnv, assoc, "first@example.test", "Test User Fixed")
+
+	card := cardGet(t, e, "second", assoc)
+	ev := card.History[0]
+	if ev.Kind != "transfer_approved" {
+		t.Fatalf("latest event = %+v, want transfer_approved", ev)
+	}
+	if got := cardEnded(ev); got != "Test User Fixed" {
+		t.Errorf("ended_head_full_name = %q, want the previous голова %q, not the new one", got, "Test User Fixed")
+	}
+}

@@ -122,7 +122,10 @@ func run() error {
 		}
 		idm.EnableSignIn(identity.SignInConfig{Provider: identity.DevSignInProvider(email, cfg.WebOrigin+"/api/identity/sign-in/callback"), OperatorEmail: cfg.OperatorEmail})
 	}
-	gov := governance.New(pool, idm.HasStorageConnection)
+	gov := governance.New(pool, idm.HasStorageConnection, func(ctx context.Context) (bool, string, bool) {
+		actor, ok := identity.ActorFrom(ctx)
+		return actor.ReadOnly, actor.DisabledReason, ok
+	})
 	if cfg.DevStorage {
 		// Development only: downloads read from an in-memory storage. Without it downloadFile
 		// answers 503 until the Drive adapter exists.

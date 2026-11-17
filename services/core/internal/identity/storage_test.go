@@ -81,7 +81,7 @@ func newStorageT33Env(t *testing.T) *storageT33Env {
 	if err := idm.EnableGoogle(identity.GoogleConfig{KeyID: "k1", Key: googleTestKey(1), OAuth: oauth}); err != nil {
 		t.Fatal(err)
 	}
-	gov := governance.New(pool, idm.HasStorageConnection)
+	gov := governance.New(pool, idm.HasStorageConnection, actorAccess)
 	idm.EnableStorageConnection(identity.StorageConnectionConfig{
 		Consent: google.Consent{OAuth: oauth, DriveURL: gfake.URL + "/drive/v3"},
 		Members: gov,

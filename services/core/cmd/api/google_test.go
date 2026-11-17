@@ -21,7 +21,7 @@ func wireGoogleT33Status(t *testing.T, gc *identity.GoogleConfig) (wired bool, s
 	t.Helper()
 	idm := identity.New(nil)
 	idm.EnableSignIn(identity.SignInConfig{Provider: identity.DevSignInProvider("user@example.test", "")})
-	wired, err := wireGoogle(idm, governance.New(nil, nil), gc)
+	wired, err := wireGoogle(idm, governance.New(nil, nil, nil), gc)
 	if err != nil {
 		t.Fatalf("wireGoogle: %v", err)
 	}
@@ -48,7 +48,7 @@ func TestWireGoogleEnablesStorageConnectionOnlyWithConfiguration(t *testing.T) {
 
 func TestWireGoogleRefusesAnInvalidConfiguration(t *testing.T) {
 	idm := identity.New(nil)
-	_, err := wireGoogle(idm, governance.New(nil, nil), &identity.GoogleConfig{KeyID: "k1", Key: make([]byte, 16), OAuth: &oauth2.Config{}})
+	_, err := wireGoogle(idm, governance.New(nil, nil, nil), &identity.GoogleConfig{KeyID: "k1", Key: make([]byte, 16), OAuth: &oauth2.Config{}})
 	if err == nil {
 		t.Errorf("wireGoogle with a 16-byte key: nil error, want the EnableGoogle error")
 	}

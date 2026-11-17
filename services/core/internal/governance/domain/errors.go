@@ -43,6 +43,13 @@ const (
 	CodeSlotUnconfirmed = "governance.slot_unconfirmed"
 )
 
+// Codes of the identity guard that a download refuses with when the guard has not run; they mirror
+// the identity module's codes (the governance module may not import it) and are not governance codes.
+const (
+	CodeAssociationDisabled = "identity.association_disabled"
+	CodeNotCurrentMember    = "identity.not_current_member"
+)
+
 // CodeStorageUnavailable is answered when the association's file storage
 // cannot be reached; the request changes nothing (sad §6 Flow 8).
 const CodeStorageUnavailable = "governance.storage_unavailable"

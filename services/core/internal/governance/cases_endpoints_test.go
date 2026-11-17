@@ -229,7 +229,7 @@ func newCaseEnv(t *testing.T) *caseEnv {
 	}
 	idm.EnableSignIn(identity.SignInConfig{Provider: rosterProvider{people}, OperatorEmail: rosterOperatorEmail})
 	e := &caseEnv{pool: pool, a: a, b: b, cookies: map[string]*http.Cookie{}, files: &caseDrive{data: map[string][]byte{}}}
-	gov := governance.New(pool, idm.HasStorageConnection).WithFiles(e.files)
+	gov := governance.New(pool, idm.HasStorageConnection, actorAccess).WithFiles(e.files)
 	r := httpapi.NewRouter()
 	r.Group(func(r chi.Router) {
 		r.Use(idm.Guard(guardedRoster{gov}))

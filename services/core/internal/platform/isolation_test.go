@@ -114,7 +114,10 @@ func newIsoEnv(t *testing.T) *isoEnv {
 	}
 	idm := identity.New(pool)
 	idm.EnableSignIn(identity.SignInConfig{Provider: isoProvider{people}, OperatorEmail: isoOperatorEmail})
-	gov := governance.New(pool, idm.HasStorageConnection)
+	gov := governance.New(pool, idm.HasStorageConnection, func(ctx context.Context) (bool, string, bool) {
+		a, ok := identity.ActorFrom(ctx)
+		return a.ReadOnly, a.DisabledReason, ok
+	})
 
 	r := httpapi.NewRouter()
 	var routeErr error

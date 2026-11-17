@@ -40,13 +40,14 @@ type Person struct{ FullName, SignInEmail string }
 type Term = domain.Term
 
 // New builds the module. hasStorage reports whether an association has connected its storage;
-// cmd/api passes it from the identity module.
-func New(_ *pgxpool.Pool, hasStorage func(context.Context, uuid.UUID) (bool, error)) *Module {
+// cmd/api passes it from the identity module. access reports whether the request's association is
+// read-only and why (ok false: no actor, the download is refused); cmd/api passes it from the identity guard's actor.
+func New(_ *pgxpool.Pool, hasStorage func(context.Context, uuid.UUID) (bool, error), access func(context.Context) (readOnly bool, reason string, ok bool)) *Module {
 	meetings := app.NewMeetingService(postgres.NewMeetings())
 	roster := app.NewRosterService(postgres.NewRoster(), postgres.NewRoster())
 	files := app.NewFileService(postgres.NewFiles())
 	cases := app.NewCaseService(postgres.NewCases(), postgres.NewRoster())
-	return &Module{handler: governancehttp.NewHandler(meetings, roster, app.NewRegistryService(postgres.NewRegistry()), files, cases, hasStorage), roster: roster, files: files, cases: cases}
+	return &Module{handler: governancehttp.NewHandler(meetings, roster, app.NewRegistryService(postgres.NewRegistry()), files, cases, hasStorage, access), roster: roster, files: files, cases: cases}
 }
 
 // Files is the association-owned file storage the downloads read from.

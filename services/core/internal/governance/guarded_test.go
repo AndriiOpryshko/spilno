@@ -46,7 +46,7 @@ func newGuardedServer(t *testing.T, mount func(chi.Router, *governance.Module) e
 	pool := testdb.NewApp(t)
 	idm := identity.New(pool)
 	idm.EnableSignIn(identity.SignInConfig{Provider: guardedFakeProvider{}})
-	gov := governance.New(pool, idm.HasStorageConnection)
+	gov := governance.New(pool, idm.HasStorageConnection, actorAccess)
 	r := httpapi.NewRouter()
 	r.Group(func(r chi.Router) {
 		r.Use(idm.Guard(guardedRoster{gov}))

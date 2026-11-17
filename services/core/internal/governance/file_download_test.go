@@ -140,7 +140,7 @@ func newDownloadEnv(t *testing.T, wire bool) *downloadEnv {
 		documentBytes: []byte("%PDF-1.7 cited invoice"), unsignedBytes: []byte("%PDF-1.7 a draft attachment nobody signed"),
 		unsignedID: uuid.Must(uuid.NewV7()),
 	}
-	gov := governance.New(pool, idm.HasStorageConnection)
+	gov := governance.New(pool, idm.HasStorageConnection, actorAccess)
 	if wire {
 		gov = gov.WithFiles(e.files)
 	}
@@ -385,4 +385,10 @@ func TestDownloadFileAnswersStorageUnavailable(t *testing.T) {
 			t.Errorf("download with no Files wired: status = %d code = %q, want 503 governance.storage_unavailable; body %s", got.status, got.code(), got.body)
 		}
 	})
+}
+
+// actorAccess is what cmd/api passes governance: the guard's actor, read through the identity module.
+func actorAccess(ctx context.Context) (bool, string, bool) {
+	a, ok := identity.ActorFrom(ctx)
+	return a.ReadOnly, a.DisabledReason, ok
 }

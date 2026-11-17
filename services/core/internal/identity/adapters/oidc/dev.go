@@ -16,6 +16,9 @@ import (
 type Dev struct {
 	// Email is the address the shim signs in.
 	Email string
+	// Callback is the address of the sign-in callback as a browser reaches it (behind the web app's
+	// /api prefix); empty means the API's own path.
+	Callback string
 }
 
 var _ ports.SignInProvider = Dev{}
@@ -23,7 +26,11 @@ var _ ports.SignInProvider = Dev{}
 const devIssuer = "https://dev.spilno.invalid"
 
 func (d Dev) AuthCodeURL(state, _, _ string) string {
-	return "/identity/sign-in/callback?" + url.Values{"code": {d.Email}, "state": {state}}.Encode()
+	callback := d.Callback
+	if callback == "" {
+		callback = "/identity/sign-in/callback"
+	}
+	return callback + "?" + url.Values{"code": {d.Email}, "state": {state}}.Encode()
 }
 
 func (d Dev) Exchange(_ context.Context, code, _, _ string) (ports.ProviderIdentity, error) {

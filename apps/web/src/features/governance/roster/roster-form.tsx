@@ -51,9 +51,16 @@ export function RosterForm({ associationId, member, onClose }: { associationId: 
         onClose();
       },
       onError: (err: unknown) => {
-        const problem = ((err as { info?: Problem }).info ?? {}) as Problem;
-        if (problem.errors?.length) setFieldErrors(Object.fromEntries(problem.errors.map((x) => [x.pointer.replace(/^\//, ''), x.detail])));
-        else setRefusal(problem.detail ?? t.failed);
+        const { status, info } = err as { status?: number; info?: Problem & { code?: string } };
+        // The reason of a вимкнене ОСББ is the only server text shown; every other refusal speaks from uk.ts.
+        if (status === 403 && info?.code === 'identity.association_disabled') return setRefusal(uk.association.disabled(info.detail ?? ''));
+        const names = (info?.errors ?? []).map((x) => x.pointer.replace(/^\//, ''));
+        if (names.length === 0) return setRefusal(t.failed);
+        const visible = names.filter((name) => name in values);
+        setFieldErrors(Object.fromEntries(visible.map((name) => [name, t.fieldErrors[name] ?? t.failed])));
+        // A pointer that matches no field of the form is still said, in the alert.
+        const hidden = names.filter((name) => !(name in values));
+        if (hidden.length > 0) setRefusal(t.refusedFields(hidden.map((name) => t.fieldNames[name] ?? name).join(', ')));
       },
     };
     if (member) update.mutate({ associationId, boardMemberId: member.id, data }, handlers);

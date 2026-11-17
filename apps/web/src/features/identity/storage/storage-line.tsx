@@ -2,9 +2,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useEffect, useRef } from 'react';
 
-import { completeStorageConnection, getStartStorageConnectionUrl, getStorageConnection } from '@/api/gen/endpoints/identity/identity';
+import { completeStorageConnection, getStartStorageConnectionUrl, getStorageConnection, useListMemberships } from '@/api/gen/endpoints/identity/identity';
 import { Skeleton } from '@/components/ui/skeleton';
 import { InlineAlert } from '@/features/governance/inline-alert';
+import { isNoAccessProblem } from '@/features/identity/shell/entry';
 import { RequestFallback } from '@/features/identity/shell/request-fallback';
 import { uk } from '@/i18n/uk';
 
@@ -45,8 +46,24 @@ export function StorageCallback({ associationId, code, state }: { associationId:
   }, [mutate]);
 
   if (!complete.isError) return <Skeleton className="m-8 h-24 max-w-md" />;
-  if ((complete.error as { info?: { code?: string } } | null)?.info?.code !== 'identity.storage_account_personal') {
-    return <RequestFallback error={complete.error} onRetry={() => mutate()} />;
+  const { status, info } = complete.error as { status?: number; info?: { code?: string } };
+  if (info?.code !== 'identity.storage_account_personal') {
+    // A refusal of the request itself (a bad or replayed state, a refused code, a вимкнене ОСББ): the code is
+    // single-use, so reading it again cannot help; the way out is to start over from the card.
+    const refused = status !== undefined && status >= 400 && status < 500 && status !== 401 && !isNoAccessProblem(complete.error);
+    if (!refused) return <RequestFallback error={complete.error} onRetry={() => mutate()} />;
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-8">
+        <InlineAlert
+          title={uk.storage.callbackNotCompleted}
+          action={
+            <Link className="underline" to="/o/$associationId/association" params={{ associationId }}>
+              {uk.storage.callbackToCard}
+            </Link>
+          }
+        />
+      </div>
+    );
   }
   return (
     <div className="mx-auto max-w-2xl space-y-4 px-4 py-8">
@@ -68,12 +85,34 @@ export function StorageCallbackLost({ associationId }: { associationId: string |
               {uk.storage.callbackBack}
             </Link>
           ) : (
-            <Link className="underline" to="/">
-              {uk.storage.callbackBack}
-            </Link>
+            <CardLinks />
           )
         }
       />
     </div>
+  );
+}
+
+// Without the association id, the way back is the card of each association the person belongs to.
+function CardLinks() {
+  const memberships = useListMemberships();
+  if (memberships.isPending) return null;
+  const items = memberships.data?.data.items ?? [];
+  if (items.length === 0) {
+    return (
+      <Link className="underline" to="/">
+        {uk.storage.callbackBack}
+      </Link>
+    );
+  }
+  return (
+    <span className="flex flex-col gap-1">
+      <span>{uk.storage.callbackPickCard}</span>
+      {items.map((m) => (
+        <Link key={m.association_id} className="underline" to="/o/$associationId/association" params={{ associationId: m.association_id }}>
+          {m.association_name}
+        </Link>
+      ))}
+    </span>
   );
 }

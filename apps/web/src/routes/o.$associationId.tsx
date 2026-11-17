@@ -3,8 +3,8 @@ import { createFileRoute, Navigate, Outlet, useRouterState } from '@tanstack/rea
 import { useEffect, useRef } from 'react';
 
 import { useListCases } from '@/api/gen/endpoints/governance/governance';
-import { getAssociationCard, getSession, listMemberships } from '@/api/gen/endpoints/identity/identity';
-import { Sidebar } from '@/components/app-shell';
+import { getSession, listMemberships, useGetAssociationCard } from '@/api/gen/endpoints/identity/identity';
+import { AssociationShell } from '@/components/app-shell';
 import { SuspendedNotice } from '@/features/identity/association/suspended-notice';
 import { isNoAccessProblem } from '@/features/identity/shell/entry';
 import { PageSkeleton, RequestFallback } from '@/features/identity/shell/request-fallback';
@@ -22,7 +22,7 @@ function AssociationLayout() {
   // A вимкнене ОСББ refuses its scoped reads with the reason in the problem detail (ADR-0007);
   // the membership carries the state only, so the reason comes from the card read.
   const disabled = memberships.data?.data.items.find((m) => m.association_id === associationId)?.association_state === 'disabled';
-  const card = useQuery({ queryKey: ['association-card', associationId], queryFn: () => getAssociationCard(associationId), enabled: disabled, retry: false });
+  const card = useGetAssociationCard(associationId, { query: { enabled: disabled, retry: false } });
   const reason = (card.error as { info?: { detail?: string } } | null)?.info?.detail ?? '';
 
   // Every navigation inside the association re-reads the roster, so a person removed
@@ -45,17 +45,13 @@ function AssociationLayout() {
   // Not on this roster: the same page as for a missing association, nothing is read.
   if (!membership) return <Navigate to="/no-access" replace />;
 
+  // The справи count is the first page's length: shown only when that is the whole list.
+  const casesCount = cases.data && cases.data.data.next_cursor === null ? cases.data.data.items.length : undefined;
+  const notice = disabled && !card.isPending && !card.isFetching ? <SuspendedNotice reason={reason} /> : undefined;
+
   return (
-    <div className="flex min-h-svh">
-      <Sidebar associationId={associationId} associationName={membership.association_name} isOperator={session.data.data.is_operator} casesCount={cases.data?.data.items.length} />
-      <main className="min-w-0 flex-1">
-        {disabled && !card.isPending && !card.isFetching && (
-          <div className="px-4 pt-4 lg:px-8">
-            <SuspendedNotice reason={reason} />
-          </div>
-        )}
-        <Outlet />
-      </main>
-    </div>
+    <AssociationShell associationId={associationId} associationName={membership.association_name} isOperator={session.data.data.is_operator} casesCount={casesCount} notice={notice}>
+      <Outlet />
+    </AssociationShell>
   );
 }

@@ -3,7 +3,7 @@ import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } fr
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { getDownloadConfirmationExtractUrl } from '@/api/gen/endpoints/identity/identity';
+import { getDownloadConfirmationExtractUrl, getGetAssociationCardUrl } from '@/api/gen/endpoints/identity/identity';
 import { getCreateBoardMemberUrl, getListBoardMembersUrl, getUpdateBoardMemberUrl } from '@/api/gen/endpoints/governance/governance';
 import type { AssociationCard, BoardMember } from '@/api/gen/model';
 
@@ -110,7 +110,7 @@ function fakeApi(url: string, init?: RequestInit): Response {
     members = members.map((m) => (m.id === id ? { ...m, ...body } : m));
     return json(200, members.find((m) => m.id === id));
   }
-  if (p === `/api/identity/associations/${associationId}` && method === 'GET') return json(200, card);
+  if (p === getGetAssociationCardUrl(associationId) && method === 'GET') return json(200, card);
   return json(404, {});
 }
 
@@ -195,6 +195,30 @@ describe('RosterScreen: the decision mark (AC-20)', () => {
     expect(ended.getByRole('link', { name: 'Витяг' }).getAttribute('href')).toBe(extractHref);
   });
 
+  it('keeps the new голова «призначено» when that голова later gets a term end: the kind comes from the decision, not from the term', async () => {
+    members = [{ ...newHead, term_end: '2027-12-31' }, previousHead, plainMember];
+    await renderScreen();
+    const appointed = await entryOf(newHead.full_name);
+    expect(appointed.getByText(/призначено за запитом на передачу від/)).toBeInTheDocument();
+    expect(appointed.queryByText(/повноваження завершено/)).not.toBeInTheDocument();
+    expect(appointed.getByText(/31\.12\.2027|31 грудня 2027/)).toBeInTheDocument();
+    const ended = await entryOf(previousHead.full_name);
+    expect(ended.getByText(/повноваження завершено за запитом на передачу від/)).toBeInTheDocument();
+    expect(ended.queryByText(/призначено за запитом/)).not.toBeInTheDocument();
+  });
+
+  it('marks a голова with a term end «призначено» when the decision ended no one by that name', async () => {
+    const connectedOnly = { ...card.history[0]!, ended_head_full_name: null };
+    const entries = [{ ...newHead, term_end: '2027-12-31' }];
+    members = entries;
+    const original = fakeApi;
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => (path(String(url)) === getGetAssociationCardUrl(associationId) ? json(200, { ...card, history: [connectedOnly] }) : original(String(url), init))));
+    await renderScreen();
+    const entry = await entryOf(newHead.full_name);
+    expect(await entry.findByText(/призначено за запитом на передачу від/)).toBeInTheDocument();
+    expect(entry.queryByText(/повноваження завершено/)).not.toBeInTheDocument();
+  });
+
   it('shows no mark and no extract link on an entry without a decision', async () => {
     await renderScreen();
     const member = await entryOf(plainMember.full_name);
@@ -225,27 +249,86 @@ describe('RosterScreen: add a член правління (AC-09)', () => {
     expect((post?.body as { term_end?: string | null }).term_end ?? null).toBeNull();
   });
 
-  it('names every field the server refused, next to that field, all at once', async () => {
-    refuseWrite = () =>
-      problem(422, undefined, 'Перевірте поля', [
-        { pointer: '/full_name', detail: 'Вкажіть ПІБ' },
-        { pointer: '/sign_in_email', detail: 'Некоректна адреса пошти' },
-        { pointer: '/term_start', detail: 'Вкажіть початок строку' },
-        { pointer: '/term_end', detail: 'Кінець строку не раніше початку' },
-      ]);
+  // The real server answers in English (governance/domain/board_member.go): the screen names each field in
+  // Ukrainian, from its own strings, and never shows the server's raw detail.
+  const serverDetails = {
+    '/full_name': 'must be 1 to 200 characters',
+    '/sign_in_email': 'must be at most 320 characters',
+    '/term_start': 'is required',
+    '/term_end': 'must not be before term_start',
+  };
+  const refuseWithRealDetails = (pointers: (keyof typeof serverDetails | '/position')[]) => () =>
+    problem(
+      422,
+      'governance.roster_entry_invalid',
+      'The request is invalid',
+      pointers.map((pointer) => ({ pointer, detail: pointer === '/position' ? 'must be head or member' : serverDetails[pointer] })),
+    );
+  const isUkrainian = (text: string) => /[А-Яа-яІіЇїЄєҐґ]/.test(text) && !/[A-Za-z]{4,}/.test(text);
+  const descriptionOf = (label: RegExp) => screen.getByLabelText(label).getAttribute('aria-describedby') ?? '';
+  const describedText = (label: RegExp) =>
+    descriptionOf(label)
+      .split(/\s+/)
+      .map((id) => document.getElementById(id)?.textContent ?? '')
+      .join(' ')
+      .trim();
+
+  it('names every field the server refused, next to that field, in Ukrainian, all at once', async () => {
+    refuseWrite = refuseWithRealDetails(['/full_name', '/sign_in_email', '/term_start', '/term_end']);
     await renderScreen();
     fireEvent.click(await screen.findByRole('button', { name: 'Додати члена правління' }));
     fillAdd();
     fireEvent.click(screen.getByRole('button', { name: 'Зберегти' }));
 
-    await waitFor(() => expect(screen.getByLabelText(/ПІБ/)).toHaveAccessibleDescription(expect.stringContaining('Вкажіть ПІБ')));
-    expect(screen.getByLabelText(/Електронна пошта/)).toHaveAccessibleDescription(expect.stringContaining('Некоректна адреса пошти'));
-    expect(screen.getByLabelText(/Початок строку/)).toHaveAccessibleDescription(expect.stringContaining('Вкажіть початок строку'));
-    expect(screen.getByLabelText(/Кінець строку/)).toHaveAccessibleDescription(expect.stringContaining('Кінець строку не раніше початку'));
-    for (const label of [/ПІБ/, /Електронна пошта/, /Початок строку/, /Кінець строку/]) expect(screen.getByLabelText(label)).toBeInvalid();
+    const labels = [/ПІБ/, /Електронна пошта/, /Початок строку/, /Кінець строку/];
+    await waitFor(() => expect(describedText(/ПІБ/)).not.toBe(''));
+    const texts = labels.map(describedText);
+    for (const [i, text] of texts.entries()) {
+      expect(isUkrainian(text), `a Ukrainian message for ${String(labels[i])}, got «${text}»`).toBe(true);
+      expect(screen.getByLabelText(labels[i]!)).toBeInvalid();
+    }
+    // Each field says its own thing, not one shared line.
+    expect(new Set(texts).size).toBe(4);
+    for (const raw of Object.values(serverDetails)) expect(document.body.textContent).not.toContain(raw);
     // The form stays open with what was typed, and the roster did not change.
     expect(screen.getByLabelText(/ПІБ/)).toHaveValue('Додана Особа Тестова');
     expect(screen.queryByText('Додана Особа Тестова', { selector: 'li *, tr *, article *' })).not.toBeInTheDocument();
+  });
+
+  it('shows a refused pointer that matches no visible field in the refusal alert, not silently', async () => {
+    refuseWrite = refuseWithRealDetails(['/full_name', '/position']);
+    await renderScreen();
+    fireEvent.click(await screen.findByRole('button', { name: 'Додати члена правління' }));
+    fillAdd();
+    fireEvent.click(screen.getByRole('button', { name: 'Зберегти' }));
+
+    const alert = await screen.findByRole('alert');
+    expect(isUkrainian(alert.textContent ?? ''), `a Ukrainian refusal, got «${alert.textContent}»`).toBe(true);
+    expect(alert).not.toHaveTextContent('must be head or member');
+    expect(alert).not.toHaveTextContent('The request is invalid');
+    await waitFor(() => expect(isUkrainian(describedText(/ПІБ/))).toBe(true));
+  });
+
+  it('shows a refusal that names only an unknown pointer in the alert', async () => {
+    refuseWrite = refuseWithRealDetails(['/position']);
+    await renderScreen();
+    fireEvent.click(await screen.findByRole('button', { name: 'Додати члена правління' }));
+    fillAdd();
+    fireEvent.click(screen.getByRole('button', { name: 'Зберегти' }));
+
+    const alert = await screen.findByRole('alert');
+    expect(isUkrainian(alert.textContent ?? ''), `a Ukrainian refusal, got «${alert.textContent}»`).toBe(true);
+    expect(alert).not.toHaveTextContent('must be head or member');
+    for (const label of [/ПІБ/, /Електронна пошта/, /Початок строку/, /Кінець строку/]) expect(screen.getByLabelText(label)).not.toBeInvalid();
+  });
+
+  it('shows «Доступ призупинено: <reason>» when the ОСББ was disabled while the form was open', async () => {
+    refuseWrite = () => problem(403, 'identity.association_disabled', 'спір щодо складу правління');
+    await renderScreen();
+    fireEvent.click(await screen.findByRole('button', { name: 'Додати члена правління' }));
+    fillAdd();
+    fireEvent.click(screen.getByRole('button', { name: 'Зберегти' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Доступ призупинено: спір щодо складу правління');
   });
 });
 
@@ -269,29 +352,41 @@ describe('RosterScreen: change a член правління (AC-09)', () => {
     expect(await screen.findByText(/31\.12\.2026|31 грудня 2026/)).toBeInTheDocument();
   });
 
-  it('names every field the server refused on a change', async () => {
+  it('names every field the server refused on a change, in Ukrainian', async () => {
     refuseWrite = () =>
-      problem(422, undefined, 'Перевірте поля', [
-        { pointer: '/full_name', detail: 'Вкажіть ПІБ' },
-        { pointer: '/term_end', detail: 'Кінець строку не раніше початку' },
+      problem(422, 'governance.roster_entry_invalid', 'The request is invalid', [
+        { pointer: '/full_name', detail: 'must be 1 to 200 characters' },
+        { pointer: '/term_end', detail: 'must not be before term_start' },
       ]);
     await renderScreen();
     fireEvent.click((await entryOf(plainMember.full_name)).getByRole('button', { name: /Змінити/ }));
     fireEvent.change(screen.getByLabelText(/Кінець строку/), { target: { value: '2020-01-01' } });
     fireEvent.click(screen.getByRole('button', { name: 'Зберегти' }));
 
-    await waitFor(() => expect(screen.getByLabelText(/ПІБ/)).toHaveAccessibleDescription(expect.stringContaining('Вкажіть ПІБ')));
-    expect(screen.getByLabelText(/Кінець строку/)).toHaveAccessibleDescription(expect.stringContaining('Кінець строку не раніше початку'));
+    const text = (label: RegExp) =>
+      (screen.getByLabelText(label).getAttribute('aria-describedby') ?? '')
+        .split(/\s+/)
+        .map((id) => document.getElementById(id)?.textContent ?? '')
+        .join(' ')
+        .trim();
+    await waitFor(() => expect(text(/ПІБ/)).not.toBe(''));
+    for (const label of [/ПІБ/, /Кінець строку/]) {
+      expect(text(label)).toMatch(/[А-Яа-яІіЇїЄє]/);
+      expect(text(label)).not.toMatch(/must|characters|term_start/);
+    }
+    expect(text(/ПІБ/)).not.toBe(text(/Кінець строку/));
   });
 });
 
 describe('RosterScreen: a вимкнене ОСББ (AC-25)', () => {
-  it('shows the suspended notice with the reason and no way to add or change', async () => {
+  it('renders nothing of its own: the layout owns the suspended notice, and there is no way to add or change', async () => {
     refuseRead = () => problem(403, 'identity.association_disabled', 'спір щодо складу правління');
     await renderScreen();
-    expect(await screen.findByText('Доступ призупинено: спір щодо складу правління')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Додати члена правління' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Змінити/ })).not.toBeInTheDocument();
+    await waitFor(() => expect(calls.some((c) => c.path === getListBoardMembersUrl(associationId))).toBe(true));
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(screen.queryByText(/Доступ призупинено/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/ПІБ/)).not.toBeInTheDocument();
   });
 });

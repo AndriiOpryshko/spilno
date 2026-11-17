@@ -42,6 +42,7 @@ const card = {
       filed_at: '2026-10-20T09:00:00Z',
       reason: null,
       head_full_name: 'Новий Голова Тестовий',
+      ended_head_full_name: 'Колишній Голова Тестовий',
       signer_full_name: 'Новий Голова Тестовий',
       extract_id: extractId,
       extract_dated_on: '2026-10-18',
@@ -62,6 +63,7 @@ const stubApi = (items: BoardMember[] | 'fail') => () => {
     const ok = (body: unknown) => Promise.resolve(new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } }));
     if (items === 'fail') return Promise.resolve(new Response('boom', { status: 500 }));
     if (path.endsWith('/board-members')) return ok({ items, next_cursor: null });
+    if (path.endsWith('/identity/memberships')) return ok({ items: [], next_cursor: null });
     return ok(card);
   };
   return () => {

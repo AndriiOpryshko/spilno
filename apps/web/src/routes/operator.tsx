@@ -3,6 +3,7 @@ import { createFileRoute, Link, Navigate, Outlet } from '@tanstack/react-router'
 
 import { getSession, useListApplicationsForReview } from '@/api/gen/endpoints/identity/identity';
 import { isNoAccessProblem } from '@/features/identity/shell/entry';
+import { RequestFallback } from '@/features/identity/shell/request-fallback';
 import { uk } from '@/i18n/uk';
 
 export const Route = createFileRoute('/operator')({
@@ -20,7 +21,7 @@ function OperatorLayout() {
   // The same read as the queue page, so the page shares the answer.
   const queue = useListApplicationsForReview(undefined, { query: { enabled: isOperator, retry: false } });
 
-  if (session.isError) return <Navigate to="/sign-in" replace />;
+  if (session.isError) return <RequestFallback error={session.error} onRetry={() => void session.refetch()} />;
   if (!session.data) return null;
   if (!isOperator || isNoAccessProblem(queue.error)) return <Navigate to="/no-access" replace />;
   if (queue.isPending) return null;

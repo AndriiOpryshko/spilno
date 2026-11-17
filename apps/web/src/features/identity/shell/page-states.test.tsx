@@ -163,6 +163,38 @@ describe.each(pages)('$name', ({ url, path, settled }) => {
   });
 });
 
+// The оператор's section: only a 401 means «sign in»; a 5xx or a network error on the session read
+// is a failed request, not an expired session (T67, AC-05, AC-07).
+describe('the operator layout: the session', () => {
+  const session = '/identity/session';
+
+  it.each(['/operator/applications', '/operator/associations'])('sends a 401 on %s to sign-in', async (url) => {
+    breakPath(session, 'GET', () => problem(401, 'identity.session_required'));
+    const router = open(url);
+    await waitFor(() => expect(router.state.location.pathname).toBe('/sign-in'));
+  });
+
+  it.each([
+    ['a 500', () => problem(500)],
+    ['a network error', () => Promise.reject(new TypeError('Failed to fetch'))],
+  ])('shows one alert with «Спробувати ще раз» on %s, does not send the person to sign-in and reads again on retry', async (_what, answer) => {
+    breakPath(session, 'GET', answer);
+    const router = open('/operator/applications');
+    const alert = await screen.findByRole('alert');
+    expect(router.state.location.pathname).not.toBe('/sign-in');
+    expect(router.state.location.pathname).toBe('/operator/applications');
+    expect(screen.queryByRole('link', { name: 'Увійти' })).toBeNull();
+    const retry = within(alert).getByRole('button', { name: retryName });
+
+    broken = null;
+    const before = countOf(session, 'GET');
+    fireEvent.click(retry);
+    await waitFor(() => expect(countOf(session, 'GET')).toBeGreaterThan(before));
+    // The fake knows this person as no оператор: the retried read is answered, and the guard routes on it.
+    await waitFor(() => expect(router.state.location.pathname).toBe('/no-access'));
+  });
+});
+
 describe('the entry page', () => {
   it('sends a person on no roster to their applications through the router, not by reloading the page', async () => {
     rosters = [];
@@ -260,18 +292,63 @@ describe('the storage callback', () => {
     expect(await screen.findByText('Це особистий акаунт члена правління — підключіть акаунт ОСББ')).toBeInTheDocument();
   });
 
+  // Not completed, and the cause is the request itself (a bad or replayed state, a refused code, a вимкнене
+  // ОСББ): reading it again would post the same single-use code, so no retry; the way out is the card (T74).
   it.each([
-    ['its sessionStorage key', () => sessionStorage.clear(), callback],
-    ['its code and state', () => undefined, '/storage/callback'],
-  ])('explains what happened and links back, without %s', async (_what, prepare, url) => {
-    prepare();
-    const router = open(url);
+    ['a 422 for a bad or replayed state', () => json(422, { type: 'about:blank', title: 'Validation failed', status: 422, errors: [{ pointer: '/state', detail: 'unknown, expired or already used' }] })],
+    ['a 422 for a code the provider refused', () => json(422, { type: 'about:blank', title: 'Validation failed', status: 422, errors: [{ pointer: '/code', detail: 'refused by the provider' }] })],
+    ['a 403 identity.association_disabled', () => problem(403, 'identity.association_disabled')],
+    ['a 409 with another code', () => problem(409, 'identity.something_else')],
+  ])('says the connection was not completed and links to the card, with no retry, on %s', async (_what, answer) => {
+    breakPath(storage, 'POST', answer);
+    const router = open(callback);
+    const alert = await screen.findByRole('alert');
+    expect(router.state.location.pathname).toBe('/storage/callback');
+    expect(alert.textContent?.trim().length).toBeGreaterThan(0);
+    expect(alert).not.toHaveTextContent('особистий акаунт');
+    expect(alert).not.toHaveTextContent('Не вдалося виконати запит');
+    expect(screen.queryByRole('button', { name: retryName })).toBeNull();
+    expect(within(alert).getByRole('link').getAttribute('href')).toBe(`/o/${lypky}/association`);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(countOf(storage, 'POST')).toBe(1);
+  });
+
+  it('explains what happened and links back to the card, without its code and state', async () => {
+    const router = open('/storage/callback');
     const alert = await screen.findByRole('alert');
     expect(alert.textContent?.trim().length).toBeGreaterThan(0);
     expect(countOf(storage, 'POST')).toBe(0);
-    // Without the key the association is unknown: the way back is the entry page or the card itself.
-    const back = within(alert).getByRole('link');
-    expect(back.getAttribute('href')).toMatch(/^\/$|^\/o\/[^/]+\/association$/);
+    expect(within(alert).getByRole('link').getAttribute('href')).toBe(`/o/${lypky}/association`);
     expect(router.state.location.pathname).toBe('/storage/callback');
+  });
+
+  describe('without its sessionStorage key the association is unknown', () => {
+    const second = '00000000-0000-7000-8000-000000000002';
+    beforeEach(() => {
+      sessionStorage.clear();
+      rosters = [membership, { ...membership, association_id: second, association_name: 'ОСББ «Сонячний»' }];
+    });
+
+    it('explains what happened and offers the card of each association of the person, not the entry page', async () => {
+      const router = open(callback);
+      const alert = await screen.findByRole('alert');
+      expect(alert.textContent?.trim().length).toBeGreaterThan(0);
+      expect(countOf(storage, 'POST')).toBe(0);
+      await waitFor(() => {
+        const hrefs = screen.getAllByRole('link').map((l) => l.getAttribute('href'));
+        expect(hrefs).toContain(`/o/${lypky}/association`);
+        expect(hrefs).toContain(`/o/${second}/association`);
+      });
+      expect(screen.getAllByRole('link').map((l) => l.getAttribute('href'))).not.toContain('/');
+      expect(router.state.location.pathname).toBe('/storage/callback');
+    });
+
+    it('offers the card of the one association it has', async () => {
+      rosters = [membership];
+      open(callback);
+      await screen.findByRole('alert');
+      await waitFor(() => expect(screen.getAllByRole('link').map((l) => l.getAttribute('href'))).toContain(`/o/${lypky}/association`));
+      expect(screen.getAllByRole('link').map((l) => l.getAttribute('href'))).not.toContain('/');
+    });
   });
 });

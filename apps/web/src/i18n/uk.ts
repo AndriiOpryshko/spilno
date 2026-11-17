@@ -8,7 +8,7 @@ const pick = (n: number, forms: { one: string; few: string; many: string }) => {
 };
 
 export const uk = {
-  app: { name: 'Спільно', osbb: 'ОСББ «Січових Стрільців, 12»', search: 'Пошук і команди' },
+  app: { name: 'Спільно', search: 'Пошук і команди' },
   nav: { cases: 'Справи', association: 'ОСББ', roster: 'Правління', registry: 'Реєстр протоколів', meetings: 'Збори', documents: 'Документи', soon: 'Незабаром' },
   association: {
     signInTitle: 'Вхід до Спільно',
@@ -58,6 +58,14 @@ export const uk = {
       termEnd: 'Кінець строку',
       save: 'Зберегти',
       failed: 'Не вдалося зберегти запис',
+      fieldErrors: {
+        full_name: 'Вкажіть ПІБ (до 200 символів)',
+        sign_in_email: 'Вкажіть коректну адресу пошти (до 320 символів)',
+        term_start: 'Вкажіть дату початку строку',
+        term_end: 'Кінець строку не може бути раніше за початок',
+      } as Record<string, string>,
+      fieldNames: { position: 'посада' } as Record<string, string>,
+      refusedFields: (names: string) => `Не вдалося зберегти запис, перевірте: ${names}`,
     },
   },
   applications: {
@@ -130,7 +138,6 @@ export const uk = {
     entry: 'Оператор',
     navApplications: 'Заявки',
     navAssociations: 'ОСББ',
-    notOperator: 'Немає доступу',
     ownApplication: 'Це ваша власна заявка — оператор не ухвалює рішення щодо себе',
     associationsTitle: 'ОСББ',
     stateConnected: 'Підключене',
@@ -197,6 +204,9 @@ export const uk = {
     connect: 'Підключити сховище',
     callbackLost: 'Не вдалося завершити підключення сховища: сторінку відкрито без даних про ОСББ. Почніть підключення спочатку.',
     callbackBack: 'Повернутися',
+    callbackPickCard: 'Відкрийте картку ОСББ і почніть підключення спочатку:',
+    callbackNotCompleted: 'Підключення сховища не завершено: запит відхилено. Почніть підключення спочатку з картки ОСББ.',
+    callbackToCard: 'До картки ОСББ',
   },
   caseStatus: { draft: 'Чернетка', review: 'На перевірці', ready: 'Готово до друку', printed: 'Надруковано' },
   documentKind: { offer: 'Пропозиція', invoice: 'Рахунок', contract: 'Договір', act: 'Акт' },

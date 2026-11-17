@@ -25,7 +25,8 @@ export function ProtocolScreen({ caseId }: { caseId: string }) {
   // The layout already loaded the roster; this reads the same cache entry.
   const { data: roster } = useQuery({ queryKey: ['memberships'], queryFn: () => listMemberships() });
   // A вимкнене ОСББ opens no draft (AC-25); the layout shows the suspended notice.
-  const disabled = roster?.data.items.find((m) => m.association_id === associationId)?.association_state === 'disabled';
+  const membership = roster?.data.items.find((m) => m.association_id === associationId);
+  const disabled = membership?.association_state === 'disabled';
   const query = useQuery({ queryKey: ['protocol', caseId], queryFn: () => getProtocol(caseId), retry: false, enabled: !disabled });
   const [savedJustNow, setSavedJustNow] = useState(false);
   const [announcement, setAnnouncement] = useState('');
@@ -40,7 +41,7 @@ export function ProtocolScreen({ caseId }: { caseId: string }) {
 
   return (
     <>
-      <TopBar crumbs={crumbs} end={saved} />
+      <TopBar crumbs={crumbs} end={saved} associationName={membership?.association_name} />
       {/* Polite live region: present before any change so screen readers pick up the new state. */}
       <p aria-live="polite" className="sr-only">
         {announcement}

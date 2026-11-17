@@ -57,6 +57,19 @@ export function Sidebar({ associationId, associationName, isOperator, casesCount
   );
 }
 
+// The association layout (T68): the sidebar, then the page under the notice of a вимкнене ОСББ, when there is one.
+export function AssociationShell({ notice, children, ...sidebar }: React.ComponentProps<typeof Sidebar> & { notice?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div className="flex min-h-svh">
+      <Sidebar {...sidebar} />
+      <main className="min-w-0 flex-1">
+        {notice && <div className="px-4 pt-4 lg:px-8">{notice}</div>}
+        {children}
+      </main>
+    </div>
+  );
+}
+
 export function TopBar({ crumbs, end, associationName }: { crumbs: { label: string; to?: string }[]; end?: React.ReactNode; associationName?: string }) {
   return (
     <div className="flex items-center gap-2 border-b bg-card px-4 py-3 text-[13px] lg:px-8">

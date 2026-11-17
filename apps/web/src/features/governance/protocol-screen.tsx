@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 
+import { getGetProtocolQueryKey } from '@/api/gen/endpoints/governance/governance';
 import { useListMemberships } from '@/api/gen/endpoints/identity/identity';
 import { TopBar } from '@/components/app-shell';
 import { Button } from '@/components/ui/button';
@@ -27,7 +28,7 @@ export function ProtocolScreen({ caseId }: { caseId: string }) {
   // A вимкнене ОСББ opens no draft (AC-25); the layout shows the suspended notice.
   const membership = roster?.data.items.find((m) => m.association_id === associationId);
   const disabled = membership?.association_state === 'disabled';
-  const query = useQuery({ queryKey: ['protocol', caseId], queryFn: () => getProtocol(caseId), retry: false, enabled: !disabled });
+  const query = useQuery({ queryKey: getGetProtocolQueryKey(associationId, caseId), queryFn: () => getProtocol(caseId), retry: false, enabled: !disabled });
   const [savedJustNow, setSavedJustNow] = useState(false);
   const [announcement, setAnnouncement] = useState('');
   const draft = query.data;

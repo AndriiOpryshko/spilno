@@ -486,3 +486,22 @@ describe('the mock the справи list used is gone (F4.6)', () => {
     expect(readFileSync(join(__dirname, 'types.ts'), 'utf8')).not.toMatch(/CaseSummary/);
   });
 });
+
+describe('the справи screen reads through the layout cache and the shared fallback (AC-19, AC-28, T103)', () => {
+  it('counts one memberships request for a visit to the list', async () => {
+    open(listPath);
+    await screen.findByRole('link', { name: new RegExp(roofTitle) });
+    await settle(200);
+    expect(calls.filter((c) => c.endsWith('/identity/memberships'))).toHaveLength(1);
+  });
+
+  it('leads an expired session to sign-in', async () => {
+    const base = fakeApi;
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const path = new URL(String(input), 'http://localhost').pathname;
+      return path === getListCasesUrl(lypky) ? Promise.resolve(problem(401, 'identity.session_required', 'expired')) : base(input, init);
+    }));
+    const router = open(listPath);
+    await waitFor(() => expect(router.state.location.pathname).toBe('/sign-in'));
+  });
+});

@@ -1,12 +1,12 @@
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { useParams } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
 
-import { searchRegistry } from '@/api/gen/endpoints/governance/governance';
-import { listMemberships } from '@/api/gen/endpoints/identity/identity';
+import { getSearchRegistryQueryKey, searchRegistry } from '@/api/gen/endpoints/governance/governance';
+import { useListMemberships } from '@/api/gen/endpoints/identity/identity';
 import { TopBar } from '@/components/app-shell';
-import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { RequestFallback } from '@/features/identity/shell/request-fallback';
 import { uk } from '@/i18n/uk';
 
 import { InlineAlert } from '../inline-alert';
@@ -20,7 +20,7 @@ import { pageRows, RegistryResults } from './registry-results';
 export function RegistryScreen() {
   const { associationId } = useParams({ from: '/o/$associationId' });
   // The layout already loaded the roster; this reads the same cache entry.
-  const { data: roster } = useQuery({ queryKey: ['memberships'], queryFn: () => listMemberships() });
+  const { data: roster } = useListMemberships(undefined, { query: { refetchOnMount: false } });
   const association = roster?.data.items.find((m) => m.association_id === associationId);
 
   const [form, setForm] = useState<FilterValues>(emptyFilters);
@@ -28,7 +28,7 @@ export function RegistryScreen() {
   const params = useMemo(() => toSearchParams(applied), [applied]);
 
   const query = useInfiniteQuery({
-    queryKey: ['registry', associationId, params],
+    queryKey: getSearchRegistryQueryKey(associationId, params),
     queryFn: ({ pageParam }) => searchRegistry(associationId, { ...params, cursor: pageParam }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.data.next_cursor ?? undefined,
@@ -61,16 +61,7 @@ export function RegistryScreen() {
           <InlineAlert title={uk.registry.filters.invalidTitle}>{uk.registry.filters.invalidHint}</InlineAlert>
         )}
         {query.isError && !refused.invalid && (
-          <InlineAlert
-            title={uk.registry.loadError}
-            action={
-              <Button variant="outline" onClick={() => query.refetch()}>
-                {uk.registry.retry}
-              </Button>
-            }
-          >
-            {uk.registry.loadErrorHint}
-          </InlineAlert>
+          <RequestFallback error={query.error} onRetry={() => void query.refetch()} />
         )}
         {query.isSuccess && rows.length === 0 && <EmptyRegistry filtered={isFiltered(applied)} />}
         {query.isSuccess && rows.length > 0 && (

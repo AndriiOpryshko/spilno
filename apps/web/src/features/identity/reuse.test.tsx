@@ -21,7 +21,7 @@ import { StorageCallback, StorageLine } from './storage/storage-line';
 // is what a person sees and can do.
 
 const sources = import.meta.glob(
-  ['/src/features/identity/**/*.{ts,tsx}', '/src/routes/**/*.tsx', '!/**/*.test.{ts,tsx}', '!/**/*.stories.tsx', '!/src/routeTree.gen.ts'],
+  ['/src/features/**/*.{ts,tsx}', '/src/routes/**/*.tsx', '!/**/*.test.{ts,tsx}', '!/**/*.stories.tsx', '!/src/routeTree.gen.ts'],
   { query: '?raw', import: 'default', eager: true },
 ) as Record<string, string>;
 
@@ -31,14 +31,15 @@ const offenders = (pattern: RegExp) =>
     .map(([file]) => file)
     .sort();
 
-describe('the identity screens follow the reuse conventions (W5)', () => {
+describe('the screens under src/features follow the reuse conventions (W5)', () => {
   it('reads the sources it checks', () => {
     expect(Object.keys(sources).length).toBeGreaterThan(20);
     expect(Object.keys(sources).some((f) => f.includes('/routes/'))).toBe(true);
   });
 
   it('renders no ad-hoc alert paragraph: every role="alert" comes from InlineAlert', () => {
-    expect(offenders(/role="alert"/)).toEqual([]);
+    // Scoped to identity and the routes: InlineAlert itself and the system health card own their role="alert".
+    expect(offenders(/role="alert"/).filter((f) => !f.includes('/features/governance/') && !f.includes('/features/system/'))).toEqual([]);
   });
 
   it('builds no query key by hand: the generated key helpers name the cache entries', () => {

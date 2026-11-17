@@ -117,3 +117,69 @@ func TestQueue_TheApplicantsOwnListCarriesNoCompetingMarker(t *testing.T) {
 		t.Fatalf("listMyApplications item leaks `competing`: %v", raw[0])
 	}
 }
+
+// reviewMixedPair files a заявка на підключення for the code, then connects the code to
+// association A and files a запит на передачу for it; both stay pending.
+func reviewMixedPair(t *testing.T, e *reviewEnv) (application, transfer string) {
+	t.Helper()
+	f := fileAppFields()
+	f["edrpou"] = "55667788"
+	application = e.fileAs(t, "first", f, fileAppPDF(512))
+	transfer = reviewT28Transfer(t, e, "second")
+	return application, transfer
+}
+
+// AC-04c, AC-19b: a pending заявка на підключення and a pending запит на передачу for one ЄДРПОУ
+// are not competitors, in the queue or in the review answer.
+func TestQueue_AConnectionAndATransferOfOneCodeDoNotMarkEachOther(t *testing.T) {
+	e := newReviewEnv(t)
+	application, transfer := reviewMixedPair(t, e)
+
+	items, _, _ := e.queue(t, "operator", "/identity/operator/applications?limit=100")
+	if queueCompeting(t, items, application) || queueCompeting(t, items, transfer) {
+		t.Fatalf("a заявка and a запит of different kinds must not be competing: %+v", items)
+	}
+	if got := e.review(t, application).Competing; len(got) != 0 {
+		t.Fatalf("competing of the заявка = %v, want none", got)
+	}
+	if got := e.review(t, transfer).Competing; len(got) != 0 {
+		t.Fatalf("competing of the запит = %v, want none", got)
+	}
+}
+
+// The same-kind pairs still mark each other, and only each other, beside one item of the other kind.
+func TestQueue_TwoApplicationsStillMarkEachOtherBesideATransfer(t *testing.T) {
+	e := newReviewEnv(t)
+	f := fileAppFields()
+	f["edrpou"] = "55667788"
+	a1 := e.fileAs(t, "first", f, fileAppPDF(512))
+	a2 := e.fileAs(t, "second", f, fileAppPDF(512))
+	tr := reviewT28Transfer(t, e, "head")
+	assertCompetingOnly(t, e, map[string]string{a1: a2, a2: a1, tr: ""})
+}
+
+func TestQueue_TwoTransfersStillMarkEachOtherBesideAnApplication(t *testing.T) {
+	e := newReviewEnv(t)
+	f := fileAppFields()
+	f["edrpou"] = "55667788"
+	a := e.fileAs(t, "head", f, fileAppPDF(512))
+	t1 := reviewT28Transfer(t, e, "first")
+	t2 := e.fileAs(t, "second", transferFields("55667788"), fileAppPDF(256))
+	assertCompetingOnly(t, e, map[string]string{t1: t2, t2: t1, a: ""})
+}
+
+// assertCompetingOnly checks, per item, the queue marker and the review list; want[id] is the one
+// expected competitor, or "" for none.
+func assertCompetingOnly(t *testing.T, e *reviewEnv, want map[string]string) {
+	t.Helper()
+	items, _, _ := e.queue(t, "operator", "/identity/operator/applications?limit=100")
+	for id, other := range want {
+		if got := queueCompeting(t, items, id); got != (other != "") {
+			t.Errorf("queue competing of %s = %v, want %v", id, got, other != "")
+		}
+		got := e.review(t, id).Competing
+		if other == "" && len(got) != 0 || other != "" && (len(got) != 1 || got[0] != other) {
+			t.Errorf("review competing of %s = %v, want [%s]", id, got, other)
+		}
+	}
+}

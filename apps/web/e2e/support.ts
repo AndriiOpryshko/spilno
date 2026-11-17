@@ -32,7 +32,9 @@ export const newFiling = (): Filing => {
 };
 
 export const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString().slice(0, 10);
-export const today = () => new Date().toLocaleDateString('uk-UA');
+// The day the screens print for an instant is the Kyiv calendar day (formatDate in src/i18n/uk.ts), whatever
+// the time zone of the runner.
+export const today = () => new Date().toLocaleDateString('uk-UA', { timeZone: 'Europe/Kyiv' });
 
 export const extractFile = { name: 'extract.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4 test extract') };
 
@@ -74,8 +76,20 @@ export async function fillFiling(page: Page, f: Partial<Filing>) {
   await text('Кінець строку повноважень (необов’язково)', f.termEnd);
 }
 
+// The заявка на підключення form the way a person reaches it. `/` lands a person without an association on
+// their заявки and a person with several associations (or the оператор without one) on the picker; both carry
+// the link. Inside a single association no screen links to the form, so a person on exactly one roster cannot
+// get here by clicking.
+export async function openConnectionForm(page: Page) {
+  await page.goto('/');
+  const link = page.getByRole('link', { name: 'Подати заявку на підключення' });
+  await expect(link, '`/` must offer the form: the list of заявки and the picker do, a single association does not').toBeVisible();
+  await link.click();
+  await expect(page.getByRole('heading', { name: 'Заявка на підключення' })).toBeVisible();
+}
+
 export async function fileConnection(page: Page, f: Filing) {
-  await page.goto('/applications/new?kind=connection');
+  await openConnectionForm(page);
   await fillFiling(page, f);
   await page.getByLabel('Витяг (до 5 МБ)').setInputFiles(extractFile);
   await page.getByRole('button', { name: 'Подати заявку' }).click();
@@ -148,16 +162,21 @@ export async function recordCheck(page: Page, c: Check) {
   await expect(page.getByText(/^з КЕП, перевірено оператором/).first()).toBeVisible();
 }
 
+// The оператор, in a session of their own, records the check and approves the заявка or the запит.
+export async function approveApplication(browser: Browser, id: string, check: Check) {
+  const operator = await sessionFor(browser, operatorEmail);
+  await openReview(operator, id);
+  await recordCheck(operator, check);
+  await operator.getByRole('button', { name: 'Схвалити' }).click();
+  await expect(operator.getByText(/^Заявка схвалена/)).toBeVisible();
+  await operator.context().close();
+}
+
 // A connected association through the UI: file, check, approve. Returns the applicant's page.
 export async function connectAssociation(browser: Browser, f: Filing, applicantEmail: string) {
   const applicant = await sessionFor(browser, applicantEmail);
   await fileAndConfirm(applicant, f);
   const id = await applicationIdOf(applicant, f.name);
-  const operator = await sessionFor(browser, operatorEmail);
-  await openReview(operator, id);
-  await recordCheck(operator, checkFor(f));
-  await operator.getByRole('button', { name: 'Схвалити' }).click();
-  await expect(operator.getByText(/^Заявка схвалена/)).toBeVisible();
-  await operator.context().close();
+  await approveApplication(browser, id, checkFor(f));
   return { applicant, id };
 }

@@ -18,8 +18,11 @@ test('US-04: the new голова files a запит на передачу and f
 });
 
 test('US-04: a запит for a code that is not connected is refused and the заявка form offered (AC-18)', async ({ browser }) => {
+  // The запит form opens from the refusal of a connected code; the запит then names a code that is not connected.
+  const via = newFiling();
+  await connectAssociation(browser, via, newEmail('head'));
   const page = await sessionFor(browser, newEmail('head'));
-  await fileTransfer(page, newFiling(), 'Новий Голова Правлінович');
+  await fileTransfer(page, newFiling(), 'Новий Голова Правлінович', via);
   await expect(page.getByText('Це ОСББ ще не підключене — подайте заявку на підключення')).toBeVisible();
   await page.getByRole('link', { name: 'Подати заявку на підключення' }).click();
   await expect(page.getByRole('heading', { name: 'Заявка на підключення' })).toBeVisible();

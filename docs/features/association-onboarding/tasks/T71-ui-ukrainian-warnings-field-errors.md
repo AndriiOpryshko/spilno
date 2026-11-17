@@ -14,7 +14,7 @@ files_hint:
   - "apps/web/src/i18n/uk.ts"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T71 — Write the warnings and the field errors in Ukrainian from structured data

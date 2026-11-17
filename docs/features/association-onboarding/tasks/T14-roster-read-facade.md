@@ -12,7 +12,7 @@ files_hint:
   - "services/core/internal/governance/governancetest/"
 owner: "Andrii Opryshko"
 estimate: "L"
-status: "todo"
+status: "done"
 ---
 
 # T14 — Serve the roster facade: the current member, a person's memberships and the members' sign-in addresses

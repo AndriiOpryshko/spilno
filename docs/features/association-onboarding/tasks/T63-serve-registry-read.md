@@ -14,7 +14,7 @@ files_hint:
   - "services/core/internal/identity/middleware_readonly_test.go"
 owner: "Andrii Opryshko"
 estimate: "L"
-status: "todo"
+status: "done"
 ---
 
 # T63 — Serve the реєстр протоколів: search and the signed protocol

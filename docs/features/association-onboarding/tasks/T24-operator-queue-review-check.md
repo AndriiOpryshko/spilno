@@ -12,7 +12,7 @@ files_hint:
   - "services/core/internal/identity/identitytest/"
 owner: "Andrii Opryshko"
 estimate: "L"
-status: "todo"
+status: "done"
 ---
 
 # T24 — Serve the оператор's queue and review page, and record the check of the extract

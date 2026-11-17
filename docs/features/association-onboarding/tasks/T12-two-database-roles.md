@@ -14,7 +14,7 @@ files_hint:
   - ".github/workflows/ci.yml"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T12 — Run goose as the owner and serve as spilno_app; give tests an app-role pool with two associations

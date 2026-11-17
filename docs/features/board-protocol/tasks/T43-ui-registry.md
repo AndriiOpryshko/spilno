@@ -10,7 +10,7 @@ files_hint:
   - "apps/web/src/features/governance/registry/"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "in_progress"
 ---
 
 # T43 — Build the реєстр протоколів search and the signed protocol view
@@ -32,3 +32,13 @@ status: "todo"
 - [ ] stories for results, empty, signed view with corrections
 - [ ] component test: the signed view renders the AC-17 explanation and no edit, upload or withdraw control
 - [ ] `mise run lint` and `mise run test` green
+
+## Status (2026-11-17)
+
+The search and the signed protocol view are built by association-onboarding [T79](../../association-onboarding/tasks/T79-ui-registry-screens.md)
+(commits `a9b32bc`, `ae2aba8`) at `/o/$associationId/registry` and `/o/$associationId/registry/$protocolId`, with
+component tests and stories (`apps/web/src/features/governance/registry/`): filters, cursor pages, the gap of a
+withdrawn number, the files, the poll history labelled informal, the AC-17 explanation and no edit control.
+
+Left here: the correction note is one section under the agenda, not beside the corrected item as AC-15 words
+it. Open with the product owner.

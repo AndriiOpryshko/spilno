@@ -15,7 +15,7 @@ files_hint:
   - "docs/features/association-onboarding/contracts/openapi.yaml"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T70 — Label the source of every value on the review page and show competing заявки side by side

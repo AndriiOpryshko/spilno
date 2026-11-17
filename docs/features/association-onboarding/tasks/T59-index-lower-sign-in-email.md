@@ -11,7 +11,7 @@ files_hint:
   - "docs/features/association-onboarding/data-model.md"
 owner: "Andrii Opryshko"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T59 — Make the memberships lookup use an index on the lowered sign-in address

@@ -85,13 +85,13 @@
 | [T78](./T78-ui-roster-screen.md) | Build the roster screen: list, add and change члени правління, with the decision mark on each голова | ui | Andrii Opryshko | L | T62, T68 | done |
 | [T79](./T79-ui-registry-screens.md) | Build the реєстр протоколів: search and the signed protocol with its download | ui | Andrii Opryshko | M | T63, T64, T68 | done |
 | [T80](./T80-ui-cases-on-api-with-upload.md) | Move the справи list and the case screen to the API, with document upload and the storage message | ui | Andrii Opryshko | L | T65, T68 | done |
-| [T81](./T81-e2e-review-fixes-through-clicks.md) | Prove the fixed flows end to end by clicking, not by typing addresses | tests | Andrii Opryshko | M | T52, T68, T71, T72, T73 | todo |
-| [T82](./T82-e2e-roster-registry-documents.md) | Prove the roster, the registry and the document refusal end to end | tests | Andrii Opryshko | L | T78, T79, T80 | todo |
+| [T81](./T81-e2e-review-fixes-through-clicks.md) | Prove the fixed flows end to end by clicking, not by typing addresses | tests | Andrii Opryshko | M | T52, T68, T71, T72, T73 | done |
+| [T82](./T82-e2e-roster-registry-documents.md) | Prove the roster, the registry and the document refusal end to end | tests | Andrii Opryshko | L | T78, T79, T80 | done |
 | [T83](./T83-concurrency-and-failure-tests.md) | Test the decisions and the filings under concurrency | tests | Andrii Opryshko | M | T52, T54 | done |
 | [T84](./T84-refresh-visual-baselines.md) | Refresh the visual baselines of the review page and the association card | tests | Andrii Opryshko | S | T71, T72, T77 | done |
-| [T85](./T85-sync-test-plan-tracker-board-protocol.md) | Bring the test plan, the trackers and the board-protocol tasks in line with what was built | docs | Andrii Opryshko | M | T61, T81, T82, T83, T84 | todo |
+| [T85](./T85-sync-test-plan-tracker-board-protocol.md) | Bring the test plan, the trackers and the board-protocol tasks in line with what was built | docs | Andrii Opryshko | M | T61, T81, T82, T83, T84 | done |
 
-**Total:** 85 tasks, ~48.75 person-days: T01–T49 (~29.5, done, merged in PR #48) and the review follow-up T50–T85 (~19.25, [review of 2026-11-10](../_review/review-2026-11-10.md)).
+**Total:** 85 tasks, ~48.75 person-days: T01–T49 (~29.5, done, merged in PR #48) and the review follow-up T50–T85 (~19.25, done, PRs #52–#55, [review of 2026-11-10](../_review/review-2026-11-10.md) with the commit that closed each finding).
 
 ## Known gaps (found during implementation)
 
@@ -100,7 +100,21 @@
   The Google OIDC adapter (ID-token verification, client configuration from the environment) is a
   separate piece of work after this feature (decided 2026-11-10).
 - **Sign-in state lives in process memory** (`identity/app/signin.go`: state, PKCE verifier, nonce, 10
-  minutes). Enough for one API instance; more than one needs a table that the data model does not have.
+  minutes; bounded since T55). Enough for one API instance; more than one needs a table that the data model
+  does not have.
 - **Security review findings are open** ([record](../_review/security-2026-11-10.md)): no High, six Medium
   (SEC-01 to SEC-06, due 2026-11-24), eight Low. SEC-01 with the gap above means the feature must not be
   deployed where anyone but the developer can reach it until the real provider adapter exists.
+- **The оператор's queue and list of associations show their first page only** (20 rows), though both
+  operations page by cursor. The queue is oldest first, so with more than 20 pending заявки a new one is not on
+  the screen; the e2e suite therefore needs a fresh database per run. Found by T81; not yet a task.
+- **No screen creates a справа.** The справи list and the case screen read the API (T80); a справа is created
+  only through `createCase` until board-protocol builds the draft flow. The e2e specs create it through the API.
+- **Board-protocol work still open behind this feature's ACs:** the association settings (board-protocol T10,
+  T35), the needs-review event and the upload metric of document versions (T21), the Drive adapter (T13b; the
+  API has a file storage only under `SPILNO_DEV_STORAGE=true`), and the lock that writes a signed protocol
+  (T29; the реєстр is tested on seeded protocols). Each task file there says what this feature delivered.
+- **The correction note of a signed protocol** is one section under the agenda, not beside the corrected item
+  (board-protocol AC-15, noted in board-protocol T43).
+- **SAD §6 Flow 5 has no branch for 409 `identity.application_already_open`** on a refile; the contract lists
+  it since T60 and [api-sync-report.md](../contracts/api-sync-report.md) carries the deferral.

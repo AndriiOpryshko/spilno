@@ -11,7 +11,7 @@ files_hint:
   - "services/core/internal/identity/adapters/http/"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T32 — Serve my associations and the association card with the confirmation chain

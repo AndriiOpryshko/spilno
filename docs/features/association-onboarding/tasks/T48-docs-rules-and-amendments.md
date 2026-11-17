@@ -15,7 +15,7 @@ files_hint:
   - "docs/runbooks/operator-extract-check.md"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T48 — Update the repo rules and environment docs, amend the board-protocol documents and write the оператор's runbook

@@ -18,7 +18,7 @@ files_hint:
   - "docs/features/board-protocol/data-model.md"
 owner: "Andrii Opryshko"
 estimate: "L"
-status: "todo"
+status: "replaced"
 ---
 
 # T08 — Sign in with Google OIDC and keep sessions in Postgres

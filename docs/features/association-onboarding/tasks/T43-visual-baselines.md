@@ -12,7 +12,7 @@ files_hint:
   - "apps/web/src/features/identity/__screenshots__/"
 owner: "Andrii Opryshko"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T43 — Add visual-regression checks for the filing form, the review page and the association card

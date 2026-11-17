@@ -15,7 +15,7 @@ files_hint:
   - "apps/web/src/features/governance/types.ts"
 owner: "Andrii Opryshko"
 estimate: "L"
-status: "todo"
+status: "done"
 ---
 
 # T01 — Move the governance and finance operations under `/<context>/associations/{association_id}/`

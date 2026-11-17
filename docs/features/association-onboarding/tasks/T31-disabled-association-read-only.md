@@ -11,7 +11,7 @@ files_hint:
   - "services/core/internal/identity/adapters/postgres/"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T31 — Make a disabled association read-only in the middleware

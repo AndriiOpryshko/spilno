@@ -8,7 +8,7 @@ files_hint:
   - "apps/web/e2e/"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T45 — Prove a transfer, the takeover and the association card end to end (US-04, US-05, US-09)

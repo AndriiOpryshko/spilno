@@ -13,7 +13,7 @@ files_hint:
   - "services/core/internal/governance/adapters/http/files.go"
 owner: "Andrii Opryshko"
 estimate: "L"
-status: "todo"
+status: "in_progress"
 ---
 
 # T21 — Serve cases: create, list, open, add document versions and download files
@@ -36,3 +36,15 @@ status: "todo"
 - [ ] test: response bodies never contain Drive file or revision ids
 - [ ] upload-duration metric recorded
 - [ ] `mise run lint` and `mise run test` green
+
+## Status (2026-11-17)
+
+The five operations are served by association-onboarding [T64](../../association-onboarding/tasks/T64-serve-file-download-read-only-check.md)
+(commit `56ec66b`, `downloadFile`) and [T65](../../association-onboarding/tasks/T65-serve-cases-and-document-upload.md) (commit `8ae85a1`,
+`listCases`, `createCase`, `getCase`, `addCaseDocument`), with handler and integration tests on a fake `Files`
+(`cases_endpoints_test.go`, `file_download_test.go`): 422 `governance.file_invalid`, 503
+`governance.storage_unavailable`, attachment downloads, and the storage guard of association-onboarding AC-28.
+
+Left here: the domain event of a newer document version (the needs-review hook of [T23](./T23-wording-slot-endpoints.md)),
+the upload-duration metric, and running on the Drive adapter of [T13b](./T13b-drive-files-adapter.md): until it
+exists the API has a storage only under `SPILNO_DEV_STORAGE=true` and otherwise answers 503.

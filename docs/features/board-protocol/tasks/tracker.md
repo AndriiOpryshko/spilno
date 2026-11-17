@@ -14,7 +14,7 @@
 | [T07](./T07-merge-contract-identity-skeleton.md) | Merge the contract delta, add the identity context skeleton and regenerate server and client | wiring | Andrii Opryshko | L | — | done |
 | [T08](./T08-identity-oidc-sessions.md) | Sign in with Google OIDC and keep sessions in Postgres | app | Andrii Opryshko | L | T01, T06, T07, T02, T09 | replaced (association-onboarding) |
 | [T09](./T09-settings-roster-domain.md) | Model association settings and roster entries with all-fields validation | domain | Andrii Opryshko | M | — | done |
-| [T10](./T10-settings-roster-endpoints.md) | Serve settings and roster: use cases, Postgres repositories, handlers and CurrentMember | ports | Andrii Opryshko | L | T02, T06, T07, T09 | todo |
+| [T10](./T10-settings-roster-endpoints.md) | Serve settings and roster: use cases, Postgres repositories, handlers and CurrentMember | ports | Andrii Opryshko | L | T02, T06, T07, T09 | in_progress |
 | [T11](./T11-require-session-current-member.md) | Require a session and a current член правління on the governance and finance routes | wiring | Andrii Opryshko | M | T08, T10 | replaced (association-onboarding) |
 | [T12](./T12-google-connection-token-source.md) | Store the association's Google connection and expose GoogleTokenSource | infra | Andrii Opryshko | M | T01, T07 | done |
 | [T12a](./T12a-google-token-cipher.md) | Seal and open the Google refresh token with AES-256-GCM | infra | Andrii Opryshko | S | — | done |
@@ -34,7 +34,7 @@
 | [T19a](./T19a-meeting-facts.md) | Validate the meeting facts entered with the signed scan | domain | Andrii Opryshko | S | T16, T18 | done |
 | [T19b](./T19b-snapshot-fingerprint.md) | Serialize the protocol snapshot canonically and fingerprint it | domain | Andrii Opryshko | S | T16, T18 | done |
 | [T20](./T20-protocol-repository.md) | Persist the protocol aggregate with a revision guard | infra | Andrii Opryshko | L | T03, T16 | todo |
-| [T21](./T21-cases-endpoints.md) | Serve cases: create, list, open, add document versions and download files | ports | Andrii Opryshko | L | T03, T11, T13 | todo |
+| [T21](./T21-cases-endpoints.md) | Serve cases: create, list, open, add document versions and download files | ports | Andrii Opryshko | L | T03, T11, T13 | in_progress |
 | [T22](./T22-open-draft-endpoints.md) | Open a draft for a meeting from a case, get and list protocols | ports | Andrii Opryshko | L | T10, T20, T21 | todo |
 | [T23](./T23-wording-slot-endpoints.md) | Edit wording and слоти рішення: save wording, add, confirm and correct slots | ports | Andrii Opryshko | L | T17, T22 | todo |
 | [T24](./T24-gemini-textmodel-adapter.md) | Implement the Gemini TextModel adapter as the only importer of the SDK | infra | Andrii Opryshko | M | T07, T17 | todo |
@@ -44,19 +44,19 @@
 | [T28](./T28-ready-for-signing-print.md) | Mark ready for signing: reserve the number and render the print copy in a job | ports | Andrii Opryshko | L | T05, T14, T23, T26, T27 | todo |
 | [T29](./T29-lock-with-signed-copy.md) | Lock with the signed scan and meeting facts, and apply Drive restrictions | ports | Andrii Opryshko | L | T19, T28 | todo |
 | [T30](./T30-withdraw-and-copy.md) | Withdraw a protocol with a reason and copy a withdrawn draft | ports | Andrii Opryshko | M | T29 | todo |
-| [T31](./T31-registry-search.md) | Search the реєстр протоколів and open a signed protocol | ports | Andrii Opryshko | L | T29 | todo |
+| [T31](./T31-registry-search.md) | Search the реєстр протоколів and open a signed protocol | ports | Andrii Opryshko | L | T29 | done |
 | [T32](./T32-nightly-integrity-check.md) | Run the nightly integrity check of snapshots and clean up orphan files | app | Andrii Opryshko | M | T14, T29, T30 | todo |
 | [T33](./T33-nightly-backup-runbook.md) | Back up Postgres nightly off the VM and write the restore-drill runbook | infra | Andrii Opryshko | M | — | todo |
 | [T34](./T34-ui-sign-in-session.md) | Add the sign-in page, the session guard and 401/403 handling | ui | Andrii Opryshko | M | T07 | replaced (association-onboarding) |
-| [T35](./T35-ui-settings-roster.md) | Build the association settings and roster screens | ui | Andrii Opryshko | L | T07 | todo |
-| [T36](./T36-ui-cases-documents.md) | Move the cases list and case screen to generated hooks with document upload | ui | Andrii Opryshko | M | T07 | todo |
+| [T35](./T35-ui-settings-roster.md) | Build the association settings and roster screens | ui | Andrii Opryshko | L | T07 | in_progress |
+| [T36](./T36-ui-cases-documents.md) | Move the cases list and case screen to generated hooks with document upload | ui | Andrii Opryshko | M | T07 | done |
 | [T37](./T37-ui-protocol-on-hooks.md) | Move the protocol screen to generated hooks: agenda, slots and revision conflicts | ui | Andrii Opryshko | L | T07 | todo |
 | [T38](./T38-ui-text-editor-slot-chips.md) | Build the decision text editor with slot chips and highlighted typed facts | ui | Andrii Opryshko | L | T37 | todo |
 | [T39](./T39-ui-assistant-panel.md) | Add the помічник протоколу conversation panel with job polling | ui | Andrii Opryshko | M | T38 | todo |
 | [T40](./T40-ui-live-poll.md) | Make the попереднє голосування live: start, own vote, tally, informal label, return to draft | ui | Andrii Opryshko | M | T39 | todo |
 | [T41](./T41-ui-print-withdraw.md) | Wire printing and withdrawal: ready for signing, job polling, void warning, withdraw and copy | ui | Andrii Opryshko | L | T40 | todo |
 | [T42](./T42-ui-signed-copy-form.md) | Build the signed-scan upload with the meeting facts form | ui | Andrii Opryshko | M | T41 | todo |
-| [T43](./T43-ui-registry.md) | Build the реєстр протоколів search and the signed protocol view | ui | Andrii Opryshko | M | T07 | todo |
+| [T43](./T43-ui-registry.md) | Build the реєстр протоколів search and the signed protocol view | ui | Andrii Opryshko | M | T07 | in_progress |
 | [T44](./T44-e2e-draft-to-registry.md) | Prove the flow end to end: draft to registry through the UI with fake Google and Gemini | tests | Andrii Opryshko | L | T25, T28, T29, T30, T31, T32, T34, T35, T36, T42, T43 | todo |
 
 **Total:** 44 tasks, ~31.25 person-days, 12 dependency phases.

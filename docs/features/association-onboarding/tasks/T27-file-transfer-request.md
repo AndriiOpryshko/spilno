@@ -11,7 +11,7 @@ files_hint:
   - "services/core/internal/identity/adapters/http/"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T27 — File a запит на передачу for a connected association

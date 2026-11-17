@@ -12,7 +12,7 @@ files_hint:
   - "services/core/internal/identity/identitytest/"
 owner: "Andrii Opryshko"
 estimate: "L"
-status: "todo"
+status: "done"
 ---
 
 # T22 — File a заявка на підключення and keep the signed extract unchanged

@@ -11,7 +11,7 @@ files_hint:
   - "apps/web/src/i18n/uk.ts"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "replaced"
 ---
 
 # T34 — Add the sign-in page, the session guard and 401/403 handling

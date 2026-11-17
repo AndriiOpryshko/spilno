@@ -13,7 +13,7 @@ files_hint:
   - "docs/design/design-system.md"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T77 — Reuse InlineAlert, the generated hooks and router links across the identity screens

@@ -11,7 +11,7 @@ files_hint:
   - "services/core/internal/identity/domain/review_warning_test.go"
 owner: "Andrii Opryshko"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T10 — Compare the three names after levelling and flag an extract older than 30 days

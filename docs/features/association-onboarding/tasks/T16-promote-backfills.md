@@ -14,7 +14,7 @@ files_hint:
   - "docs/features/association-onboarding/migrations/MANIFEST.md"
 owner: "Andrii Opryshko"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T16 — Promote the backfills: association state, roster positions and the contracts' association

@@ -16,7 +16,7 @@ files_hint:
   - "services/core/internal/identity/approval_transfer_test.go"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T51 — Carry the filed term end into the roster and end the previous голова whatever their term end

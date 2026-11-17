@@ -16,7 +16,7 @@ files_hint:
   - "apps/web/src/routes/o.$associationId.association.tsx"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T42 — Show the storage connection, the connect flow and the «Доступ призупинено» notice

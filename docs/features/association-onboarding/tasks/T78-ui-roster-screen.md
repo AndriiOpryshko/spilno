@@ -12,7 +12,7 @@ files_hint:
   - "apps/web/src/i18n/uk.ts"
 owner: "Andrii Opryshko"
 estimate: "L"
-status: "todo"
+status: "done"
 ---
 
 # T78 — Build the roster screen: list, add and change члени правління, with the decision mark on each голова

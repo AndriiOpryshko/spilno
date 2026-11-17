@@ -11,7 +11,7 @@ files_hint:
   - "services/core/internal/identity/review_test.go"
 owner: "Andrii Opryshko"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T56 — Send a valid Content-Disposition on the review download and tighten the extract type check

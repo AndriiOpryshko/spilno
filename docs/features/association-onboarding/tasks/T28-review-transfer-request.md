@@ -11,7 +11,7 @@ files_hint:
   - "services/core/internal/identity/adapters/http/"
 owner: "Andrii Opryshko"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T28 — Show competing запити and the storage account in the review of a запит

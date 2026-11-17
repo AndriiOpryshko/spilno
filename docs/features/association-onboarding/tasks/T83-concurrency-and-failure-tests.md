@@ -10,7 +10,7 @@ files_hint:
   - "services/core/internal/identity/applications_file_test.go"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T83 — Test the decisions and the filings under concurrency

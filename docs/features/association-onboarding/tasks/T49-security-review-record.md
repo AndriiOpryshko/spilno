@@ -8,7 +8,7 @@ files_hint:
   - "docs/features/association-onboarding/_review/"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T49 — Run and record the security review that PRD §6.1 requires

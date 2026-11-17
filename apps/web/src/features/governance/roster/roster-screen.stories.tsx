@@ -19,11 +19,12 @@ const entry = (over: Partial<BoardMember>): BoardMember => ({
   revised_at: '2025-03-01T08:00:00Z',
   position: 'head',
   decision_id: null,
+  decision_effect: null,
   ...over,
 });
 const filled: BoardMember[] = [
-  entry({ id: '00000000-0000-7000-8000-00000000b002', full_name: 'Новий Голова Тестовий', term_start: '2026-10-25', decision_id: decisionId }),
-  entry({ id: '00000000-0000-7000-8000-00000000b001', full_name: 'Колишній Голова Тестовий', term_start: '2024-01-15', term_end: '2026-10-24', decision_id: decisionId }),
+  entry({ id: '00000000-0000-7000-8000-00000000b002', full_name: 'Новий Голова Тестовий', term_start: '2026-10-25', decision_id: decisionId, decision_effect: 'seated' }),
+  entry({ id: '00000000-0000-7000-8000-00000000b001', full_name: 'Колишній Голова Тестовий', term_start: '2024-01-15', term_end: '2026-10-24', decision_id: decisionId, decision_effect: 'ended' }),
   entry({ id: '00000000-0000-7000-8000-00000000b003', full_name: 'Звичайний Член Тестовий', position: 'member' }),
 ];
 const card = {

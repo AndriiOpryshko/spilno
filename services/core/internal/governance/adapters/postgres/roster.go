@@ -99,12 +99,21 @@ func listEntries(ctx context.Context, arg sqlcgen.ListRosterEntriesParams) ([]po
 	if err != nil {
 		return nil, err
 	}
+	effects, err := sqlcgen.New(tx).RosterDecisionEffects(ctx, arg.AssociationID)
+	if err != nil {
+		return nil, err
+	}
+	effectOf := make(map[uuid.UUID]string, len(effects))
+	for _, f := range effects {
+		effectOf[uuid.UUID(f.BoardMemberID.Bytes)] = f.Effect
+	}
 	out := make([]ports.RosterEntry, len(rows))
 	for i, r := range rows {
 		e := ports.RosterEntry{
-			ID:        uuid.UUID(r.ID.Bytes),
-			CreatedAt: r.EntryCreatedAt.Time,
-			RevisedAt: r.RevisedAt.Time,
+			ID:             uuid.UUID(r.ID.Bytes),
+			CreatedAt:      r.EntryCreatedAt.Time,
+			RevisedAt:      r.RevisedAt.Time,
+			DecisionEffect: effectOf[uuid.UUID(r.ID.Bytes)],
 			Entry: domain.BoardMemberEntry{
 				FullName: r.FullName, SignInEmail: r.SignInEmail.String,
 				Term:     domain.Term{Start: r.TermStart.Time},

@@ -128,6 +128,10 @@ func boardMemberToAPI(e ports.RosterEntry) gen.BoardMember {
 		id := uuid.MustParse(e.Entry.DecisionID)
 		out.DecisionId = &id
 	}
+	if e.DecisionEffect != "" {
+		eff := gen.BoardMemberDecisionEffect(e.DecisionEffect)
+		out.DecisionEffect = &eff
+	}
 	if e.RevisedByMemberID != uuid.Nil {
 		out.RevisedByMemberId = &e.RevisedByMemberID
 	}

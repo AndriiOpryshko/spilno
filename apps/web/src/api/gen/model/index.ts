@@ -35,6 +35,7 @@ export * from './associationSettingsInput';
 export * from './associationState';
 export * from './associationStateChange';
 export * from './boardMember';
+export * from './boardMemberDecisionEffect';
 export * from './boardMemberInput';
 export * from './boardMemberPage';
 export * from './boardPosition';

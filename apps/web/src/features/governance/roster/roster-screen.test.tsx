@@ -29,6 +29,7 @@ const previousHead: BoardMember = {
   revised_at: '2026-10-21T08:05:00Z',
   position: 'head',
   decision_id: decisionId,
+  decision_effect: 'ended',
 };
 const newHead: BoardMember = {
   id: currentId,
@@ -40,6 +41,7 @@ const newHead: BoardMember = {
   revised_at: '2026-10-21T08:05:00Z',
   position: 'head',
   decision_id: decisionId,
+  decision_effect: 'seated',
 };
 const plainMember: BoardMember = {
   id: memberId,
@@ -51,6 +53,7 @@ const plainMember: BoardMember = {
   revised_at: '2025-03-01T08:00:00Z',
   position: 'member',
   decision_id: null,
+  decision_effect: null,
 };
 
 const card: AssociationCard = {

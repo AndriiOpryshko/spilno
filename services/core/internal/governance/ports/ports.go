@@ -61,4 +61,6 @@ type RosterEntry struct {
 	Entry             domain.BoardMemberEntry
 	RevisedByMemberID uuid.UUID // zero when the revision has no author
 	RevisedAt         time.Time
+	// DecisionEffect is "seated" or "ended" when the latest revision carries a decision, else empty.
+	DecisionEffect string
 }

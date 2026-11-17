@@ -167,6 +167,13 @@ func (s *RosterService) ChangeMember(ctx context.Context, association, id uuid.U
 	if err := in.Validate(); err != nil {
 		return ports.RosterEntry{}, err
 	}
+	current, err := s.entry(ctx, association, id)
+	if err != nil {
+		return ports.RosterEntry{}, err
+	}
+	if err := refuseReopeningEnded(current, latest.Term.End, in.Term.End); err != nil {
+		return ports.RosterEntry{}, err
+	}
 	by, err := s.actor(ctx, association)
 	if err != nil {
 		return ports.RosterEntry{}, err
@@ -175,6 +182,20 @@ func (s *RosterService) ChangeMember(ctx context.Context, association, id uuid.U
 		return ports.RosterEntry{}, err
 	}
 	return s.entry(ctx, association, id)
+}
+
+// refuseReopeningEnded rejects a change that clears or postpones the term end an approval set on the entry.
+func refuseReopeningEnded(current ports.RosterEntry, setEnd, newEnd time.Time) error {
+	if current.DecisionEffect != "ended" || setEnd.IsZero() {
+		return nil
+	}
+	if !newEnd.IsZero() && !newEnd.After(setEnd) {
+		return nil
+	}
+	return &domain.CodedFieldsError{
+		Code:   domain.CodeRosterEntryInvalid,
+		Fields: []domain.FieldIssue{{Pointer: "/term_end", Detail: "an approval ended this entry; its term end cannot be cleared or moved later"}},
+	}
 }
 
 // actor is the roster entry of the signed-in member; nil when the transaction's person has none.

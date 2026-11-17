@@ -2555,7 +2555,7 @@ components:
       description: board_members + its latest board_member_revisions row.
       type: object
       additionalProperties: false
-      required: [id, full_name, sign_in_email, term_start, term_end, revised_by_member_id, revised_at, position, decision_id]
+      required: [id, full_name, sign_in_email, term_start, term_end, revised_by_member_id, revised_at, position, decision_id, decision_effect]
       properties:
         id: { type: string, format: uuid }
         full_name: { type: string, maxLength: 200 }
@@ -2566,6 +2566,13 @@ components:
         revised_at: { type: string, format: date-time }
         position: { $ref: "#/components/schemas/BoardPosition" }
         decision_id: { type: [string, "null"], format: uuid }
+        decision_effect:
+          description: |
+            What the entry's decision did to it: `seated` (the approval made this entry голова) or `ended`
+            (it ended this entry); null for an entry without a decision. The board cannot clear or move later
+            the term end of an `ended` entry (422 `governance.roster_entry_invalid` on `/term_end`).
+          type: [string, "null"]
+          enum: [seated, ended, null]
     BoardMemberPage:
       type: object
       required: [items, next_cursor]

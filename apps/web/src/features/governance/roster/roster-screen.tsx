@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useInfiniteQuery } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
 
-import { useListBoardMembers } from '@/api/gen/endpoints/governance/governance';
+import { getListBoardMembersQueryKey, listBoardMembers } from '@/api/gen/endpoints/governance/governance';
 import { useGetAssociationCard, useListMemberships } from '@/api/gen/endpoints/identity/identity';
 import type { BoardMember } from '@/api/gen/model';
 import { TopBar } from '@/components/app-shell';
@@ -17,11 +18,19 @@ type Editing = { member?: BoardMember } | null;
 
 export function RosterScreen({ associationId }: { associationId: string }) {
   const [editing, setEditing] = useState<Editing>(null);
-  const roster = useListBoardMembers(associationId, undefined, { query: { retry: false } });
+  const roster = useInfiniteQuery({
+    // Pages are a different cache shape from the plain list read, so the key gets a suffix.
+    queryKey: [...getListBoardMembersQueryKey(associationId), 'pages'],
+    queryFn: ({ pageParam }) => listBoardMembers(associationId, pageParam ? { cursor: pageParam } : undefined),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => last.data.next_cursor ?? undefined,
+    retry: false,
+  });
+  const members = useMemo(() => (roster.data?.pages ?? []).flatMap((page) => page.data.items), [roster.data]);
   // The decision history of the card feeds the mark on the entries a decision touched.
   const card = useGetAssociationCard(associationId, { query: { retry: false } });
   // The layout already loaded the roster of memberships; this reads the same cache entry.
-  const { data: memberships } = useListMemberships();
+  const { data: memberships } = useListMemberships(undefined, { query: { refetchOnMount: false } });
   const associationName = memberships?.data.items.find((m) => m.association_id === associationId)?.association_name;
 
   if (roster.error) {
@@ -32,7 +41,6 @@ export function RosterScreen({ associationId }: { associationId: string }) {
   }
   if (!roster.data) return <PageSkeleton />;
 
-  const members = roster.data.data.items;
   const history = card.data?.data.history ?? [];
   return (
     <>
@@ -60,6 +68,11 @@ export function RosterScreen({ associationId }: { associationId: string }) {
               </li>
             ))}
           </ul>
+        )}
+        {roster.hasNextPage && (
+          <Button variant="outline" disabled={roster.isFetchingNextPage} onClick={() => void roster.fetchNextPage()}>
+            {roster.isFetchingNextPage ? t.loadingMore : t.more}
+          </Button>
         )}
         {editing && <RosterForm associationId={associationId} member={editing.member} onClose={() => setEditing(null)} />}
       </section>

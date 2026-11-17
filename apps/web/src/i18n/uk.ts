@@ -46,6 +46,8 @@ export const uk = {
     roster: {
       title: 'Правління',
       empty: 'Правління ще не заповнене',
+      more: 'Показати ще',
+      loadingMore: 'Завантаження…',
       add: 'Додати члена правління',
       edit: 'Змінити',
       editEntry: (name: string) => `Змінити ${name}`,

@@ -310,3 +310,23 @@ describe('the retired /cases routes keep redirecting', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe(`/o/${lypky}/cases`));
   });
 });
+
+describe('a person on more than one page of memberships (AC-04d)', () => {
+  it('opens the twenty-first association: the layout reads every page of memberships', async () => {
+    const ids = Array.from({ length: 21 }, (_, i) => `00000000-0000-7000-8000-0000000d${String(i).padStart(4, '0')}`);
+    for (const id of ids) names[id] = `ОСББ ${id.slice(-4)}`;
+    const last = ids[20] ?? '';
+    const fake = vi.fn((input: RequestInfo | URL) => {
+      const u = new URL(String(input), 'http://localhost');
+      if (u.pathname.endsWith('/identity/memberships')) {
+        const second = u.searchParams.get('cursor') === 'm-2';
+        return Promise.resolve(json(200, { items: (second ? ids.slice(20) : ids.slice(0, 20)).map(membershipOf), next_cursor: second ? null : 'm-2' }));
+      }
+      return fakeApi(input);
+    });
+    vi.stubGlobal('fetch', fake);
+    const router = open(`/o/${last}/cases`);
+    expect((await screen.findAllByText(names[last] ?? '')).length).toBeGreaterThan(0);
+    expect(router.state.location.pathname).toBe(`/o/${last}/cases`);
+  });
+});

@@ -1,9 +1,10 @@
 import { createFileRoute, Navigate } from '@tanstack/react-router';
 
-import { useGetSession, useListMemberships } from '@/api/gen/endpoints/identity/identity';
+import { useGetSession } from '@/api/gen/endpoints/identity/identity';
 import { AssociationPicker } from '@/features/identity/shell/association-picker';
 import { resolveEntry } from '@/features/identity/shell/entry';
 import { PageSkeleton, RequestFallback } from '@/features/identity/shell/request-fallback';
+import { useAllMemberships } from '@/features/identity/shell/use-all-memberships';
 
 export const Route = createFileRoute('/')({
   component: EntryPage,
@@ -11,7 +12,7 @@ export const Route = createFileRoute('/')({
 
 function EntryPage() {
   const session = useGetSession({ query: { retry: false } });
-  const memberships = useListMemberships(undefined, { query: { enabled: session.isSuccess, retry: false } });
+  const memberships = useAllMemberships({ enabled: session.isSuccess });
 
   if (session.isError) return <RequestFallback error={session.error} onRetry={() => void session.refetch()} />;
   if (memberships.isError) return <RequestFallback error={memberships.error} onRetry={() => void memberships.refetch()} />;

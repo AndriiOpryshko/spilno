@@ -434,3 +434,36 @@ describe('RosterScreen: a вимкнене ОСББ (AC-25)', () => {
     expect(screen.queryByLabelText(/ПІБ/)).not.toBeInTheDocument();
   });
 });
+
+describe('RosterScreen: every page of the roster (AC-04d, AC-20)', () => {
+  const laterId = '00000000-0000-7000-8000-00000000b0a1';
+  const laterEnded: BoardMember = { ...previousHead, id: laterId, full_name: 'Давній Голова Тестовий' };
+  const cursor = 'page-2';
+
+  beforeEach(() => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const u = new URL(String(url), 'http://localhost');
+        if (u.pathname === getListBoardMembersUrl(associationId) && (init?.method ?? 'GET') === 'GET') {
+          calls.push({ path: u.pathname, method: 'GET' });
+          return u.searchParams.get('cursor') === cursor
+            ? json(200, { items: [laterEnded], next_cursor: null })
+            : json(200, { items: [newHead, plainMember], next_cursor: cursor });
+        }
+        return fakeApi(String(url), init);
+      }),
+    );
+  });
+
+  it('offers «Показати ще» while next_cursor is set, then lists the later entry with its mark', async () => {
+    await renderScreen();
+    expect(await screen.findByText(newHead.full_name)).toBeInTheDocument();
+    expect(screen.queryByText(laterEnded.full_name)).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('button', { name: 'Показати ще' }));
+    const later = await entryOf(laterEnded.full_name);
+    expect(later.getByText(/повноваження завершено за запитом на передачу від/)).toBeInTheDocument();
+    expect(screen.getByText(newHead.full_name)).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Показати ще' })).not.toBeInTheDocument());
+  });
+});

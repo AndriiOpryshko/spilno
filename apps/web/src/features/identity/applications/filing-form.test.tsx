@@ -240,6 +240,45 @@ describe('FilingForm', () => {
     expect(message).toMatch(/PDF/);
   });
 
+  const chooseExtract = (file: File) => fireEvent.change(screen.getByLabelText(/Витяг/), { target: { files: [file] } });
+
+  const expectExtractRefused = () => {
+    expect(screen.getByLabelText(/Витяг/)).toHaveAttribute('aria-invalid', 'true');
+    const message = document.getElementById('filing-extract-error')?.textContent ?? '';
+    expect(message).toMatch(/5\s*МБ/);
+    expect(message).toMatch(/PDF/);
+    expect(screen.queryByText(/Не вдалося подати/)).not.toBeInTheDocument();
+  };
+
+  it('refuses an extract over 5 MB under the field, without a request (AC-02)', async () => {
+    const fetchMock = stubApi(() => filed('connection'));
+    await renderForm('connection');
+    fillValid();
+    chooseExtract(new File([new Uint8Array(5 * 1024 * 1024 + 1)], 'big.pdf', { type: 'application/pdf' }));
+    submit();
+    await waitFor(expectExtractRefused);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('refuses an extract of another type under the field, without a request (AC-02)', async () => {
+    const fetchMock = stubApi(() => filed('connection'));
+    await renderForm('connection');
+    fillValid();
+    chooseExtract(new File(['x'], 'extract.png', { type: 'image/png' }));
+    submit();
+    await waitFor(expectExtractRefused);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('shows a 413 answer as the same extract field message (AC-02)', async () => {
+    stubApi(() => problem(413, 'identity.payload_too_large', 'The request body is too large.'));
+    await renderForm('connection');
+    fillValid();
+    submit();
+    await waitFor(expectExtractRefused);
+    expect(screen.queryByText(/too large/)).not.toBeInTheDocument();
+  });
+
   it('shows «Не вдалося подати» for a code it does not know, not the English server detail', async () => {
     stubApi(() => problem(409, 'identity.something_new', 'The application cannot be filed.'));
     await renderForm('connection');

@@ -30,7 +30,7 @@ test('US-09: a член правління reads the confirmation chain and down
   await expect(incoming.getByText(`Передачу схвалено · рішення від ${today()}`)).toBeVisible();
   await expect(incoming.getByText(`Підключено · рішення від ${today()}`)).toBeVisible();
   await expect(incoming.getByText(`підписант: ${newHead}`)).toBeVisible();
-  await expect(incoming.getByText(`призначено за запитом на передачу від ${today()}, схвалено оператором ${today()}`)).toBeVisible();
-  await expect(incoming.getByText(`повноваження завершено за запитом на передачу від ${today()}, схвалено оператором ${today()}`)).toBeVisible();
+  await expect(incoming.getByText(`призначено: ${newHead} за запитом на передачу від ${today()}, схвалено оператором ${today()}`)).toBeVisible();
+  await expect(incoming.getByText(`повноваження завершено: ${f.fullName} за запитом на передачу від ${today()}, схвалено оператором ${today()}`)).toBeVisible();
   await expect(incoming.getByRole('link', { name: 'Завантажити витяг' })).toHaveCount(2);
 });

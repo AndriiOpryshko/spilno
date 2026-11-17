@@ -910,7 +910,9 @@ export const getFileApplicationUrl = () => {
  * answers `identity.term_ended` (AC-30). Any signed-in person may file a запит на передачу, on the roster
  * of that association or not (AC-17). A code that is pending by another person is accepted and not
  * revealed (AC-04c). `association_id` is set only when a член правління files a запит from the card of the
- * association set up by hand (AC-19c). The signature is not checked at filing (AC-03).
+ * association set up by hand (AC-19c). A запит на передачу from that card whose code another association
+ * already holds answers `identity.association_already_connected` and is not stored (AC-04c, AC-19c).
+ * The signature is not checked at filing (AC-03).
  * @summary File a заявка на підключення or a запит на передачу with the signed extract (US-01, US-04, Flows 1 and 6)
  */
 export const fileApplication = async (newApplication: NewApplication, options?: RequestInit): Promise<fileApplicationResponseSuccess> => {
@@ -2048,7 +2050,9 @@ export const getApproveApplicationUrl = (applicationId: string,) => {
  * For a запит на передачу: an applicant who already has a current roster entry gets no second entry, that
  * entry takes the position голова правління; only the entry of the голова recorded by an earlier approval
  * ends (AC-19). A competing запит stays pending and can be approved later as a new transfer (AC-19b), so
- * `identity.association_already_connected` is answered only for a заявка на підключення (AC-04c).
+ * `identity.association_already_connected` is not answered for it because another заявка is pending
+ * (AC-04c). It is answered for a заявка на підключення whose code is connected, and for a запит на передачу
+ * that claims the code of another association: the transfer is refused, nothing changes (AC-04c, AC-19).
  * @summary Approve the latest filing — create the association or change its roster (AC-08, AC-16c, AC-19, AC-19c, Flows 2-3)
  */
 export const approveApplication = async (applicationId: string,

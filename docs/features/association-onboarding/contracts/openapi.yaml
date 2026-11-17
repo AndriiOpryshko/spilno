@@ -100,7 +100,9 @@ paths:
         answers `identity.term_ended` (AC-30). Any signed-in person may file a запит на передачу, on the roster
         of that association or not (AC-17). A code that is pending by another person is accepted and not
         revealed (AC-04c). `association_id` is set only when a член правління files a запит from the card of the
-        association set up by hand (AC-19c). The signature is not checked at filing (AC-03).
+        association set up by hand (AC-19c). A запит на передачу from that card whose code another association
+        already holds answers `identity.association_already_connected` and is not stored (AC-04c, AC-19c).
+        The signature is not checked at filing (AC-03).
       x-problem-types:
         "401": [identity.session_required]
         "409": [identity.association_already_connected, identity.application_already_open, identity.association_not_connected, identity.term_ended]
@@ -358,7 +360,9 @@ paths:
         For a запит на передачу: an applicant who already has a current roster entry gets no second entry, that
         entry takes the position голова правління; only the entry of the голова recorded by an earlier approval
         ends (AC-19). A competing запит stays pending and can be approved later as a new transfer (AC-19b), so
-        `identity.association_already_connected` is answered only for a заявка на підключення (AC-04c).
+        `identity.association_already_connected` is not answered for it because another заявка is pending
+        (AC-04c). It is answered for a заявка на підключення whose code is connected, and for a запит на передачу
+        that claims the code of another association: the transfer is refused, nothing changes (AC-04c, AC-19).
       x-problem-types:
         "401": [identity.session_required]
         "403": [identity.not_operator]
@@ -896,7 +900,7 @@ components:
         head_full_name: Тестовий Голова Правління
         connected_by_hand: false
         history:
-          - { kind: connected, occurred_at: "2026-11-11T08:05:00Z", decision_id: 00000000-0000-7000-8000-00000000f002, filed_at: "2026-11-10T09:00:00Z", reason: null, head_full_name: Тестовий Голова Правління, signer_full_name: Тестовий Голова Правління, extract_id: 00000000-0000-7000-8000-00000000e001, extract_dated_on: "2026-11-08" }
+          - { kind: connected, occurred_at: "2026-11-11T08:05:00Z", decision_id: 00000000-0000-7000-8000-00000000f002, filed_at: "2026-11-10T09:00:00Z", reason: null, head_full_name: Тестовий Голова Правління, ended_head_full_name: null, signer_full_name: Тестовий Голова Правління, extract_id: 00000000-0000-7000-8000-00000000e001, extract_dated_on: "2026-11-08" }
     StorageConnection:
       value: { connected: true, google_account_email: osbb-1@example.test, connected_by_member_id: 00000000-0000-7000-8000-00000000b001, connected_at: "2026-11-11T09:00:00Z" }
 

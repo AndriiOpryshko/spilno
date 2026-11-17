@@ -71,6 +71,18 @@ describe('resolveEntry (AC-04d)', () => {
   });
 });
 
+describe('AssociationPicker: filing for another association (AC-04d)', () => {
+  it('offers the заявка на підключення link under the associations, to the connection form', async () => {
+    await renderInRouter(
+      <AssociationPicker memberships={[membership(lypky, 'ОСББ «Липки»'), membership(sonyachnyi, 'ОСББ «Сонячний»')]} isOperator={false} />,
+    );
+    const link = screen.getByRole('link', { name: 'Подати заявку на підключення' });
+    expect(link).toHaveAttribute('href', '/applications/new?kind=connection');
+    const last = screen.getAllByRole('link', { name: 'Картка ОСББ' }).at(-1)!;
+    expect(last.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
+
 describe('SignInPage', () => {
   it('offers the sign-in link that starts the identity flow', () => {
     render(<SignInPage />);

@@ -13,6 +13,9 @@ function ApplicationsList() {
   return (
     <div className="mx-auto grid max-w-xl gap-4 px-4 py-8">
       <h1 className="text-2xl font-semibold">{uk.applications.title}</h1>
+      <Link className="text-sm underline" to="/applications/new" search={{ kind: 'connection' }}>
+        {uk.applications.filing.linkConnection}
+      </Link>
       {items.length === 0 && <p>{uk.applications.detail.empty}</p>}
       <ul className="grid gap-4">
         {items.map((a) => (

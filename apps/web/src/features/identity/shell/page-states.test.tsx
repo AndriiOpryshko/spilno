@@ -47,6 +47,7 @@ const application = {
 
 type Answer = Response | Promise<Response>;
 let rosters: unknown[];
+let applications: unknown[];
 let broken: { match: (path: string, method: string) => boolean; answer: () => Answer } | null;
 let calls: { path: string; method: string }[];
 
@@ -57,7 +58,7 @@ function fakeApi(input: RequestInfo | URL, init?: RequestInit): Answer {
   if (broken?.match(path, method)) return broken.answer();
   if (path === '/identity/session') return json(200, principal);
   if (path === '/identity/memberships') return json(200, { items: rosters, next_cursor: null });
-  if (path === '/identity/applications') return json(200, { items: [application], next_cursor: null });
+  if (path === '/identity/applications') return json(200, { items: applications, next_cursor: null });
   if (path === `/identity/applications/${appId}`) {
     return json(200, { application, filings: [], decisions: [] });
   }
@@ -88,6 +89,7 @@ const countOf = (path: string, method: string) => calls.filter((c) => c.path ===
 
 beforeEach(() => {
   rosters = [membership];
+  applications = [application];
   broken = null;
   calls = [];
   sessionStorage.clear();
@@ -208,6 +210,26 @@ describe('the entry page', () => {
     const router = open('/');
     expect(await screen.findByRole('alert')).toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/');
+  });
+});
+
+describe('the link to the заявка на підключення form (AC-01)', () => {
+  const linkName = 'Подати заявку на підключення';
+  const target = '/applications/new?kind=connection';
+
+  it('is on an empty list of applications, next to the empty message', async () => {
+    applications = [];
+    open('/applications/');
+    await screen.findByText('У вас ще немає заявок');
+    expect(screen.getByRole('link', { name: linkName })).toHaveAttribute('href', target);
+  });
+
+  it('is above a list that has a заявка', async () => {
+    open('/applications/');
+    const first = await screen.findByRole('link', { name: 'ОСББ «Тест»' });
+    const link = screen.getByRole('link', { name: linkName });
+    expect(link).toHaveAttribute('href', target);
+    expect(link.compareDocumentPosition(first) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });
 

@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 
+import { listMemberships } from '@/api/gen/endpoints/identity/identity';
 import { TopBar } from '@/components/app-shell';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -21,7 +22,11 @@ import type { ProtocolDraft, ProtocolState } from './types';
 
 export function ProtocolScreen({ caseId }: { caseId: string }) {
   const { associationId } = useParams({ from: '/o/$associationId' });
-  const query = useQuery({ queryKey: ['protocol', caseId], queryFn: () => getProtocol(caseId), retry: false });
+  // The layout already loaded the roster; this reads the same cache entry.
+  const { data: roster } = useQuery({ queryKey: ['memberships'], queryFn: () => listMemberships() });
+  // A вимкнене ОСББ opens no draft (AC-25); the layout shows the suspended notice.
+  const disabled = roster?.data.items.find((m) => m.association_id === associationId)?.association_state === 'disabled';
+  const query = useQuery({ queryKey: ['protocol', caseId], queryFn: () => getProtocol(caseId), retry: false, enabled: !disabled });
   const [savedJustNow, setSavedJustNow] = useState(false);
   const [announcement, setAnnouncement] = useState('');
   const draft = query.data;
@@ -41,9 +46,9 @@ export function ProtocolScreen({ caseId }: { caseId: string }) {
         {announcement}
       </p>
       <div className="px-4 py-6 lg:px-8 lg:py-8">
-        {query.isPending && <ProtocolSkeleton />}
-        {query.isError && <Unavailable caseId={caseId} />}
-        {draft && (
+        {!disabled && query.isPending && <ProtocolSkeleton />}
+        {!disabled && query.isError && <Unavailable caseId={caseId} />}
+        {!disabled && draft && (
           <ProtocolBody
             draft={draft}
             onSaved={() => setSavedJustNow(true)}
@@ -105,6 +110,7 @@ function ProtocolBody({ draft, onSaved, onTransitioned }: ProtocolBodyProps) {
           <ProtocolStateBadge state={draft.state} />
           <h1 className="text-[22px] leading-7 font-semibold lg:text-[28px] lg:leading-9">{uk.protocol.title(draft.number, draft.caseTitle)}</h1>
           <p className="text-sm text-muted-foreground">{intro}</p>
+          <p className="text-[13px] text-muted-foreground">{uk.protocol.mockNotice}</p>
           <LifecycleStepper state={draft.state} className="pt-1" />
         </header>
         <div className="lg:hidden">

@@ -22,6 +22,9 @@ const names: Record<string, string> = { [lypky]: 'ОСББ «Липки»', [son
 const reason = 'спір щодо складу правління';
 const principal = { account_id: '00000000-0000-7000-8000-00000000a001', email: 'user-1@example.test', is_operator: false };
 
+const caseId = '00000000-0000-7000-8000-000000000c01';
+const caseTitle = 'Гідроізоляція покрівлі, будинок 1';
+
 let rosters: string[];
 let disabled: Set<string>;
 
@@ -57,6 +60,15 @@ function fakeApi(input: RequestInfo | URL) {
         json(200, { id, name: names[id], edrpou: '12345678', address: 'м. Київ, вул. Тестова, 1', state: 'connected', head_full_name: 'Test User', connected_by_hand: false, history: [] }),
       );
     }
+  }
+  // The справи list is read from the API; a вимкнене ОСББ refuses it like every scoped read (ADR-0007).
+  const governance = path.match(/\/governance\/associations\/([^/]+)\/cases$/);
+  if (governance) {
+    const id = governance[1] ?? '';
+    if (disabled.has(id)) {
+      return Promise.resolve(json(403, { type: 'about:blank', title: 'Forbidden', status: 403, detail: reason, code: 'identity.association_disabled' }));
+    }
+    return Promise.resolve(json(200, { items: [{ id: caseId, title: caseTitle, created_by_member_id: principal.account_id, created_at: '2026-10-20T09:00:00Z' }], next_cursor: null }));
   }
   return Promise.resolve(json(404, {}));
 }
@@ -177,19 +189,19 @@ describe('every page names its association (AC-04d)', () => {
   });
 });
 
-describe('the mobile case card (AC-04d)', () => {
-  it('opens the protocol under the association, not the retired address', async () => {
+describe('the справа link in the list (AC-04d)', () => {
+  it('opens the case under the association, not the retired address', async () => {
     const router = open(`/o/${lypky}/cases`);
     const card = await screen.findByRole('link', { name: /Гідроізоляція покрівлі/ });
-    expect(card.getAttribute('href')).toBe(`/o/${lypky}/cases/c-101/protocol`);
+    expect(card.getAttribute('href')).toBe(`/o/${lypky}/cases/${caseId}`);
     fireEvent.click(card);
-    await waitFor(() => expect(router.state.location.pathname).toBe(`/o/${lypky}/cases/c-101/protocol`));
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/o/${lypky}/cases/${caseId}`));
   });
 
   it('carries the id of the association it is opened under', async () => {
     open(`/o/${sonyachnyi}/cases`);
     const card = await screen.findByRole('link', { name: /Гідроізоляція покрівлі/ });
-    expect(card.getAttribute('href')).toBe(`/o/${sonyachnyi}/cases/c-101/protocol`);
+    expect(card.getAttribute('href')).toBe(`/o/${sonyachnyi}/cases/${caseId}`);
   });
 });
 

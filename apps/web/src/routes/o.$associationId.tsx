@@ -2,9 +2,9 @@ import { useQuery } from '@tanstack/react-query';
 import { createFileRoute, Navigate, Outlet, useRouterState } from '@tanstack/react-router';
 import { useEffect, useRef } from 'react';
 
+import { useListCases } from '@/api/gen/endpoints/governance/governance';
 import { getAssociationCard, getSession, listMemberships } from '@/api/gen/endpoints/identity/identity';
 import { Sidebar } from '@/components/app-shell';
-import { listCases } from '@/features/governance/api';
 import { SuspendedNotice } from '@/features/identity/association/suspended-notice';
 import { isNoAccessProblem } from '@/features/identity/shell/entry';
 import { PageSkeleton, RequestFallback } from '@/features/identity/shell/request-fallback';
@@ -17,7 +17,7 @@ function AssociationLayout() {
   const { associationId } = Route.useParams();
   const session = useQuery({ queryKey: ['session'], queryFn: () => getSession(), retry: false });
   const memberships = useQuery({ queryKey: ['memberships'], queryFn: () => listMemberships(), enabled: session.isSuccess, retry: false });
-  const cases = useQuery({ queryKey: ['cases', associationId], queryFn: listCases, enabled: session.isSuccess });
+  const cases = useListCases(associationId, undefined, { query: { enabled: session.isSuccess, retry: false } });
 
   // A вимкнене ОСББ refuses its scoped reads with the reason in the problem detail (ADR-0007);
   // the membership carries the state only, so the reason comes from the card read.
@@ -47,7 +47,7 @@ function AssociationLayout() {
 
   return (
     <div className="flex min-h-svh">
-      <Sidebar associationId={associationId} associationName={membership.association_name} isOperator={session.data.data.is_operator} casesCount={cases.data?.length} />
+      <Sidebar associationId={associationId} associationName={membership.association_name} isOperator={session.data.data.is_operator} casesCount={cases.data?.data.items.length} />
       <main className="min-w-0 flex-1">
         {disabled && !card.isPending && !card.isFetching && (
           <div className="px-4 pt-4 lg:px-8">

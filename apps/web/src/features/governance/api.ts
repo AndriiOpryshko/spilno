@@ -1,6 +1,6 @@
 import { applyTransition } from './lifecycle';
-import { cases, protocols } from './mock-data';
-import type { CaseSummary, ProtocolDraft, ProtocolState } from './types';
+import { protocols } from './mock-data';
+import type { ProtocolDraft, ProtocolState } from './types';
 
 // In-memory stand-in for the governance API. Replace with generated hooks from
 // @/api/gen/endpoints/governance/governance once the contract exists.
@@ -13,10 +13,6 @@ const delay = <T,>(value: T): Promise<T> =>
 const fail = (error: Error): Promise<never> => new Promise((_, reject) => setTimeout(() => reject(error), LATENCY_MS));
 
 export class NotFoundError extends Error {}
-
-export function listCases(): Promise<CaseSummary[]> {
-  return delay(cases);
-}
 
 export function getProtocol(caseId: string): Promise<ProtocolDraft> {
   const draft = protocols[caseId];

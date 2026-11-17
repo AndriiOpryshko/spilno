@@ -374,3 +374,32 @@ func TestFileApplicationRefusesAnOversizeBodyBeforeTheValidatorReadsIt(t *testin
 		t.Errorf("rows %v -> %v, want unchanged after the oversize bodies", before, after)
 	}
 }
+
+// AC-02 (review Q02): a body over the limit sent without Content-Length is 413 problem+json, not a 422
+// field error or a 500; nothing is stored.
+func TestFileApplicationRefusesAnOversizeChunkedBody(t *testing.T) {
+	e := newFileAppEnv(t)
+	before := e.counts(t)
+	body, ct := fileAppMultipart(t, fileAppFields(), fileAppPDF(8*1024*1024))
+	req, err := http.NewRequest("POST", e.srv.URL+"/identity/applications", io.MultiReader(bytes.NewReader(body)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", ct)
+	req.AddCookie(e.cookies["first"])
+	resp, err := signInNoRedirect.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	raw, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusRequestEntityTooLarge {
+		t.Fatalf("chunked 8 MB multipart: status = %d (%.200s), want 413", resp.StatusCode, raw)
+	}
+	if ct := resp.Header.Get("Content-Type"); ct != "application/problem+json" {
+		t.Errorf("Content-Type = %q, want application/problem+json", ct)
+	}
+	if after := e.counts(t); after != before {
+		t.Errorf("rows %v -> %v, want unchanged", before, after)
+	}
+}

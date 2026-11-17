@@ -91,3 +91,15 @@ func TestWriteProblem_ValidatorStyle422HasNoCode(t *testing.T) {
 		t.Errorf("type = %v", body["type"])
 	}
 }
+
+// AC-02 (review Q02): a body that trips MaxBytesReader is a 413 problem, never a 400/422/500.
+func TestStrictRequestError_MaxBytesIs413(t *testing.T) {
+	rec := httptest.NewRecorder()
+	httpapi.StrictRequestError(rec, httptest.NewRequest("POST", "/x", nil), fmt.Errorf("decode: %w", &http.MaxBytesError{Limit: 1}))
+	if rec.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("status = %d, want 413; body %s", rec.Code, rec.Body)
+	}
+	if ct := rec.Header().Get("Content-Type"); ct != "application/problem+json" {
+		t.Errorf("Content-Type = %q", ct)
+	}
+}

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -299,5 +300,28 @@ func TestContractsAreScopedToTheAssociationInThePath(t *testing.T) {
 	gotMissing := norm(body(srv.URL+"/finance/associations/"+otherAssocID+"/contracts/"+missing), missing)
 	if gotB != gotMissing {
 		t.Errorf("get under B = %s, want the body of a missing id %s", gotB, gotMissing)
+	}
+}
+
+// AC-02 (review Q02): finance limits its bodies; a chunked body over 1 MiB is 413 problem+json.
+func TestCreateContractRefusesAnOversizeChunkedBody(t *testing.T) {
+	srv := newServer(t)
+	big := `{"counterparty":"` + strings.Repeat("a", 2<<20) + `","amount_cents":1,"currency":"UAH","signed_at":"2026-01-15"}`
+	req, err := http.NewRequest("POST", srv.URL+"/finance/associations/"+assocID+"/contracts", io.MultiReader(strings.NewReader(big)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	raw, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusRequestEntityTooLarge {
+		t.Fatalf("chunked 2 MiB JSON: status = %d (%.200s), want 413", resp.StatusCode, raw)
+	}
+	if ct := resp.Header.Get("Content-Type"); ct != "application/problem+json" {
+		t.Errorf("Content-Type = %q, want application/problem+json", ct)
 	}
 }

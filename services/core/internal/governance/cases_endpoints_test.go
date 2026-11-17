@@ -1071,3 +1071,46 @@ func TestAddCaseDocumentAnswersStorageUnavailableOnAChecksumMismatch(t *testing.
 		}
 	}
 }
+
+// chunkedBody hides the length of a body so the request goes out with Transfer-Encoding: chunked.
+func chunkedBody(r io.Reader) io.Reader { return io.MultiReader(r) }
+
+func (r caseResp) is413Problem() bool {
+	var p struct {
+		Status int `json:"status"`
+	}
+	return r.status == http.StatusRequestEntityTooLarge && json.Unmarshal(r.body, &p) == nil && p.Status == http.StatusRequestEntityTooLarge
+}
+
+// AC-02 (review Q02): a body over the limit sent without Content-Length is 413 problem+json, not a 422
+// field error or a 500, for the JSON limit and for the 21 MB multipart limit, and nothing is stored.
+func TestOversizeChunkedBodiesAnswer413(t *testing.T) {
+	e := newCaseEnv(t)
+	e.connectStorage(t, uuid.MustParse(e.a))
+	c := e.mustCreate(t, "head", e.a, caseTitle1)
+
+	t.Run("json over 1 MiB", func(t *testing.T) {
+		big := `{"title":"` + strings.Repeat("a", 2<<20) + `"}`
+		got := e.send(t, "head", "POST", caseBase(e.a), "application/json", chunkedBody(strings.NewReader(big)))
+		if !got.is413Problem() {
+			t.Fatalf("chunked 2 MiB JSON: status = %d (%.200s), want 413 problem+json", got.status, got.body)
+		}
+	})
+	t.Run("multipart over 21 MB", func(t *testing.T) {
+		body, ct := caseMultipart(t, nil, &partSpec{"file", "big.pdf", "application/pdf", append([]byte("%PDF-1.4\n"), make([]byte, 22<<20)...)})
+		got := e.send(t, "head", "POST", caseBase(e.a)+"/"+c.ID+"/documents", ct, chunkedBody(body))
+		if !got.is413Problem() {
+			t.Fatalf("chunked 22 MB multipart: status = %d (%.200s), want 413 problem+json", got.status, got.body)
+		}
+	})
+	t.Run("multipart over 21 MB with a length", func(t *testing.T) {
+		body, ct := caseMultipart(t, nil, &partSpec{"file", "big.pdf", "application/pdf", append([]byte("%PDF-1.4\n"), make([]byte, 22<<20)...)})
+		got := e.send(t, "head", "POST", caseBase(e.a)+"/"+c.ID+"/documents", ct, body)
+		if !got.is413Problem() {
+			t.Fatalf("22 MB multipart: status = %d (%.200s), want 413 problem+json", got.status, got.body)
+		}
+	})
+	if n := len(e.files.uploaded()); n != 0 {
+		t.Errorf("uploads reaching the storage = %d, want 0", n)
+	}
+}

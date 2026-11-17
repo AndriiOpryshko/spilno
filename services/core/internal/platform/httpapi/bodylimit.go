@@ -17,8 +17,7 @@ func BodyLimit(multipart, other int64) func(http.Handler) http.Handler {
 				limit = multipart
 			}
 			if r.ContentLength > limit {
-				w.Header().Set("Connection", "close")
-				WriteProblem(w, Problem{Title: "Request Entity Too Large", Status: http.StatusRequestEntityTooLarge})
+				writeTooLarge(w)
 				return
 			}
 			r.Body = http.MaxBytesReader(w, r.Body, limit)

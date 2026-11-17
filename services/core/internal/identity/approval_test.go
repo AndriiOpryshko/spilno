@@ -6,8 +6,8 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -51,6 +51,7 @@ func newApprovalEnvWith(t *testing.T, seat func(ctx context.Context, association
 		end = gov.EndTerm
 	}
 	idm := identity.New(pool)
+	idm.SetClock(approvalNow)
 	idm.EnableApprovals(identity.ApprovalConfig{SeatHead: seat, EndTerm: end})
 	people := map[string]identity.ProviderIdentity{}
 	for p, email := range map[string]string{"first": "first@example.test", "second": "second@example.test", "head": "head@example.test", "operator": guardOperatorEmail} {
@@ -76,6 +77,33 @@ func newApprovalEnvWith(t *testing.T, seat func(ctx context.Context, association
 		env.cookies[p] = c
 	}
 	return env
+}
+
+// approvalClockEnv names the date the approval tests pin the module clock to (YYYY-MM-DD). Unset,
+// the clock is the real one. `ONBOARDING_TEST_CLOCK=2027-06-01 go test ./internal/identity/...`
+// proves no test depends on the day it runs.
+const approvalClockEnv = "ONBOARDING_TEST_CLOCK"
+
+// approvalNow is the clock of the approval tests: the pinned date at noon in Kyiv, or time.Now.
+func approvalNow() time.Time {
+	v := os.Getenv(approvalClockEnv)
+	if v == "" {
+		return time.Now()
+	}
+	loc, err := time.LoadLocation("Europe/Kyiv")
+	if err != nil {
+		loc = time.UTC
+	}
+	d, err := time.ParseInLocation("2006-01-02", v, loc)
+	if err != nil {
+		panic(approvalClockEnv + ": " + err.Error())
+	}
+	return d.Add(12 * time.Hour)
+}
+
+// approvalTermEnd is a term end that stays in the future of the test clock, as a date string.
+func approvalTermEnd() string {
+	return approvalNow().AddDate(0, 0, 60).Format("2006-01-02")
 }
 
 type approvalFiled struct{ app, filing string }
@@ -108,13 +136,22 @@ func approvalGoodCheck(t *testing.T, e *reviewEnv, f approvalFiled) {
 
 func approvalApprove(e *reviewEnv, t *testing.T, as string, f approvalFiled, document string) (int, []byte) {
 	t.Helper()
+	status, body, err := approvalApproveErr(e, as, f, document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return status, body
+}
+
+// approvalApproveErr is approvalApprove for a goroutine: it returns the transport error.
+func approvalApproveErr(e *reviewEnv, as string, f approvalFiled, document string) (int, []byte, error) {
 	m := map[string]any{"filing_id": f.filing}
 	if document != "" {
 		m["relied_on_document"] = document
 	}
 	b, _ := json.Marshal(m)
-	status, _, body := e.do(t, as, http.MethodPost, "/identity/operator/applications/"+f.app+"/approval", string(b))
-	return status, body
+	status, _, body, err := e.doErr(as, http.MethodPost, "/identity/operator/applications/"+f.app+"/approval", string(b))
+	return status, body, err
 }
 
 func approvalScalar[T any](t *testing.T, e *reviewEnv, q string, args ...any) T {
@@ -339,31 +376,14 @@ func TestApproval_CompetingApplicationsCreateExactlyOneAssociation(t *testing.T)
 		approvalGoodCheck(t, e, two)
 		assocs := approvalAssociations(t, e)
 
-		type reply struct {
-			status int
-			body   []byte
-		}
-		var wg sync.WaitGroup
-		replies := make([]reply, 2)
-		start := make(chan struct{})
-		for i, f := range []approvalFiled{one, two} {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				<-start
-				s, b := approvalApprove(e, t, "operator", f, "")
-				replies[i] = reply{s, b}
-			}()
-		}
-		close(start)
-		wg.Wait()
+		replies := raceAll(t, raceApprove(e, t, one), raceApprove(e, t, two))
 
 		ok, conflict := 0, 0
 		for _, r := range replies {
 			switch {
 			case r.status == http.StatusOK:
 				ok++
-			case r.status == http.StatusConflict && assocStateProblemCode(r.body) == "identity.association_already_connected":
+			case r.status == http.StatusConflict && r.code == "identity.association_already_connected":
 				conflict++
 			default:
 				t.Errorf("racing approval = %d %s, want 200 or 409 identity.association_already_connected", r.status, r.body)

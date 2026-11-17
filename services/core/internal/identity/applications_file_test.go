@@ -117,21 +117,31 @@ func fileAppMultipart(t *testing.T, fields map[string]string, extract []byte) ([
 func (e *fileAppEnv) file(t *testing.T, as string, fields map[string]string, extract []byte) guardReply {
 	t.Helper()
 	body, ct := fileAppMultipart(t, fields, extract)
-	req, err := http.NewRequest("POST", e.srv.URL+"/identity/applications", bytes.NewReader(body))
+	r, err := e.fileBody(as, body, ct)
 	if err != nil {
 		t.Fatal(err)
 	}
-	req.Header.Set("Content-Type", ct)
+	return r
+}
+
+// fileBody posts an already built multipart body; it returns the error instead of failing the
+// test, so a goroutine can use it.
+func (e *fileAppEnv) fileBody(as string, body []byte, contentType string) (guardReply, error) {
+	req, err := http.NewRequest("POST", e.srv.URL+"/identity/applications", bytes.NewReader(body))
+	if err != nil {
+		return guardReply{}, err
+	}
+	req.Header.Set("Content-Type", contentType)
 	if c := e.cookies[as]; c != nil {
 		req.AddCookie(c)
 	}
 	resp, err := signInNoRedirect.Do(req)
 	if err != nil {
-		t.Fatal(err)
+		return guardReply{}, err
 	}
 	defer resp.Body.Close()
-	b, _ := io.ReadAll(resp.Body)
-	return guardReply{resp.StatusCode, b}
+	b, err := io.ReadAll(resp.Body)
+	return guardReply{resp.StatusCode, b}, err
 }
 
 func (e *fileAppEnv) counts(t *testing.T) [3]int {

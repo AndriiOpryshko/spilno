@@ -192,7 +192,7 @@ func TestApprovalTransfer_AnApplicantOnTheRosterIsReseatedWithoutASecondEntry(t 
 	if got.Entries != 1 || got.Position != "head" || got.TermEnd != nil || got.Decision == nil || got.Decision.String() != transferApprovalDecision(t, e, f) {
 		t.Errorf("applicant's entry = %+v, want one open head entry under the decision", got)
 	}
-	if _, ok := approvalMember(t, e, assoc, "first@example.test", time.Now()); ok {
+	if _, ok := approvalMember(t, e, assoc, "first@example.test", approvalNow()); ok {
 		t.Error("previous head is still current")
 	}
 }
@@ -317,10 +317,10 @@ func TestApprovalTransfer_RefusesWithoutAMatchingCheckAndLeavesTheRoster(t *test
 			}
 			status, body := approvalApprove(e, t, "operator", f, "")
 			approvalRefused(t, e, f, status, body, http.StatusConflict, c.want, assocs, decisions)
-			if _, ok := approvalMember(t, e, assoc, "second@example.test", time.Now()); ok {
+			if _, ok := approvalMember(t, e, assoc, "second@example.test", approvalNow()); ok {
 				t.Error("applicant was seated by a refused approval")
 			}
-			if m, ok := approvalMember(t, e, assoc, "first@example.test", time.Now()); !ok || m.Position != "head" {
+			if m, ok := approvalMember(t, e, assoc, "first@example.test", approvalNow()); !ok || m.Position != "head" {
 				t.Errorf("previous head = %+v ok=%v after a refusal, want unchanged", m, ok)
 			}
 		})
@@ -366,10 +366,10 @@ func TestApprovalTransfer_AFailingRosterStepRollsBackEverything(t *testing.T) {
 
 	status, body := approvalApprove(e, t, "operator", f, "")
 	approvalRefused(t, e, f, status, body, http.StatusInternalServerError, "", assocs, decisions)
-	if _, ok := approvalMember(t, e, assoc, "second@example.test", time.Now()); ok {
+	if _, ok := approvalMember(t, e, assoc, "second@example.test", approvalNow()); ok {
 		t.Error("applicant stayed seated after the rollback")
 	}
-	if m, ok := approvalMember(t, e, assoc, "first@example.test", time.Now()); !ok || m.Position != "head" {
+	if m, ok := approvalMember(t, e, assoc, "first@example.test", approvalNow()); !ok || m.Position != "head" {
 		t.Errorf("previous head = %+v ok=%v after the rollback, want unchanged", m, ok)
 	}
 }
@@ -391,15 +391,15 @@ func transferApprovalSeedHeadUntil(t *testing.T, e *reviewEnv, termEnd string) (
 // AC-08: the term end filed with the заявка lands on the roster entry of the new голова.
 func TestApproval_TheFiledTermEndIsStoredOnTheRosterEntry(t *testing.T) {
 	e := newApprovalEnv(t, nil)
-	assoc := transferApprovalSeedHeadUntil(t, e, "2026-12-31")
+	assoc := transferApprovalSeedHeadUntil(t, e, approvalTermEnd())
 	got := transferApprovalLatest(t, e, assoc, "first@example.test")
-	if got.Position != "head" || !transferApprovalSameDay(got.TermEnd, "2026-12-31") {
-		t.Errorf("head's entry = %+v, want head with term end 2026-12-31", got)
+	if got.Position != "head" || !transferApprovalSameDay(got.TermEnd, approvalTermEnd()) {
+		t.Errorf("head's entry = %+v, want head with term end %s", got, approvalTermEnd())
 	}
-	if _, ok := approvalMember(t, e, assoc, "first@example.test", transferApprovalDay("2026-12-31")); !ok {
+	if _, ok := approvalMember(t, e, assoc, "first@example.test", transferApprovalDay(approvalTermEnd())); !ok {
 		t.Error("head is not a member on the last day of the term")
 	}
-	if _, ok := approvalMember(t, e, assoc, "first@example.test", transferApprovalDay("2027-01-01")); ok {
+	if _, ok := approvalMember(t, e, assoc, "first@example.test", transferApprovalDay(approvalTermEnd()).AddDate(0, 0, 1)); ok {
 		t.Error("head is a member after the filed term end")
 	}
 }
@@ -408,7 +408,7 @@ func TestApproval_TheFiledTermEndIsStoredOnTheRosterEntry(t *testing.T) {
 // it the day before the new term, seats the applicant, and leaves exactly one current head.
 func TestApprovalTransfer_EndsAPreviousHeadWhoseEntryHasAFutureTermEnd(t *testing.T) {
 	e := newApprovalEnv(t, nil)
-	assoc := transferApprovalSeedHeadUntil(t, e, "2026-12-31")
+	assoc := transferApprovalSeedHeadUntil(t, e, approvalTermEnd())
 	if status, body := transferApprovalProbe(e, t, "first", assoc); status != http.StatusOK {
 		t.Fatalf("previous head before the transfer = %d %s, want 200", status, body)
 	}
@@ -440,7 +440,7 @@ func TestApprovalTransfer_EndsAPreviousHeadWhoseEntryHasAFutureTermEnd(t *testin
 // AC-19: a previous голова whose term end is already earlier than the day before the new term keeps it.
 func TestApprovalTransfer_APreviousHeadKeepsAnEarlierTermEnd(t *testing.T) {
 	e := newApprovalEnv(t, nil)
-	assoc := transferApprovalSeedHeadUntil(t, e, "2026-12-31")
+	assoc := transferApprovalSeedHeadUntil(t, e, approvalTermEnd())
 	transferApprovalInRoster(t, e, assoc, func(ctx context.Context, tx db.DBTX) {
 		tag, err := tx.Exec(ctx, `UPDATE board_member_revisions SET term_end = '2026-11-10' WHERE association_id = $1 AND sign_in_email = 'first@example.test'`, assoc)
 		if err != nil || tag.RowsAffected() != 1 {
@@ -467,7 +467,7 @@ func TestApprovalTransfer_AHandMadeHeadWithATermEndKeepsItsEntryAndEnd(t *testin
 	e := newApprovalEnv(t, nil)
 	assoc := transferApprovalHandAssoc
 	transferApprovalInRoster(t, e, assoc, func(_ context.Context, tx db.DBTX) {
-		governancetest.MemberTerm(t, tx, uuid.MustParse(assoc), "first@example.test", "member", transferApprovalDay("2026-01-01"), transferApprovalDay("2026-12-31"))
+		governancetest.MemberTerm(t, tx, uuid.MustParse(assoc), "first@example.test", "member", transferApprovalDay("2026-01-01"), transferApprovalDay(approvalTermEnd()))
 	})
 	f := transferApprovalFile(t, e, "first", "55667788", assoc, "2026-11-05")
 	approvalRecordCheck(t, e, f, true, "55667788", "Test User")
@@ -475,8 +475,8 @@ func TestApprovalTransfer_AHandMadeHeadWithATermEndKeepsItsEntryAndEnd(t *testin
 		t.Fatalf("approveApplication (hand-made) = %d, want 200: %s", status, body)
 	}
 	got := transferApprovalLatest(t, e, assoc, "first@example.test")
-	if got.Entries != 1 || got.Position != "head" || !transferApprovalSameDay(got.TermEnd, "2026-12-31") {
-		t.Errorf("member's entry = %+v, want one head entry ending 2026-12-31", got)
+	if got.Entries != 1 || got.Position != "head" || !transferApprovalSameDay(got.TermEnd, approvalTermEnd()) {
+		t.Errorf("member's entry = %+v, want one head entry ending %s", got, approvalTermEnd())
 	}
 }
 

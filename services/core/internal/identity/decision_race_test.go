@@ -10,10 +10,14 @@ type raceReply struct {
 	status int
 	code   string
 	body   []byte
+	err    error
 }
 
-// raceAll releases every call at once and returns the replies in call order.
-func raceAll(calls ...func() raceReply) []raceReply {
+// raceAll releases every call at once and returns the replies in call order. The calls run on
+// goroutines and must not touch t: they return their failure in raceReply.err, which raceAll
+// reports from the test goroutine once all of them are done.
+func raceAll(t *testing.T, calls ...func() raceReply) []raceReply {
+	t.Helper()
 	out := make([]raceReply, len(calls))
 	start := make(chan struct{})
 	var wg sync.WaitGroup
@@ -27,20 +31,25 @@ func raceAll(calls ...func() raceReply) []raceReply {
 	}
 	close(start)
 	wg.Wait()
+	for i, r := range out {
+		if r.err != nil {
+			t.Fatalf("racing call %d: %v", i, r.err)
+		}
+	}
 	return out
 }
 
 func raceApprove(e *reviewEnv, t *testing.T, f approvalFiled) func() raceReply {
 	return func() raceReply {
-		s, b := approvalApprove(e, t, "operator", f, "")
-		return raceReply{s, assocStateProblemCode(b), b}
+		s, b, err := approvalApproveErr(e, "operator", f, "")
+		return raceReply{s, assocStateProblemCode(b), b, err}
 	}
 }
 
 func raceReject(e *reviewEnv, t *testing.T, f approvalFiled) func() raceReply {
 	return func() raceReply {
-		s, c, b := rejectionPost(e, t, "operator", f.app, f.filing, "Причина")
-		return raceReply{s, c, b}
+		s, c, b, err := rejectionPostErr(e, "operator", f.app, f.filing, "Причина")
+		return raceReply{s, c, b, err}
 	}
 }
 
@@ -70,7 +79,7 @@ func TestDecisionRace_ApprovedTwiceAtOnce(t *testing.T) {
 	approvalGoodCheck(t, e, f)
 	assocs, decisions := approvalAssociations(t, e), approvalDecisions(t, e)
 
-	wantOneWinner(t, raceAll(raceApprove(e, t, f), raceApprove(e, t, f)), http.StatusOK, "identity.application_not_pending")
+	wantOneWinner(t, raceAll(t, raceApprove(e, t, f), raceApprove(e, t, f)), http.StatusOK, "identity.application_not_pending")
 
 	if n := approvalAssociations(t, e); n != assocs+1 {
 		t.Fatalf("associations = %d, want %d", n, assocs+1)
@@ -90,7 +99,7 @@ func TestDecisionRace_ApprovedAndRejectedAtOnce(t *testing.T) {
 	approvalGoodCheck(t, e, f)
 	assocs := approvalAssociations(t, e)
 
-	replies := raceAll(raceApprove(e, t, f), raceReject(e, t, f))
+	replies := raceAll(t, raceApprove(e, t, f), raceReject(e, t, f))
 	won, lost := 0, 0
 	for _, r := range replies {
 		switch {
@@ -125,11 +134,12 @@ func TestDecisionRace_ApprovedAndRejectedAtOnce(t *testing.T) {
 // AC-04c: two filings by one person for one code racing into the pending unique key leave one row.
 func TestDecisionRace_TwoFilingsRaceIntoThePendingKey(t *testing.T) {
 	e := newFileAppEnv(t)
+	body, ct := fileAppMultipart(t, fileAppFields(), fileAppPDF(64))
 	file := func() raceReply {
-		r := e.file(t, "first", fileAppFields(), fileAppPDF(64))
-		return raceReply{r.status, r.code(), r.body}
+		r, err := e.fileBody("first", body, ct)
+		return raceReply{r.status, r.code(), r.body, err}
 	}
-	wantOneWinner(t, raceAll(file, file), http.StatusCreated, "identity.application_already_open")
+	wantOneWinner(t, raceAll(t, file, file), http.StatusCreated, "identity.application_already_open")
 	if c := e.counts(t); c != [3]int{1, 1, 1} {
 		t.Fatalf("rows = %v, want [1 1 1]", c)
 	}

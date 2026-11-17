@@ -40,16 +40,23 @@ type StorageConnections struct {
 	repo        ports.GoogleConnectionRepository
 
 	now    func() time.Time
+	inTx   func(ctx context.Context, fn func(ctx context.Context) error) error
 	mu     sync.Mutex
 	states map[string]storageState
 }
 
 func NewStorageConnections(consent ports.StorageConsent, members StorageMembers, connections *GoogleConnections, repo ports.GoogleConnectionRepository) *StorageConnections {
-	return &StorageConnections{consent: consent, members: members, connections: connections, repo: repo, states: map[string]storageState{}, now: time.Now}
+	return &StorageConnections{consent: consent, members: members, connections: connections, repo: repo, states: map[string]storageState{}, now: time.Now,
+		inTx: func(ctx context.Context, fn func(context.Context) error) error { return fn(ctx) }}
 }
 
 // SetClock replaces the clock «today» is taken from.
 func (s *StorageConnections) SetClock(now func() time.Time) { s.now = now }
+
+// SetTransactor replaces how the write of a completed connection is wrapped in one transaction.
+func (s *StorageConnections) SetTransactor(inTx func(ctx context.Context, fn func(ctx context.Context) error) error) {
+	s.inTx = inTx
+}
 
 // Start returns the consent link; its single-use state is bound to the account and the association.
 func (s *StorageConnections) Start(account, association uuid.UUID) (string, error) {
@@ -96,14 +103,19 @@ func (s *StorageConnections) Complete(ctx context.Context, account, association 
 			return ports.GoogleConnection{}, &domain.CodedError{Code: domain.CodeStorageAccountPersonal}
 		}
 	}
-	err = s.connections.Connect(ctx, NewGoogleConnection{
-		AssociationID: association, AccountEmail: grant.AccountEmail, RefreshToken: grant.RefreshToken,
-		Scopes: grant.Scopes, DriveRootFolderID: grant.DriveRootFolderID, AuthorizedBy: account,
+	var conn ports.GoogleConnection
+	err = s.inTx(ctx, func(ctx context.Context) error {
+		if err := s.connections.Connect(ctx, NewGoogleConnection{
+			AssociationID: association, AccountEmail: grant.AccountEmail, RefreshToken: grant.RefreshToken,
+			Scopes: grant.Scopes, DriveRootFolderID: grant.DriveRootFolderID, AuthorizedBy: account,
+		}); err != nil {
+			return err
+		}
+		var e error
+		conn, e = s.repo.Get(ctx, association)
+		return e
 	})
-	if err != nil {
-		return ports.GoogleConnection{}, err
-	}
-	return s.repo.Get(ctx, association)
+	return conn, err
 }
 
 // Get returns the stored connection or ports.ErrGoogleConnectionNotFound.

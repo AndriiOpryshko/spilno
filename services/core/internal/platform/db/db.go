@@ -85,12 +85,6 @@ func From(ctx context.Context) (DBTX, error) {
 	return nil, ErrNoTransaction
 }
 
-// Detached returns ctx without the association transaction, for calls to outside services that
-// must not touch the database.
-func Detached(ctx context.Context) context.Context {
-	return context.WithValue(ctx, scopeKey{}, nil)
-}
-
 type scopeSpecKey struct{}
 
 type scopeSpec struct {

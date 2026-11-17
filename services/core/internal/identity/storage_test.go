@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -39,19 +40,39 @@ type storageT33Env struct {
 	mu          sync.Mutex
 	driveEmail  string // the account the fake Drive says gave the consent
 	refuseCodes bool
+	onToken     func() // called by the fake token endpoint before it answers (T96)
 }
 
 const storageT33Token = "1//storage-refresh-token"
 
 func newStorageT33Env(t *testing.T) *storageT33Env {
 	t.Helper()
+	return newStorageT33EnvWith(t, false)
+}
+
+// newStorageT33EnvWith builds the environment; onePool serves it on a pool of two connections.
+func newStorageT33EnvWith(t *testing.T, onePool bool) *storageT33Env {
+	t.Helper()
 	pool, a, b := testdb.NewTwoAssociations(t)
+	if onePool {
+		cfg := pool.Config().Copy()
+		cfg.MaxConns = 2 // the test pins one, see TestStorageCodeExchangeHoldsNoConnection
+		small, err := pgxpool.NewWithConfig(context.Background(), cfg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(small.Close)
+		pool = small
+	}
 	env := &storageT33Env{pool: pool, a: a, b: b, cookies: map[string]*http.Cookie{}, ids: map[string]uuid.UUID{}, driveEmail: "osbb@example.test"}
 
 	gfake := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		env.mu.Lock()
-		email, refuse := env.driveEmail, env.refuseCodes
+		email, refuse, onToken := env.driveEmail, env.refuseCodes, env.onToken
 		env.mu.Unlock()
+		if r.URL.Path == "/token" && onToken != nil {
+			onToken()
+		}
 		w.Header().Set("Content-Type", "application/json")
 		switch {
 		case r.URL.Path == "/token":
@@ -443,5 +464,83 @@ func TestStorageConnectionNamesNoMemberOnceTheyLeftTheRoster(t *testing.T) { // 
 	}
 	if got.ConnectedAt == nil {
 		t.Errorf("connected_at = null, want the stored time")
+	}
+}
+
+// T96: the code is exchanged with Google while no transaction is open, and the connection is written in
+// one scoped transaction afterwards. The pool is cut to one usable connection (the test pins the other
+// after the consent links are made): while the first completion waits for Google, a second one is served.
+func TestStorageCodeExchangeHoldsNoConnection(t *testing.T) { // AC-27
+	env := newStorageT33EnvWith(t, true)
+	state1 := env.start(t, "member", env.a)
+	state2 := env.start(t, "member", env.a)
+
+	pinned, err := env.pool.Acquire(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	pinnedReleased := false
+	releasePin := func() {
+		if !pinnedReleased {
+			pinnedReleased = true
+			pinned.Release()
+		}
+	}
+	defer releasePin()
+
+	inExchange := make(chan struct{})
+	release := make(chan struct{})
+	var firstCall atomic.Bool // a flag, not sync.Once: Once.Do would block the second token call behind the first
+	var held int32 = -1
+	env.mu.Lock()
+	env.onToken = func() {
+		if firstCall.CompareAndSwap(false, true) {
+			held = env.pool.Stat().AcquiredConns() - 1 // minus the pinned one
+			close(inExchange)
+			<-release
+		}
+	}
+	env.mu.Unlock()
+	var releaseOnce sync.Once
+	unblock := func() { releaseOnce.Do(func() { close(release) }) }
+	defer unblock()
+
+	type result struct {
+		status int
+		body   []byte
+	}
+	done := make(chan result, 1)
+	go func() {
+		s, b := env.complete(t, "member", env.a, "code-1", state1)
+		done <- result{s, b}
+	}()
+	select {
+	case <-inExchange:
+	case <-time.After(10 * time.Second):
+		t.Fatalf("completeStorageConnection never reached the token endpoint on a pool with one free connection: the request holds its transaction before the exchange (acquired = %d, one pinned by the test); want the exchange to run with none", env.pool.Stat().AcquiredConns())
+	}
+
+	other := make(chan int, 1)
+	go func() {
+		s, _ := env.complete(t, "member", env.a, "code-2", state2)
+		other <- s
+	}()
+	select {
+	case s := <-other:
+		if s != http.StatusCreated {
+			t.Errorf("second completion during the exchange: status %d, want 201", s)
+		}
+	case <-time.After(5 * time.Second):
+		t.Errorf("another request was not served while the code exchange was in flight: pooled connections held by the exchange = %d, want 0", held)
+	}
+
+	unblock()
+	r := <-done
+	if r.status != http.StatusCreated {
+		t.Fatalf("completeStorageConnection: status %d, want 201; body %s", r.status, r.body)
+	}
+	releasePin()
+	if rows := env.rows(t, env.a); len(rows) != 1 {
+		t.Errorf("stored connections = %v, want exactly one", rows)
 	}
 }

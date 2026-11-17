@@ -35,12 +35,30 @@ func applicationBody(a ports.ReviewApplication) gen.Application {
 	return out
 }
 
+func queueApplicationBody(a ports.ReviewApplication) gen.QueueApplication {
+	out := gen.QueueApplication{
+		Id: a.ID, Kind: gen.ApplicationKind(a.Kind), State: gen.ApplicationState(a.State), Edrpou: a.Edrpou,
+		AssociationName: a.AssociationName, CreatedAt: a.CreatedAt, FiledAt: a.FiledAt, RejectionReason: a.RejectionReason,
+		Competing: a.Competing,
+	}
+	out.AssociationId = reviewUUIDPtr(a.AssociationID)
+	return out
+}
+
 func reviewUUIDPtr(id *uuid.UUID) *openapi_types.UUID {
 	if id == nil {
 		return nil
 	}
 	v := openapi_types.UUID(*id)
 	return &v
+}
+
+func differingBody(d []domain.NameRole) []gen.ReviewWarningDiffering {
+	out := make([]gen.ReviewWarningDiffering, len(d))
+	for i, r := range d {
+		out[i] = gen.ReviewWarningDiffering(r)
+	}
+	return out
 }
 
 func checkBody(c ports.ReviewCheck) gen.ExtractCheck {
@@ -78,14 +96,14 @@ func (h *Handler) ListApplicationsForReview(ctx context.Context, req gen.ListApp
 	if err != nil {
 		return nil, err
 	}
-	page := gen.ApplicationPage{Items: []gen.Application{}}
+	page := gen.QueueApplicationPage{Items: []gen.QueueApplication{}}
 	if len(rows) > limit {
 		rows = rows[:limit]
 		next := encodeAssociationCursor(ports.AssociationCursor{CreatedAt: rows[limit-1].CreatedAt, ID: rows[limit-1].ID})
 		page.NextCursor = &next
 	}
 	for _, r := range rows {
-		page.Items = append(page.Items, applicationBody(r))
+		page.Items = append(page.Items, queueApplicationBody(r))
 	}
 	return gen.ListApplicationsForReview200JSONResponse(page), nil
 }
@@ -138,7 +156,7 @@ func (h *Handler) GetApplicationForReview(ctx context.Context, req gen.GetApplic
 	}
 	out.CompetingApplicationIds = append(out.CompetingApplicationIds, v.Competing...)
 	for _, w := range v.Warnings {
-		out.Warnings = append(out.Warnings, gen.ReviewWarning{Kind: gen.ReviewWarningKind(w.Kind), Detail: w.Detail})
+		out.Warnings = append(out.Warnings, gen.ReviewWarning{Kind: gen.ReviewWarningKind(w.Kind), Detail: w.Detail, Differing: differingBody(w.Differing)})
 	}
 	return gen.GetApplicationForReview200JSONResponse(out), nil
 }

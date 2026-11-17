@@ -53,6 +53,7 @@ import type {
   OperatorAssociationPage,
   Principal,
   Problem,
+  QueueApplicationPage,
   RejectApplicationRequest,
   SessionRequiredResponse,
   StorageConnection,
@@ -1420,7 +1421,7 @@ export function useDownloadMyExtract<TData = Awaited<ReturnType<typeof downloadM
 
 
 export type listApplicationsForReviewResponse200 = {
-  data: ApplicationPage
+  data: QueueApplicationPage
   status: 200
 }
 

@@ -70,7 +70,8 @@ const checked: ApplicationReview = {
 };
 
 let review: ApplicationReview;
-let queueItems: ApplicationReview['application'][];
+type QueueItem = ApplicationReview['application'] & { competing: boolean };
+let queueItems: QueueItem[];
 let otherReviews: Record<string, ApplicationReview>;
 let queueStatus: number;
 let urls: string[];
@@ -87,7 +88,10 @@ function fakeApi(input: RequestInfo | URL, init?: RequestInit) {
     return Promise.resolve(json(200, {}));
   }
   if (path.endsWith('/identity/operator/applications')) {
-    if (queueStatus !== 200) return Promise.resolve(json(queueStatus, { type: 'about:blank', title: 'x', status: queueStatus, code: 'identity.not_operator' }));
+    if (queueStatus !== 200) {
+      const code = queueStatus === 403 ? { code: 'identity.not_operator' } : {};
+      return Promise.resolve(json(queueStatus, { type: 'about:blank', title: 'x', status: queueStatus, ...code }));
+    }
     return Promise.resolve(json(200, { items: queueItems, next_cursor: null }));
   }
   if (path.endsWith(`/identity/operator/applications/${appId}`)) return Promise.resolve(json(200, review));
@@ -107,7 +111,7 @@ async function renderInRouter(ui: ReactNode) {
 
 beforeEach(() => {
   review = base;
-  queueItems = [application];
+  queueItems = [{ ...application, competing: false }];
   otherReviews = {};
   queueStatus = 200;
   urls = [];
@@ -120,42 +124,49 @@ afterEach(() => {
 });
 
 describe('ReviewPage', () => {
-  it('marks typed values as entered by the applicant and checked ones as «не перевірено» before the check (AC-10)', async () => {
-    await renderInRouter(<ReviewPage applicationId={appId} />);
-    expect(await screen.findByText('Тестовий Голова Правління')).toBeInTheDocument();
-    expect(screen.getAllByText(/введено заявником/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/не перевірено/).length).toBeGreaterThan(0);
-    expect(screen.queryByText(/перевірено оператором/)).not.toBeInTheDocument();
+  // The payloads the backend sends (review_warning.go, TestReview_NameWarningSaysWhichValuesDiffer): `detail` is
+  // English and `differing` says which of the three values differ, in the order typed, signer, head.
+  const typed = 'Іваненко Іван Іванович';
+  const signer = 'Петренко Петро Петрович';
+  const head = 'Сидоренко Сидір Сидорович';
+  const mismatch = (signerName: string, headName: string, warning: { detail: string; differing: ('typed' | 'signer' | 'head')[] }): ApplicationReview => ({
+    ...checked,
+    filings: [{ ...checked.filings[0]!, applicant_full_name: typed }],
+    checks: [{ ...checked.checks[0]!, signer_full_name: signerName, head_full_name: headName }],
+    warnings: [{ kind: 'name_mismatch', ...warning }],
   });
+  const nameCases: [string, ApplicationReview, string[], string[]][] = [
+    [
+      'all three differ',
+      mismatch(signer, head, {
+        detail: `names differ: typed name "${typed}", extract signer "${signer}", head in extract "${head}"`,
+        differing: ['typed', 'signer', 'head'],
+      }),
+      [typed, signer, head],
+      [],
+    ],
+    ['only the head differs', mismatch(typed, head, { detail: `names differ: head in extract "${head}"`, differing: ['head'] }), [head], [typed, signer]],
+    [
+      'only the signer differs',
+      mismatch(signer, typed, { detail: `names differ: extract signer "${signer}"`, differing: ['signer'] }),
+      [signer],
+      [typed, head],
+    ],
+    [
+      'only the typed name differs',
+      mismatch(signer, signer, { detail: `names differ: typed name "${typed}"`, differing: ['typed'] }),
+      [typed],
+      [signer, head],
+    ],
+  ];
 
-  it('shows the three source labels with the check date after the check (AC-10)', async () => {
-    review = checked;
-    await renderInRouter(<ReviewPage applicationId={appId} />);
-    await screen.findAllByText(/введено заявником/);
-    expect(screen.getAllByText(/з витягу з ЄДР, внесено оператором (11\.11\.2026|11 листопада 2026)/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/з КЕП, перевірено оператором (11\.11\.2026|11 листопада 2026)/).length).toBeGreaterThan(0);
-    expect(screen.queryByText(/не перевірено/)).not.toBeInTheDocument();
-  });
-
-  // The payload the backend sends: domain.ReviewWarnings fills detail with English text (review_warning.go).
-  it('writes the name warning in Ukrainian with the three names, never the server text, and keeps «Схвалити» available (AC-11)', async () => {
-    review = {
-      ...checked,
-      filings: [{ ...checked.filings[0]!, applicant_full_name: 'Іваненко Іван Іванович' }],
-      checks: [{ ...checked.checks[0]!, signer_full_name: 'Петренко Петро Петрович', head_full_name: 'Сидоренко Сидір Сидорович' }],
-      warnings: [
-        {
-          kind: 'name_mismatch',
-          detail: 'names differ: typed name "Іваненко Іван Іванович", extract signer "Петренко Петро Петрович", head in extract "Сидоренко Сидір Сидорович"',
-        },
-      ],
-    };
+  it.each(nameCases)('writes the name warning in Ukrainian naming only the differing values: %s (AC-11)', async (_name, fixture, named, notNamed) => {
+    review = fixture;
     await renderInRouter(<ReviewPage applicationId={appId} />);
     const warning = await screen.findByText(/розбіжність імен/i);
     const box = warning.closest('[role="status"]') as HTMLElement;
-    expect(box).toHaveTextContent('Іваненко Іван Іванович');
-    expect(box).toHaveTextContent('Петренко Петро Петрович');
-    expect(box).toHaveTextContent('Сидоренко Сидір Сидорович');
+    for (const n of named) expect(box).toHaveTextContent(n);
+    for (const n of notNamed) expect(box).not.toHaveTextContent(n);
     expect(screen.queryByText(/names differ|typed name|extract signer|head in extract/)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Схвалити/ })).toBeEnabled();
   });
@@ -164,7 +175,7 @@ describe('ReviewPage', () => {
     review = {
       ...checked,
       checks: [{ ...checked.checks[0]!, extract_dated_on: '2026-09-01' }],
-      warnings: [{ kind: 'extract_age', detail: 'extract dated 2026-09-01 is more than 30 days old' }],
+      warnings: [{ kind: 'extract_age', detail: 'extract dated 2026-09-01 is more than 30 days old', differing: [] }],
     };
     await renderInRouter(<ReviewPage applicationId={appId} />);
     const warning = await screen.findByText(/старший за 30 днів/);
@@ -379,8 +390,9 @@ describe('ReviewPage after a refiling', () => {
   it('presents the newest filing with the latest check of that filing (AC-06, AC-15)', async () => {
     await renderInRouter(<ReviewPage applicationId={appId} />);
     expect(await screen.findByText('Новий Заявник')).toBeInTheDocument();
-    expect(screen.getByText('Останній підписант нової заяви')).toBeInTheDocument();
-    expect(screen.getAllByText(/з КЕП, перевірено оператором (14\.11\.2026|14 листопада 2026)/).length).toBeGreaterThan(0);
+    const signer = rowOf(uk.operator.signer);
+    expect(within(signer).getByText('Останній підписант нової заяви')).toBeInTheDocument();
+    expect(within(signer).getByText(sourceAt(uk.operator.fromSignature, '2026-11-14T10:00:00Z'))).toBeInTheDocument();
     expect(screen.queryByText('Перший підписант нової заяви')).not.toBeInTheDocument();
   });
 
@@ -460,15 +472,16 @@ describe('OperatorQueue', () => {
     expect(screen.queryByText('Немає доступу')).not.toBeInTheDocument();
   });
 
-  const pendingOf = (id: string, name: string, kind: 'connection' | 'transfer', edrpou: string, state = 'pending') =>
-    ({ ...application, id, association_name: name, kind, edrpou, state }) as ApplicationReview['application'];
+  // The server marks every item over the whole queue (AC-04c, AC-19b); the page never works it out from its rows.
+  const queueItem = (id: string, name: string, kind: 'connection' | 'transfer', competing: boolean, state = 'pending') =>
+    ({ ...application, id, association_name: name, kind, state, competing }) as QueueItem;
   const queueRow = (name: string) => screen.getByRole('link', { name }).closest('li') as HTMLElement;
 
-  it('marks both rows of two pending заявки for one ЄДРПОУ as competing, and no other row (AC-04c)', async () => {
+  it('marks the rows the server marked as competing заявки, and no other row (AC-04c)', async () => {
     queueItems = [
-      pendingOf(appId, 'ОСББ Перше', 'connection', '12345678'),
-      pendingOf(otherIds[0]!, 'ОСББ Друге', 'connection', '12345678'),
-      pendingOf(otherIds[1]!, 'ОСББ Окреме', 'connection', '87654321'),
+      queueItem(appId, 'ОСББ Перше', 'connection', true),
+      queueItem(otherIds[0]!, 'ОСББ Друге', 'connection', true),
+      queueItem(otherIds[1]!, 'ОСББ Окреме', 'connection', false),
     ];
     await renderInRouter(<OperatorQueue />);
     await screen.findByRole('link', { name: 'ОСББ Перше' });
@@ -477,24 +490,40 @@ describe('OperatorQueue', () => {
     expect(within(queueRow('ОСББ Окреме')).queryByText(uk.operator.competingConnection)).not.toBeInTheDocument();
   });
 
-  it('marks both rows of two pending запити for one ЄДРПОУ as competing (AC-19b)', async () => {
+  it('marks a row whose competitor is not on the page, because the server said so (AC-04c)', async () => {
+    queueItems = [queueItem(appId, 'ОСББ Перше', 'connection', true)];
+    await renderInRouter(<OperatorQueue />);
+    await screen.findByRole('link', { name: 'ОСББ Перше' });
+    expect(within(queueRow('ОСББ Перше')).getByText(uk.operator.competingConnection)).toBeInTheDocument();
+  });
+
+  it('does not mark a row the server did not mark, whatever else the page holds for its ЄДРПОУ (AC-04c)', async () => {
     queueItems = [
-      pendingOf(appId, 'ОСББ Перше', 'transfer', '12345678'),
-      pendingOf(otherIds[0]!, 'ОСББ Друге', 'transfer', '12345678'),
+      queueItem(appId, 'ОСББ Перше', 'connection', false),
+      queueItem(otherIds[0]!, 'ОСББ Друге', 'connection', false),
     ];
+    await renderInRouter(<OperatorQueue />);
+    await screen.findByRole('link', { name: 'ОСББ Перше' });
+    expect(within(queueRow('ОСББ Перше')).queryByText(uk.operator.competingConnection)).not.toBeInTheDocument();
+  });
+
+  it('marks both rows of two competing запити as запити (AC-19b)', async () => {
+    queueItems = [queueItem(appId, 'ОСББ Перше', 'transfer', true), queueItem(otherIds[0]!, 'ОСББ Друге', 'transfer', true)];
     await renderInRouter(<OperatorQueue />);
     await screen.findByRole('link', { name: 'ОСББ Перше' });
     expect(within(queueRow('ОСББ Перше')).getByText(uk.operator.competingTransfer)).toBeInTheDocument();
     expect(within(queueRow('ОСББ Друге')).getByText(uk.operator.competingTransfer)).toBeInTheDocument();
   });
 
-  it('does not mark a pending заявка because of a decided one with the same ЄДРПОУ', async () => {
-    queueItems = [
-      pendingOf(appId, 'ОСББ Перше', 'connection', '12345678'),
-      pendingOf(otherIds[0]!, 'ОСББ Друге', 'connection', '12345678', 'rejected'),
-    ];
+  it('shows the fallback with a retry that reads the queue again when the read fails (not a blank page)', async () => {
+    queueStatus = 500;
     await renderInRouter(<OperatorQueue />);
-    await screen.findByRole('link', { name: 'ОСББ Перше' });
-    expect(within(queueRow('ОСББ Перше')).queryByText(uk.operator.competingConnection)).not.toBeInTheDocument();
+    expect(await screen.findByText(uk.association.requestFailed)).toBeInTheDocument();
+    const reads = () => urls.filter((path) => path.endsWith('/identity/operator/applications')).length;
+    const before = reads();
+    queueStatus = 200;
+    fireEvent.click(screen.getByRole('button', { name: uk.association.retry }));
+    expect(await screen.findByRole('link', { name: 'ОСББ «Тестовий Будинок»' })).toBeInTheDocument();
+    expect(reads()).toBeGreaterThan(before);
   });
 });

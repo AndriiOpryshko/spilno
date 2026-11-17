@@ -161,8 +161,14 @@ export const uk = {
     storageAccount: 'Акаунт зі сховищем файлів',
     extractAgeBefore: 'Витяг сформовано',
     extractAgeAfter: 'старший за 30 днів',
-    nameMismatch: (typed: string, signer: string, head: string) =>
-      `Розбіжність імен: у заявці «${typed}», підписант «${signer}», голова за витягом «${head}»`,
+    nameMismatch: (typed: string, signer: string, head: string, differing: readonly ('typed' | 'signer' | 'head')[]) => {
+      const named = {
+        typed: `у заявці «${typed}»`,
+        signer: `підписант «${signer}»`,
+        head: `голова за витягом «${head}»`,
+      };
+      return `Розбіжність імен: ${differing.map((role) => named[role]).join(', ')}`;
+    },
     downloadExtract: 'Завантажити витяг',
     earlierFilings: 'Попередні подання',
     approve: 'Схвалити',

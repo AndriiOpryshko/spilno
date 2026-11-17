@@ -61,7 +61,9 @@ func (s *Reviews) List(ctx context.Context, state string, after *ports.Associati
 			return nil, err
 		}
 		for _, r := range rows {
-			out = append(out, reviewApplication(r.ID, r.Kind, r.Edrpou, r.AssociationID, r.State, r.CreatedAt, r.AssociationName, r.FiledAt, r.RejectionReason))
+			a := reviewApplication(r.ID, r.Kind, r.Edrpou, r.AssociationID, r.State, r.CreatedAt, r.AssociationName, r.FiledAt, r.RejectionReason)
+			a.Competing = r.Competing
+			out = append(out, a)
 		}
 		return out, nil
 	}

@@ -2,13 +2,18 @@ import { Link } from '@tanstack/react-router';
 
 import { useListApplicationsForReview } from '@/api/gen/endpoints/identity/identity';
 import { Badge } from '@/components/ui/badge';
+import { RequestFallback } from '@/features/identity/shell/request-fallback';
 import { uk } from '@/i18n/uk';
 
 export function OperatorQueue() {
-  const { data } = useListApplicationsForReview();
-  if (!data) return null;
-  const items = data.data.items;
-  const pendingCount = (a: { edrpou: string }) => items.filter((o) => o.state === 'pending' && o.edrpou === a.edrpou).length;
+  const query = useListApplicationsForReview();
+  // A 403 is left to the section guard; any other failed read shows the fallback, never a blank page.
+  if (query.isError) {
+    if ((query.error as { status?: number } | null)?.status === 403) return null;
+    return <RequestFallback error={query.error} onRetry={() => void query.refetch()} />;
+  }
+  if (!query.data) return null;
+  const items = query.data.data.items;
   return (
     <section className="mx-auto mt-8 flex max-w-2xl flex-col gap-3">
       <h1 className="text-xl font-semibold">{uk.operator.queueTitle}</h1>
@@ -19,7 +24,7 @@ export function OperatorQueue() {
               {a.association_name}
             </Link>
             <div className="flex items-center gap-2">
-              {a.state === 'pending' && pendingCount(a) > 1 && (
+              {a.competing && (
                 <Badge variant="secondary">{a.kind === 'transfer' ? uk.operator.competingTransfer : uk.operator.competingConnection}</Badge>
               )}
               <Badge variant="secondary">{a.kind === 'transfer' ? uk.operator.kindTransfer : uk.operator.kindConnection}</Badge>

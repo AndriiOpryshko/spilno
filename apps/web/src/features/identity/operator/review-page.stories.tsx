@@ -113,6 +113,7 @@ export const Mismatch: Story = {
         kind: 'name_mismatch',
         detail:
           'names differ: typed name "Тестовий Голова Правління", extract signer "Петренко Петро Петрович", head in extract "Сидоренко Сидір Сидорович"',
+        differing: ['typed', 'signer', 'head'],
       },
     ],
   }),
@@ -128,7 +129,7 @@ export const OldExtract: Story = {
   beforeEach: serve({
     ...base,
     checks: [{ ...check, extract_dated_on: '2026-09-01' }],
-    warnings: [{ kind: 'extract_age', detail: 'extract dated 2026-09-01 is more than 30 days old' }],
+    warnings: [{ kind: 'extract_age', detail: 'extract dated 2026-09-01 is more than 30 days old', differing: [] }],
   }),
   play: async ({ canvasElement }) => {
     await expect(await within(canvasElement).findByText('Витяг сформовано 01.09.2026 — старший за 30 днів')).toBeInTheDocument();

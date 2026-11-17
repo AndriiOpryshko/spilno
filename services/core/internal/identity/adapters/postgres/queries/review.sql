@@ -1,6 +1,10 @@
 -- name: ListPendingApplications :many
 SELECT a.id, a.kind, a.edrpou, a.association_id, a.state, a.created_at,
-       f.association_name, f.created_at AS filed_at, d.reason AS rejection_reason
+       f.association_name, f.created_at AS filed_at, d.reason AS rejection_reason,
+       EXISTS (
+           SELECT 1 FROM applications o
+           WHERE o.state = 'pending' AND o.id <> a.id AND o.edrpou = a.edrpou
+       ) AS competing
 FROM applications a
 JOIN LATERAL (
     SELECT association_name, created_at FROM application_filings

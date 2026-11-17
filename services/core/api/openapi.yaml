@@ -456,11 +456,11 @@ paths:
         - $ref: "#/components/parameters/Cursor"
       responses:
         "200":
-          description: One page of applications in the given state.
+          description: One page of applications in the given state, each marked when another pending application holds the same ЄДРПОУ (AC-04c).
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/ApplicationPage" }
-              examples: { queue: { $ref: "#/components/examples/ApplicationPage" } }
+              schema: { $ref: "#/components/schemas/QueueApplicationPage" }
+              examples: { queue: { $ref: "#/components/examples/QueueApplicationPage" } }
         "401": { $ref: "#/components/responses/SessionRequired" }
         "403": { $ref: "#/components/responses/NotOperator" }
         "422": { $ref: "#/components/responses/ValidationFailed" }
@@ -2101,6 +2101,11 @@ components:
         items:
           - { id: 00000000-0000-7000-8000-00000000c001, kind: connection, edrpou: "12345678", association_id: null, association_name: ОСББ «Тестовий Будинок», state: pending, filed_at: "2026-11-10T09:00:00Z", rejection_reason: null, created_at: "2026-11-10T09:00:00Z" }
         next_cursor: null
+    QueueApplicationPage:
+      value:
+        items:
+          - { id: 00000000-0000-7000-8000-00000000c001, kind: connection, edrpou: "12345678", association_id: null, association_name: ОСББ «Тестовий Будинок», state: pending, filed_at: "2026-11-10T09:00:00Z", rejection_reason: null, created_at: "2026-11-10T09:00:00Z", competing: false }
+        next_cursor: null
     ApplicationDetailRejected:
       value:
         application: { id: 00000000-0000-7000-8000-00000000c001, kind: connection, edrpou: "12345678", association_id: null, association_name: ОСББ «Тестовий Будинок», state: rejected, filed_at: "2026-11-10T09:00:00Z", rejection_reason: "у витягу інший керівник, документа про обрання не надано", created_at: "2026-11-10T09:00:00Z" }
@@ -3415,6 +3420,38 @@ components:
           type: array
           items: { $ref: "#/components/schemas/Application" }
         next_cursor: { type: [string, "null"] }
+    QueueApplication:
+      description: >-
+        An application as the оператор's queue lists it: the Application shape (closed, so not allOf over it) plus
+        `competing`. Only listApplicationsForReview returns it; the applicant's own list keeps Application, so a
+        person is never told that someone else filed for the same code.
+      type: object
+      additionalProperties: false
+      required: [id, kind, edrpou, association_id, association_name, state, filed_at, rejection_reason, created_at, competing]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { $ref: "#/components/schemas/ApplicationKind" }
+        edrpou: { type: string, maxLength: 8 }
+        association_id: { type: [string, "null"], format: uuid }
+        association_name: { type: string, maxLength: 200 }
+        state: { $ref: "#/components/schemas/ApplicationState" }
+        filed_at:
+          description: created_at of the latest filing (AC-05 «очікує розгляду з …»).
+          type: string
+          format: date-time
+        rejection_reason: { type: [string, "null"], maxLength: 1000 }
+        created_at: { type: string, format: date-time }
+        competing:
+          description: True for a pending application when another pending application has the same edrpou, over the whole queue and not the page; false for a decided one (AC-04c, AC-19b).
+          type: boolean
+    QueueApplicationPage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/QueueApplication" }
+        next_cursor: { type: [string, "null"] }
     ExtractRef:
       description: application_extracts metadata; the content is served only by the download operations.
       type: object
@@ -3497,13 +3534,19 @@ components:
     ReviewWarning:
       type: object
       additionalProperties: false
-      required: [kind, detail]
+      required: [kind, detail, differing]
       properties:
         kind: { $ref: "#/components/schemas/ReviewWarningKind" }
         detail:
           description: Which values differ, or the extract's date (AC-11, AC-11b).
           type: string
           maxLength: 500
+        differing:
+          description: >-
+            For name_mismatch, the values that differ from the other two (all three when none agree), in the order
+            typed, signer, head; empty for extract_age. The review page already holds the three values (AC-11).
+          type: array
+          items: { type: string, enum: [typed, signer, head] }
     ApplicationReview:
       description: The оператор's view (AC-10). Values entered by the applicant and recorded by the оператор are told apart by where they sit (filings vs checks).
       type: object

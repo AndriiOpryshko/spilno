@@ -6,8 +6,10 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -69,6 +71,10 @@ type caseDrive struct {
 	ids         []string // every storage file and revision id handed out
 	uploads     []caseUpload
 	unavailable bool
+	wrongSHA    bool     // Upload fails with ports.ErrChecksumMismatch and keeps nothing
+	removeErr   error    // Remove fails with it and keeps the file
+	removed     []string // storage ids Remove was asked for
+	onUpload    func()   // runs after the bytes are stored, before Upload returns
 }
 
 var _ ports.Files = (*caseDrive)(nil)
@@ -87,10 +93,13 @@ func (d *caseDrive) handedOut() []string {
 
 func (d *caseDrive) Upload(_ context.Context, name, mediaType string, body io.Reader) (ports.StoredFile, error) {
 	d.mu.Lock()
-	unavailable := d.unavailable
+	unavailable, wrongSHA := d.unavailable, d.wrongSHA
 	d.mu.Unlock()
 	if unavailable {
 		return ports.StoredFile{}, &domain.DomainError{Code: domain.CodeStorageUnavailable}
+	}
+	if wrongSHA {
+		return ports.StoredFile{}, ports.ErrChecksumMismatch
 	}
 	b, err := io.ReadAll(body)
 	if err != nil {
@@ -104,7 +113,32 @@ func (d *caseDrive) Upload(_ context.Context, name, mediaType string, body io.Re
 	d.ids = append(d.ids, id, rev)
 	d.uploads = append(d.uploads, caseUpload{Name: name, MediaType: mediaType, Data: b})
 	sum := sha256.Sum256(b)
+	if d.onUpload != nil {
+		hook := d.onUpload
+		d.mu.Unlock()
+		hook()
+		d.mu.Lock()
+	}
 	return ports.StoredFile{ID: id, Revision: rev, SHA256: hex.EncodeToString(sum[:]), Size: int64(len(b)), MediaType: mediaType}, nil
+}
+
+// Remove deletes the stored file; an unknown id is not an error (idempotent).
+func (d *caseDrive) Remove(_ context.Context, id string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.removed = append(d.removed, id)
+	if d.removeErr != nil {
+		return d.removeErr
+	}
+	delete(d.data, id)
+	return nil
+}
+
+// stored is the number of files the storage holds right now.
+func (d *caseDrive) stored() int {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return len(d.data)
 }
 
 func (d *caseDrive) Open(_ context.Context, id string) (io.ReadCloser, error) {
@@ -896,5 +930,144 @@ func TestCasesAreIsolatedBetweenAssociations(t *testing.T) {
 	}
 	if n := e.count(t, e.b, "cases"); n != 2 {
 		t.Errorf("B's cases = %d, want 2 (seeded and created)", n)
+	}
+}
+
+// openTransactions counts the sessions of this database that sit idle inside a transaction.
+func (e *caseEnv) openTransactions(t *testing.T) int {
+	t.Helper()
+	var n int
+	if err := e.pool.QueryRow(context.Background(),
+		`SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() AND state LIKE 'idle in transaction%'`).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	return n
+}
+
+// deleteCase removes a справа behind the service's back, so the document insert that follows an upload fails.
+func (e *caseEnv) deleteCase(t *testing.T, assoc, id uuid.UUID) {
+	t.Helper()
+	e.seed(t, assoc, func(ctx context.Context, tx db.DBTX) {
+		if _, err := tx.Exec(ctx, `DELETE FROM cases WHERE id = $1`, id); err != nil {
+			t.Fatal(err)
+		}
+	})
+}
+
+// captureLog routes the default slog logger into the returned buffer for the test.
+func captureLog(t *testing.T) *syncBuffer {
+	t.Helper()
+	buf := &syncBuffer{}
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+	return buf
+}
+
+type syncBuffer struct {
+	mu sync.Mutex
+	b  bytes.Buffer
+}
+
+func (s *syncBuffer) Write(p []byte) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.Write(p)
+}
+
+func (s *syncBuffer) String() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.String()
+}
+
+// AC-28, T94: the bytes go to the storage before the write transaction opens. While the storage holds the
+// upload no transaction of this database is open, and the files row and the document row land together.
+func TestAddCaseDocumentUploadsBeforeTheWriteTransaction(t *testing.T) {
+	e := newCaseEnv(t)
+	c := e.mustCreate(t, "head", e.a, caseTitle1)
+	e.connectStorage(t, uuid.MustParse(e.a))
+
+	open := -1
+	e.files.onUpload = func() { open = e.openTransactions(t) }
+	got := e.upload(t, "head", e.a, c.ID, "kosztorys.pdf", "application/pdf", casePDF, nil)
+	if got.status != http.StatusCreated {
+		t.Fatalf("addCaseDocument: status = %d, want 201; body %s", got.status, got.body)
+	}
+	if open != 0 {
+		t.Errorf("open transactions while the storage held the upload = %d, want 0: the write transaction opens after the upload", open)
+	}
+	for _, table := range []string{"files", "case_documents"} {
+		if n := e.count(t, e.a, table); n != 1 {
+			t.Errorf("%s rows = %d, want 1", table, n)
+		}
+	}
+	if n := e.files.stored(); n != 1 {
+		t.Errorf("files in the storage = %d, want 1", n)
+	}
+}
+
+// AC-28, T94: a write that fails after a successful upload removes the uploaded file and answers 5xx.
+func TestAddCaseDocumentRemovesTheUploadedFileWhenTheWriteFails(t *testing.T) {
+	e := newCaseEnv(t)
+	c := e.mustCreate(t, "head", e.a, caseTitle1)
+	e.connectStorage(t, uuid.MustParse(e.a))
+
+	e.files.onUpload = func() { e.deleteCase(t, uuid.MustParse(e.a), uuid.MustParse(c.ID)) }
+	got := e.upload(t, "head", e.a, c.ID, "kosztorys.pdf", "application/pdf", casePDF, nil)
+	if got.status < 500 || got.status > 599 {
+		t.Fatalf("upload whose insert fails: status = %d, want a 5xx problem; body %s", got.status, got.body)
+	}
+	if n := e.files.stored(); n != 0 {
+		t.Errorf("files left in the storage after the failed write = %d, want 0 (removed)", n)
+	}
+	for _, table := range []string{"files", "case_documents"} {
+		if n := e.count(t, e.a, table); n != 0 {
+			t.Errorf("%s rows = %d after the failed write, want 0", table, n)
+		}
+	}
+}
+
+// AC-28, T94: a failed removal is logged with the storage id and without the file name; the answer stays 5xx.
+func TestAddCaseDocumentLogsAFailedRemovalWithTheStorageIDOnly(t *testing.T) {
+	e := newCaseEnv(t)
+	c := e.mustCreate(t, "head", e.a, caseTitle1)
+	e.connectStorage(t, uuid.MustParse(e.a))
+	logs := captureLog(t)
+
+	e.files.removeErr = errors.New("drive is down")
+	e.files.onUpload = func() { e.deleteCase(t, uuid.MustParse(e.a), uuid.MustParse(c.ID)) }
+	got := e.upload(t, "head", e.a, c.ID, "secret-kosztorys.pdf", "application/pdf", casePDF, nil)
+	if got.status < 500 || got.status > 599 {
+		t.Fatalf("upload whose insert and removal fail: status = %d, want 5xx; body %s", got.status, got.body)
+	}
+	ids := e.files.handedOut()
+	if len(ids) == 0 || len(e.files.removed) == 0 {
+		t.Fatalf("storage ids handed out = %v, removals asked = %v, want the uploaded file's removal to be tried", ids, e.files.removed)
+	}
+	log := logs.String()
+	if !strings.Contains(log, e.files.removed[0]) {
+		t.Errorf("log %q, want the storage id %q of the file that could not be removed", log, e.files.removed[0])
+	}
+	if strings.Contains(log, "secret-kosztorys") {
+		t.Errorf("log %q carries the file name, want the storage id only", log)
+	}
+}
+
+// AC-28, T94: a checksum mismatch is a storage problem: 503 governance.storage_unavailable, nothing recorded.
+func TestAddCaseDocumentAnswersStorageUnavailableOnAChecksumMismatch(t *testing.T) {
+	e := newCaseEnv(t)
+	c := e.mustCreate(t, "head", e.a, caseTitle1)
+	e.connectStorage(t, uuid.MustParse(e.a))
+
+	e.files.wrongSHA = true
+	got := e.upload(t, "head", e.a, c.ID, "kosztorys.pdf", "application/pdf", casePDF, nil)
+	if got.status != http.StatusServiceUnavailable || got.code() != "governance.storage_unavailable" {
+		t.Fatalf("upload with a checksum mismatch: status = %d code = %q, want 503 governance.storage_unavailable; body %s", got.status, got.code(), got.body)
+	}
+	for _, table := range []string{"files", "case_documents"} {
+		if n := e.count(t, e.a, table); n != 0 {
+			t.Errorf("%s rows = %d after the mismatch, want 0", table, n)
+		}
 	}
 }

@@ -46,6 +46,14 @@ type driveFiles struct {
 
 var _ ports.Files = (*driveFiles)(nil)
 
+// Remove deletes the file; an unknown id is not an error.
+func (d *driveFiles) Remove(_ context.Context, id string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	delete(d.data, id)
+	return nil
+}
+
 func (d *driveFiles) put(id string, b []byte) {
 	d.mu.Lock()
 	defer d.mu.Unlock()

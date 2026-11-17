@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"hash"
 	"io"
@@ -189,9 +190,17 @@ func (f *Files) patch(ctx context.Context, id string, change map[string]any) err
 	return nil
 }
 
+// Remove deletes the file; a file that is already gone is not an error.
+func (f *Files) Remove(ctx context.Context, id string) error {
+	return f.remove(ctx, id)
+}
+
 // remove is files.delete.
 func (f *Files) remove(ctx context.Context, id string) error {
 	resp, err := f.send(ctx, http.MethodDelete, f.fileURL(id), "", nil)
+	if errors.Is(err, ports.ErrFileNotFound) {
+		return nil
+	}
 	if err != nil {
 		return err
 	}

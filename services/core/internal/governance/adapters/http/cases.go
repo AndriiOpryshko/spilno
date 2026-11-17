@@ -15,7 +15,6 @@ import (
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/app"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/domain"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/ports"
-	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/db"
 )
 
 func (h *Handler) ListCases(ctx context.Context, req gen.ListCasesRequestObject) (gen.ListCasesResponseObject, error) {
@@ -88,16 +87,8 @@ func (h *Handler) GetCase(ctx context.Context, req gen.GetCaseRequestObject) (ge
 	return out, nil
 }
 
-func (h *Handler) AddCaseDocument(ctx context.Context, req gen.AddCaseDocumentRequestObject) (out gen.AddCaseDocumentResponseObject, err error) {
-	// One transaction around the whole body until the operation moves its outside call out of it.
-	err = db.InScope(ctx, func(ctx context.Context) (e error) {
-		out, e = h.addCaseDocument(ctx, req)
-		return e
-	})
-	return out, err
-}
-
-func (h *Handler) addCaseDocument(ctx context.Context, req gen.AddCaseDocumentRequestObject) (gen.AddCaseDocumentResponseObject, error) {
+func (h *Handler) AddCaseDocument(ctx context.Context, req gen.AddCaseDocumentRequestObject) (gen.AddCaseDocumentResponseObject, error) {
+	// The service opens its own transactions: the upload runs between them, outside any.
 	connected, err := h.storage(ctx, req.AssociationId)
 	if err != nil {
 		return nil, err

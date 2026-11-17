@@ -50,4 +50,6 @@ type Files interface {
 	SetReadOnly(ctx context.Context, id string) error
 	// Untrash restores a trashed file; a no-op on a file that is not trashed.
 	Untrash(ctx context.Context, id string) error
+	// Remove deletes the file; idempotent, a file that is not there is not an error.
+	Remove(ctx context.Context, id string) error
 }

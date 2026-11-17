@@ -160,6 +160,17 @@ func (f *Fake) Untrash(_ context.Context, id string) error {
 	return nil
 }
 
+// Remove implements ports.Files.
+func (f *Fake) Remove(_ context.Context, id string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.unavailable {
+		return unavailable()
+	}
+	delete(f.files, id)
+	return nil
+}
+
 func (f *Fake) checkAvailable() error {
 	f.mu.Lock()
 	defer f.mu.Unlock()

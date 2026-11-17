@@ -70,21 +70,21 @@
 | [T63](./T63-serve-registry-read.md) | Serve the реєстр протоколів: search and the signed protocol | ports | Andrii Opryshko | L | T62 | done |
 | [T64](./T64-serve-file-download-read-only-check.md) | Serve file downloads, and only signed copies while the association is read-only | ports | Andrii Opryshko | M | T58, T63 | done |
 | [T65](./T65-serve-cases-and-document-upload.md) | Serve справи and document upload behind the storage guard | ports | Andrii Opryshko | L | T64 | done |
-| [T66](./T66-ui-sign-in-link-generated-urls.md) | Point «Увійти» at the API and build every API link from the generated URL helpers | ui | Andrii Opryshko | S | — | todo |
-| [T67](./T67-ui-operator-layout-entry-guard.md) | Give the оператор's section an index, its own navigation and one access guard | ui | Andrii Opryshko | M | T66 | todo |
-| [T68](./T68-ui-association-shell-card-notice.md) | Put the association card in the navigation and the suspended notice in the association layout | ui | Andrii Opryshko | M | T67 | todo |
-| [T69](./T69-ui-review-latest-filing-extract-download.md) | Review the latest filing with its latest check, and let the оператор download the extract | ui | Andrii Opryshko | M | T67 | todo |
-| [T70](./T70-ui-review-source-labels-competing.md) | Label the source of every value on the review page and show competing заявки side by side | ui | Andrii Opryshko | M | T60, T69 | todo |
-| [T71](./T71-ui-ukrainian-warnings-field-errors.md) | Write the warnings and the field errors in Ukrainian from structured data | ui | Andrii Opryshko | M | T70 | todo |
-| [T72](./T72-card-ended-mark-only-when-a-term-ended.md) | Show «повноваження завершено» in the card history only when the decision ended a term | ports | Andrii Opryshko | M | T51, T60 | todo |
-| [T73](./T73-ui-operator-contact-address.md) | Show the оператор's contact address in every environment | ui | Andrii Opryshko | S | — | todo |
-| [T74](./T74-ui-shared-problem-fallback.md) | Give every page a loading state and one fallback for a failed request | ui | Andrii Opryshko | M | T68 | todo |
-| [T75](./T75-ui-mutation-errors-and-focus.md) | Report every failed operator action and keep focus after a decision | ui | Andrii Opryshko | M | T67 | todo |
-| [T76](./T76-ui-one-date-formatter.md) | Format every date with one Europe/Kyiv formatter | ui | Andrii Opryshko | S | — | todo |
-| [T77](./T77-ui-reuse-inline-alert-hooks-links.md) | Reuse InlineAlert, the generated hooks and router links across the identity screens | ui | Andrii Opryshko | M | T71, T74, T75 | todo |
-| [T78](./T78-ui-roster-screen.md) | Build the roster screen: list, add and change члени правління, with the decision mark on each голова | ui | Andrii Opryshko | L | T62, T68 | todo |
-| [T79](./T79-ui-registry-screens.md) | Build the реєстр протоколів: search and the signed protocol with its download | ui | Andrii Opryshko | M | T63, T64, T68 | todo |
-| [T80](./T80-ui-cases-on-api-with-upload.md) | Move the справи list and the case screen to the API, with document upload and the storage message | ui | Andrii Opryshko | L | T65, T68 | todo |
+| [T66](./T66-ui-sign-in-link-generated-urls.md) | Point «Увійти» at the API and build every API link from the generated URL helpers | ui | Andrii Opryshko | S | — | done |
+| [T67](./T67-ui-operator-layout-entry-guard.md) | Give the оператор's section an index, its own navigation and one access guard | ui | Andrii Opryshko | M | T66 | done |
+| [T68](./T68-ui-association-shell-card-notice.md) | Put the association card in the navigation and the suspended notice in the association layout | ui | Andrii Opryshko | M | T67 | done |
+| [T69](./T69-ui-review-latest-filing-extract-download.md) | Review the latest filing with its latest check, and let the оператор download the extract | ui | Andrii Opryshko | M | T67 | done |
+| [T70](./T70-ui-review-source-labels-competing.md) | Label the source of every value on the review page and show competing заявки side by side | ui | Andrii Opryshko | M | T60, T69 | done |
+| [T71](./T71-ui-ukrainian-warnings-field-errors.md) | Write the warnings and the field errors in Ukrainian from structured data | ui | Andrii Opryshko | M | T70 | done |
+| [T72](./T72-card-ended-mark-only-when-a-term-ended.md) | Show «повноваження завершено» in the card history only when the decision ended a term | ports | Andrii Opryshko | M | T51, T60 | done |
+| [T73](./T73-ui-operator-contact-address.md) | Show the оператор's contact address in every environment | ui | Andrii Opryshko | S | — | done |
+| [T74](./T74-ui-shared-problem-fallback.md) | Give every page a loading state and one fallback for a failed request | ui | Andrii Opryshko | M | T68 | done |
+| [T75](./T75-ui-mutation-errors-and-focus.md) | Report every failed operator action and keep focus after a decision | ui | Andrii Opryshko | M | T67 | done |
+| [T76](./T76-ui-one-date-formatter.md) | Format every date with one Europe/Kyiv formatter | ui | Andrii Opryshko | S | — | done |
+| [T77](./T77-ui-reuse-inline-alert-hooks-links.md) | Reuse InlineAlert, the generated hooks and router links across the identity screens | ui | Andrii Opryshko | M | T71, T74, T75 | done |
+| [T78](./T78-ui-roster-screen.md) | Build the roster screen: list, add and change члени правління, with the decision mark on each голова | ui | Andrii Opryshko | L | T62, T68 | done |
+| [T79](./T79-ui-registry-screens.md) | Build the реєстр протоколів: search and the signed protocol with its download | ui | Andrii Opryshko | M | T63, T64, T68 | done |
+| [T80](./T80-ui-cases-on-api-with-upload.md) | Move the справи list and the case screen to the API, with document upload and the storage message | ui | Andrii Opryshko | L | T65, T68 | done |
 | [T81](./T81-e2e-review-fixes-through-clicks.md) | Prove the fixed flows end to end by clicking, not by typing addresses | tests | Andrii Opryshko | M | T52, T68, T71, T72, T73 | todo |
 | [T82](./T82-e2e-roster-registry-documents.md) | Prove the roster, the registry and the document refusal end to end | tests | Andrii Opryshko | L | T78, T79, T80 | todo |
 | [T83](./T83-concurrency-and-failure-tests.md) | Test the decisions and the filings under concurrency | tests | Andrii Opryshko | M | T52, T54 | done |

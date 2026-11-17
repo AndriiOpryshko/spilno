@@ -16,7 +16,7 @@ files_hint:
   - "services/core/internal/governance/module.go"
 owner: "Andrii Opryshko"
 estimate: "L"
-status: "todo"
+status: "in_progress"
 ---
 
 # T10 — Serve settings and roster: use cases, Postgres repositories, handlers and CurrentMember
@@ -39,3 +39,15 @@ status: "todo"
 - [ ] isolation test: rows of a second association are never returned ([ADR-0015](../adr/0015-scope-owned-rows-to-one-association-with-explicit-query-filters.md))
 - [ ] `CurrentMember` returns the person only when a term covers the date
 - [ ] `mise run lint` and `mise run test` green
+
+## Status (2026-11-17)
+
+The roster half is done by association-onboarding [T62](../../association-onboarding/tasks/T62-serve-roster-endpoints.md) (commit `8feed5e`):
+`listBoardMembers`, `createBoardMember` and `updateBoardMember` with their handler and integration tests
+(`services/core/internal/governance/roster_endpoints_test.go`: contract shapes, every broken field named with
+`governance.roster_entry_invalid`, a person off the roster, a вимкнене ОСББ, a second association), and
+`CurrentMember` in `module.go`.
+
+Left here: `getAssociationSettings` and `saveAssociationSettings` (still 501 stubs in `adapters/http/stubs.go`),
+their repository and queries, 422 `governance.settings_invalid`, and 409 `governance.register_start_locked`
+after the first number (AC-42).

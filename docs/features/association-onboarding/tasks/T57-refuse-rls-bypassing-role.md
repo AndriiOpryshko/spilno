@@ -13,7 +13,7 @@ files_hint:
   - ".env.example"
 owner: "Andrii Opryshko"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T57 — Refuse to start when the serving role bypasses row-level security

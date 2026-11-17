@@ -14,7 +14,7 @@ files_hint:
   - "services/core/internal/platform/google/"
 owner: "Andrii Opryshko"
 estimate: "L"
-status: "todo"
+status: "done"
 ---
 
 # T33 — Connect the association's document storage from the web app

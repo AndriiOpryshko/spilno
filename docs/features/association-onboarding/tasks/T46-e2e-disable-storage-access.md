@@ -8,7 +8,7 @@ files_hint:
   - "apps/web/e2e/"
 owner: "Andrii Opryshko"
 estimate: "L"
-status: "todo"
+status: "done"
 ---
 
 # T46 — Prove disabling, the read-only association, the storage connection and every access denial end to end (US-06, US-07, US-08)

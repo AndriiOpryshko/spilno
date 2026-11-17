@@ -13,7 +13,7 @@ files_hint:
   - "apps/web/e2e/support.ts"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T81 — Prove the fixed flows end to end by clicking, not by typing addresses

@@ -8,7 +8,7 @@ files_hint:
   - "apps/web/src/features/identity/__screenshots__/"
 owner: "Andrii Opryshko"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T84 — Refresh the visual baselines of the review page and the association card

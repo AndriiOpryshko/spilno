@@ -12,7 +12,7 @@ files_hint:
   - "apps/web/src/i18n/uk.ts"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T79 — Build the реєстр протоколів: search and the signed protocol with its download

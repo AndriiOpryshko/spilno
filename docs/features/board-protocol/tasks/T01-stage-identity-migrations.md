@@ -13,7 +13,7 @@ files_hint:
   - "docs/features/board-protocol/migrations/20261027120004_create_google_connections.down.sql"
 owner: "Andrii Opryshko"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T01 — Promote the identity migrations: accounts, sessions, google_connections

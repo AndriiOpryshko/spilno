@@ -10,7 +10,7 @@ files_hint:
   - "docs/features/association-onboarding/_review/"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T47 — Add the load scenarios for the latency and throughput targets of PRD §6

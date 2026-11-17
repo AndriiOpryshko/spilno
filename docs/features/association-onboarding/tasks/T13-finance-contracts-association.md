@@ -8,7 +8,7 @@ files_hint:
   - "services/core/internal/finance/"
 owner: "Andrii Opryshko"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T13 — Scope finance contracts to the association in the path

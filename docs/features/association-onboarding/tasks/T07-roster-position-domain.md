@@ -9,7 +9,7 @@ files_hint:
   - "services/core/internal/governance/domain/board_member_test.go"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T07 — Give roster entries a position and a decision reference, with the date rules of a transfer

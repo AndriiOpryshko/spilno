@@ -9,7 +9,7 @@ files_hint:
   - "services/core/internal/governance/domain/protocol_test.go"
 owner: "Andrii Opryshko"
 estimate: "L"
-status: "todo"
+status: "done"
 ---
 
 # T15 — Model the protocol lifecycle: states, revision, transitions and refusals

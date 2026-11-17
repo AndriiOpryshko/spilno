@@ -15,7 +15,7 @@ files_hint:
   - "apps/web/src/vite-env.d.ts"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T37 — Show my applications: status, the оператор's contact, the reason and refiling

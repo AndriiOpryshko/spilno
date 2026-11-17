@@ -13,7 +13,7 @@ files_hint:
   - "apps/web/src/features/identity/association/roster-decision-mark.test.tsx"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T41 — Build the association card with the confirmation chain and the roster marks

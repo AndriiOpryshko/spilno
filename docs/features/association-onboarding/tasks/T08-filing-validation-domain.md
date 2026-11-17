@@ -11,7 +11,7 @@ files_hint:
   - "services/core/internal/identity/domain/extract_file_test.go"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T08 — Validate a filing: every field at once, the term rules and the extract file

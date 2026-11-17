@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
-import { api, base, connected, problemOf } from './association-support';
-import { applicationIdOf, connectAssociation, fileAndConfirm, newEmail, newFiling, operatorEmail, sessionFor } from './support';
+import { addBoardMember, api, base, connected, openRoster, problemOf, rosterEntry, scheduleMeeting } from './association-support';
+import { applicationIdOf, connectAssociation, fileAndConfirm, newEmail, newFiling, openCard, openQueue, operatorEmail, sessionFor } from './support';
 
 const noAccess = 'Немає доступу';
 const missingId = '0198a0a0-0000-7000-8000-00000000dead';
@@ -23,8 +23,12 @@ test('AC-04d: two windows of one person hold two associations and keep them afte
   await expect(first.getByRole('link', { name: a.f.name })).toBeVisible();
   await expect(first.getByRole('link', { name: fb.name })).toBeVisible();
 
-  await first.goto(`/o/${a.associationId}/association`);
-  await second.goto(`/o/${b.associationId}/association`);
+  // Each window picks its association and opens the card from the sidebar.
+  await first.getByRole('link', { name: a.f.name }).click();
+  await openCard(first);
+  await second.goto('/');
+  await second.getByRole('link', { name: fb.name }).click();
+  await openCard(second);
   for (let i = 0; i < 2; i++) {
     await first.reload();
     await second.reload();
@@ -84,7 +88,7 @@ test('AC-16: a person who is not the оператор sees nothing of the queue 
   // Nothing was decided or switched off.
   await pending.goto(`/applications/${pendingId}`);
   await expect(pending.getByText(/^очікує розгляду з/)).toBeVisible();
-  await c.head.goto(`/o/${c.associationId}/association`);
+  await openCard(c.head);
   await expect(c.head.getByRole('heading', { name: c.f.name })).toBeVisible();
 });
 
@@ -97,11 +101,36 @@ test('AC-16b: the оператор sees the queue and no association records', a
   expect(before).toMatchObject({ status: 403, code: 'identity.not_current_member' });
   await operator.goto(`/o/${foreign.associationId}/cases`);
   await expect(operator.getByRole('heading', { name: noAccess })).toBeVisible();
-  await operator.goto('/operator/applications');
-  await expect(operator.getByRole('heading', { name: 'Заявки та запити' })).toBeVisible();
+  await openQueue(operator);
 
 });
 
-// An оператор seated on a roster cannot be made through the built surface: the roster write is a board-protocol stub
-// and the оператор cannot approve a заявка they filed (AC-16c).
-test.fixme('AC-16b: an оператор who is a член правління works in their own association only (needs board-protocol roster)', async () => {});
+test('AC-16b: an оператор who is a член правління works in their own association only', async ({ browser }) => {
+  const own = await connected(browser, newFiling());
+  const foreign = await connected(browser, newFiling());
+
+  // The голова seats the оператор's address on the roster.
+  await openRoster(own.head);
+  await addBoardMember(own.head, { fullName: 'Оператор Правлінський Тестович', email: operatorEmail, termStart: '2025-02-01' });
+
+  // `/` lands the оператор in the association, or on the picker when another run seated them elsewhere too.
+  const operator = await sessionFor(browser, operatorEmail);
+  await operator.goto('/');
+  await expect(operator.getByRole('link', { name: 'Оператор' })).toBeVisible();
+  const picked = operator.getByRole('link', { name: own.f.name, exact: true });
+  if (await picked.isVisible()) await picked.click();
+  await expect(operator).toHaveURL(new RegExp(`/o/${own.associationId}/`));
+
+  // There they work as any член правління: they read the roster and change a record.
+  await openRoster(operator);
+  await expect(rosterEntry(operator, own.f.fullName).getByText('голова правління', { exact: true })).toBeVisible();
+  expect((await scheduleMeeting(operator, own.associationId)).status()).toBe(201);
+
+  // Another association stays closed to them, and the role is still theirs.
+  const refused = await problemOf(await api(operator).get(`${base(foreign.associationId)}/board-members`));
+  expect(refused).toMatchObject({ status: 403, code: 'identity.not_current_member' });
+  expect(refused, 'the same answer as for a missing association (AC-07)').toEqual(await problemOf(await api(operator).get(`${base(missingId)}/board-members`)));
+  await operator.goto(`/o/${foreign.associationId}/roster`);
+  await expect(operator.getByRole('heading', { name: noAccess })).toBeVisible();
+  await openQueue(operator);
+});

@@ -6,10 +6,13 @@ import { applicationIdOf, checkFor, daysAgo, extractFile, fillFiling, openReview
 
 export const transferStart = () => daysAgo(5);
 
+// The extract of a запит differs from the one of the заявка, so a download shows which decision it belongs to.
+export const transferExtract = { ...extractFile, name: 'transfer-extract.pdf', buffer: Buffer.from('%PDF-1.4 test extract of a transfer') };
+
 export async function fileTransfer(page: Page, f: Filing, fullName: string) {
   await page.goto('/applications/new?kind=transfer');
   await fillFiling(page, { code: f.code, name: f.name, address: f.address, fullName, termStart: transferStart() });
-  await page.getByLabel('Витяг (до 5 МБ)').setInputFiles(extractFile);
+  await page.getByLabel('Витяг (до 5 МБ)').setInputFiles(transferExtract);
   await page.getByRole('button', { name: 'Подати запит' }).click();
 }
 

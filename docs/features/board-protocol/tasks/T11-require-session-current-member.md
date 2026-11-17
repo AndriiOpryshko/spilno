@@ -15,7 +15,7 @@ files_hint:
   - "docs/features/board-protocol/contracts/api-sync-report.md"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "replaced"
 ---
 
 # T11 — Require a session and a current член правління on the governance and finance routes

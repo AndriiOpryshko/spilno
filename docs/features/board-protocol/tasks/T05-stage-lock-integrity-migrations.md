@@ -17,7 +17,7 @@ files_hint:
   - "docs/features/board-protocol/migrations/20261027120022_create_integrity_runs.down.sql"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T05 — Promote the print-copy, meeting-facts, snapshot, trigger and integrity-run migrations

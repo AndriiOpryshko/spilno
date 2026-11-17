@@ -12,7 +12,7 @@ files_hint:
   - "services/core/go.mod"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T04 — Promote the assistant-turn and poll migrations and add the River schema

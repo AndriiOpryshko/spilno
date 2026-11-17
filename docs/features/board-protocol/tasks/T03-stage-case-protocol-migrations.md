@@ -15,7 +15,7 @@ files_hint:
   - "docs/features/board-protocol/migrations/20261027120016_create_decision_slots.down.sql"
 owner: "Andrii Opryshko"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T03 — Promote the case, protocol, agenda-item and decision-slot migrations

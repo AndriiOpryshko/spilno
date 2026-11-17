@@ -14,7 +14,7 @@ files_hint:
   - "apps/web/src/api/gen/"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T60 — Advertise the two missing problem codes in the contract and reconcile the sync report

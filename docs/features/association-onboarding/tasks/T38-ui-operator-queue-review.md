@@ -15,7 +15,7 @@ files_hint:
   - "apps/web/src/features/identity/operator/queue.tsx"
 owner: "Andrii Opryshko"
 estimate: "L"
-status: "todo"
+status: "done"
 ---
 
 # T38 — Build the оператор's queue and the review page with sources, warnings and the check form

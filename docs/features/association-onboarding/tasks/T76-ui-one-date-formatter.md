@@ -13,7 +13,7 @@ files_hint:
   - "apps/web/src/features/identity/association/association-card.tsx"
 owner: "Andrii Opryshko"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T76 — Format every date with one Europe/Kyiv formatter

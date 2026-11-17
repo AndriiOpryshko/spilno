@@ -11,7 +11,7 @@ files_hint:
   - "services/core/internal/governance/module.go"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T15 — Seat a голова and end a term through the governance facade inside the caller's transaction

@@ -11,7 +11,7 @@ files_hint:
   - "services/core/internal/governance/domain/board_member_test.go"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T09 — Model association settings and roster entries with all-fields validation

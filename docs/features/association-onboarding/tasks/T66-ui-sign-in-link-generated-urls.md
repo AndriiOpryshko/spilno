@@ -13,7 +13,7 @@ files_hint:
   - "apps/web/src/features/identity/association/roster-decision-mark.tsx"
 owner: "Andrii Opryshko"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T66 — Point «Увійти» at the API and build every API link from the generated URL helpers

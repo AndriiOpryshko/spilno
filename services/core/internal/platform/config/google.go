@@ -17,6 +17,21 @@ type Google struct {
 	ClientSecret string // GOOGLE_OAUTH_CLIENT_SECRET
 	TokenKeyID   string // GOOGLE_TOKEN_KEY_ID, names the key below
 	TokenKey     []byte // GOOGLE_TOKEN_KEY decoded: the AES-256 key, 32 bytes
+
+	DriveAPIURL    string // GOOGLE_DRIVE_API_URL, Google's by default; no trailing slash
+	DriveUploadURL string // GOOGLE_DRIVE_UPLOAD_URL, Google's by default; no trailing slash
+}
+
+const (
+	defaultDriveAPIURL    = "https://www.googleapis.com/drive/v3"
+	defaultDriveUploadURL = "https://www.googleapis.com/upload/drive/v3"
+)
+
+func envOr(name, def string) string {
+	if v := strings.TrimRight(os.Getenv(name), "/"); v != "" {
+		return v
+	}
+	return def
 }
 
 var (
@@ -51,6 +66,9 @@ func LoadGoogle() (*Google, error) {
 		ClientSecret: values["GOOGLE_OAUTH_CLIENT_SECRET"],
 		TokenKeyID:   values["GOOGLE_TOKEN_KEY_ID"],
 		TokenKey:     key,
+
+		DriveAPIURL:    envOr("GOOGLE_DRIVE_API_URL", defaultDriveAPIURL),
+		DriveUploadURL: envOr("GOOGLE_DRIVE_UPLOAD_URL", defaultDriveUploadURL),
 	}, nil
 }
 

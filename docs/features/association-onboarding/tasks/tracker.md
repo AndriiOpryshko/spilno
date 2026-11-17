@@ -137,8 +137,8 @@
 - **No screen creates a справа.** The справи list and the case screen read the API (T80); a справа is created
   only through `createCase` until board-protocol builds the draft flow. The e2e specs create it through the API.
 - **Board-protocol work still open behind this feature's ACs:** the association settings (board-protocol T10,
-  T35), the needs-review event and the upload metric of document versions (T21), the Drive adapter (T13b; the
-  API has a file storage only under `SPILNO_DEV_STORAGE=true`), and the lock that writes a signed protocol
+  T35), the needs-review event and the upload metric of document versions (T21), the Drive adapter (T13b; T97 wires it
+  per association, proven against a fake Drive only, a run against real Google remains), and the lock that writes a signed protocol
   (T29; the реєстр is tested on seeded protocols). Each task file there says what this feature delivered.
 - **The correction note of a signed protocol** is one section under the agenda, not beside the corrected item
   (board-protocol AC-15, noted in board-protocol T43).

@@ -110,3 +110,13 @@ func (m *Module) HasStorageConnection(ctx context.Context, associationID uuid.UU
 	}
 	return err == nil, err
 }
+
+// GoogleFolderID returns the spilno folder of the association's connection, or "" when it has none yet
+// or the association has no connection.
+func (m *Module) GoogleFolderID(ctx context.Context, associationID uuid.UUID) (string, error) {
+	c, err := postgres.NewGoogleConnections(m.pool).Get(ctx, associationID)
+	if errors.Is(err, ports.ErrGoogleConnectionNotFound) {
+		return "", nil
+	}
+	return c.DriveRootFolderID, err
+}

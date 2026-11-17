@@ -7,6 +7,7 @@ package governance
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"sync"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/adapters/filesfake"
+	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/adapters/gdrive"
 	governancehttp "github.com/AndriiOpryshko/spilno/services/core/internal/governance/adapters/http"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/adapters/http/gen"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/adapters/postgres"
@@ -70,6 +72,12 @@ func NewDevFiles() FilesResolver {
 		}
 		return stores[association], nil
 	}
+}
+
+// NewDriveFiles is the storage of one association on Google Drive: client is authorized as the
+// association's Google account, every upload goes into folderID. The addresses have no trailing slash.
+func NewDriveFiles(client *http.Client, folderID, apiURL, uploadURL string) Files {
+	return gdrive.New(gdrive.Config{HTTP: client, APIURL: apiURL, UploadURL: uploadURL, FolderID: folderID})
 }
 
 // WithFiles wires the storage behind downloadFile and addCaseDocument; without it they answer 503

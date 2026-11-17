@@ -14,6 +14,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/endpoints"
 
 	"github.com/AndriiOpryshko/spilno/services/core/internal/finance"
@@ -38,6 +39,25 @@ type rosterOf struct{ gov *governance.Module }
 func (g rosterOf) CurrentMember(ctx context.Context, association uuid.UUID, email string, date time.Time) (bool, error) {
 	_, ok, err := g.gov.CurrentMember(ctx, association, email, date)
 	return ok, err
+}
+
+// driveFiles resolves an association's Drive storage from its Google connection: nil Files when it has no
+// connection or no folder yet.
+func driveFiles(idm *identity.Module, apiURL, uploadURL string) governance.FilesResolver {
+	return func(ctx context.Context, association uuid.UUID) (governance.Files, error) {
+		ts, err := idm.GoogleTokenSource(ctx, association)
+		if errors.Is(err, identity.ErrGoogleNotConnected) {
+			return nil, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		folder, err := idm.GoogleFolderID(ctx, association)
+		if err != nil || folder == "" {
+			return nil, err
+		}
+		return governance.NewDriveFiles(oauth2.NewClient(ctx, ts), folder, apiURL, uploadURL), nil
+	}
 }
 
 // wireGoogle turns the Google connection and the storage connection operations on when the
@@ -156,6 +176,9 @@ func run() error {
 	wired, err := wireGoogle(idm, gov, gc)
 	if err != nil {
 		return err
+	}
+	if wired && !cfg.DevStorage {
+		gov.WithFiles(driveFiles(idm, gcfg.DriveAPIURL, gcfg.DriveUploadURL))
 	}
 	if !wired {
 		slog.Info("google connection is not configured")

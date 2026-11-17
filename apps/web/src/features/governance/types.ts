@@ -12,15 +12,6 @@ export interface CaseDocument {
   title: string;
 }
 
-export interface CaseSummary {
-  id: string;
-  title: string;
-  createdAt: string;
-  status: CaseStatus;
-  amountUah: number | null;
-  documents: CaseDocument[];
-}
-
 export type SlotOrigin = 'system' | 'ai' | 'human';
 
 export type SlotStatus = 'verified' | 'needs_review' | 'not_found';

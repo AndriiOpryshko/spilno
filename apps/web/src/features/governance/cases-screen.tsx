@@ -1,7 +1,8 @@
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
+import { useMemo } from 'react';
 
-import { useGetCase, useListCases } from '@/api/gen/endpoints/governance/governance';
+import { listCases, useGetCase } from '@/api/gen/endpoints/governance/governance';
 import { listMemberships } from '@/api/gen/endpoints/identity/identity';
 import type { Case } from '@/api/gen/model';
 import { TopBar } from '@/components/app-shell';
@@ -29,8 +30,15 @@ function useAssociationName(associationId: string) {
 export function CasesScreen() {
   const { associationId } = useParams({ from: '/o/$associationId' });
   const associationName = useAssociationName(associationId);
-  const query = useListCases(associationId, undefined, { query: { retry: false } });
-  const items = query.data?.data.items ?? [];
+  // Paged by next_cursor, like the реєстр: «показати ще» reads the next page.
+  const query = useInfiniteQuery({
+    queryKey: ['cases-pages', associationId],
+    queryFn: ({ pageParam }) => listCases(associationId, pageParam ? { cursor: pageParam } : undefined),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => last.data.next_cursor ?? undefined,
+    retry: false,
+  });
+  const items = useMemo(() => (query.data?.pages ?? []).flatMap((page) => page.data.items), [query.data]);
 
   return (
     <>
@@ -69,6 +77,11 @@ export function CasesScreen() {
               </li>
             ))}
           </ul>
+        )}
+        {query.isSuccess && query.hasNextPage && (
+          <Button variant="outline" disabled={query.isFetchingNextPage} onClick={() => query.fetchNextPage()}>
+            {query.isFetchingNextPage ? uk.cases.loadingMore : uk.cases.more}
+          </Button>
         )}
       </div>
     </>

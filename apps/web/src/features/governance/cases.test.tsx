@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRouter, RouterProvider } from '@tanstack/react-router';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -6,6 +9,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getAddCaseDocumentUrl, getDownloadFileUrl, getGetCaseUrl, getListCasesUrl } from '@/api/gen/endpoints/governance/governance';
 import { formatDate } from '@/i18n/uk';
 import { routeTree } from '@/routeTree.gen';
+
+import * as mockData from './mock-data';
 
 // The справи list and the case screen through the real route tree, on the generated client
 // (T80, AC-25, AC-28; board-protocol T36 scope): the list from listCases, the case with its document
@@ -22,7 +27,13 @@ import { routeTree } from '@/routeTree.gen';
 // - a file over 20 MB or not PDF/JPEG/PNG is refused in the browser (no request) and by the server
 //   (governance.file_invalid); both are an inline role=alert naming the rule («PDF», «20 МБ»);
 // - governance.drive_not_connected renders AssociationProblemNotice (storage message, who can connect, link to the card);
-// - identity.association_disabled on a change renders «Доступ призупинено: <причина>» and nothing is attached.
+// - identity.association_disabled on a change renders «Доступ призупинено: <причина>» and nothing is attached;
+// - F4: every document row has a button «Нова версія» (one file input stays): it chooses that document as the
+//   previous version, the next upload sends its id as previous_version_id; the form offers «Дата документа»
+//   (an <input type=date>) sent as document_date; a plain upload sends neither;
+// - F4: the browser also refuses an empty file (alert naming «порожн…») and a file name that is empty or over
+//   255 characters (alert naming «255»), counted in code points like the server, and sends nothing;
+// - F4: the list pages by next_cursor with a «показати ще» button (cursor query parameter), like the реєстр.
 
 const lypky = '00000000-0000-7000-8000-000000000001';
 const principal = { account_id: '00000000-0000-7000-8000-00000000a001', email: 'user-1@example.test', is_operator: false };
@@ -67,7 +78,8 @@ let disabledFromStart: boolean;
 let documents: ReturnType<typeof doc>[];
 let uploadAnswer: () => Response;
 let calls: string[];
-let uploads: Array<{ path: string; file: File | null; previous: string | null }>;
+let uploads: Array<{ path: string; file: File | null; previous: string | null; date: string | null }>;
+let listPages: Record<string, { items: typeof cases; next_cursor: string | null }>;
 
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), {
@@ -101,10 +113,10 @@ function fakeApi(input: RequestInfo | URL, init?: RequestInit) {
       const body = init.body;
       const form = body instanceof FormData ? body : new FormData();
       const file = form.get('file');
-      uploads.push({ path, file: file instanceof Blob ? (file as File) : null, previous: (form.get('previous_version_id') as string | null) ?? null });
+      uploads.push({ path, file: file instanceof Blob ? (file as File) : null, previous: (form.get('previous_version_id') as string | null) ?? null, date: (form.get('document_date') as string | null) ?? null });
       return Promise.resolve(uploadAnswer());
     }
-    if (path === getListCasesUrl(lypky)) return Promise.resolve(json(200, { items: cases, next_cursor: null }));
+    if (path === getListCasesUrl(lypky)) return Promise.resolve(json(200, listPages[url.searchParams.get('cursor') ?? ''] ?? { items: cases, next_cursor: null }));
     if (path === getGetCaseUrl(lypky, roofId)) return Promise.resolve(json(200, { ...cases[0], documents }));
     return Promise.resolve(problem(404, 'governance.not_found', 'not found'));
   }
@@ -149,6 +161,7 @@ beforeEach(() => {
   disabledFromStart = false;
   calls = [];
   uploads = [];
+  listPages = {};
   documents = [doc(estimateV1, v1File, 'kosztorys-v1.pdf', null, '2026-10-01'), doc(estimateV2, v2File, 'kosztorys-v2.pdf', estimateV1, '2026-10-18')];
   uploadAnswer = () => {
     documents = [...documents, doc(newDoc, newFile, 'kosztorys.pdf', null, '2026-10-19')];
@@ -171,6 +184,30 @@ describe('the справи list on the API (AC-25, F15)', () => {
     expect(screen.getByRole('link', { name: new RegExp(liftTitle) }).getAttribute('href')).toBe(`/o/${lypky}/cases/${liftId}`);
     expect(main()).toHaveTextContent(formatDate('2026-10-20T09:00:00Z'));
     expect(calls).toContain(`GET ${getListCasesUrl(lypky)}`);
+  });
+
+  it('pages by next_cursor: «показати ще» reads the next page with the cursor, the last page has no button (F4.5)', async () => {
+    listPages = {
+      '': { items: [cases[0]!], next_cursor: 'cursor-2' },
+      'cursor-2': { items: [cases[1]!], next_cursor: null },
+    };
+    open(listPath);
+    await screen.findByRole('link', { name: new RegExp(roofTitle) });
+    expect(screen.queryByRole('link', { name: new RegExp(liftTitle) })).toBeNull();
+
+    fireEvent.click(await screen.findByRole('button', { name: /ще|далі|наступн/i }));
+
+    expect(await screen.findByRole('link', { name: new RegExp(liftTitle) })).toBeInTheDocument();
+    // The first page stays on screen, and the next one was asked for with the cursor of the previous one.
+    expect(screen.getByRole('link', { name: new RegExp(roofTitle) })).toBeInTheDocument();
+    expect(calls).toContain(`GET ${getListCasesUrl(lypky)}?cursor=cursor-2`);
+    await waitFor(() => expect(screen.queryByRole('button', { name: /ще|далі|наступн/i })).toBeNull());
+  });
+
+  it('offers no «показати ще» when the only page has no next_cursor', async () => {
+    open(listPath);
+    await screen.findByRole('link', { name: new RegExp(roofTitle) });
+    expect(screen.queryByRole('button', { name: /ще|далі|наступн/i })).toBeNull();
   });
 
   it('shows nothing of the in-memory mock', async () => {
@@ -227,6 +264,105 @@ describe('uploading a document (AC-09, AC-28)', () => {
     expect(uploads[0]?.path).toBe(getAddCaseDocumentUrl(lypky, roofId));
     expect(uploads[0]?.file?.name).toBe('kosztorys.pdf');
     expect(screen.queryAllByRole('alert')).toEqual([]);
+  });
+
+  it('sends no previous_version_id and no document_date for a plain upload (F4.3)', async () => {
+    await openCase();
+    await screen.findByText('kosztorys-v2.pdf');
+
+    attach(pdf());
+    send();
+
+    await screen.findByText('kosztorys.pdf');
+    expect(uploads[0]?.previous).toBeNull();
+    expect(uploads[0]?.date).toBeNull();
+  });
+
+  it('uploads a newer version of a document: «Нова версія» on its row sends previous_version_id (F4.3, T36)', async () => {
+    await openCase();
+    const row = (await screen.findByText('kosztorys-v1.pdf')).closest<HTMLElement>('li, tr, article, [role="row"], [role="listitem"]');
+    expect(row, 'the document row').not.toBeNull();
+
+    fireEvent.click(within(row as HTMLElement).getByRole('button', { name: /нова версія/i }));
+    attach(pdf('kosztorys-v3.pdf'));
+    send();
+
+    await waitFor(() => expect(uploads).toHaveLength(1));
+    expect(uploads[0]?.path).toBe(getAddCaseDocumentUrl(lypky, roofId));
+    expect(uploads[0]?.previous).toBe(estimateV1);
+    expect(uploads[0]?.file?.name).toBe('kosztorys-v3.pdf');
+  });
+
+  it('offers «Нова версія» on every document, and sends the id of the one that was chosen (F4.3)', async () => {
+    await openCase();
+    const row = (await screen.findByText('kosztorys-v2.pdf')).closest<HTMLElement>('li, tr, article, [role="row"], [role="listitem"]');
+    expect(within(main()).getAllByRole('button', { name: /нова версія/i })).toHaveLength(2);
+
+    fireEvent.click(within(row as HTMLElement).getByRole('button', { name: /нова версія/i }));
+    attach(pdf('kosztorys-v3.pdf'));
+    send();
+
+    await waitFor(() => expect(uploads).toHaveLength(1));
+    expect(uploads[0]?.previous).toBe(estimateV2);
+  });
+
+  it('sends the document date of the form as document_date (F4.3)', async () => {
+    await openCase();
+    await screen.findByText('kosztorys-v2.pdf');
+
+    fireEvent.change(screen.getByLabelText(/Дата документа/i), { target: { value: '2026-10-19' } });
+    attach(pdf());
+    send();
+
+    await waitFor(() => expect(uploads).toHaveLength(1));
+    expect(uploads[0]?.date).toBe('2026-10-19');
+  });
+
+  it('refuses an empty file in the browser, names the rule and sends nothing (F4.4)', async () => {
+    await openCase();
+    await screen.findByText('kosztorys-v2.pdf');
+
+    attach(new File([], 'empty.pdf', { type: 'application/pdf' }));
+    sendIfOffered();
+
+    await alertWith(/порожн/i);
+    expect(uploads).toEqual([]);
+  });
+
+  it('refuses a file name over 255 characters in the browser, names the rule and sends nothing (F4.4)', async () => {
+    await openCase();
+    await screen.findByText('kosztorys-v2.pdf');
+
+    attach(pdf(`${'a'.repeat(252)}.pdf`));
+    sendIfOffered();
+
+    await alertWith(/255/);
+    expect(uploads).toEqual([]);
+  });
+
+  it('refuses a file without a name in the browser and sends nothing (F4.4)', async () => {
+    await openCase();
+    await screen.findByText('kosztorys-v2.pdf');
+
+    attach(pdf(''));
+    sendIfOffered();
+
+    await alertWith(/255/);
+    expect(uploads).toEqual([]);
+  });
+
+  it('counts the name in characters like the server: 255 characters and a name of astral symbols go through (F4.4)', async () => {
+    await openCase();
+    await screen.findByText('kosztorys-v2.pdf');
+
+    attach(pdf(`${'a'.repeat(251)}.pdf`));
+    send();
+    await waitFor(() => expect(uploads).toHaveLength(1));
+    await screen.findAllByText('kosztorys.pdf');
+
+    attach(pdf(`${'😀'.repeat(200)}.pdf`));
+    send();
+    await waitFor(() => expect(uploads).toHaveLength(2));
   });
 
   it('refuses a file over 20 MB in the browser, names the rule and sends nothing', async () => {
@@ -322,6 +458,7 @@ describe('справи in a вимкнене ОСББ (AC-25)', () => {
     expect(hrefs).toContain(listPath);
     expect(screen.queryByLabelText(/Файл/)).toBeNull();
     expect(screen.queryByRole('button', { name: /Додати|Завантажити|Прикріпити/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /нова версія/i })).toBeNull();
     expect(uploads).toEqual([]);
   });
 
@@ -340,5 +477,12 @@ describe('the protocol draft screen keeps its mock (T80)', () => {
     open(protocolPath);
     await screen.findByRole('heading', { level: 1, name: /Гідроізоляція покрівлі, під’їзд 2/ });
     expect(main().textContent).toMatch(/макет|демонстраційн/i);
+  });
+});
+
+describe('the mock the справи list used is gone (F4.6)', () => {
+  it('exports no cases from the mock data and keeps no CaseSummary type', () => {
+    expect('cases' in mockData).toBe(false);
+    expect(readFileSync(join(__dirname, 'types.ts'), 'utf8')).not.toMatch(/CaseSummary/);
   });
 });

@@ -29,7 +29,7 @@ export function StatusLine({ application }: { application: Application }) {
   return (
     <div>
       <p className="font-semibold">{t.pending(formatDate(application.filed_at))}</p>
-      {email && <p>{t.contact(email)}</p>}
+      <p>{email ? t.contact(email) : t.contactMissing}</p>
     </div>
   );
 }

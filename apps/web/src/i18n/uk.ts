@@ -77,6 +77,7 @@ export const uk = {
     status: {
       pending: (date: string) => `очікує розгляду з ${date}`,
       contact: (email: string) => `Питання щодо заявки: ${email}`,
+      contactMissing: 'Контакт оператора для питань щодо заявки не налаштовано',
       approved: 'схвалена',
       openAssociation: (name: string) => `Перейти до ОСББ ${name}`,
       rejected: 'відхилена',

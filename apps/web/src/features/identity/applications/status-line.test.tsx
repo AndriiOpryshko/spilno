@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { Application } from '@/api/gen/model';
 
+import { uk } from '@/i18n/uk';
+
 import { StatusLine } from './status-line';
 
 const application = (over: Partial<Application>): Application => ({
@@ -27,6 +29,16 @@ describe('StatusLine', () => {
     expect(screen.getByText(/очікує розгляду з 10\.11\.2026/)).toBeInTheDocument();
     expect(screen.getByText(/operator@example\.test/)).toBeInTheDocument();
   });
+
+  it.each([['unset', undefined], ['empty', '']])(
+    'shows a visible fallback instead of an empty contact when the address is %s (AC-05)',
+    (_name, value) => {
+      vi.stubEnv('VITE_OPERATOR_CONTACT_EMAIL', value as string);
+      render(<StatusLine application={application({ state: 'pending' })} />);
+      expect(screen.getByText(uk.applications.status.contactMissing)).toBeInTheDocument();
+      expect(screen.queryByText(/Питання щодо заявки/)).not.toBeInTheDocument();
+    },
+  );
 
   it('shows nothing of the association for a pending заявка (AC-05)', () => {
     render(<StatusLine application={application({ state: 'pending', association_id: null })} />);

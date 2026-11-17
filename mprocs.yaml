@@ -10,5 +10,7 @@ procs:
   web:
     cwd: apps/web
     shell: pnpm dev
+    env:
+      VITE_OPERATOR_CONTACT_EMAIL: operator@example.test
   grafana:
     shell: 'echo "Grafana: http://localhost:3000 (traces: Explore > Tempo, logs: Explore > Loki)"'

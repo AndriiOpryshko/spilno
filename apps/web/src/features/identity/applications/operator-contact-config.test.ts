@@ -16,8 +16,8 @@ describe('оператор contact address configuration (AC-05)', () => {
   });
 
   it('fails a production build without the address and names the variable', () => {
-    const env = { ...process.env };
-    delete env[variable];
+    // An empty value, not a deleted one: process.env wins over apps/web/.env*, which loadEnv also reads.
+    const env = { ...process.env, [variable]: '' };
     const outDir = mkdtempSync(path.join(tmpdir(), 'spilno-build-'));
     const result = spawnSync('pnpm', ['exec', 'vite', 'build', '--mode', 'production', '--outDir', outDir], {
       cwd: webRoot,

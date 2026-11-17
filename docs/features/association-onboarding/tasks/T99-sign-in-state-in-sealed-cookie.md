@@ -17,7 +17,7 @@ files_hint:
   - "docs/features/association-onboarding/tasks/tracker.md"
 owner: "Andrii Opryshko"
 estimate: "L"
-status: "todo"
+status: "done"
 ---
 
 # T99 — Keep the pending sign-in in a sealed cookie of the browser that started it

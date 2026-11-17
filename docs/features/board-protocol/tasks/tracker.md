@@ -60,3 +60,17 @@
 | [T44](./T44-e2e-draft-to-registry.md) | Prove the flow end to end: draft to registry through the UI with fake Google and Gemini | tests | Andrii Opryshko | L | T25, T28, T29, T30, T31, T32, T34, T35, T36, T42, T43 | todo |
 
 **Total:** 44 tasks, ~31.25 person-days, 12 dependency phases.
+
+## Delivered by association-onboarding (2026-11-17)
+
+The second follow-up of association-onboarding carried the storage work its ACs needed
+([review of 2026-11-17](../../association-onboarding/_review/review-2026-11-17.md), N06 and N09). The status
+of each task file below says the same in detail.
+
+| Here | Delivered there | Left here |
+|---|---|---|
+| [T13](./T13-drive-files-adapter.md), [T13b](./T13b-drive-files-adapter.md) the Drive `Files` adapter | [T94](../../association-onboarding/tasks/T94-upload-outside-transaction.md) (`d38dbc5`): `Files.Remove` on the port, the fake, the shared contract and the adapter. [T97](../../association-onboarding/tasks/T97-wire-drive-storage-per-association.md) (`f6fde66`): `cmd/api` builds the adapter of each association from its Google connection, proven on a fake Google | the contract run against real Google with a test account; the Drive address of the storage consent in `cmd/api` (SEC-13 of the association-onboarding security review), without which no real connection is created |
+| [T21](./T21-cases-endpoints.md) cases and files | [T92](../../association-onboarding/tasks/T92-files-per-association.md) (`159505b`): the storage resolved per association. T94: the upload before the write transaction, the stored file removed when the write fails | the needs-review event of a newer document version, the upload-duration metric |
+| [T14](./T14-river-worker-jobs.md), [T32](./T32-nightly-integrity-check.md) the worker and its jobs | nothing: T94 removes an orphaned file in the request, best effort, and logs a removal that fails | the `remove_orphan_file` job |
+
+The statuses above are unchanged: T13, T13b and T21 stay `in_progress` for what is left.

@@ -15,7 +15,7 @@ files_hint:
   - "apps/web/src/i18n/uk.ts"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T88 — Mark roster entries by the decision's effect and word the mark by the kind of the decision

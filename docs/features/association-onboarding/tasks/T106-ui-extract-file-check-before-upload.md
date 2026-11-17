@@ -10,7 +10,7 @@ files_hint:
   - "apps/web/src/i18n/uk.ts"
 owner: "Andrii Opryshko"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T106 — Check the extract's size and type before the upload and name the field on a 413

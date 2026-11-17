@@ -90,34 +90,34 @@
 | [T83](./T83-concurrency-and-failure-tests.md) | Test the decisions and the filings under concurrency | tests | Andrii Opryshko | M | T52, T54 | done |
 | [T84](./T84-refresh-visual-baselines.md) | Refresh the visual baselines of the review page and the association card | tests | Andrii Opryshko | S | T71, T72, T77 | done |
 | [T85](./T85-sync-test-plan-tracker-board-protocol.md) | Bring the test plan, the trackers and the board-protocol tasks in line with what was built | docs | Andrii Opryshko | M | T61, T81, T82, T83, T84 | done |
-| [T86](./T86-decision-entries-by-first-revision.md) | Find the голова a decision seated and the entry it ended by the first revision that carries the decision | infra | Andrii Opryshko | M | — | todo |
-| [T87](./T87-roster-decision-effect-and-no-reopen.md) | Tell each roster entry what its decision did to it, and refuse to reopen an entry an approval ended | ports | Andrii Opryshko | M | — | todo |
-| [T88](./T88-ui-roster-marks-by-effect-and-kind.md) | Mark roster entries by the decision's effect and word the mark by the kind of the decision | ui | Andrii Opryshko | M | T87 | todo |
-| [T89](./T89-ui-entry-to-connection-form.md) | Lead a signed-in person to the заявка на підключення form | ui | Andrii Opryshko | S | — | todo |
-| [T90](./T90-one-definition-per-problem-code.md) | Advertise the disabled refusal of a file download and define every problem code once | ports | Andrii Opryshko | M | — | todo |
-| [T91](./T91-governance-actor-lookup-injected.md) | Pass the read-only lookup into governance from cmd/api and refuse a request without an actor | wiring | Andrii Opryshko | S | T90 | todo |
-| [T92](./T92-files-per-association.md) | Resolve the file storage per association | ports | Andrii Opryshko | M | — | todo |
-| [T93](./T93-guard-check-then-handler-for-outside-io.md) | Run operations with outside I/O after the guard's check transaction, not inside it | wiring | Andrii Opryshko | L | — | todo |
-| [T94](./T94-upload-outside-transaction.md) | Upload a case document before the write transaction and remove the file when the write fails | app | Andrii Opryshko | M | T92, T93 | todo |
-| [T95](./T95-download-outside-transaction.md) | Read a download from the storage outside the transaction and answer 503 when the read fails | app | Andrii Opryshko | M | T91, T92, T93 | todo |
-| [T96](./T96-code-exchange-outside-transaction.md) | Exchange the storage consent code with Google outside the transaction | app | Andrii Opryshko | M | T93 | todo |
-| [T97](./T97-wire-drive-storage-per-association.md) | Build each association's Drive storage from its Google connection in cmd/api | wiring | Andrii Opryshko | L | T94, T95 | todo |
-| [T98](./T98-oversize-body-413-everywhere.md) | Answer 413 for every oversized body and limit the bodies of finance and system | infra | Andrii Opryshko | M | — | todo |
-| [T99](./T99-sign-in-state-in-sealed-cookie.md) | Keep the pending sign-in in a sealed cookie of the browser that started it | app | Andrii Opryshko | L | — | todo |
-| [T100](./T100-competing-within-one-kind.md) | Mark as competing only pending applications of the same kind for the same code | infra | Andrii Opryshko | S | — | todo |
-| [T101](./T101-race-tests-and-term-dates-that-last.md) | Report race-test failures on the test goroutine and stop the term-end tests from expiring | tests | Andrii Opryshko | S | T86 | todo |
-| [T102](./T102-ui-operator-fallback-and-focus.md) | Show the shared fallback on the оператор's review and associations pages and keep focus after an approval | ui | Andrii Opryshko | M | — | todo |
-| [T103](./T103-ui-governance-generated-hooks-and-fallback.md) | Use the generated hooks, their query keys and the shared fallback in the governance screens | ui | Andrii Opryshko | M | — | todo |
-| [T104](./T104-ui-page-roster-and-memberships.md) | Read every page of the roster and of a person's memberships | ui | Andrii Opryshko | M | T88 | todo |
-| [T105](./T105-ui-page-operator-lists.md) | Read every page of the оператор's queue and list of associations | ui | Andrii Opryshko | M | T102 | todo |
-| [T106](./T106-ui-extract-file-check-before-upload.md) | Check the extract's size and type before the upload and name the field on a 413 | ui | Andrii Opryshko | S | — | todo |
-| [T107](./T107-load-smoke-in-ci.md) | Run the load smoke of PRD §6 in CI | tests | Andrii Opryshko | M | T99 | todo |
-| [T108](./T108-e2e-second-review-fixes.md) | Prove the second review's fixes end to end | tests | Andrii Opryshko | M | T88, T89, T99 | todo |
-| [T109](./T109-refresh-visual-baselines-second-review.md) | Refresh the visual baselines the second review's fixes changed | tests | Andrii Opryshko | S | T88, T89, T102, T104, T105, T106 | todo |
-| [T110](./T110-contract-texts-and-reconcile.md) | Correct the contract's descriptions and reconcile the sync report | wiring | Andrii Opryshko | M | T87, T90, T100 | todo |
-| [T111](./T111-sync-docs-after-second-review.md) | Bring the test plan, the trackers and the review record in line with the second follow-up | docs | Andrii Opryshko | M | T96, T97, T98, T101, T103, T107, T108, T109, T110 | todo |
+| [T86](./T86-decision-entries-by-first-revision.md) | Find the голова a decision seated and the entry it ended by the first revision that carries the decision | infra | Andrii Opryshko | M | — | done |
+| [T87](./T87-roster-decision-effect-and-no-reopen.md) | Tell each roster entry what its decision did to it, and refuse to reopen an entry an approval ended | ports | Andrii Opryshko | M | — | done |
+| [T88](./T88-ui-roster-marks-by-effect-and-kind.md) | Mark roster entries by the decision's effect and word the mark by the kind of the decision | ui | Andrii Opryshko | M | T87 | done |
+| [T89](./T89-ui-entry-to-connection-form.md) | Lead a signed-in person to the заявка на підключення form | ui | Andrii Opryshko | S | — | done |
+| [T90](./T90-one-definition-per-problem-code.md) | Advertise the disabled refusal of a file download and define every problem code once | ports | Andrii Opryshko | M | — | done |
+| [T91](./T91-governance-actor-lookup-injected.md) | Pass the read-only lookup into governance from cmd/api and refuse a request without an actor | wiring | Andrii Opryshko | S | T90 | done |
+| [T92](./T92-files-per-association.md) | Resolve the file storage per association | ports | Andrii Opryshko | M | — | done |
+| [T93](./T93-guard-check-then-handler-for-outside-io.md) | Run operations with outside I/O after the guard's check transaction, not inside it | wiring | Andrii Opryshko | L | — | done |
+| [T94](./T94-upload-outside-transaction.md) | Upload a case document before the write transaction and remove the file when the write fails | app | Andrii Opryshko | M | T92, T93 | done |
+| [T95](./T95-download-outside-transaction.md) | Read a download from the storage outside the transaction and answer 503 when the read fails | app | Andrii Opryshko | M | T91, T92, T93 | done |
+| [T96](./T96-code-exchange-outside-transaction.md) | Exchange the storage consent code with Google outside the transaction | app | Andrii Opryshko | M | T93 | done |
+| [T97](./T97-wire-drive-storage-per-association.md) | Build each association's Drive storage from its Google connection in cmd/api | wiring | Andrii Opryshko | L | T94, T95 | done |
+| [T98](./T98-oversize-body-413-everywhere.md) | Answer 413 for every oversized body and limit the bodies of finance and system | infra | Andrii Opryshko | M | — | done |
+| [T99](./T99-sign-in-state-in-sealed-cookie.md) | Keep the pending sign-in in a sealed cookie of the browser that started it | app | Andrii Opryshko | L | — | done |
+| [T100](./T100-competing-within-one-kind.md) | Mark as competing only pending applications of the same kind for the same code | infra | Andrii Opryshko | S | — | done |
+| [T101](./T101-race-tests-and-term-dates-that-last.md) | Report race-test failures on the test goroutine and stop the term-end tests from expiring | tests | Andrii Opryshko | S | T86 | done |
+| [T102](./T102-ui-operator-fallback-and-focus.md) | Show the shared fallback on the оператор's review and associations pages and keep focus after an approval | ui | Andrii Opryshko | M | — | done |
+| [T103](./T103-ui-governance-generated-hooks-and-fallback.md) | Use the generated hooks, their query keys and the shared fallback in the governance screens | ui | Andrii Opryshko | M | — | done |
+| [T104](./T104-ui-page-roster-and-memberships.md) | Read every page of the roster and of a person's memberships | ui | Andrii Opryshko | M | T88 | done |
+| [T105](./T105-ui-page-operator-lists.md) | Read every page of the оператор's queue and list of associations | ui | Andrii Opryshko | M | T102 | done |
+| [T106](./T106-ui-extract-file-check-before-upload.md) | Check the extract's size and type before the upload and name the field on a 413 | ui | Andrii Opryshko | S | — | done |
+| [T107](./T107-load-smoke-in-ci.md) | Run the load smoke of PRD §6 in CI | tests | Andrii Opryshko | M | T99 | done |
+| [T108](./T108-e2e-second-review-fixes.md) | Prove the second review's fixes end to end | tests | Andrii Opryshko | M | T88, T89, T99 | done |
+| [T109](./T109-refresh-visual-baselines-second-review.md) | Refresh the visual baselines the second review's fixes changed | tests | Andrii Opryshko | S | T88, T89, T102, T104, T105, T106 | done |
+| [T110](./T110-contract-texts-and-reconcile.md) | Correct the contract's descriptions and reconcile the sync report | wiring | Andrii Opryshko | M | T87, T90, T100 | done |
+| [T111](./T111-sync-docs-after-second-review.md) | Bring the test plan, the trackers and the review record in line with the second follow-up | docs | Andrii Opryshko | M | T96, T97, T98, T101, T103, T107, T108, T109, T110 | done |
 
-**Total:** 111 tasks, ~61.75 person-days: T01–T49 (~29.5, done, merged in PR #48), the review follow-up T50–T85 (~19.25, done, PRs #52–#55, [review of 2026-11-10](../_review/review-2026-11-10.md) with the commit that closed each finding) and the second follow-up T86–T111 (~13, todo, [review of 2026-11-17](../_review/review-2026-11-17.md)).
+**Total:** 111 tasks, ~61.75 person-days: T01–T49 (~29.5, done, merged in PR #48), the review follow-up T50–T85 (~19.25, done, PRs #52–#55, [review of 2026-11-10](../_review/review-2026-11-10.md) with the commit that closed each finding) and the second follow-up T86–T111 (~13, done, PR #56, [review of 2026-11-17](../_review/review-2026-11-17.md) with the commit that closed each finding).
 
 ## Known gaps (found during implementation)
 
@@ -128,18 +128,41 @@
 - **Sign-in state is sealed with a per-process key** (`identity/app/signin.go`: state, PKCE verifier, nonce and
   expiry travel in a cookie of the browser that started the sign-in; since T99 the server keeps nothing). One API
   instance is enough; more than one needs a shared key. The storage consent keeps one server-side entry per account.
-- **Security review findings are open** ([record](../_review/security-2026-11-10.md)): no High, six Medium
-  (SEC-01 to SEC-06, due 2026-11-24), eight Low. SEC-01 with the gap above means the feature must not be
-  deployed where anyone but the developer can reach it until the real provider adapter exists.
-- **The оператор's queue and list of associations show their first page only** (20 rows), though both
-  operations page by cursor. The queue is oldest first, so with more than 20 pending заявки a new one is not on
-  the screen; the e2e suite therefore needs a fresh database per run. Found by T81; task T105.
+- **Security review findings are open** ([record](../_review/security-2026-11-10.md)): it counts no High, six
+  Medium (SEC-01 to SEC-06, due 2026-11-24) and eight Low, and has not been run again after either follow-up.
+  T53 answers SEC-03 (body limits), T57 SEC-04 (a role that bypasses row-level security) and T99 SEC-02 and
+  SEC-12 (the sign-in `state` bound to the browser, no map of pending sign-ins). SEC-01 with the first gap means
+  the feature must not be deployed where anyone but the developer can reach it until the real provider adapter
+  exists.
+- **The e2e suite needs a fresh database per run.** The оператор's queue and list of associations page with
+  «Показати ще» since T105, but the specs look for a заявка on the first page of the queue (20 rows, oldest
+  first) and do not press it, and the AC-16c spec files as the оператор from `/`, which offers the form only
+  while the оператор is on no roster or on several (the AC-16b spec seats them on one). The two runs on one
+  database that T105 asked for were made on 2026-11-17: the first passes, the second fails AC-16c for that
+  reason and AC-26 (`us07-read-only-association.spec.ts:63`, the link of a just attached document did not
+  appear; cause not looked into).
+- **A person on exactly one roster has no link to the заявка на підключення form.** `/` opens their
+  association and no screen inside it leads to the form; the list of заявки and the picker carry the link
+  (T89). A член правління who connects a second association (AC-04d) has to type the address. Found by T108.
 - **No screen creates a справа.** The справи list and the case screen read the API (T80); a справа is created
   only through `createCase` until board-protocol builds the draft flow. The e2e specs create it through the API.
+- **The Drive storage has not run against real Google.** T97 builds each association's storage from its Google
+  connection; it is proven on a fake Drive through HTTP (`drive_wiring_test.go`, which builds the resolver the
+  way `cmd/api` does; `driveFiles` in `cmd/api/main.go` is under no test). The consent that creates a real
+  connection cannot finish as wired: `cmd/api` gives `google.Consent` no Drive address (SEC-13 of the security
+  review). A run with a test Google account is board-protocol T13.
+- **An uploaded file whose record failed is removed in the request, best effort** (T94). A removal that fails
+  is logged with the storage id and the file stays in the storage until board-protocol builds the
+  `remove_orphan_file` job (T14, T32).
+- **`identity.association_disabled` and `identity.not_current_member` are defined twice:** in the identity
+  registry and as constants of `governance/domain/errors.go`, which may not import identity (T91).
+  `TestGuardCodesMirrorTheIdentityModule` keeps the two definitions equal.
+- **The load smoke in CI proves the throughput and the error rate, not production latency** (T107): 30 s of
+  reads and writes and 5 filings on a shared runner. The full run of PRD §6 stays `mise run load` before a release.
 - **Board-protocol work still open behind this feature's ACs:** the association settings (board-protocol T10,
-  T35), the needs-review event and the upload metric of document versions (T21), the Drive adapter (T13b; T97 wires it
-  per association, proven against a fake Drive only, a run against real Google remains), and the lock that writes a signed protocol
-  (T29; the реєстр is tested on seeded protocols). Each task file there says what this feature delivered.
+  T35), the needs-review event and the upload metric of document versions (T21), and the lock that writes a
+  signed protocol (T29; the реєстр is tested on seeded protocols). Each task file there says what this feature
+  delivered.
 - **The correction note of a signed protocol** is one section under the agenda, not beside the corrected item
   (board-protocol AC-15, noted in board-protocol T43).
 - **SAD §6 Flow 5 has no branch for 409 `identity.application_already_open`** on a refile; the contract lists

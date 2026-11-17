@@ -16,7 +16,7 @@ files_hint:
   - "services/core/internal/finance/module_test.go"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T98 — Answer 413 for every oversized body and limit the bodies of finance and system

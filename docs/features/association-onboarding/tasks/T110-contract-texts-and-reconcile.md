@@ -10,7 +10,7 @@ files_hint:
   - "docs/features/association-onboarding/contracts/api-sync-report.md"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T110 — Correct the contract's descriptions and reconcile the sync report

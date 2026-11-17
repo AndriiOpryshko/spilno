@@ -15,7 +15,7 @@ files_hint:
   - "services/core/internal/governance/cases_endpoints_test.go"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T94 — Upload a case document before the write transaction and remove the file when the write fails

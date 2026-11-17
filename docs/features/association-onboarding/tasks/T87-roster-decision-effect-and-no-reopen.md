@@ -15,7 +15,7 @@ files_hint:
   - "services/core/internal/governance/roster_endpoints_test.go"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T87 — Tell each roster entry what its decision did to it, and refuse to reopen an entry an approval ended

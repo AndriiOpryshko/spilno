@@ -13,7 +13,7 @@ files_hint:
   - "services/core/internal/identity/card_test.go"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T86 — Find the голова a decision seated and the entry it ended by the first revision that carries the decision

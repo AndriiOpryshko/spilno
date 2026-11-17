@@ -14,7 +14,7 @@ files_hint:
   - "apps/web/e2e/transfer-support.ts"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T108 — Prove the second review's fixes end to end

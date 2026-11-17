@@ -10,7 +10,7 @@ files_hint:
   - "services/core/internal/identity/review_transfer_test.go"
 owner: "Andrii Opryshko"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T100 — Mark as competing only pending applications of the same kind for the same code

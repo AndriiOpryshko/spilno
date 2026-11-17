@@ -534,6 +534,13 @@ The product owner chose to wire the real storage in this feature. board-protocol
 | [T21](../../board-protocol/tasks/T21-cases-endpoints.md) cases and files | T92: the storage resolved per association; T97: the adapter built from the association's Google connection in `cmd/api` | the domain event for the needs-review hook, the upload-duration metric |
 | [T14](../../board-protocol/tasks/T14-river-worker-jobs.md) the River worker | nothing: T94 removes an orphaned file best effort, in the request | the `remove_orphan_file` job |
 
+As built (2026-11-17, all 26 tasks done, [tracker](./tracker.md)): the fake Drive of the adapter's tests did
+not move; the module test of T97 (`governance/drive_wiring_test.go`) has its own fake Google and builds the
+resolver the way `cmd/api` does. T109 changed no baseline. The amendment of ADR-0003 and SAD §8 that T93 names
+is not written. What each finding got, and what stayed open, is in the
+[review record](../_review/review-2026-11-17.md#follow-up-what-closed-each-finding) and in the tracker's
+«Known gaps».
+
 ### Decisions taken in this breakdown
 
 Each is the default of its task and is named in the task's Notes with the alternative; none needed an ADR by the blast-radius gate, T93 excepted, which amends ADR-0003.
@@ -556,17 +563,18 @@ Each is the default of its task and is named in the task's Notes with the altern
 ## Board-protocol tasks this epic replaces or needs
 
 `tasks.json` holds only this epic's ids, so these are not `deps`; they are named in the Notes of the task on the right.
+«Status there» is the [board-protocol tracker](../../board-protocol/tasks/tracker.md) as of 2026-11-17.
 
 | board-protocol task | Status there | Relation | Here |
 |---|---|---|---|
-| [T08](../../board-protocol/tasks/T08-identity-oidc-sessions.md) sign-in and sessions | todo | **replaced**: any verified person signs in (ADR-0004); `bootstrap-member` is not built | T18 |
-| [T11](../../board-protocol/tasks/T11-require-session-current-member.md) session and current member on governance and finance routes | todo | **superseded**: the association is in the path and the check runs inside the scoped transaction | T19, T31 |
-| [T12](../../board-protocol/tasks/T12-google-connection-token-source.md) / [T12d](../../board-protocol/tasks/T12d-google-config.md) Google connection | in progress | `cmd/google-connect` **replaced** by the in-app consent (ADR-0008); the cipher, the store and the consent exchange (T12a–c) are reused; T12d's configuration is **needed** | T33 |
-| [T34](../../board-protocol/tasks/T34-ui-sign-in-session.md) sign-in page and session guard | todo | **superseded**: the principal changed and the shell gains the picker | T35 |
-| [T10](../../board-protocol/tasks/T10-settings-roster-endpoints.md) settings and roster endpoints | todo | **shared**: the roster repository and `CurrentMember`; its handlers must return `position` and `decision_id`; AC-09's «add a член правління» needs it | T14, T44 |
-| [T21](../../board-protocol/tasks/T21-cases-endpoints.md), [T25](../../board-protocol/tasks/T25-assistant-propose-draft.md) case documents, assistant turns | todo | keep the storage guard as their first step; `downloadFile` checks the signed snapshot when the actor is read-only | T34, T31 |
-| [T29](../../board-protocol/tasks/T29-lock-with-signed-copy.md), [T31](../../board-protocol/tasks/T31-registry-search.md), [T43](../../board-protocol/tasks/T43-ui-registry.md) lock, registry, registry screen | todo | **needed** for the e2e step «download a signed protocol while disabled» | T46 |
-| [T35](../../board-protocol/tasks/T35-ui-settings-roster.md), [T36](../../board-protocol/tasks/T36-ui-cases-documents.md) roster and case-document screens | todo | mount `RosterDecisionMark`; trigger the «connect the storage first» message | T41, T42 |
+| [T08](../../board-protocol/tasks/T08-identity-oidc-sessions.md) sign-in and sessions | replaced | **replaced**: any verified person signs in (ADR-0004); `bootstrap-member` is not built | T18 |
+| [T11](../../board-protocol/tasks/T11-require-session-current-member.md) session and current member on governance and finance routes | replaced | **superseded**: the association is in the path and the check runs inside the scoped transaction | T19, T31 |
+| [T12](../../board-protocol/tasks/T12-google-connection-token-source.md) / [T12d](../../board-protocol/tasks/T12d-google-config.md) Google connection | done | `cmd/google-connect` **replaced** by the in-app consent (ADR-0008); the cipher, the store and the consent exchange (T12a–c) are reused; T12d's configuration is **needed** | T33 |
+| [T34](../../board-protocol/tasks/T34-ui-sign-in-session.md) sign-in page and session guard | replaced | **superseded**: the principal changed and the shell gains the picker | T35 |
+| [T10](../../board-protocol/tasks/T10-settings-roster-endpoints.md) settings and roster endpoints | in_progress | **shared**: the roster repository and `CurrentMember`; its handlers must return `position` and `decision_id`; AC-09's «add a член правління» needs it | T14, T44 |
+| [T21](../../board-protocol/tasks/T21-cases-endpoints.md), [T25](../../board-protocol/tasks/T25-assistant-propose-draft.md) case documents, assistant turns | T21 in_progress, T25 todo | keep the storage guard as their first step; `downloadFile` checks the signed snapshot when the actor is read-only | T34, T31 |
+| [T29](../../board-protocol/tasks/T29-lock-with-signed-copy.md), [T31](../../board-protocol/tasks/T31-registry-search.md), [T43](../../board-protocol/tasks/T43-ui-registry.md) lock, registry, registry screen | T29 todo, T31 done, T43 in_progress | **needed** for the e2e step «download a signed protocol while disabled» | T46 |
+| [T35](../../board-protocol/tasks/T35-ui-settings-roster.md), [T36](../../board-protocol/tasks/T36-ui-cases-documents.md) roster and case-document screens | T35 in_progress, T36 done | mount `RosterDecisionMark`; trigger the «connect the storage first» message | T41, T42 |
 | [T14](../../board-protocol/tasks/T14-river-worker-jobs.md) River worker | todo | every job opens `InAssociation` from its payload once row-level security is on | T20 |
 | every board-protocol handler and ui task not started | todo | builds on the moved paths and on routes under `/o/$associationId/` | T01, T35 |
 

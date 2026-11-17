@@ -13,7 +13,7 @@ files_hint:
   - "apps/web/src/i18n/uk.ts"
 owner: "Andrii Opryshko"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T89 — Lead a signed-in person to the заявка на підключення form

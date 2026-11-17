@@ -12,7 +12,7 @@ files_hint:
   - "docs/features/board-protocol/tasks/"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T111 — Bring the test plan, the trackers and the review record in line with the second follow-up

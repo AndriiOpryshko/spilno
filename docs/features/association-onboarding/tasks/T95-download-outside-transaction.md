@@ -11,7 +11,7 @@ files_hint:
   - "services/core/internal/governance/adapters/filesfake/"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T95 — Read a download from the storage outside the transaction and answer 503 when the read fails

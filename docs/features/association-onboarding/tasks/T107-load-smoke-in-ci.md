@@ -10,7 +10,7 @@ files_hint:
   - "mise.toml"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T107 — Run the load smoke of PRD §6 in CI

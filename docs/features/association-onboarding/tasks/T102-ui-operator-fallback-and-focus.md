@@ -14,7 +14,7 @@ files_hint:
   - "apps/web/src/features/identity/shell/page-states.test.tsx"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T102 — Show the shared fallback on the оператор's review and associations pages and keep focus after an approval

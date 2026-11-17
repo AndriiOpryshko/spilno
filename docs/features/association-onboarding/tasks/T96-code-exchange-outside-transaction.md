@@ -11,7 +11,7 @@ files_hint:
   - "services/core/internal/identity/storage_test.go"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T96 — Exchange the storage consent code with Google outside the transaction

@@ -134,3 +134,40 @@ No new module: plain `net/http` and `encoding/json`. The package imports `govern
   afterwards the fake holds one file.
 - **AC-7** Given a stored file and a cancelled context, Then `Open`, `Stat`, `SetReadOnly` and `Untrash` each
   return an error that matches `context.Canceled` and is not a `*domain.DomainError`.
+
+## Status (2026-11-17)
+
+The adapter passes the seven criteria above on a fake Drive (`gdrive/files_test.go`). Of the «Not here» list
+the first item, the wiring, is delivered by association-onboarding, with one change to the port:
+
+- [T92](../../association-onboarding/tasks/T92-files-per-association.md) (commit `159505b`): the governance use cases no longer hold one
+  `Files` for the process. `WithFiles` takes a `ports.FilesResolver`, `func(ctx, association) (Files, error)`,
+  which `FileService` and `CaseService` ask on every call; a nil `Files` means the association has no storage
+  and answers 503 `governance.storage_unavailable`. The development resolver (`SPILNO_DEV_STORAGE`) keeps one
+  in-memory storage per association.
+- [T94](../../association-onboarding/tasks/T94-upload-outside-transaction.md) (commit `d38dbc5`): the port gained
+  `Remove(ctx context.Context, id string) error`, idempotent: a file that is not there is not an error. The
+  fake, the shared contract (subtest «remove deletes a file, is idempotent and the removed file is not found»)
+  and this adapter implement it; here it is the `DELETE {APIURL}/files/{id}` the adapter already sent after a
+  checksum mismatch, with a `404` read as done. `addCaseDocument` sends the bytes to the storage before its
+  write transaction and removes the file when the write fails, best effort; a removal that fails is logged
+  with the storage id.
+- [T97](../../association-onboarding/tasks/T97-wire-drive-storage-per-association.md) (commit `f6fde66`): unless `SPILNO_DEV_STORAGE`
+  is set, `cmd/api` passes a resolver that builds this adapter per association through
+  `governance.NewDriveFiles`: the HTTP client from `identity.GoogleTokenSource`, the folder from the new
+  `identity.GoogleFolderID`, the two addresses from `GOOGLE_DRIVE_API_URL` and `GOOGLE_DRIVE_UPLOAD_URL`
+  (Google's by default). An association without a connection is stopped by the storage guard (409
+  `governance.drive_not_connected`), one whose connection has no folder answers 503
+  `governance.storage_unavailable`. Proven through HTTP in `governance/drive_wiring_test.go` on a fake Google:
+  two associations upload and download, each into its own folder with its own token.
+
+Left here:
+
+- the run of the contract against real Google ([T13](./T13-drive-files-adapter.md)), and before it the Drive
+  address of the storage consent in `cmd/api` (association-onboarding security review, SEC-13);
+- a reason per restriction and resuming an interrupted upload, as above;
+- the wiring test rebuilds the resolver of `cmd/api` instead of calling it (`driveFiles` in `cmd/api/main.go`
+  is under no test) and has its own fake Google, so the fake Drive of this package stayed in
+  `drivefake_test.go` and there are two fakes;
+- a file whose removal failed stays in the storage until the `remove_orphan_file` job exists
+  ([T14](./T14-river-worker-jobs.md), [T32](./T32-nightly-integrity-check.md)).

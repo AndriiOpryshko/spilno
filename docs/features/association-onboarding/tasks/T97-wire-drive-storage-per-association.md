@@ -16,7 +16,7 @@ files_hint:
   - ".env.example"
 owner: "Andrii Opryshko"
 estimate: "L"
-status: "todo"
+status: "done"
 ---
 
 # T97 — Build each association's Drive storage from its Google connection in cmd/api

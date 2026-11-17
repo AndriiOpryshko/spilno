@@ -13,7 +13,7 @@ files_hint:
   - "apps/web/src/features/identity/reuse.test.tsx"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T103 — Use the generated hooks, their query keys and the shared fallback in the governance screens

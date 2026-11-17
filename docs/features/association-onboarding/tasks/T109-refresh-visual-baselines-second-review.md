@@ -9,7 +9,7 @@ files_hint:
   - "apps/web/src/features/governance/"
 owner: "Andrii Opryshko"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T109 — Refresh the visual baselines the second review's fixes changed

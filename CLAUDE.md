@@ -55,7 +55,9 @@ All tasks run from the repo root through mise (`mise tasks` lists them):
   a known gap. `SPILNO_OPERATOR_EMAIL` names the оператор. The e2e specs open the public `/status` page.
 - The e2e suite seeds a signed protocol with `psql` over `E2E_OWNER_DATABASE_URL` (`apps/web/e2e/seed/`). The seed
   refuses a database not marked `ALTER DATABASE <name> SET spilno.e2e = 'on'` (undo: `RESET spilno.e2e`): mark only a
-  throwaway database, seeded protocols cannot be deleted. Run the suite on a fresh database: the оператор's queue shows its first 20.
+  throwaway database, seeded protocols cannot be deleted. Run the suite on a fresh database: the specs read only the
+  first page of the оператор's queue (20 rows; they do not press «Показати ще»), and the AC-16c spec needs an
+  оператор who is on no roster yet.
 - Visual baselines live in `apps/web/src/features/identity/__screenshots__` per platform and architecture.
   Update them deliberately with `pnpm --filter @spilno/web test:stories -u` on the matching platform; the
   linux-x64 ones come from the CI Playwright image.

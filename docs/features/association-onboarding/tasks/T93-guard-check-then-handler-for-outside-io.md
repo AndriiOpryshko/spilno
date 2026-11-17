@@ -18,7 +18,7 @@ files_hint:
   - "docs/features/association-onboarding/sad.md"
 owner: "Andrii Opryshko"
 estimate: "L"
-status: "todo"
+status: "done"
 ---
 
 # T93 — Run operations with outside I/O after the guard's check transaction, not inside it

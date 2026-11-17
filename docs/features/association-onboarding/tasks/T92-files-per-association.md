@@ -15,7 +15,7 @@ files_hint:
   - "services/core/internal/governance/file_download_test.go"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T92 — Resolve the file storage per association

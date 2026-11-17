@@ -12,7 +12,7 @@ files_hint:
   - "apps/web/src/features/identity/shell/association-shell.test.tsx"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T104 — Read every page of the roster and of a person's memberships

@@ -13,7 +13,7 @@ files_hint:
   - "docs/features/association-onboarding/tasks/tracker.md"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T105 — Read every page of the оператор's queue and list of associations

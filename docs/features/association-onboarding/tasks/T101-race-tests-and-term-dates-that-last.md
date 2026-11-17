@@ -11,7 +11,7 @@ files_hint:
   - "services/core/internal/identity/review_test.go"
 owner: "Andrii Opryshko"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T101 — Report race-test failures on the test goroutine and stop the term-end tests from expiring

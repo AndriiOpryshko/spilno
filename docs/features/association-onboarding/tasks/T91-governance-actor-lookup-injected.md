@@ -12,7 +12,7 @@ files_hint:
   - "services/core/internal/governance/file_download_test.go"
 owner: "Andrii Opryshko"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T91 — Pass the read-only lookup into governance from cmd/api and refuse a request without an actor

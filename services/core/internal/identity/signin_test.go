@@ -243,3 +243,141 @@ func TestProductionConfigHasNoDevShim(t *testing.T) {
 		t.Errorf("OperatorEmail = %q, want the SPILNO_OPERATOR_EMAIL value", cfg.OperatorEmail)
 	}
 }
+
+const signInCallbackPath = "/identity/sign-in/callback"
+
+// startSignIn runs startSignIn and returns the state in the provider link and the cookies the response set.
+func startSignIn(t *testing.T, srv *httptest.Server) (state string, cookies []*http.Cookie) {
+	t.Helper()
+	resp, err := signInNoRedirect.Get(srv.URL + "/identity/sign-in")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusFound {
+		t.Fatalf("startSignIn status = %d, want 302", resp.StatusCode)
+	}
+	loc, err := url.Parse(resp.Header.Get("Location"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	state = loc.Query().Get("state")
+	if state == "" {
+		t.Fatalf("startSignIn Location %q carries no state", loc)
+	}
+	return state, resp.Cookies()
+}
+
+// callbackWith runs completeSignIn for the applicant with the given cookies.
+func callbackWith(t *testing.T, srv *httptest.Server, state string, cookies []*http.Cookie) *http.Response {
+	t.Helper()
+	req, _ := http.NewRequest("GET", srv.URL+signInCallbackPath+"?code=applicant&state="+url.QueryEscape(state), nil)
+	for _, c := range cookies {
+		req.AddCookie(c)
+	}
+	cb, err := signInNoRedirect.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { cb.Body.Close() })
+	return cb
+}
+
+func wantRefusedSignIn(t *testing.T, pool *pgxpool.Pool, cb *http.Response) {
+	t.Helper()
+	if cb.StatusCode < 400 {
+		t.Errorf("callback status = %d, want a refusal (4xx)", cb.StatusCode)
+	}
+	if sessionCookieOf(cb) != nil {
+		t.Error("a refused callback set a session cookie")
+	}
+	if n := count(t, pool, "sessions"); n != 0 {
+		t.Errorf("sessions = %d, want 0", n)
+	}
+}
+
+// AC-05: the pending sign-in lives in a sealed cookie of the browser that started it.
+func TestSignInStateCookieFlags(t *testing.T) {
+	srv, _ := newSignInServer(t)
+	_, cookies := startSignIn(t, srv)
+	var c *http.Cookie
+	for _, k := range cookies {
+		if strings.HasSuffix(k.Path, signInCallbackPath) {
+			c = k
+		}
+	}
+	if c == nil {
+		t.Fatalf("startSignIn set no cookie scoped to %s; cookies = %v", signInCallbackPath, cookies)
+	}
+	if !c.HttpOnly {
+		t.Error("pending sign-in cookie is not HttpOnly")
+	}
+	if c.SameSite != http.SameSiteLaxMode {
+		t.Errorf("pending sign-in cookie SameSite = %v, want Lax", c.SameSite)
+	}
+	if !c.Secure {
+		t.Error("pending sign-in cookie is not Secure outside the development shim")
+	}
+}
+
+// AC-05: no cookie, another browser's cookie, a tampered cookie or a replay is refused.
+func TestSignInCallbackNeedsTheCookieOfItsState(t *testing.T) {
+	t.Run("no cookie", func(t *testing.T) {
+		srv, pool := newSignInServer(t)
+		state, _ := startSignIn(t, srv)
+		wantRefusedSignIn(t, pool, callbackWith(t, srv, state, nil))
+	})
+	t.Run("another browser's cookie", func(t *testing.T) {
+		srv, pool := newSignInServer(t)
+		state, _ := startSignIn(t, srv)
+		_, other := startSignIn(t, srv)
+		wantRefusedSignIn(t, pool, callbackWith(t, srv, state, other))
+	})
+	t.Run("tampered cookie", func(t *testing.T) {
+		srv, pool := newSignInServer(t)
+		state, cookies := startSignIn(t, srv)
+		forged := make([]*http.Cookie, len(cookies))
+		for i, c := range cookies {
+			cc := *c
+			if len(cc.Value) > 2 {
+				mid := len(cc.Value) / 2
+				flip := "A"
+				if cc.Value[mid:mid+1] == "A" {
+					flip = "B"
+				}
+				cc.Value = cc.Value[:mid] + flip + cc.Value[mid+1:]
+			}
+			forged[i] = &cc
+		}
+		wantRefusedSignIn(t, pool, callbackWith(t, srv, state, forged))
+	})
+	t.Run("forged state", func(t *testing.T) {
+		srv, pool := newSignInServer(t)
+		_, cookies := startSignIn(t, srv)
+		wantRefusedSignIn(t, pool, callbackWith(t, srv, "forged-state", cookies))
+	})
+	t.Run("replayed", func(t *testing.T) {
+		srv, pool := newSignInServer(t)
+		state, cookies := startSignIn(t, srv)
+		first := callbackWith(t, srv, state, cookies)
+		if first.StatusCode != http.StatusFound || sessionCookieOf(first) == nil {
+			t.Fatalf("first callback = %d, want 302 with a session", first.StatusCode)
+		}
+		cleared := false
+		for _, c := range first.Cookies() {
+			if strings.HasSuffix(c.Path, signInCallbackPath) && c.MaxAge < 0 {
+				cleared = true
+			}
+		}
+		if !cleared {
+			t.Error("callback did not clear the pending sign-in cookie")
+		}
+		replay := callbackWith(t, srv, state, cookies) // a browser that kept the old cookie
+		if replay.StatusCode < 400 || sessionCookieOf(replay) != nil {
+			t.Errorf("replayed callback = %d, want a refusal without a session", replay.StatusCode)
+		}
+		if n := count(t, pool, "sessions"); n != 1 {
+			t.Errorf("sessions = %d, want 1", n)
+		}
+	})
+}

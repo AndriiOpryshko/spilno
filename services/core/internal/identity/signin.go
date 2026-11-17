@@ -17,12 +17,16 @@ type SignInProvider = ports.SignInProvider
 type SignInConfig struct {
 	Provider      SignInProvider
 	OperatorEmail string // SPILNO_OPERATOR_EMAIL; compared ignoring letter case
+	// CallbackPath is the sign-in callback path as the browser reaches it (behind the web app's
+	// /api prefix); the pending sign-in cookie is scoped to it. Empty means the API's own path.
+	CallbackPath string
 }
 
 // EnableSignIn turns startSignIn, completeSignIn, signOut and getSession on.
 func (m *Module) EnableSignIn(cfg SignInConfig) {
 	repo := postgres.NewSessions(m.pool)
 	m.signIn = app.NewSignIn(cfg.Provider, repo, repo, cfg.OperatorEmail)
+	m.signIn.SetCallbackPath(cfg.CallbackPath)
 	m.handler.EnableSignIn(m.signIn)
 }
 

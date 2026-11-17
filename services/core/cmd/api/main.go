@@ -140,7 +140,7 @@ func run() error {
 		if email == "" {
 			email = "user@example.test"
 		}
-		idm.EnableSignIn(identity.SignInConfig{Provider: identity.DevSignInProvider(email, cfg.WebOrigin+"/api/identity/sign-in/callback"), OperatorEmail: cfg.OperatorEmail})
+		idm.EnableSignIn(identity.SignInConfig{Provider: identity.DevSignInProvider(email, cfg.WebOrigin+"/api/identity/sign-in/callback"), OperatorEmail: cfg.OperatorEmail, CallbackPath: "/api/identity/sign-in/callback"})
 	}
 	gov := governance.New(pool, idm.HasStorageConnection, func(ctx context.Context) (bool, string, bool) {
 		actor, ok := identity.ActorFrom(ctx)

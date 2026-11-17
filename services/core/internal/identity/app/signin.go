@@ -2,9 +2,13 @@ package app
 
 import (
 	"context"
+	"crypto/aes"
+	"crypto/cipher"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"sync"
 	"time"
@@ -17,7 +21,7 @@ import (
 
 const (
 	stateTTL = 10 * time.Minute
-	// maxPendingStates caps the in-flight sign-in and consent states held in memory.
+	// maxPendingStates caps the pending storage consents held in memory.
 	maxPendingStates = 1000
 	sessionTTL       = 30 * 24 * time.Hour
 )
@@ -25,10 +29,16 @@ const (
 // ErrNoSession is returned when the token names no live session.
 var ErrNoSession = errors.New("identity: no session")
 
+// pending is what a sign-in in progress needs; it travels sealed in the browser's cookie.
 type pending struct {
-	verifier, nonce string
-	expires         time.Time
+	State    string    `json:"s"`
+	Verifier string    `json:"v"`
+	Nonce    string    `json:"n"`
+	Expires  time.Time `json:"e"`
 }
+
+// DefaultCallbackPath is where the pending sign-in cookie is scoped unless configured.
+const DefaultCallbackPath = "/identity/sign-in/callback"
 
 // SignIn runs the sign-in flow and keeps sessions.
 type SignIn struct {
@@ -37,13 +47,71 @@ type SignIn struct {
 	sessions      ports.SessionRepository
 	operatorEmail string
 	now           func() time.Time
+	aead          cipher.AEAD // random per process, seals the pending sign-in
+	callbackPath  string
 
-	mu     sync.Mutex
-	states map[string]pending // state -> PKCE verifier and nonce, single use
+	mu   sync.Mutex
+	used map[string]time.Time // states already completed -> expiry; only completed sign-ins are kept
 }
 
 func NewSignIn(p ports.SignInProvider, a ports.AccountRepository, s ports.SessionRepository, operatorEmail string) *SignIn {
-	return &SignIn{provider: p, accounts: a, sessions: s, operatorEmail: operatorEmail, now: time.Now, states: map[string]pending{}}
+	key := make([]byte, 32)
+	if _, err := rand.Read(key); err != nil {
+		panic(err)
+	}
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		panic(err)
+	}
+	aead, err := cipher.NewGCM(block)
+	if err != nil {
+		panic(err)
+	}
+	return &SignIn{provider: p, accounts: a, sessions: s, operatorEmail: operatorEmail, now: time.Now, aead: aead, callbackPath: DefaultCallbackPath, used: map[string]time.Time{}}
+}
+
+// SetClock replaces the clock the pending sign-in expiry is read from.
+func (s *SignIn) SetClock(now func() time.Time) { s.now = now }
+
+// SetCallbackPath sets the path, as the browser reaches it, the pending sign-in cookie is scoped to.
+func (s *SignIn) SetCallbackPath(path string) {
+	if path != "" {
+		s.callbackPath = path
+	}
+}
+
+// CallbackPath is the path the pending sign-in cookie is scoped to.
+func (s *SignIn) CallbackPath() string { return s.callbackPath }
+
+// StateMaxAge is how long the pending sign-in cookie lives, in seconds.
+func StateMaxAge() int { return int(stateTTL / time.Second) }
+
+func (s *SignIn) seal(p pending) (string, error) {
+	plain, err := json.Marshal(p)
+	if err != nil {
+		return "", err
+	}
+	nonce := make([]byte, s.aead.NonceSize())
+	if _, err := rand.Read(nonce); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(s.aead.Seal(nonce, nonce, plain, nil)), nil
+}
+
+func (s *SignIn) open(sealed string) (pending, bool) {
+	raw, err := base64.RawURLEncoding.DecodeString(sealed)
+	if err != nil || len(raw) < s.aead.NonceSize() {
+		return pending{}, false
+	}
+	plain, err := s.aead.Open(nil, raw[:s.aead.NonceSize()], raw[s.aead.NonceSize():], nil)
+	if err != nil {
+		return pending{}, false
+	}
+	var p pending
+	if json.Unmarshal(plain, &p) != nil {
+		return pending{}, false
+	}
+	return p, true
 }
 
 func randomToken() (string, error) {
@@ -59,42 +127,41 @@ func hashToken(token string) []byte {
 	return h[:]
 }
 
-// Start remembers a fresh state and returns the provider URL to redirect to.
-func (s *SignIn) Start() (string, error) {
+// Start returns the provider URL to redirect to and the sealed pending sign-in the browser
+// must carry back to the callback. The server keeps nothing.
+func (s *SignIn) Start() (redirect, sealed string, err error) {
 	state, err := randomToken()
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	nonce, err := randomToken()
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	verifier, err := randomToken()
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	challenge := sha256.Sum256([]byte(verifier))
-	now := s.now()
-
-	s.mu.Lock()
-	evictToCap(s.states, now, func(p pending) time.Time { return p.expires })
-	s.states[state] = pending{verifier: verifier, nonce: nonce, expires: now.Add(stateTTL)}
-	s.mu.Unlock()
-
-	return s.provider.AuthCodeURL(state, nonce, base64.RawURLEncoding.EncodeToString(challenge[:])), nil
+	sealed, err = s.seal(pending{State: state, Verifier: verifier, Nonce: nonce, Expires: s.now().Add(stateTTL)})
+	if err != nil {
+		return "", "", err
+	}
+	return s.provider.AuthCodeURL(state, nonce, base64.RawURLEncoding.EncodeToString(challenge[:])), sealed, nil
 }
 
 // Complete exchanges the code and returns a new session token for the verified person.
-// domain.ErrSignInRefused means the state is unknown or used, or the address is not verified.
-func (s *SignIn) Complete(ctx context.Context, code, state string) (string, error) {
-	s.mu.Lock()
-	p, ok := s.states[state]
-	delete(s.states, state)
-	s.mu.Unlock()
-	if !ok || s.now().After(p.expires) {
+// sealed is the cookie Start produced. domain.ErrSignInRefused means the cookie is missing, forged,
+// expired or of another state, or the address is not verified.
+func (s *SignIn) Complete(ctx context.Context, code, state, sealed string) (string, error) {
+	p, ok := s.open(sealed)
+	if !ok || subtle.ConstantTimeCompare([]byte(p.State), []byte(state)) != 1 || s.now().After(p.Expires) {
 		return "", domain.ErrSignInRefused
 	}
-	id, err := s.provider.Exchange(ctx, code, p.verifier, p.nonce)
+	if !s.markUsed(p) {
+		return "", domain.ErrSignInRefused
+	}
+	id, err := s.provider.Exchange(ctx, code, p.Verifier, p.Nonce)
 	if err != nil || !id.EmailVerified || id.Email == "" {
 		return "", domain.ErrSignInRefused
 	}
@@ -118,6 +185,24 @@ func (s *SignIn) Complete(ctx context.Context, code, state string) (string, erro
 		return "", err
 	}
 	return token, nil
+}
+
+// markUsed records the state as completed and reports false for a replay. Only completed
+// states are kept, and only until the cookie that carried them would have expired.
+func (s *SignIn) markUsed(p pending) bool {
+	now := s.now()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.used[p.State]; ok {
+		return false
+	}
+	for k, exp := range s.used {
+		if now.After(exp) {
+			delete(s.used, k)
+		}
+	}
+	s.used[p.State] = p.Expires
+	return true
 }
 
 // Principal returns the person behind token, or ErrNoSession.
@@ -146,7 +231,7 @@ func (s *SignIn) SignOut(ctx context.Context, token string) error {
 // evictToCap makes room for one more entry: it drops expired states once the map
 // is at maxPendingStates and, if it is still full of live states, forgets the
 // one closest to expiry.
-func evictToCap[V any](states map[string]V, now time.Time, expires func(V) time.Time) {
+func evictToCap[K comparable, V any](states map[K]V, now time.Time, expires func(V) time.Time) {
 	if len(states) < maxPendingStates {
 		return
 	}
@@ -156,11 +241,12 @@ func evictToCap[V any](states map[string]V, now time.Time, expires func(V) time.
 		}
 	}
 	for len(states) >= maxPendingStates {
-		var oldest string
+		var oldest K
 		var at time.Time
+		first := true
 		for k, v := range states {
-			if oldest == "" || expires(v).Before(at) {
-				oldest, at = k, expires(v)
+			if first || expires(v).Before(at) {
+				oldest, at, first = k, expires(v), false
 			}
 		}
 		delete(states, oldest)

@@ -472,8 +472,10 @@ func TestStorageConnectionNamesNoMemberOnceTheyLeftTheRoster(t *testing.T) { // 
 // after the consent links are made): while the first completion waits for Google, a second one is served.
 func TestStorageCodeExchangeHoldsNoConnection(t *testing.T) { // AC-27
 	env := newStorageT33EnvWith(t, true)
+	// Two board members each hold their own pending consent: one account holds at most one pending
+	// consent (T99), so the two overlapping completions must come from two different accounts.
 	state1 := env.start(t, "member", env.a)
-	state2 := env.start(t, "member", env.a)
+	state2 := env.start(t, "other", env.a)
 
 	pinned, err := env.pool.Acquire(context.Background())
 	if err != nil {
@@ -522,7 +524,7 @@ func TestStorageCodeExchangeHoldsNoConnection(t *testing.T) { // AC-27
 
 	other := make(chan int, 1)
 	go func() {
-		s, _ := env.complete(t, "member", env.a, "code-2", state2)
+		s, _ := env.complete(t, "other", env.a, "code-2", state2)
 		other <- s
 	}()
 	select {

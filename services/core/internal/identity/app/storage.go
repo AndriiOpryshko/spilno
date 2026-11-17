@@ -28,8 +28,9 @@ type StorageMembers interface {
 }
 
 type storageState struct {
-	account, association uuid.UUID
-	expires              time.Time
+	state       string
+	association uuid.UUID
+	expires     time.Time
 }
 
 // StorageConnections connects the association's document storage on behalf of a member.
@@ -42,11 +43,11 @@ type StorageConnections struct {
 	now    func() time.Time
 	inTx   func(ctx context.Context, fn func(ctx context.Context) error) error
 	mu     sync.Mutex
-	states map[string]storageState
+	states map[uuid.UUID]storageState // account -> its one pending consent
 }
 
 func NewStorageConnections(consent ports.StorageConsent, members StorageMembers, connections *GoogleConnections, repo ports.GoogleConnectionRepository) *StorageConnections {
-	return &StorageConnections{consent: consent, members: members, connections: connections, repo: repo, states: map[string]storageState{}, now: time.Now,
+	return &StorageConnections{consent: consent, members: members, connections: connections, repo: repo, states: map[uuid.UUID]storageState{}, now: time.Now,
 		inTx: func(ctx context.Context, fn func(context.Context) error) error { return fn(ctx) }}
 }
 
@@ -67,8 +68,10 @@ func (s *StorageConnections) Start(account, association uuid.UUID) (string, erro
 	state := base64.RawURLEncoding.EncodeToString(raw)
 	now := time.Now()
 	s.mu.Lock()
-	evictToCap(s.states, now, func(v storageState) time.Time { return v.expires })
-	s.states[state] = storageState{account: account, association: association, expires: now.Add(storageStateTTL)}
+	if _, held := s.states[account]; !held {
+		evictToCap(s.states, now, func(v storageState) time.Time { return v.expires })
+	}
+	s.states[account] = storageState{state: state, association: association, expires: now.Add(storageStateTTL)}
 	s.mu.Unlock()
 	return s.consent.AuthURL(state), nil
 }
@@ -76,12 +79,12 @@ func (s *StorageConnections) Start(account, association uuid.UUID) (string, erro
 func (s *StorageConnections) take(state string, account, association uuid.UUID) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	st, ok := s.states[state]
-	if !ok {
+	st, ok := s.states[account]
+	if !ok || st.state != state {
 		return false
 	}
-	delete(s.states, state)
-	return st.account == account && st.association == association && time.Now().Before(st.expires)
+	delete(s.states, account)
+	return st.association == association && time.Now().Before(st.expires)
 }
 
 // Complete finishes the consent and stores the connection. It returns ErrBadStorageState,

@@ -67,3 +67,41 @@ func TestStartingStorageConsentManyTimesLeavesServerMemoryBounded(t *testing.T) 
 		t.Errorf("heap grew by %d bytes after %d consent starts, want at most %d: the state must not be kept per start in server memory", growth, stateStarts, stateBudget)
 	}
 }
+
+// AC-05: a flood of starts does not push out a sign-in already in progress.
+func TestSignInFloodLeavesAnEarlierSignInAbleToFinish(t *testing.T) {
+	srv, _ := newSignInServer(t)
+	state, cookies := startSignIn(t, srv)
+	for i := 0; i < 2*1000+500; i++ {
+		startSignIn(t, srv)
+	}
+	cb := callbackWith(t, srv, state, cookies)
+	if cb.StatusCode != http.StatusFound || sessionCookieOf(cb) == nil {
+		t.Errorf("callback of an earlier start after a flood = %d (session cookie %v), want 302 with a session", cb.StatusCode, sessionCookieOf(cb) != nil)
+	}
+}
+
+// AC-27: a flood of consent starts by one member does not push out another member's pending consent.
+func TestStorageConsentFloodLeavesAnotherMembersConsentAbleToFinish(t *testing.T) {
+	env := newStorageT33Env(t)
+	state := env.start(t, "member", env.a)
+	for i := 0; i < 2500; i++ {
+		env.start(t, "memberB", env.b)
+	}
+	if status, body := env.complete(t, "member", env.a, "code-1", state); status != 201 {
+		t.Errorf("complete after a flood = %d, want 201; body %s", status, body)
+	}
+}
+
+// AC-27: one account holds at most one pending storage consent: a later start replaces the earlier one.
+func TestStorageConsentHoldsOnePendingEntryPerAccount(t *testing.T) {
+	env := newStorageT33Env(t)
+	first := env.start(t, "member", env.a)
+	second := env.start(t, "member", env.a)
+	if status, _ := env.complete(t, "member", env.a, "code-1", first); status != 422 {
+		t.Errorf("earlier state after a later start = %d, want 422 (replaced)", status)
+	}
+	if status, body := env.complete(t, "member", env.a, "code-1", second); status != 201 {
+		t.Errorf("latest state = %d, want 201; body %s", status, body)
+	}
+}

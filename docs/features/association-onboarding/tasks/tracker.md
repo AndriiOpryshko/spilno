@@ -125,9 +125,9 @@
   development shim (`SPILNO_DEV_SIGN_IN=true`); without the shim the four sign-in operations answer 501.
   The Google OIDC adapter (ID-token verification, client configuration from the environment) is a
   separate piece of work after this feature (decided 2026-11-10).
-- **Sign-in state lives in process memory** (`identity/app/signin.go`: state, PKCE verifier, nonce, 10
-  minutes; bounded since T55). Enough for one API instance; more than one needs a table that the data model
-  does not have.
+- **Sign-in state is sealed with a per-process key** (`identity/app/signin.go`: state, PKCE verifier, nonce and
+  expiry travel in a cookie of the browser that started the sign-in; since T99 the server keeps nothing). One API
+  instance is enough; more than one needs a shared key. The storage consent keeps one server-side entry per account.
 - **Security review findings are open** ([record](../_review/security-2026-11-10.md)): no High, six Medium
   (SEC-01 to SEC-06, due 2026-11-24), eight Low. SEC-01 with the gap above means the feature must not be
   deployed where anyone but the developer can reach it until the real provider adapter exists.

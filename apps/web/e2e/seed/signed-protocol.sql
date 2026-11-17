@@ -13,11 +13,18 @@
 
 -- protocols and protocol_snapshots cannot be deleted (ADR-0007), so this must never touch a database
 -- that is not the throwaway e2e one. That database says so itself:
---   ALTER DATABASE <name> SET spilno.e2e = 'on';
+--   ALTER DATABASE <name> SET spilno.e2e = 'on';      (undo: ALTER DATABASE <name> RESET spilno.e2e;)
+-- Only the setting stored on the database counts: one that comes from the role, the connection
+-- options or the session would mark every database that role can reach.
 DO $$
 BEGIN
-    IF current_setting('spilno.e2e', true) IS DISTINCT FROM 'on' THEN
-        RAISE EXCEPTION 'refusing to seed: database % is not marked as the e2e one (spilno.e2e is not on)', current_database();
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_db_role_setting s
+        JOIN pg_database d ON d.oid = s.setdatabase
+        WHERE d.datname = current_database() AND s.setrole = 0 AND 'spilno.e2e=on' = ANY (s.setconfig)
+    ) THEN
+        RAISE EXCEPTION 'refusing to seed: database % is not marked as the e2e one (ALTER DATABASE ... SET spilno.e2e)', current_database();
     END IF;
 END
 $$;

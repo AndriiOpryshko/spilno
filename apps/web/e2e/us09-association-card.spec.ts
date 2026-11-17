@@ -1,10 +1,18 @@
-import { expect, test } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
+
+import { expect, test, type Locator, type Page } from '@playwright/test';
 
 import { openRoster, rosterEntry } from './association-support';
 import { connectAssociation, newEmail, newFiling, openCard, today } from './support';
-import { approveTransfer, pendingTransfer } from './transfer-support';
+import { approveTransfer, pendingTransfer, transferExtract } from './transfer-support';
 
 const newHead = 'Новий Голова Правлінович';
+
+async function downloaded(page: Page, link: Locator) {
+  const download = page.waitForEvent('download');
+  await link.click();
+  return readFile(await (await download).path());
+}
 
 test('US-09: a член правління reads the confirmation chain and downloads the extract (AC-29, AC-20)', async ({ browser }) => {
   const f = newFiling();
@@ -44,8 +52,6 @@ test('US-09: a член правління reads the confirmation chain and down
   await expect(ended.getByText(mark('повноваження завершено'))).toBeVisible();
   await expect(ended.getByText('призначено')).toHaveCount(0);
 
-  const extract = incoming.waitForEvent('download');
-  await appointed.getByRole('link', { name: 'Витяг' }).click();
-  expect((await extract).suggestedFilename()).toBeTruthy();
-  await expect(ended.getByRole('link', { name: 'Витяг' })).toBeVisible();
+  // Both links download the extract of the запит, not the one the association was connected with.
+  for (const entry of [appointed, ended]) expect(await downloaded(incoming, entry.getByRole('link', { name: 'Витяг' }))).toEqual(transferExtract.buffer);
 });

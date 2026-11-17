@@ -35,13 +35,21 @@ test('US-03: the оператор records the check and approves, the applicant 
   await expect(applicant.getByText('сховище не підключене')).toBeVisible();
 });
 
+const registryEmpty = 'У реєстрі ще немає підписаних протоколів';
+
 test('US-03: the approved голова adds a член правління, who then opens the association (AC-09)', async ({ browser }) => {
   const c = await connected(browser, newFiling());
   const member = { fullName: 'Член Правління Тестовий', email: newEmail('member'), termStart: '2025-02-01' };
 
-  // The голова is the one entry of the new roster.
+  // The new голова opens the реєстр протоколів, still empty.
+  await c.head.getByRole('link', { name: 'Реєстр протоколів' }).click();
+  await expect(c.head.getByRole('heading', { name: 'Реєстр протоколів' })).toBeVisible();
+  await expect(c.head.getByText(registryEmpty)).toBeVisible();
+
+  // The голова is the one entry of the new roster, a member from the term start of the заявка.
   await openRoster(c.head);
   await expect(rosterEntry(c.head, c.f.fullName).getByText('голова правління', { exact: true })).toBeVisible();
+  await expect(rosterEntry(c.head, c.f.fullName).getByText('з 01.01.2025')).toBeVisible();
   await expect(c.head.getByText('член правління', { exact: true })).toHaveCount(0);
 
   await addBoardMember(c.head, member);

@@ -127,7 +127,9 @@ test('AC-16b: an оператор who is a член правління works in 
   expect((await scheduleMeeting(operator, own.associationId)).status()).toBe(201);
 
   // Another association stays closed to them, and the role is still theirs.
-  expect(await problemOf(await api(operator).get(`${base(foreign.associationId)}/board-members`))).toMatchObject({ status: 403, code: 'identity.not_current_member' });
+  const refused = await problemOf(await api(operator).get(`${base(foreign.associationId)}/board-members`));
+  expect(refused).toMatchObject({ status: 403, code: 'identity.not_current_member' });
+  expect(refused, 'the same answer as for a missing association (AC-07)').toEqual(await problemOf(await api(operator).get(`${base(missingId)}/board-members`)));
   await operator.goto(`/o/${foreign.associationId}/roster`);
   await expect(operator.getByRole('heading', { name: noAccess })).toBeVisible();
   await openQueue(operator);

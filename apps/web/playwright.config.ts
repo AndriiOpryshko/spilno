@@ -3,7 +3,8 @@ import { defineConfig, devices } from '@playwright/test';
 // e2e runs against the real stack: the core service must be up on :8080
 // (mprocs or CI starts it) with SPILNO_DEV_SIGN_IN=true and SPILNO_OPERATOR_EMAIL; Playwright starts the
 // web dev server itself. E2E_WEB_PORT and CORE_API_URL move the web port and the API address.
-// E2E_OWNER_DATABASE_URL is the owner connection of the e2e database, for the seed in e2e/seed.
+// E2E_OWNER_DATABASE_URL is the owner connection of the e2e database, for the seed in e2e/seed. On a moved web
+// port the API needs SPILNO_WEB_ORIGIN set to the same address: the sign-in and the storage consent return to it.
 const webPort = process.env.E2E_WEB_PORT ?? '5180';
 const webUrl = `http://localhost:${webPort}`;
 

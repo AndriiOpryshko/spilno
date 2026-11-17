@@ -125,6 +125,8 @@ export async function openNewCase(page: Page, associationId: string, title: stri
   const res = await api(page).post(`${base(associationId)}/cases`, { data: { title } });
   expect(res.status(), 'the справа is created').toBe(201);
   const { id } = (await res.json()) as { id: string };
+  // A справи list that is already on the screen does not re-read on a click on its own link.
+  await page.reload();
   await page.getByRole('link', { name: 'Справи' }).click();
   await page.getByRole('link', { name: title }).click();
   await expect(page.getByRole('heading', { name: title })).toBeVisible();

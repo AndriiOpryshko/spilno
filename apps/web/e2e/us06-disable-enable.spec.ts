@@ -18,6 +18,9 @@ test('US-06: the оператор disables with a reason, the member is stopped,
   // AC-23: enabling restores the association as it was.
   const row = await enableAs(operator, c.f.name);
   await expect(row.getByText('Підключене')).toBeVisible();
+  // The section's navigation leads back to the queue as well.
+  await operator.getByRole('link', { name: 'Заявки', exact: true }).click();
+  await expect(operator.getByRole('heading', { name: 'Заявки та запити' })).toBeVisible();
   await c.head.getByRole('link', { name: 'Справи' }).click();
   await expect(c.head.getByText(suspendedText)).toHaveCount(0);
   await openCard(c.head);

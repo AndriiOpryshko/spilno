@@ -1,3 +1,5 @@
+import { Link } from '@tanstack/react-router';
+
 import type { Application } from '@/api/gen/model';
 import { formatDate, uk } from '@/i18n/uk';
 
@@ -10,9 +12,9 @@ export function StatusLine({ application }: { application: Application }) {
       <p>
         <span className="font-semibold">{t.approved}</span>{' '}
         {application.association_id && (
-          <a className="underline" href={`/o/${application.association_id}/association`}>
+          <Link className="underline" to="/o/$associationId/association" params={{ associationId: application.association_id }}>
             {t.openAssociation(application.association_name)}
-          </a>
+          </Link>
         )}
       </p>
     );

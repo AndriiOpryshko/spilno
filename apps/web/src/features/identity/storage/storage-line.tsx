@@ -1,8 +1,8 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useEffect, useRef } from 'react';
 
-import { completeStorageConnection, getStartStorageConnectionUrl, getStorageConnection, useListMemberships } from '@/api/gen/endpoints/identity/identity';
+import { completeStorageConnection, getGetStorageConnectionQueryKey, getStartStorageConnectionUrl, useGetStorageConnection, useListMemberships } from '@/api/gen/endpoints/identity/identity';
 import { Skeleton } from '@/components/ui/skeleton';
 import { InlineAlert } from '@/features/governance/inline-alert';
 import { isNoAccessProblem } from '@/features/identity/shell/entry';
@@ -12,7 +12,7 @@ import { uk } from '@/i18n/uk';
 export const storageFlowKey = 'storage-flow-association-id';
 
 export function StorageLine({ associationId }: { associationId: string }) {
-  const connection = useQuery({ queryKey: ['storage-connection', associationId], queryFn: () => getStorageConnection(associationId) });
+  const connection = useGetStorageConnection(associationId);
   if (connection.isError) return <RequestFallback error={connection.error} onRetry={() => void connection.refetch()} />;
   if (!connection.data) return <Skeleton className="h-5 w-48" />;
   const { connected, google_account_email: email } = connection.data.data;
@@ -34,7 +34,7 @@ export function StorageCallback({ associationId, code, state }: { associationId:
   const complete = useMutation({
     mutationFn: () => completeStorageConnection(associationId, { code, state }),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['storage-connection', associationId] });
+      await queryClient.invalidateQueries({ queryKey: getGetStorageConnectionQueryKey(associationId) });
       await navigate({ to: '/o/$associationId/association', params: { associationId } });
     },
   });
@@ -67,7 +67,7 @@ export function StorageCallback({ associationId, code, state }: { associationId:
   }
   return (
     <div className="mx-auto max-w-2xl space-y-4 px-4 py-8">
-      <p role="alert">{uk.storage.personalAccount}</p>
+      <InlineAlert title={uk.storage.personalAccount} />
       <StorageLine associationId={associationId} />
     </div>
   );

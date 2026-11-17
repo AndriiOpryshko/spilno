@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router';
 import { Fragment, useState } from 'react';
 
 import { useFileApplication, useRefileApplication } from '@/api/gen/endpoints/identity/identity';
@@ -32,11 +33,19 @@ const textFields = [
   ['applicant_full_name', t.fullName],
 ] as const;
 
-const refusalLinks: Record<string, { href: string; label: string }> = {
-  'identity.association_already_connected': { href: '/applications/new?kind=transfer', label: t.linkTransfer },
-  'identity.application_already_open': { href: '/applications', label: t.linkOpen },
-  'identity.association_not_connected': { href: '/applications/new?kind=connection', label: t.linkConnection },
-};
+// The way out of a refusal: the заявка of the other kind, or the open one.
+function RefusalLink({ code }: { code: string }) {
+  switch (code) {
+    case 'identity.association_already_connected':
+      return <Link className="text-sm underline" to="/applications/new" search={{ kind: 'transfer' }}>{t.linkTransfer}</Link>;
+    case 'identity.application_already_open':
+      return <Link className="text-sm underline" to="/applications">{t.linkOpen}</Link>;
+    case 'identity.association_not_connected':
+      return <Link className="text-sm underline" to="/applications/new" search={{ kind: 'connection' }}>{t.linkConnection}</Link>;
+    default:
+      return null;
+  }
+}
 
 const refusalMessages: Record<string, string> = {
   'identity.term_ended': uk.applications.termEnded,
@@ -143,7 +152,6 @@ export function FilingForm({ kind, associationId, refile }: FilingFormProps) {
     );
   };
 
-  const link = refusal?.code ? refusalLinks[refusal.code] : undefined;
   const refusalMessage = knownRefusalMessage(refusal);
 
   return (
@@ -158,7 +166,7 @@ export function FilingForm({ kind, associationId, refile }: FilingFormProps) {
       {refusal && (
         <InlineAlert
           title={refusalMessage ?? t.failed}
-          action={link ? <a className="text-sm underline" href={link.href}>{link.label}</a> : undefined}
+          action={refusal.code ? <RefusalLink code={refusal.code} /> : undefined}
         />
       )}
       {!refile &&

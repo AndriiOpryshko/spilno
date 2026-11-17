@@ -1,9 +1,8 @@
-import { useQuery } from '@tanstack/react-query';
 import { createFileRoute, Navigate, Outlet, useRouterState } from '@tanstack/react-router';
 import { useEffect, useRef } from 'react';
 
 import { useListCases } from '@/api/gen/endpoints/governance/governance';
-import { getSession, listMemberships, useGetAssociationCard } from '@/api/gen/endpoints/identity/identity';
+import { useGetAssociationCard, useGetSession, useListMemberships } from '@/api/gen/endpoints/identity/identity';
 import { AssociationShell } from '@/components/app-shell';
 import { SuspendedNotice } from '@/features/identity/association/suspended-notice';
 import { isNoAccessProblem } from '@/features/identity/shell/entry';
@@ -15,8 +14,8 @@ export const Route = createFileRoute('/o/$associationId')({
 
 function AssociationLayout() {
   const { associationId } = Route.useParams();
-  const session = useQuery({ queryKey: ['session'], queryFn: () => getSession(), retry: false });
-  const memberships = useQuery({ queryKey: ['memberships'], queryFn: () => listMemberships(), enabled: session.isSuccess, retry: false });
+  const session = useGetSession({ query: { retry: false } });
+  const memberships = useListMemberships(undefined, { query: { enabled: session.isSuccess, retry: false } });
   const cases = useListCases(associationId, undefined, { query: { enabled: session.isSuccess, retry: false } });
 
   // A вимкнене ОСББ refuses its scoped reads with the reason in the problem detail (ADR-0007);

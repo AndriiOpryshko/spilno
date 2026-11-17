@@ -1,3 +1,4 @@
+import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -45,13 +46,14 @@ describe('StatusLine', () => {
     expect(screen.queryByRole('link', { name: /ОСББ|асоціац/i })).not.toBeInTheDocument();
   });
 
-  it('shows an approved заявка with a link into its association', () => {
-    render(
-      <StatusLine
-        application={application({ state: 'approved', association_id: '00000000-0000-7000-8000-0000000000b1' })}
-      />,
-    );
-    expect(screen.getByText(/схвалена/i)).toBeInTheDocument();
+  it('shows an approved заявка with a link into its association', async () => {
+    const approved = application({ state: 'approved', association_id: '00000000-0000-7000-8000-0000000000b1' });
+    const router = createRouter({
+      routeTree: createRootRoute({ component: () => <StatusLine application={approved} /> }),
+      history: createMemoryHistory({ initialEntries: ['/'] }),
+    });
+    render(<RouterProvider router={router} />);
+    expect(await screen.findByText(/схвалена/i)).toBeInTheDocument();
     expect(screen.queryByText(/очікує розгляду/)).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: /ОСББ/ })).toHaveAttribute(
       'href',

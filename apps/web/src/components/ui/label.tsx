@@ -1,9 +1,10 @@
 import * as React from "react"
+import { Label as LabelPrimitive } from "radix-ui"
 import { cn } from "cn"
 
-function Label({ className, ...props }: React.ComponentProps<"label">) {
+function Label({ className, ...props }: React.ComponentProps<typeof LabelPrimitive.Root>) {
   return (
-    <label
+    <LabelPrimitive.Root
       data-slot="label"
       className={cn("text-sm leading-none font-medium select-none", className)}
       {...props}

@@ -1,7 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
 import { createFileRoute, Link, Navigate, Outlet } from '@tanstack/react-router';
 
-import { getSession, useListApplicationsForReview } from '@/api/gen/endpoints/identity/identity';
+import { useGetSession, useListApplicationsForReview } from '@/api/gen/endpoints/identity/identity';
 import { isNoAccessProblem } from '@/features/identity/shell/entry';
 import { RequestFallback } from '@/features/identity/shell/request-fallback';
 import { uk } from '@/i18n/uk';
@@ -16,7 +15,7 @@ const activeProps = { className: 'bg-accent font-medium' };
 // The one guard for the оператор's section: it only routes. The server still refuses with
 // `identity.not_operator`, and that answer sends even a session marked оператор to /no-access.
 function OperatorLayout() {
-  const session = useQuery({ queryKey: ['session'], queryFn: () => getSession(), retry: false });
+  const session = useGetSession({ query: { retry: false } });
   const isOperator = session.data?.data.is_operator === true;
   // The same read as the queue page, so the page shares the answer.
   const queue = useListApplicationsForReview(undefined, { query: { enabled: isOperator, retry: false } });

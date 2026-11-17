@@ -1,3 +1,5 @@
+import { Link } from '@tanstack/react-router';
+
 import { getDownloadConfirmationExtractUrl } from '@/api/gen/endpoints/identity/identity';
 import type { AssociationCard as Card } from '@/api/gen/model';
 import { Badge } from '@/components/ui/badge';
@@ -5,7 +7,6 @@ import { formatDate, uk } from '@/i18n/uk';
 
 export function AssociationCard({ card }: { card: Card }) {
   const t = uk.association.card;
-  const newRequest = `/applications/new?kind=transfer&association_id=${card.id}`;
   return (
     <article className="mx-auto max-w-2xl space-y-6 px-4 py-8">
       <header className="space-y-1">
@@ -20,9 +21,9 @@ export function AssociationCard({ card }: { card: Card }) {
           <div className="space-y-2">
             <Badge variant="outline">{t.byHand}</Badge>
             <div>
-              <a className="underline" href={newRequest}>
+              <Link className="underline" to="/applications/new" search={{ kind: 'transfer', association_id: card.id }}>
                 {t.fileTransfer}
-              </a>
+              </Link>
             </div>
           </div>
         )}

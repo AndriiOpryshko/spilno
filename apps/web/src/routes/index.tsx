@@ -1,7 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
 import { createFileRoute, Navigate } from '@tanstack/react-router';
 
-import { getSession, listMemberships } from '@/api/gen/endpoints/identity/identity';
+import { useGetSession, useListMemberships } from '@/api/gen/endpoints/identity/identity';
 import { AssociationPicker } from '@/features/identity/shell/association-picker';
 import { resolveEntry } from '@/features/identity/shell/entry';
 import { PageSkeleton, RequestFallback } from '@/features/identity/shell/request-fallback';
@@ -11,8 +10,8 @@ export const Route = createFileRoute('/')({
 });
 
 function EntryPage() {
-  const session = useQuery({ queryKey: ['session'], queryFn: () => getSession(), retry: false });
-  const memberships = useQuery({ queryKey: ['memberships'], queryFn: () => listMemberships(), enabled: session.isSuccess, retry: false });
+  const session = useGetSession({ query: { retry: false } });
+  const memberships = useListMemberships(undefined, { query: { enabled: session.isSuccess, retry: false } });
 
   if (session.isError) return <RequestFallback error={session.error} onRetry={() => void session.refetch()} />;
   if (memberships.isError) return <RequestFallback error={memberships.error} onRetry={() => void memberships.refetch()} />;

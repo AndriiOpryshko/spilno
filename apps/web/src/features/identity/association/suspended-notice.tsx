@@ -14,13 +14,16 @@ export function AssociationProblemNotice({ error, associationId }: { error: Prob
   if (error.status === 403 && code === 'identity.association_disabled') return <SuspendedNotice reason={error.info?.detail ?? ''} />;
   if (error.status === 409 && code === 'governance.drive_not_connected') {
     return (
-      <div role="alert" className="space-y-1">
-        <p>{uk.storage.notConnected}</p>
-        <p className="text-sm text-muted-foreground">{uk.storage.anyMemberCanConnect}</p>
-        <Link className="underline" to="/o/$associationId/association" params={{ associationId }}>
-          {uk.storage.connect}
-        </Link>
-      </div>
+      <InlineAlert
+        title={uk.storage.notConnected}
+        action={
+          <Link className="underline" to="/o/$associationId/association" params={{ associationId }}>
+            {uk.storage.connect}
+          </Link>
+        }
+      >
+        {uk.storage.anyMemberCanConnect}
+      </InlineAlert>
     );
   }
   return null;

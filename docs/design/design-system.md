@@ -130,6 +130,8 @@ Tailwind's 4px scale; no custom spacing tokens. Conventions observed in code:
 | `Textarea` | native textarea props; `field-sizing-content`, `min-h-16` | none (covered via `SlotRow` stories) | slot row editing |
 | `Skeleton` | `animate-pulse bg-accent rounded-md` | none | cases, protocol loading |
 | `Kbd` | `<kbd>` on `bg-card` (see Accessibility) | none (covered via `SlotRow` stories) | `/` hint in cases, `⌘ Enter` / `Esc` in slot row |
+| `Label` | Radix `Label` (`label.tsx` is the shadcn primitive) | `UI/Form fields` | filing form, check form |
+| `Dialog` | `Dialog`, `DialogTrigger`, `DialogClose`, `DialogPortal`, `DialogOverlay`, `DialogContent`, `DialogHeader`, `DialogFooter`, `DialogTitle`, `DialogDescription`. Deviation: `dialog.tsx` is a trimmed copy of shadcn's, with no built-in close button (a `DialogClose` in the content closes it) | `UI/Dialog` | operator decision panel |
 
 ### Domain components (`src/features/governance`)
 

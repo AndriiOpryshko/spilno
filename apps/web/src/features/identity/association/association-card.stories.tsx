@@ -1,4 +1,5 @@
-import type { Meta, StoryObj } from '@storybook/react-vite';
+import type { Decorator, Meta, StoryObj } from '@storybook/react-vite';
+import { RouterProvider, createMemoryHistory, createRootRoute, createRouter } from '@tanstack/react-router';
 import { expect, within } from 'storybook/test';
 import { expect as vitestExpect } from 'vitest';
 import { page } from 'vitest/browser';
@@ -31,7 +32,15 @@ const base: Card = {
   ],
 };
 
-const meta = { title: 'Identity/AssociationCard', component: AssociationCard } satisfies Meta<typeof AssociationCard>;
+const withRouter: Decorator = (Story) => {
+  const router = createRouter({
+    routeTree: createRootRoute({ component: () => <Story /> }),
+    history: createMemoryHistory({ initialEntries: ['/'] }),
+  });
+  return <RouterProvider router={router} />;
+};
+
+const meta = { title: 'Identity/AssociationCard', component: AssociationCard, decorators: [withRouter] } satisfies Meta<typeof AssociationCard>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
@@ -39,7 +48,7 @@ type Story = StoryObj<typeof meta>;
 export const WithExtract: Story = {
   args: { card: base },
   play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getByRole('heading', { name: 'ОСББ «Тестовий Будинок»' })).toBeInTheDocument();
+    await expect(await within(canvasElement).findByRole('heading', { name: 'ОСББ «Тестовий Будинок»' })).toBeInTheDocument();
     await document.fonts.ready;
     await vitestExpect(page.elementLocator(canvasElement)).toMatchScreenshot('association-card');
   },
@@ -48,7 +57,7 @@ export const WithExtract: Story = {
 export const ByHand: Story = {
   args: { card: { ...base, edrpou: null, head_full_name: null, connected_by_hand: true, history: [] } },
   play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getByRole('link', { name: 'Подати запит на передачу' })).toBeInTheDocument();
+    await expect(await within(canvasElement).findByRole('link', { name: 'Подати запит на передачу' })).toBeInTheDocument();
   },
 };
 
@@ -68,7 +77,7 @@ export const TransferEndedAHead: Story = {
   args: { card: { ...base, head_full_name: 'Новий Голова Правління', history: [{ ...transfer, ended_head_full_name: 'Колишній Голова Правління' }] } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText(/повноваження завершено/)).toHaveTextContent('Колишній Голова Правління');
+    await expect(await canvas.findByText(/повноваження завершено/)).toHaveTextContent('Колишній Голова Правління');
     await expect(canvas.getByText(/призначено/)).toHaveTextContent('Новий Голова Правління');
   },
 };
@@ -78,7 +87,7 @@ export const TransferOnHandMadeAssociation: Story = {
   args: { card: { ...base, edrpou: null, head_full_name: 'Новий Голова Правління', history: [{ ...transfer, ended_head_full_name: null }] } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText(/призначено/)).toHaveTextContent('Новий Голова Правління');
+    await expect(await canvas.findByText(/призначено/)).toHaveTextContent('Новий Голова Правління');
     await expect(canvas.queryByText(/повноваження завершено/)).toBeNull();
   },
 };

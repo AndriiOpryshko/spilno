@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 
-import { listMemberships } from '@/api/gen/endpoints/identity/identity';
+import { useListMemberships } from '@/api/gen/endpoints/identity/identity';
 import { TopBar } from '@/components/app-shell';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -23,7 +23,7 @@ import type { ProtocolDraft, ProtocolState } from './types';
 export function ProtocolScreen({ caseId }: { caseId: string }) {
   const { associationId } = useParams({ from: '/o/$associationId' });
   // The layout already loaded the roster; this reads the same cache entry.
-  const { data: roster } = useQuery({ queryKey: ['memberships'], queryFn: () => listMemberships() });
+  const { data: roster } = useListMemberships();
   // A вимкнене ОСББ opens no draft (AC-25); the layout shows the suspended notice.
   const membership = roster?.data.items.find((m) => m.association_id === associationId);
   const disabled = membership?.association_state === 'disabled';

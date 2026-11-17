@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 
 import { useListMyApplications } from '@/api/gen/endpoints/identity/identity';
 import { StatusLine } from '@/features/identity/applications/status-line';
@@ -17,9 +17,9 @@ function ApplicationsList() {
       <ul className="grid gap-4">
         {items.map((a) => (
           <li key={a.id} className="grid gap-1">
-            <a className="font-medium underline" href={`/applications/${a.id}`}>
+            <Link className="font-medium underline" to="/applications/$applicationId" params={{ applicationId: a.id }}>
               {a.association_name}
-            </a>
+            </Link>
             <StatusLine application={a} />
           </li>
         ))}

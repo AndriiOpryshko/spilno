@@ -1,5 +1,6 @@
 import type { Decorator, Meta, StoryObj } from '@storybook/react-vite';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { RouterProvider, createMemoryHistory, createRootRoute, createRouter } from '@tanstack/react-router';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 import { expect as vitestExpect } from 'vitest';
 import { page } from 'vitest/browser';
@@ -14,10 +15,18 @@ const withQuery: Decorator = (Story) => (
   </QueryClientProvider>
 );
 
+const withRouter: Decorator = (Story) => {
+  const router = createRouter({
+    routeTree: createRootRoute({ component: () => <Story /> }),
+    history: createMemoryHistory({ initialEntries: ['/'] }),
+  });
+  return <RouterProvider router={router} />;
+};
+
 const meta = {
   title: 'Identity/FilingForm',
   component: FilingForm,
-  decorators: [withQuery],
+  decorators: [withQuery, withRouter],
 } satisfies Meta<typeof FilingForm>;
 
 export default meta;
@@ -26,7 +35,7 @@ type Story = StoryObj<typeof meta>;
 export const Connection: Story = {
   args: { kind: 'connection' },
   play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getByText('голова правління')).toBeInTheDocument();
+    await expect(await within(canvasElement).findByText('голова правління')).toBeInTheDocument();
     await document.fonts.ready;
     await vitestExpect(page.elementLocator(canvasElement)).toMatchScreenshot('filing-form');
   },
@@ -35,7 +44,7 @@ export const Connection: Story = {
 export const Transfer: Story = {
   args: { kind: 'transfer' },
   play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getByRole('button', { name: /Подати запит/ })).toBeInTheDocument();
+    await expect(await within(canvasElement).findByRole('button', { name: /Подати запит/ })).toBeInTheDocument();
   },
 };
 
@@ -65,7 +74,7 @@ export const WithErrors: Story = {
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole('button', { name: /Подати/ }));
+    await userEvent.click(await canvas.findByRole('button', { name: /Подати/ }));
     await waitFor(() => expect(canvas.getByLabelText(/ЄДРПОУ/)).toHaveAttribute('aria-invalid', 'true'));
     await expect(canvas.getByLabelText(/Початок строку/)).toHaveAttribute('aria-invalid', 'true');
     await expect(canvas.getByLabelText(/Витяг/)).toHaveAttribute('aria-invalid', 'true');
@@ -84,7 +93,7 @@ export const AlreadyConnected: Story = {
   beforeEach: stubFetch(() => problem(409, 'identity.association_already_connected', 'The application cannot be filed.')),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole('button', { name: /Подати/ }));
+    await userEvent.click(await canvas.findByRole('button', { name: /Подати/ }));
     await expect(await canvas.findByText(alreadyConnected)).toBeInTheDocument();
     const link = canvas.getByRole('link', { name: /запит на передачу/i });
     await expect(link.getAttribute('href')).toContain('kind=transfer');

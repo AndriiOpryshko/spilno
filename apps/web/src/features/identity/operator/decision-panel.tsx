@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { InlineAlert } from '@/features/governance/inline-alert';
 import { formatDate, uk } from '@/i18n/uk';
 
 const t = uk.operator;
@@ -25,11 +26,7 @@ const messageFor = (err: unknown) => {
 const isConflict = (err: unknown) => (err as { info?: { status?: number } }).info?.status === 409;
 
 function ErrorText({ children }: { children: string }) {
-  return (
-    <p role="alert" className="text-sm text-destructive">
-      {children}
-    </p>
-  );
+  return <InlineAlert title={children} />;
 }
 
 export function DecisionPanel({

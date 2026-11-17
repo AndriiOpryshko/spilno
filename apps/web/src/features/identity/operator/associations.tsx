@@ -11,6 +11,7 @@ import type { OperatorAssociation } from '@/api/gen/model';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { InlineAlert } from '@/features/governance/inline-alert';
 import { uk } from '@/i18n/uk';
 
 const messageFor = (err: unknown) => {
@@ -74,9 +75,7 @@ function AssociationRow({ association, onChanged }: { association: OperatorAssoc
           </Button>
         )}
         {error && (
-          <p role="alert" className="w-full text-sm text-destructive">
-            {error}
-          </p>
+          <InlineAlert title={error} className="w-full" />
         )}
       </div>
     </li>

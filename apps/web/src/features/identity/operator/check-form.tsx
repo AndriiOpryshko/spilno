@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { DateField } from '@/components/ui/date-field';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { InlineAlert } from '@/features/governance/inline-alert';
 import { uk } from '@/i18n/uk';
 
 const fieldLabels: Record<string, string> = {
@@ -102,9 +103,7 @@ export function CheckForm({ applicationId, filingId }: { applicationId: string; 
         {uk.operator.recordCheck}
       </Button>
       {failed && (
-        <p role="alert" className="text-sm text-destructive">
-          {broken.length ? uk.operator.checkFieldsBroken(broken.map((f) => fieldLabels[f]).join(', ')) : uk.operator.checkFailed}
-        </p>
+        <InlineAlert title={broken.length ? uk.operator.checkFieldsBroken(broken.map((f) => fieldLabels[f]).join(', ')) : uk.operator.checkFailed} />
       )}
     </form>
   );

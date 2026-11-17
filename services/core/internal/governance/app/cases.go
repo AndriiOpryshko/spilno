@@ -22,7 +22,7 @@ const maxFileNameLen = 255
 type CaseService struct {
 	repo   ports.CaseRepository
 	roster ports.RosterWriter
-	files  ports.Files // nil until the storage is wired
+	files  ports.FilesResolver // nil until the storage is wired
 	now    func() time.Time
 }
 
@@ -31,7 +31,7 @@ func NewCaseService(repo ports.CaseRepository, roster ports.RosterWriter) *CaseS
 }
 
 // SetFiles wires the storage; call it before serving.
-func (s *CaseService) SetFiles(files ports.Files) { s.files = files }
+func (s *CaseService) SetFiles(files ports.FilesResolver) { s.files = files }
 
 // CasePage is one slice of the newest-first справи listing.
 type CasePage struct {
@@ -145,10 +145,11 @@ func (s *CaseService) AddDocument(ctx context.Context, association, caseID uuid.
 	if err != nil {
 		return ports.CaseDocumentRecord{}, err
 	}
-	if s.files == nil {
-		return ports.CaseDocumentRecord{}, &domain.DomainError{Code: domain.CodeStorageUnavailable}
+	store, err := resolveFiles(ctx, s.files, association)
+	if err != nil {
+		return ports.CaseDocumentRecord{}, err
 	}
-	stored, err := s.files.Upload(ctx, up.Name, mediaType, bytes.NewReader(up.Data))
+	stored, err := store.Upload(ctx, up.Name, mediaType, bytes.NewReader(up.Data))
 	if err != nil {
 		return ports.CaseDocumentRecord{}, err
 	}

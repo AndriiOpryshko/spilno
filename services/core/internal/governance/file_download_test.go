@@ -124,12 +124,26 @@ func (r download) code() string {
 	return p.Code
 }
 
+// filesResolver is the shape of what Module.WithFiles takes (T92): the storage of one association.
+type filesResolver = func(ctx context.Context, association uuid.UUID) (governance.Files, error)
+
 func newDownloadEnv(t *testing.T, wire bool) *downloadEnv {
+	t.Helper()
+	if !wire {
+		return newDownloadEnvWith(t, nil)
+	}
+	return newDownloadEnvWith(t, func(e *downloadEnv) filesResolver {
+		return func(context.Context, uuid.UUID) (governance.Files, error) { return e.files, nil }
+	})
+}
+
+// newDownloadEnvWith wires the resolver mk builds from the env; nil wires no storage at all.
+func newDownloadEnvWith(t *testing.T, mk func(e *downloadEnv) filesResolver) *downloadEnv {
 	t.Helper()
 	pool, a, b := testdb.NewTwoAssociations(t)
 	idm := identity.New(pool)
 	people := map[string]identity.ProviderIdentity{}
-	for name, email := range map[string]string{"head": rosterHeadEmail, "operator": rosterOperatorEmail} {
+	for name, email := range map[string]string{"head": rosterHeadEmail, "bhead": rosterBOnlyEmail, "operator": rosterOperatorEmail} {
 		people[name] = identity.ProviderIdentity{Issuer: "https://accounts.example.test", Subject: "sub-" + name, Email: email, EmailVerified: true}
 	}
 	idm.EnableSignIn(identity.SignInConfig{Provider: rosterProvider{people}, OperatorEmail: rosterOperatorEmail})
@@ -141,8 +155,8 @@ func newDownloadEnv(t *testing.T, wire bool) *downloadEnv {
 		unsignedID: uuid.Must(uuid.NewV7()),
 	}
 	gov := governance.New(pool, idm.HasStorageConnection, actorAccess)
-	if wire {
-		gov = gov.WithFiles(e.files)
+	if mk != nil {
+		gov = gov.WithFiles(mk(e))
 	}
 	r := httpapi.NewRouter()
 	r.Group(func(r chi.Router) {
@@ -240,6 +254,12 @@ func (e *downloadEnv) call(t *testing.T, as, method, path, body string) download
 func (e *downloadEnv) fetch(t *testing.T, assoc string, file uuid.UUID) download {
 	t.Helper()
 	return e.call(t, "head", "GET", "/governance/associations/"+assoc+"/files/"+file.String(), "")
+}
+
+// fetchAs downloads a file as the named signed-in person ("bhead" is the голова of B).
+func (e *downloadEnv) fetchAs(t *testing.T, as, assoc string, file uuid.UUID) download {
+	t.Helper()
+	return e.call(t, as, "GET", "/governance/associations/"+assoc+"/files/"+file.String(), "")
 }
 
 func (e *downloadEnv) disableA(t *testing.T) {

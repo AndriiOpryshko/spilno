@@ -7,6 +7,7 @@ package governance
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -53,12 +54,27 @@ func New(_ *pgxpool.Pool, hasStorage func(context.Context, uuid.UUID) (bool, err
 // Files is the association-owned file storage the downloads read from.
 type Files = ports.Files
 
-// NewDevFiles is an in-memory Files for development (SPILNO_DEV_STORAGE=true); it forgets on restart.
-func NewDevFiles() Files { return filesfake.New() }
+// FilesResolver yields the storage of one association; nil Files means it has none.
+type FilesResolver = ports.FilesResolver
+
+// NewDevFiles is a resolver of in-memory storages, one per association, for development
+// (SPILNO_DEV_STORAGE=true); they forget on restart.
+func NewDevFiles() FilesResolver {
+	var mu sync.Mutex
+	stores := map[uuid.UUID]Files{}
+	return func(_ context.Context, association uuid.UUID) (Files, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		if stores[association] == nil {
+			stores[association] = filesfake.New()
+		}
+		return stores[association], nil
+	}
+}
 
 // WithFiles wires the storage behind downloadFile and addCaseDocument; without it they answer 503
 // governance.storage_unavailable. Call it before Routes.
-func (m *Module) WithFiles(files Files) *Module {
+func (m *Module) WithFiles(files FilesResolver) *Module {
 	m.files.SetFiles(files)
 	m.cases.SetFiles(files)
 	return m

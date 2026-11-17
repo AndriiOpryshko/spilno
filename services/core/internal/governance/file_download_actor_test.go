@@ -1,6 +1,7 @@
 package governance_test
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -22,7 +23,9 @@ import (
 func TestDownloadFileRefusesARequestWithoutAnActor(t *testing.T) {
 	pool, a, _ := testdb.NewTwoAssociations(t)
 	idm := identity.New(pool)
-	gov := governance.New(pool, idm.HasStorageConnection, actorAccess).WithFiles(&driveFiles{data: map[string][]byte{}})
+	gov := governance.New(pool, idm.HasStorageConnection, actorAccess).WithFiles(func(context.Context, uuid.UUID) (governance.Files, error) {
+		return &driveFiles{data: map[string][]byte{}}, nil
+	})
 	r := httpapi.NewRouter()
 	r.Group(func(r chi.Router) {
 		// no idm.Guard: nothing puts an actor in the context

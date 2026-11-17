@@ -24,13 +24,13 @@ var ErrFileNotSigned = errors.New("file is not pinned by a signed protocol")
 // FileService serves stored files; every call runs on the transaction in ctx.
 type FileService struct {
 	catalog ports.FileCatalog
-	files   ports.Files // nil until the storage is wired
+	files   ports.FilesResolver // nil until the storage is wired
 }
 
 func NewFileService(catalog ports.FileCatalog) *FileService { return &FileService{catalog: catalog} }
 
 // SetFiles wires the storage; call it before serving.
-func (s *FileService) SetFiles(files ports.Files) { s.files = files }
+func (s *FileService) SetFiles(files ports.FilesResolver) { s.files = files }
 
 // Download is a file whose bytes were read back and matched its recorded sha256.
 type Download struct {
@@ -53,10 +53,11 @@ func (s *FileService) Download(ctx context.Context, association, id uuid.UUID, r
 	if readOnly && !rec.Pinned {
 		return Download{}, ErrFileNotSigned
 	}
-	if s.files == nil {
-		return Download{}, &domain.DomainError{Code: domain.CodeStorageUnavailable}
+	store, err := resolveFiles(ctx, s.files, association)
+	if err != nil {
+		return Download{}, err
 	}
-	rc, err := s.files.Open(ctx, rec.DriveFileID)
+	rc, err := store.Open(ctx, rec.DriveFileID)
 	if errors.Is(err, ports.ErrFileNotFound) {
 		return Download{}, ErrFileNotFound
 	}
@@ -74,4 +75,19 @@ func (s *FileService) Download(ctx context.Context, association, id uuid.UUID, r
 		return Download{}, fmt.Errorf("file %s: stored bytes differ from the recorded sha256", id)
 	}
 	return Download{Name: rec.Name, MediaType: rec.MediaType, Body: bytes.NewReader(data), Size: int64(len(data))}, nil
+}
+
+// resolveFiles is the association's storage, or storage_unavailable when none is wired or connected.
+func resolveFiles(ctx context.Context, resolve ports.FilesResolver, association uuid.UUID) (ports.Files, error) {
+	if resolve == nil {
+		return nil, &domain.DomainError{Code: domain.CodeStorageUnavailable}
+	}
+	store, err := resolve(ctx, association)
+	if err != nil {
+		return nil, err
+	}
+	if store == nil {
+		return nil, &domain.DomainError{Code: domain.CodeStorageUnavailable}
+	}
+	return store, nil
 }

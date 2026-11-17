@@ -1,31 +1,16 @@
 import { expect, test } from '@playwright/test';
 
-import { api, base, connected, problemOf } from './association-support';
+import { api, base, connected, connectStorage, problemOf } from './association-support';
 import { newEmail, newFiling, openCard } from './support';
 import { approveTransfer, pendingTransfer } from './transfer-support';
 
 const someCase = '0198a0a0-0000-7000-8000-00000000ca5e';
 const pdf = { name: 'estimate.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4 test estimate') };
 
-// The fake consent (SPILNO_DEV_STORAGE) returns to the web callback with a code that is the account address;
-// the spec rewrites the code of the redirect to choose the account that "gave the consent".
-async function connectWith(page: import('@playwright/test').Page, account: string) {
-  // A redirect hop is not offered to page.route, so the rewrite happens on the answer of the authorization call.
-  await page.route('**/storage-connection/authorization', async (route) => {
-    const response = await route.fetch({ maxRedirects: 0 });
-    const url = new URL(response.headers()['location']!);
-    url.searchParams.set('code', account);
-    return route.fulfill({ response, headers: { ...response.headers(), location: url.toString() } });
-  });
-  await openCard(page);
-  await expect(page.getByText('сховище не підключене')).toBeVisible();
-  await page.getByRole('link', { name: 'Підключити сховище' }).click();
-}
-
 test('US-08: a член правління connects the association account and every член sees its address (AC-27)', async ({ browser }) => {
   const c = await connected(browser, newFiling());
   const account = newEmail('osbb-storage');
-  await connectWith(c.head, account);
+  await connectStorage(c.head, account);
   await expect(c.head.getByText(`Сховище документів: ${account}`)).toBeVisible();
   await expect(c.head).toHaveURL(new RegExp(`/o/${c.associationId}/association`));
 
@@ -45,7 +30,7 @@ test('AC-28: a document is refused until the storage is connected, and any чл�
 
 test('AC-28b: the sign-in address of a член правління is refused as the storage account, nothing is connected', async ({ browser }) => {
   const c = await connected(browser, newFiling());
-  await connectWith(c.head, c.email);
+  await connectStorage(c.head, c.email);
   await expect(c.head.getByText('Це особистий акаунт члена правління — підключіть акаунт ОСББ')).toBeVisible();
   await expect(c.head.getByText('сховище не підключене')).toBeVisible();
 

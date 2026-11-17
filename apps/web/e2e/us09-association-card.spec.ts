@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 
+import { openRoster, rosterEntry } from './association-support';
 import { connectAssociation, newEmail, newFiling, openCard, today } from './support';
 import { approveTransfer, pendingTransfer } from './transfer-support';
 
@@ -32,4 +33,19 @@ test('US-09: a член правління reads the confirmation chain and down
   await expect(incoming.getByText(`призначено: ${newHead} за запитом на передачу від ${today()}, схвалено оператором ${today()}`)).toBeVisible();
   await expect(incoming.getByText(`повноваження завершено: ${f.fullName} за запитом на передачу від ${today()}, схвалено оператором ${today()}`)).toBeVisible();
   await expect(incoming.getByRole('link', { name: 'Завантажити витяг' })).toHaveCount(2);
+
+  // AC-20: the roster carries the same marks on the two entries the decision touched, each with its extract.
+  await openRoster(incoming);
+  const mark = (what: string) => `${what} за запитом на передачу від ${today()}, схвалено оператором ${today()}`;
+  const appointed = rosterEntry(incoming, newHead);
+  await expect(appointed.getByText(mark('призначено'))).toBeVisible();
+  await expect(appointed.getByText('повноваження завершено')).toHaveCount(0);
+  const ended = rosterEntry(incoming, f.fullName);
+  await expect(ended.getByText(mark('повноваження завершено'))).toBeVisible();
+  await expect(ended.getByText('призначено')).toHaveCount(0);
+
+  const extract = incoming.waitForEvent('download');
+  await appointed.getByRole('link', { name: 'Витяг' }).click();
+  expect((await extract).suggestedFilename()).toBeTruthy();
+  await expect(ended.getByRole('link', { name: 'Витяг' })).toBeVisible();
 });

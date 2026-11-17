@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 
+import { addBoardMember, connected, openRoster, rosterEntry } from './association-support';
 import { checkFor, fileAndConfirm, newEmail, newFiling, openReviewFromQueue, recordCheck, sessionFor, signInByButton } from './support';
 
 test('US-03: the оператор records the check and approves, the applicant opens the new association (AC-08, AC-09, AC-10)', async ({
@@ -34,5 +35,23 @@ test('US-03: the оператор records the check and approves, the applicant 
   await expect(applicant.getByText('сховище не підключене')).toBeVisible();
 });
 
-// board-protocol T10 (the roster screen) is not merged yet: the step is kept, named and skipped.
-test.fixme('US-03: the approved голова adds a член правління (AC-09, board-protocol T10 roster screen)', async () => {});
+test('US-03: the approved голова adds a член правління, who then opens the association (AC-09)', async ({ browser }) => {
+  const c = await connected(browser, newFiling());
+  const member = { fullName: 'Член Правління Тестовий', email: newEmail('member'), termStart: '2025-02-01' };
+
+  // The голова is the one entry of the new roster.
+  await openRoster(c.head);
+  await expect(rosterEntry(c.head, c.f.fullName).getByText('голова правління', { exact: true })).toBeVisible();
+  await expect(c.head.getByText('член правління', { exact: true })).toHaveCount(0);
+
+  await addBoardMember(c.head, member);
+  await expect(rosterEntry(c.head, member.fullName).getByText('з 01.02.2025')).toBeVisible();
+
+  // The new член правління signs in and lands in the association, with the same roster.
+  const added = await sessionFor(browser, member.email);
+  await added.goto('/');
+  await expect(added).toHaveURL(new RegExp(`/o/${c.associationId}/`));
+  await openRoster(added);
+  await expect(rosterEntry(added, member.fullName).getByText('член правління', { exact: true })).toBeVisible();
+  await expect(rosterEntry(added, c.f.fullName).getByText('голова правління', { exact: true })).toBeVisible();
+});

@@ -1,19 +1,28 @@
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
+import { useMemo } from 'react';
 
-import { useListApplicationsForReview } from '@/api/gen/endpoints/identity/identity';
+import { getListApplicationsForReviewQueryKey, listApplicationsForReview } from '@/api/gen/endpoints/identity/identity';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { RequestFallback } from '@/features/identity/shell/request-fallback';
 import { uk } from '@/i18n/uk';
 
 export function OperatorQueue() {
-  const query = useListApplicationsForReview();
+  const query = useInfiniteQuery({
+    // Pages are a different cache shape from the plain list read, so the key gets a suffix.
+    queryKey: [...getListApplicationsForReviewQueryKey(), 'pages'],
+    queryFn: ({ pageParam }) => listApplicationsForReview(pageParam ? { cursor: pageParam } : undefined),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => last.data.next_cursor ?? undefined,
+  });
+  const items = useMemo(() => (query.data?.pages ?? []).flatMap((page) => page.data.items), [query.data]);
   // A 403 is left to the section guard; any other failed read shows the fallback, never a blank page.
   if (query.isError) {
     if ((query.error as { status?: number } | null)?.status === 403) return null;
     return <RequestFallback error={query.error} onRetry={() => void query.refetch()} />;
   }
   if (!query.data) return null;
-  const items = query.data.data.items;
   return (
     <section className="mx-auto mt-8 flex max-w-2xl flex-col gap-3">
       <h1 className="text-xl font-semibold">{uk.operator.queueTitle}</h1>
@@ -32,6 +41,11 @@ export function OperatorQueue() {
           </li>
         ))}
       </ul>
+      {query.hasNextPage && (
+        <Button variant="outline" disabled={query.isFetchingNextPage} onClick={() => void query.fetchNextPage()}>
+          {uk.operator.more}
+        </Button>
+      )}
     </section>
   );
 }

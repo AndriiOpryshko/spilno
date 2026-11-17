@@ -1,11 +1,11 @@
-import { useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
 
 import {
   getListAssociationsForOperatorQueryKey,
   useDisableAssociation,
   useEnableAssociation,
-  useListAssociationsForOperator,
+  listAssociationsForOperator,
 } from '@/api/gen/endpoints/identity/identity';
 import type { OperatorAssociation } from '@/api/gen/model';
 import { Badge } from '@/components/ui/badge';
@@ -85,10 +85,16 @@ function AssociationRow({ association, onChanged }: { association: OperatorAssoc
 
 export function OperatorAssociations() {
   const client = useQueryClient();
-  const query = useListAssociationsForOperator();
+  const query = useInfiniteQuery({
+    // Pages are a different cache shape from the plain list read, so the key gets a suffix.
+    queryKey: [...getListAssociationsForOperatorQueryKey(), 'pages'],
+    queryFn: ({ pageParam }) => listAssociationsForOperator(pageParam ? { cursor: pageParam } : undefined),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => last.data.next_cursor ?? undefined,
+  });
+  const items = useMemo(() => (query.data?.pages ?? []).flatMap((page) => page.data.items), [query.data]);
   if (query.isError) return <RequestFallback error={query.error} onRetry={() => void query.refetch()} />;
   if (!query.data) return <PageSkeleton />;
-  const items = query.data.data.items;
   const refresh = () => client.invalidateQueries({ queryKey: getListAssociationsForOperatorQueryKey() });
 
   return (
@@ -99,6 +105,11 @@ export function OperatorAssociations() {
           <AssociationRow key={a.id} association={a} onChanged={refresh} />
         ))}
       </ul>
+      {query.hasNextPage && (
+        <Button variant="outline" disabled={query.isFetchingNextPage} onClick={() => void query.fetchNextPage()}>
+          {uk.operator.more}
+        </Button>
+      )}
     </section>
   );
 }

@@ -144,6 +144,7 @@ export const uk = {
     entry: 'Оператор',
     navApplications: 'Заявки',
     navAssociations: 'ОСББ',
+    more: 'Показати ще',
     ownApplication: 'Це ваша власна заявка — оператор не ухвалює рішення щодо себе',
     associationsTitle: 'ОСББ',
     stateConnected: 'Підключене',

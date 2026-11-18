@@ -13,7 +13,7 @@ files_hint:
   - "CLAUDE.md"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T135 — Bring the test plan, the trackers and the review record in line with the third follow-up

@@ -45,9 +45,13 @@ included. association-onboarding built on them after its review of 2026-11-17:
   the contract and the adapter.
 - [T97](../../association-onboarding/tasks/T97-wire-drive-storage-per-association.md) (commit `f6fde66`): `cmd/api` builds the adapter
   of each association from its Google connection.
+- [T112](../../association-onboarding/tasks/T112-wire-consent-drive-address-and-test-api-wiring.md) (commit `ecc440d`): `cmd/api` gives the
+  storage consent its Drive address
+  ([security review](../../association-onboarding/_review/security-2026-11-10.md), SEC-13), so a real
+  connection can be created, and a `cmd/api` test runs a consent and a document through the wiring.
+- [T113](../../association-onboarding/tasks/T113-drive-resolver-one-read-cached-token-deadline.md) (commit `724405f`): the resolver reads the
+  connection once, reuses the token, and the Drive client has a deadline.
 
 Left here: the contract run against real Google, behind a build tag or an environment variable with a test
-Google account (the third item of the Definition of Done). No such test exists yet; the adapter and its wiring
-have run against fakes only. A real connection cannot be created before that either: `cmd/api` builds the
-storage consent without its Drive address
-([security review](../../association-onboarding/_review/security-2026-11-10.md), SEC-13).
+Google account (the third item of the Definition of Done). No such test exists yet; the adapter, the consent
+and the wiring have run against fakes only.

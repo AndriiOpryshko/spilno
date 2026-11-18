@@ -163,11 +163,12 @@ the first item, the wiring, is delivered by association-onboarding, with one cha
 
 Left here:
 
-- the run of the contract against real Google ([T13](./T13-drive-files-adapter.md)), and before it the Drive
-  address of the storage consent in `cmd/api` (association-onboarding security review, SEC-13);
+- the run of the contract against real Google ([T13](./T13-drive-files-adapter.md)); the Drive address of the
+  storage consent (association-onboarding security review, SEC-13) was supplied by
+  [T112](../../association-onboarding/tasks/T112-wire-consent-drive-address-and-test-api-wiring.md) (commit `ecc440d`);
 - a reason per restriction and resuming an interrupted upload, as above;
-- the wiring test rebuilds the resolver of `cmd/api` instead of calling it (`driveFiles` in `cmd/api/main.go`
-  is under no test) and has its own fake Google, so the fake Drive of this package stayed in
+- the resolver of `cmd/api` is now `governance.NewDriveResolver`, shared by `cmd/api` and the wiring test
+  (T112), which still has its own fake Google, so the fake Drive of this package stayed in
   `drivefake_test.go` and there are two fakes;
 - a file whose removal failed stays in the storage until the `remove_orphan_file` job exists
   ([T14](./T14-river-worker-jobs.md), [T32](./T32-nightly-integrity-check.md)).

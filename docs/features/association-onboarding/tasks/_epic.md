@@ -537,7 +537,7 @@ The product owner chose to wire the real storage in this feature. board-protocol
 As built (2026-11-17, all 26 tasks done, [tracker](./tracker.md)): the fake Drive of the adapter's tests did
 not move; the module test of T97 (`governance/drive_wiring_test.go`) has its own fake Google and builds the
 resolver the way `cmd/api` does. T109 changed no baseline. The amendment of ADR-0003 and SAD §8 that T93 names
-is not written. What each finding got, and what stayed open, is in the
+was written with T111. What each finding got, and what stayed open, is in the
 [review record](../_review/review-2026-11-17.md#follow-up-what-closed-each-finding) and in the tracker's
 «Known gaps».
 
@@ -679,7 +679,7 @@ Each is the default of its task and is named in the task's Notes with the altern
 - **`uk.ts` lane.** T115, T116, T117 and T121 add or remove strings; they serialize on the file and are otherwise independent.
 - **T112 is still not a run against real Google.** It proves the wiring `cmd/api` runs against a fake Google; the real run stays a PRD §8 line.
 - **Two findings rest on reading alone** (R06 in T119, S07 in T127): each task starts by reproducing its finding in a test and records in the review record if it does not reproduce.
-- **T130 changes a generated Go type** (`BoardMemberDecisionEffect`); the roster handler and the web roster follow in the same commit.
+- **T130 changes a generated Go type** (`BoardMemberDecisionEffect`); the roster handler follows in the same commit; the web roster needed only the regenerated model.
 
 ## Board-protocol tasks this epic replaces or needs
 

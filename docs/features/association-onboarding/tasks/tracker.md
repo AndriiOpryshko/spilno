@@ -139,9 +139,9 @@
 | [T132](./T132-record-open-gaps-in-prd.md) | Record every gap left open in PRD §8 with an owner and a due date | docs | Andrii Opryshko | S | — | done |
 | [T133](./T133-e2e-third-review-fixes.md) | Prove the third review's fixes end to end by clicking | tests | Andrii Opryshko | M | T116, T117, T127 | done |
 | [T134](./T134-refresh-visual-baselines-third-review.md) | Refresh the visual baseline of the association card | tests | Andrii Opryshko | S | T116, T117, T118, T121 | done |
-| [T135](./T135-sync-docs-after-third-review.md) | Bring the test plan, the trackers and the review record in line with the third follow-up | docs | Andrii Opryshko | M | T113, T115, T119, T120, T123, T125, T126, T128, T131, T132, T133, T134 | todo |
+| [T135](./T135-sync-docs-after-third-review.md) | Bring the test plan, the trackers and the review record in line with the third follow-up | docs | Andrii Opryshko | M | T113, T115, T119, T120, T123, T125, T126, T128, T131, T132, T133, T134 | done |
 
-**Total:** 135 tasks, ~71 person-days: T01–T49 (~29.5, done, merged in PR #48), the review follow-up T50–T85 (~19.25, done, PRs #52–#55, [review of 2026-11-10](../_review/review-2026-11-10.md) with the commit that closed each finding), the second follow-up T86–T111 (~13, done, PR #56, [review of 2026-11-17](../_review/review-2026-11-17.md) with the commit that closed each finding) and the third follow-up T112–T135 (~9.25, todo, [second re-review of 2026-11-17](../_review/review-2026-11-17-2.md)).
+**Total:** 135 tasks, ~71 person-days: T01–T49 (~29.5, done, merged in PR #48), the review follow-up T50–T85 (~19.25, done, PRs #52–#55, [review of 2026-11-10](../_review/review-2026-11-10.md) with the commit that closed each finding), the second follow-up T86–T111 (~13, done, PR #56, [review of 2026-11-17](../_review/review-2026-11-17.md) with the commit that closed each finding) and the third follow-up T112–T135 (~9.25, done, [second re-review of 2026-11-17](../_review/review-2026-11-17-2.md) with the commit that closed each finding; the gate stays CHANGES REQUESTED until the review runs again).
 
 ## Known gaps (found during implementation)
 
@@ -180,6 +180,18 @@ date (T132); this section only says where the line is and what the code does now
   contract lists it since T60); two more are PRD §8 lines (the 413 on operations that do not advertise it, and
   SAD §6 Flow 10 without the AC-27b refusal).
 
+- **A provider that exposes no redirect address keeps the API's own callback path** (T123): the pending
+  sign-in cookie takes its path from the provider's `RedirectURL()`; a provider without that method is scoped
+  to `/identity/sign-in/callback`, without the web app's `/api` prefix, so such a provider would have its
+  sign-in refused. The development shim states its address; the real provider's adapter (the first gap) must
+  too. Held here only.
+- **A failed Drive resolver is one 503 without its cause in the log** (T113): `resolveFiles` answers 503
+  `governance.storage_unavailable` for an unreadable token, a database error or a missing folder alike and logs
+  nothing, so the cause is not found from the log. Held here only.
+
 Closed since the last list: a person on exactly one roster had no link to the заявка на підключення form
 (found by T108); T116 put «Мої заявки» and «Подати заявку на підключення» in the association sidebar and T117
-offers the запит на передачу on the card to every member.
+offers the запит на передачу on the card to every member. T112 gave the storage consent its Drive address
+(SEC-13, the remainder of N09), T114 refuses another storage account while the association has files, T129
+dropped the mirrored guard codes of governance, T122 and T123 bounded and scoped the sign-in state, and T133
+took the AC-16c spec off the оператор's rosters.

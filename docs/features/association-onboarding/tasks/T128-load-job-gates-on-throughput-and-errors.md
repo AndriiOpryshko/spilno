@@ -11,7 +11,7 @@ files_hint:
   - "mise.toml"
 owner: "Andrii Opryshko"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T128 — Fail the CI load job on throughput and errors and report its latency

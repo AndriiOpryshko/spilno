@@ -3157,7 +3157,9 @@ export const getCompleteStorageConnectionUrl = (associationId: string,) => {
 /**
  * The SPA's callback route posts the authorization code and state; the state is bound to the session and
  * the association. When a storage is already connected, the new account replaces the stored one under the
- * same rules and no file is moved (SAD §8, open question of PRD §8).
+ * same rules and no file is moved; the replacement is refused with `identity.storage_has_files` while the
+ * association has a file and the new account is not the connected one (same address, any letter case), so no
+ * file is left on an account the app no longer reads (ADR-0008 amendment, PRD §8).
  * @summary Finish the storage consent the SPA received back from Google (ADR-0008, AC-27, AC-28b)
  */
 export const completeStorageConnection = async (associationId: string,

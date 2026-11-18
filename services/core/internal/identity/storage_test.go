@@ -53,8 +53,15 @@ func newStorageT33Env(t *testing.T) *storageT33Env {
 // newStorageT33EnvWith builds the environment; onePool serves it on a pool of two connections.
 func newStorageT33EnvWith(t *testing.T, onePool bool) *storageT33Env {
 	t.Helper()
+	return newStorageT33EnvWithRoutes(t, nil, onePool)
+}
+
+// newStorageT33EnvWithRoutes also lets the test turn on more of governance: extra gets the module and the
+// guarded router before the server starts.
+func newStorageT33EnvWithRoutes(t *testing.T, extra func(gov *governance.Module, r chi.Router), onePool ...bool) *storageT33Env {
+	t.Helper()
 	pool, a, b := testdb.NewTwoAssociations(t)
-	if onePool {
+	if len(onePool) > 0 && onePool[0] {
 		cfg := pool.Config().Copy()
 		cfg.MaxConns = 2 // the test pins one, see TestStorageCodeExchangeHoldsNoConnection
 		small, err := pgxpool.NewWithConfig(context.Background(), cfg)
@@ -118,6 +125,9 @@ func newStorageT33EnvWith(t *testing.T, onePool bool) *storageT33Env {
 		r.Use(idm.Guard(guardRoster{gov}))
 		if err := idm.Routes(r); err != nil {
 			t.Fatal(err)
+		}
+		if extra != nil {
+			extra(gov, r)
 		}
 	})
 	env.srv = httptest.NewServer(r)
@@ -544,5 +554,136 @@ func TestStorageCodeExchangeHoldsNoConnection(t *testing.T) { // AC-27
 	releasePin()
 	if rows := env.rows(t, env.a); len(rows) != 1 {
 		t.Errorf("stored connections = %v, want exactly one", rows)
+	}
+}
+
+// T114 (PRD §5 AC-26, AC-27, ADR-0008 amendment): a connection with another Google account replaces the row and
+// moves no files, so every earlier file would answer 404. It is refused while the association has a file.
+
+// seedFile records the signed protocol of the association with its print copy in a fake
+// storage and returns the file's id and bytes. The download of it is what the refusal must keep working.
+func (e *storageT33Env) seedFile(t *testing.T, files governance.Files, assoc, memberEmail string) (fileID uuid.UUID, content []byte) {
+	t.Helper()
+	aid := uuid.MustParse(assoc)
+	lockedBy := uuid.MustParse(e.memberID(t, assoc, memberEmail))
+	content = []byte("%PDF-1.7 print copy of the signed protocol of " + assoc)
+	var stored struct{ ID, Revision string }
+	if files != nil { // the storage ids of two associations' fakes collide; only a test that downloads needs them
+		f, err := files.Upload(t.Context(), "protocol-signing-copy.pdf", "application/pdf", bytes.NewReader(content))
+		if err != nil {
+			t.Fatal(err)
+		}
+		stored.ID, stored.Revision = f.ID, f.Revision
+	}
+	err := db.InAssociation(context.Background(), e.pool, aid, "seed@example.test", func(ctx context.Context) error {
+		tx, err := db.From(ctx)
+		if err != nil {
+			return err
+		}
+		signed := governancetest.SeedSigned(t, tx, aid, governancetest.SignedSpec{
+			Number: 1, MeetingDate: time.Date(2026, 2, 10, 0, 0, 0, 0, time.UTC), Subject: "Про ремонт покрівлі",
+			LockedBy: lockedBy, PrintBytes: content,
+		})
+		fileID = signed.PrintFileID
+		if files == nil {
+			return nil
+		}
+		_, err = tx.Exec(ctx, `UPDATE files SET drive_file_id = $2, drive_revision_id = $3 WHERE id = $1`, fileID, stored.ID, stored.Revision)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return fileID, content
+}
+
+// storageT114Env is the storage connection environment with the governance routes and a storage that
+// holds the association's files, so a download can be asked after a refusal.
+type storageT114Env struct {
+	*storageT33Env
+	files map[string]governance.Files
+}
+
+func newStorageT114Env(t *testing.T) *storageT114Env {
+	t.Helper()
+	env := &storageT114Env{files: map[string]governance.Files{}}
+	devFiles := governance.NewDevFiles()
+	env.storageT33Env = newStorageT33EnvWithRoutes(t, func(gov *governance.Module, r chi.Router) {
+		gov.WithFiles(devFiles)
+		if err := gov.Routes(r); err != nil {
+			t.Fatal(err)
+		}
+	})
+	for _, a := range []string{env.a, env.b} {
+		f, err := devFiles(t.Context(), uuid.MustParse(a))
+		if err != nil || f == nil {
+			t.Fatalf("storage of %s: %v", a, err)
+		}
+		env.files[a] = f
+	}
+	return env
+}
+
+// download asks downloadFile as a member of assoc.
+func (e *storageT114Env) download(t *testing.T, as, assoc string, file uuid.UUID) (int, []byte) {
+	t.Helper()
+	status, _, body := e.do(t, as, "GET", "/governance/associations/"+assoc+"/files/"+file.String(), "")
+	return status, body
+}
+
+func TestStorageConnectionRefusesAnotherAccountWhileFilesExist(t *testing.T) { // AC-26, AC-27
+	env := newStorageT114Env(t)
+	if status, body := env.complete(t, "member", env.a, "c1", env.start(t, "member", env.a)); status != 201 {
+		t.Fatalf("first connection: status %d, body %s", status, body)
+	}
+	fileID, content := env.seedFile(t, env.files[env.a], env.a, "member@example.test")
+	if status, body := env.download(t, "member", env.a, fileID); status != 200 || !bytes.Equal(body, content) {
+		t.Fatalf("download before the refusal: status %d, body %q; want 200 and the stored bytes", status, body)
+	}
+	before := env.rows(t, env.a)
+
+	env.driveEmail = "second@example.test"
+	status, body := env.complete(t, "other", env.a, "c2", env.start(t, "other", env.a))
+	if status != http.StatusConflict || assocStateProblemCode(body) != "identity.storage_has_files" {
+		t.Errorf("another account with a file: status %d code %q, want 409 identity.storage_has_files; body %s", status, assocStateProblemCode(body), body)
+	}
+	if after := env.rows(t, env.a); len(after) != 1 || len(before) != 1 || after[0] != before[0] {
+		t.Errorf("rows after the refusal = %v, want the connection unchanged %v", after, before)
+	}
+	if status, body := env.download(t, "member", env.a, fileID); status != 200 || !bytes.Equal(body, content) {
+		t.Errorf("download after the refusal: status %d, body %q; want 200 and the stored bytes", status, body)
+	}
+}
+
+func TestStorageConnectionAcceptsTheSameAccountOrAnotherWithoutFiles(t *testing.T) { // AC-27
+	env := newStorageT114Env(t)
+	if status, body := env.complete(t, "member", env.a, "c1", env.start(t, "member", env.a)); status != 201 {
+		t.Fatalf("first connection: status %d, body %s", status, body)
+	}
+
+	// another account while the association has no file: accepted, and the row is replaced
+	env.driveEmail = "second@example.test"
+	if status, body := env.complete(t, "other", env.a, "c2", env.start(t, "other", env.a)); status != 201 {
+		t.Fatalf("another account without files: status %d, want 201; body %s", status, body)
+	}
+	if rows := env.rows(t, env.a); len(rows) != 1 || rows[0][0] != "second@example.test" {
+		t.Fatalf("rows = %v, want one row of second@example.test", rows)
+	}
+
+	// a file of another association does not count
+	env.seedFile(t, nil, env.b, "memberb@example.test")
+	env.driveEmail = "third@example.test"
+	if status, body := env.complete(t, "member", env.a, "c3", env.start(t, "member", env.a)); status != 201 {
+		t.Fatalf("another account while only the other association has files: status %d, want 201; body %s", status, body)
+	}
+
+	// the same account (any letter case) while the association has files: accepted
+	env.seedFile(t, nil, env.a, "member@example.test")
+	env.driveEmail = "THIRD@example.test"
+	if status, body := env.complete(t, "other", env.a, "c4", env.start(t, "other", env.a)); status != 201 {
+		t.Fatalf("the same account with files: status %d, want 201; body %s", status, body)
+	}
+	if rows := env.rows(t, env.a); len(rows) != 1 || rows[0][1] != env.ids["other"].String() {
+		t.Errorf("rows = %v, want one row authorized by the second member", rows)
 	}
 }

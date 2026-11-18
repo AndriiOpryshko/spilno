@@ -11,3 +11,7 @@ SELECT f.drive_file_id, f.sha256, f.size_bytes, f.media_type, f.original_name,
 FROM files f
 WHERE f.association_id = sqlc.arg(association_id)
   AND f.id = sqlc.arg(id);
+
+-- name: AssociationHasFiles :one
+-- Whether the association has at least one stored file (T114: another storage account is refused while it has).
+SELECT EXISTS (SELECT 1 FROM files WHERE association_id = sqlc.arg(association_id))::bool AS has_files;

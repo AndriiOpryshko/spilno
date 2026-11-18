@@ -38,7 +38,7 @@ Board-protocol [ADR-0005](../../board-protocol/adr/0005-store-files-in-associati
 - Good: replaces T12; reconnecting replaces the row as before.
 - Bad: one more OAuth redirect URI to register; an unknown personal address is not detectable (SAD §11).
 - Neutral: scope, encryption and folder layout of board-protocol ADR-0005 are unchanged.
-- Open (2026-11-10): who may replace a connected storage and what happens to the files on the old account is an open question (PRD §8, SAD §11); until it is closed a new connection replaces the row and moves no files.
+- Amended 2026-11-17 (second re-review, R07; PRD §8 closed, AC-27b): a connection with another Google account replaces the row and moves no files, so every earlier file would answer 404. It is refused with `identity.storage_has_files` (409) while the association has at least one file; the same account (address compared ignoring letter case) connects again, and an association without files connects any account. The check reads `files` by `association_id` in the association's transaction, before the row is written; identity asks governance through a port wired in `cmd/api`. Not taken: keep the replacement and write the consequence down; a distinct answer in place of the 404.
 
 ### Migration and rollback
 

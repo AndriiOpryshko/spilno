@@ -33,6 +33,11 @@ func NewFileService(catalog ports.FileCatalog) *FileService { return &FileServic
 // SetFiles wires the storage; call it before serving.
 func (s *FileService) SetFiles(files ports.FilesResolver) { s.files = files }
 
+// HasFiles reports whether the association has at least one stored file, on the transaction in ctx.
+func (s *FileService) HasFiles(ctx context.Context, association uuid.UUID) (bool, error) {
+	return s.catalog.Any(ctx, association)
+}
+
 // Download is a file whose bytes were read back and matched its recorded sha256.
 type Download struct {
 	Name, MediaType string

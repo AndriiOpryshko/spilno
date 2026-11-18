@@ -31,6 +31,7 @@ const (
 	CodeAssociationDisabled         = "identity.association_disabled"
 	CodeTermEnded                   = "identity.term_ended"
 	CodeStorageAccountPersonal      = "identity.storage_account_personal"
+	CodeStorageHasFiles             = "identity.storage_has_files"
 	CodeSessionRequired             = "identity.session_required"
 )
 
@@ -77,5 +78,6 @@ var ErrorRegistry = []ErrorDef{
 	{CodeAssociationDisabled, http.StatusForbidden},
 	{CodeTermEnded, http.StatusConflict},
 	{CodeStorageAccountPersonal, http.StatusConflict},
+	{CodeStorageHasFiles, http.StatusConflict},
 	{CodeSessionRequired, http.StatusUnauthorized},
 }

@@ -25,6 +25,8 @@ const storageStateTTL = 15 * time.Minute
 type StorageMembers interface {
 	MemberSignInAddresses(ctx context.Context, association uuid.UUID) ([]string, error)
 	CurrentMemberID(ctx context.Context, association uuid.UUID, email string, date time.Time) (uuid.UUID, bool, error)
+	// HasFiles reports whether the association has at least one stored file.
+	HasFiles(ctx context.Context, association uuid.UUID) (bool, error)
 }
 
 type storageState struct {
@@ -108,6 +110,9 @@ func (s *StorageConnections) Complete(ctx context.Context, account, association 
 	}
 	var conn ports.GoogleConnection
 	err = s.inTx(ctx, func(ctx context.Context) error {
+		if err := s.refuseAnotherAccountWithFiles(ctx, association, grant.AccountEmail); err != nil {
+			return err
+		}
 		if err := s.connections.Connect(ctx, NewGoogleConnection{
 			AssociationID: association, AccountEmail: grant.AccountEmail, RefreshToken: grant.RefreshToken,
 			Scopes: grant.Scopes, DriveRootFolderID: grant.DriveRootFolderID, AuthorizedBy: account,
@@ -119,6 +124,30 @@ func (s *StorageConnections) Complete(ctx context.Context, account, association 
 		return e
 	})
 	return conn, err
+}
+
+// refuseAnotherAccountWithFiles answers domain.CodeStorageHasFiles when email is not the account of the current
+// connection and the association has a file: the files stay on the old account and would answer 404. It runs
+// in the transaction of the write, before it.
+func (s *StorageConnections) refuseAnotherAccountWithFiles(ctx context.Context, association uuid.UUID, email string) error {
+	current, err := s.repo.Get(ctx, association)
+	if errors.Is(err, ports.ErrGoogleConnectionNotFound) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if strings.EqualFold(strings.TrimSpace(current.AccountEmail), strings.TrimSpace(email)) {
+		return nil
+	}
+	has, err := s.members.HasFiles(ctx, association)
+	if err != nil {
+		return err
+	}
+	if has {
+		return &domain.CodedError{Code: domain.CodeStorageHasFiles}
+	}
+	return nil
 }
 
 // Get returns the stored connection or ports.ErrGoogleConnectionNotFound.

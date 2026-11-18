@@ -296,6 +296,11 @@ Traceability and deviations:
 **When** a член правління connects the association's own storage account
 **Then** the system records the connection with the account's address and the member who connected it, and shows «Сховище документів: <адреса акаунта>» to every член правління
 
+### AC-27b (US-08) — domain invariant (edge case: another account while files exist)
+**Given** a підключене ОСББ whose document storage is connected and that has at least one file in it (a signed protocol's print copy, a document of a справа)
+**When** a член правління completes the consent with a Google account whose address differs from the connected account's (letter case ignored)
+**Then** the system refuses with «У сховищі ОСББ уже є файли — підключіть той самий акаунт, з яким вони були збережені», the connection and every file stay as they were; the same account connects again, and an association without files connects any other account (files are not moved)
+
 ### AC-28 (US-08) — cross-context
 **Given** a підключене ОСББ without a connected document storage
 **When** a член правління tries to attach a document to a справа
@@ -336,6 +341,7 @@ Traceability and deviations:
 | `identity.association_disabled` | authorization | Доступ призупинено: <причина> | AC-21, AC-25 |
 | `identity.term_ended` | invariant | Строк повноважень голови вже завершився — подайте витяг після переобрання | AC-30 |
 | `identity.storage_account_personal` | invariant | Це особистий акаунт члена правління — підключіть акаунт ОСББ | AC-28b |
+| `identity.storage_has_files` | conflict | У сховищі ОСББ уже є файли — підключіть той самий акаунт, з яким вони були збережені | AC-27b |
 | `governance.drive_not_connected` | invariant | Спершу підключіть сховище документів ОСББ (planned — not yet in `governance` ErrorRegistry) | AC-28 |
 
 Objects of another association, and another person's заявка, answer as not existing (same body as `identity.not_current_member`), so their existence is not revealed. All `identity.*` codes except `identity.not_current_member` are planned in the existing `identity` context.
@@ -383,7 +389,7 @@ Objects of another association, and another person's заявка, answer as not
 - [ ] How many associations actually wait to join (RICE Reach)? Default now: 6 filings a year. — owner: Andrii Opryshko, due: 2026-12-01
 - [x] Where the operator's back office lives (inside Спільно behind the оператор role or a separate surface)? Closed 2026-11-05 by SAD ADR-0001: inside Спільно, a section shown only to the оператор. — owner: Andrii Opryshko, due: SAD
 - [ ] How long rejected заявки and their extracts are kept (personal data of a person who never got access)? Default now: ≥ 5 years like all decisions. — owner: Andrii Opryshko, due: before implementation
-- [ ] Who may replace a connected document storage, and what happens to the files kept on the old account? Default now: any член правління connects another account under the rules of AC-27 and AC-28b; files are not moved. — owner: Andrii Opryshko, due: before implementation of rollout step 4
+- [x] Who may replace a connected document storage, and what happens to the files kept on the old account? Closed 2026-11-17 by the product owner (second re-review, R07): any член правління connects another account under the rules of AC-27 and AC-28b, but another account is refused while the association has at least one file (AC-27b, `identity.storage_has_files`); the same account connects again; files are never moved. Alternatives not taken: keep the replacement and write the consequence down, or answer with a distinct status in place of the 404. — owner: Andrii Opryshko
 
 ## 9. Migration plan
 

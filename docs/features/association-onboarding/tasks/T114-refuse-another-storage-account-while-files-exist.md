@@ -23,7 +23,7 @@ files_hint:
   - "docs/features/association-onboarding/data-model.md"
 owner: "Andrii Opryshko"
 estimate: "L"
-status: "todo"
+status: "done"
 ---
 
 # T114 — Refuse to connect another storage account while the association has files

@@ -154,6 +154,12 @@ func (m *Module) MemberSignInAddresses(ctx context.Context, association uuid.UUI
 	return m.roster.MemberSignInAddresses(ctx, association)
 }
 
+// HasFiles reports whether the association has at least one stored file. Like the roster
+// methods it reads on the transaction in ctx (db.InAssociation).
+func (m *Module) HasFiles(ctx context.Context, association uuid.UUID) (bool, error) {
+	return m.files.HasFiles(ctx, association)
+}
+
 // SeatHead makes person the head under the decision on the transaction in ctx and returns
 // the roster entry's id: a new entry, or a new revision of the person's current one.
 func (m *Module) SeatHead(ctx context.Context, association uuid.UUID, person Person, term Term, decisionID uuid.UUID) (uuid.UUID, error) {

@@ -11,6 +11,18 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const associationHasFiles = `-- name: AssociationHasFiles :one
+SELECT EXISTS (SELECT 1 FROM files WHERE association_id = $1)::bool AS has_files
+`
+
+// Whether the association has at least one stored file (T114: another storage account is refused while it has).
+func (q *Queries) AssociationHasFiles(ctx context.Context, associationID pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, associationHasFiles, associationID)
+	var has_files bool
+	err := row.Scan(&has_files)
+	return has_files, err
+}
+
 const getFileForDownload = `-- name: GetFileForDownload :one
 SELECT f.drive_file_id, f.sha256, f.size_bytes, f.media_type, f.original_name,
        EXISTS (

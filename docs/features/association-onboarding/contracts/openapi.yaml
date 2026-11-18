@@ -603,17 +603,17 @@ paths:
       tags: [identity]
       # unresolved: no response is named for an unknown, expired or replayed `state`, or for a code the
       # provider refuses — PRD §5.1 has no code for it (api-sync-report.md §D, /sdlc:clarify-prd).
-      # unresolved: who may replace a connected storage and what happens to the files on the old account is
-      # an open question of PRD §8; until it is closed a later connection replaces the stored one (report §D).
       summary: Finish the storage consent the SPA received back from Google (ADR-0008, AC-27, AC-28b)
       description: |
         The SPA's callback route posts the authorization code and state; the state is bound to the session and
         the association. When a storage is already connected, the new account replaces the stored one under the
-        same rules and no file is moved (SAD §8, open question of PRD §8).
+        same rules and no file is moved; the replacement is refused with `identity.storage_has_files` while the
+        association has a file and the new account is not the connected one (same address, any letter case), so no
+        file is left on an account the app no longer reads (ADR-0008 amendment, PRD §8).
       x-problem-types:
         "401": [identity.session_required]
         "403": [identity.not_current_member, identity.association_disabled]
-        "409": [identity.storage_account_personal]
+        "409": [identity.storage_account_personal, identity.storage_has_files]
         "422": [about:blank]
       requestBody:
         required: true
@@ -631,11 +631,13 @@ paths:
         "401": { $ref: "#/components/responses/SessionRequired" }
         "403": { $ref: "#/components/responses/MemberOrDisabled" }
         "409":
-          description: The Google account is a member's sign-in account.
+          description: The Google account is a member's sign-in account, or it is another account than the connected one while the association has files.
           content:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
-              examples: { storage_account_personal: { $ref: "#/components/examples/StorageAccountPersonal" } }
+              examples:
+                storage_account_personal: { $ref: "#/components/examples/StorageAccountPersonal" }
+                storage_has_files: { $ref: "#/components/examples/StorageHasFiles" }
         "422": { $ref: "#/components/responses/ValidationFailed" }
 
   /identity/associations/{association_id}/storage-connection/authorization:
@@ -807,6 +809,8 @@ components:
       value: { type: about:blank, title: Association state unchanged, status: 409, code: identity.association_state_unchanged, detail: ОСББ уже в цьому стані }
     StorageAccountPersonal:
       value: { type: about:blank, title: Storage account personal, status: 409, code: identity.storage_account_personal, detail: Це особистий акаунт члена правління — підключіть акаунт ОСББ }
+    StorageHasFiles:
+      value: { type: about:blank, title: Storage has files, status: 409, code: identity.storage_has_files, detail: У сховищі ОСББ уже є файли — підключіть той самий акаунт, з яким вони були збережені }
     Principal:
       value: { account_id: 00000000-0000-7000-8000-00000000a001, email: user-1@example.test, is_operator: false }
     MembershipPage:

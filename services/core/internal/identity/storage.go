@@ -78,3 +78,11 @@ func (s scopedMembers) CurrentMemberID(ctx context.Context, association uuid.UUI
 	})
 	return id, ok, err
 }
+
+func (s scopedMembers) HasFiles(ctx context.Context, association uuid.UUID) (has bool, err error) {
+	err = db.InAssociation(ctx, s.pool, association, "", func(ctx context.Context) (e error) {
+		has, e = s.StorageMembers.HasFiles(ctx, association)
+		return e
+	})
+	return has, err
+}

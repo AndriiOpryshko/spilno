@@ -318,6 +318,7 @@ Row-level security with the own-entry clause (ADR-0003). `idx_board_member_revis
 | `idx_association_state_changes_association_created` | `association_state_changes` | `(association_id, created_at DESC, id DESC)` | btree | `ListStateChanges`; FK |
 | `idx_board_member_revisions_sign_in_email` | `board_member_revisions` | `(sign_in_email)` | btree, CONCURRENTLY | none: the queries compare `lower(sign_in_email)`; dropped in a later release |
 | `idx_board_member_revisions_lower_sign_in_email` | `board_member_revisions` | `(lower(sign_in_email))` | btree on an expression, CONCURRENTLY | `MembershipsOf`; own-entry clause of the RLS policy |
+| `idx_files_association_id` | `files` | `(association_id)` | btree, CONCURRENTLY | `AssociationHasFiles` |
 | `idx_contracts_association_created` | `contracts` | `(association_id, created_at DESC, id DESC)` | btree, CONCURRENTLY | `ListContracts` |
 
 ## Query -> index map
@@ -347,6 +348,7 @@ Row-level security with the own-entry clause (ADR-0003). `idx_board_member_revis
 | `CurrentMember` | governance | Flow 4 / AC-07 | `association_id = $1 AND sign_in_email = $2` (latest revision, term covers today) | existing `idx_board_member_revisions_association_email` |
 | `MembershipsOf` | governance | AC-04d | `lower(sign_in_email) = lower($1)` on the latest visible revision of each entry; with no association set the RLS own-entry clause `lower(sign_in_email) = lower(app.actor_email)` selects the rows | `idx_board_member_revisions_lower_sign_in_email` (bitmap scan through the policy; plan pinned by `governance/roster_index_test.go`) |
 | `MemberSignInAddresses` | governance | AC-28b | `association_id = $1` | existing `idx_board_member_revisions_association_email` |
+| `AssociationHasFiles` | governance | AC-27b | `EXISTS (SELECT 1 FROM files WHERE association_id = $1)`, in the association's transaction before the connection row is written | `idx_files_association_id` (file 23, live `00050`); the RLS policy of `files` adds the same `association_id` test |
 | `SeatHead`, `EndTerm` | governance | Flows 2, 3 / AC-08, AC-19 | insert revision | PK; existing `idx_board_member_revisions_member_created` for the latest revision |
 | `ListContracts` | finance | ADR-0002 path move | `association_id = $1 ORDER BY created_at DESC, id DESC` | `idx_contracts_association_created` |
 
@@ -367,6 +369,7 @@ Row-level security with the own-entry clause (ADR-0003). `idx_board_member_revis
 | `identity.term_ended` | invariant | app only | date comparison on filing |
 | `identity.association_not_connected` | invariant | app only | lookup by `edrpou` |
 | `identity.storage_account_personal` | invariant | app only | cross-context (governance addresses) |
+| `identity.storage_has_files` | conflict | app only | cross-context (governance `AssociationHasFiles`, `idx_files_association_id`) vs `google_connections.google_account_email` |
 | `identity.association_disabled`, `identity.not_operator`, `identity.not_current_member` | authorization | app only + RLS | RLS hides rows of other associations (ADR-0003) |
 | `governance.drive_not_connected` | invariant | app only | no `google_connections` row |
 
@@ -396,6 +399,7 @@ Row-level security with the own-entry clause (ADR-0003). `idx_board_member_revis
 | 20 | `NNNNN_enable_rls_identity.sql` | RLS on `google_connections` | - | #48 (planned: PR 3) | drop policy, disable | - |
 | 21 | `NNNNN_enable_rls_identity_state_changes.sql` | RLS on `association_state_changes` (added in T20) | - | #48 (planned: PR 3) | drop policy, disable | - |
 | 22 | `NNNNN_index_board_member_revisions_lower_sign_in_email.sql` | index on `lower(sign_in_email)`, concurrently (added in T59) | - | review follow-up (T59) | drop index | - |
+| 23 | `NNNNN_index_files_association_id.sql` | index on `files(association_id)`, concurrently (added in T114) | - | second re-review follow-up (T114) | drop index | - |
 
 ### Delivery: one release instead of four
 

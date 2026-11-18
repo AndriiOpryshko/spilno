@@ -138,7 +138,7 @@
 | [T131](./T131-reconcile-sync-report-and-design-docs.md) | Reconcile the sync report and write the roster rules into ADR-0006, the SAD and the data model | docs | Andrii Opryshko | M | T124, T129, T130 | done |
 | [T132](./T132-record-open-gaps-in-prd.md) | Record every gap left open in PRD §8 with an owner and a due date | docs | Andrii Opryshko | S | — | done |
 | [T133](./T133-e2e-third-review-fixes.md) | Prove the third review's fixes end to end by clicking | tests | Andrii Opryshko | M | T116, T117, T127 | done |
-| [T134](./T134-refresh-visual-baselines-third-review.md) | Refresh the visual baseline of the association card | tests | Andrii Opryshko | S | T116, T117, T118, T121 | todo |
+| [T134](./T134-refresh-visual-baselines-third-review.md) | Refresh the visual baseline of the association card | tests | Andrii Opryshko | S | T116, T117, T118, T121 | done |
 | [T135](./T135-sync-docs-after-third-review.md) | Bring the test plan, the trackers and the review record in line with the third follow-up | docs | Andrii Opryshko | M | T113, T115, T119, T120, T123, T125, T126, T128, T131, T132, T133, T134 | todo |
 
 **Total:** 135 tasks, ~71 person-days: T01–T49 (~29.5, done, merged in PR #48), the review follow-up T50–T85 (~19.25, done, PRs #52–#55, [review of 2026-11-10](../_review/review-2026-11-10.md) with the commit that closed each finding), the second follow-up T86–T111 (~13, done, PR #56, [review of 2026-11-17](../_review/review-2026-11-17.md) with the commit that closed each finding) and the third follow-up T112–T135 (~9.25, todo, [second re-review of 2026-11-17](../_review/review-2026-11-17-2.md)).

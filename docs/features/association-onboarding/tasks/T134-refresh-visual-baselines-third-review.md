@@ -9,7 +9,7 @@ files_hint:
   - "apps/web/src/features/identity/association/association-card.stories.tsx"
 owner: "Andrii Opryshko"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T134 — Refresh the visual baseline of the association card

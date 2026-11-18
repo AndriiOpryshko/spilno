@@ -560,6 +560,127 @@ Each is the default of its task and is named in the task's Notes with the altern
 - **Three findings rest on the reviewer's read alone** (Q03 in T99, Q05 in T101, Q13 in T103): each task starts by reproducing its finding and records in the review record if it does not reproduce.
 
 
+## Review follow-up (2026-11-17, second re-review)
+
+The [second re-review](../_review/review-2026-11-17-2.md) of the feature at `25cf44e` asked for changes a third time: 13 stage-1 findings (R01–R13) and 12 stage-2 findings (S01–S12), all resolved as «fix now»; for R07 the product owner chose to refuse a connection of another storage account while the association has files. T112–T135 carry them; T01–T111 stay as built.
+
+Same DAG as [tasks.json](./tasks.json), tasks of this follow-up only. Parallel starts: T112, T114, T116, T117, T118, T119, T121, T122, T124, T125, T126, T127, T128, T132. Longest chain: 4 phases. 24 tasks, ~9.25 person-days.
+
+```mermaid
+flowchart LR
+    T112["T112 wiring: wire-consent-drive-address-and-test-api-wiring"]:::wir
+    T113["T113 app: drive-resolver-one-read-cached-token-deadline"]:::app
+    T114["T114 ports: refuse-another-storage-account-while-files-exist"]:::prt
+    T115["T115 ui: ui-storage-account-refusal"]:::ui
+    T116["T116 ui: ui-lasting-links-to-applications"]:::ui
+    T117["T117 ui: ui-transfer-request-link-for-every-member"]:::ui
+    T118["T118 ui: ui-extract-refusal-with-every-other-field"]:::ui
+    T119["T119 ui: ui-one-reader-for-memberships"]:::ui
+    T120["T120 ui: ui-protocol-screen-one-cache-key"]:::ui
+    T121["T121 ui: ui-operator-loading-states-and-way-back"]:::ui
+    T122["T122 app: bound-sign-in-replay-set"]:::app
+    T123["T123 app: sign-in-cookie-path-from-callback-address"]:::app
+    T124["T124 wiring: multipart-operations-outside-guard-transaction"]:::wir
+    T125["T125 tests: storage-race-test-reports-on-test-goroutine"]:::tst
+    T126["T126 tests: decision-effect-after-two-approvals"]:::tst
+    T127["T127 infra: dev-storage-unique-file-ids"]:::inf
+    T128["T128 tests: load-job-gates-on-throughput-and-errors"]:::tst
+    T129["T129 wiring: guard-refusal-codes-from-identity"]:::wir
+    T130["T130 wiring: contract-cookie-413-term-end-and-decision-effect"]:::wir
+    T131["T131 docs: reconcile-sync-report-and-design-docs"]:::doc
+    T132["T132 docs: record-open-gaps-in-prd"]:::doc
+    T133["T133 tests: e2e-third-review-fixes"]:::tst
+    T134["T134 tests: refresh-visual-baselines-third-review"]:::tst
+    T135["T135 docs: sync-docs-after-third-review"]:::doc
+    T112 --> T113
+    T114 --> T115
+    T119 --> T120
+    T122 --> T123
+    T112 --> T129
+    T114 --> T130
+    T124 --> T131
+    T129 --> T131
+    T130 --> T131
+    T116 --> T133
+    T117 --> T133
+    T127 --> T133
+    T116 --> T134
+    T117 --> T134
+    T118 --> T134
+    T121 --> T134
+    T113 --> T135
+    T115 --> T135
+    T119 --> T135
+    T120 --> T135
+    T123 --> T135
+    T125 --> T135
+    T126 --> T135
+    T128 --> T135
+    T131 --> T135
+    T132 --> T135
+    T133 --> T135
+    T134 --> T135
+    classDef mig fill:#fde68a,stroke:#92400e,color:#111
+    classDef dom fill:#bbf7d0,stroke:#166534,color:#111
+    classDef inf fill:#bfdbfe,stroke:#1e40af,color:#111
+    classDef app fill:#ddd6fe,stroke:#5b21b6,color:#111
+    classDef prt fill:#fbcfe8,stroke:#9d174d,color:#111
+    classDef ui fill:#fed7aa,stroke:#9a3412,color:#111
+    classDef wir fill:#e5e7eb,stroke:#374151,color:#111
+    classDef tst fill:#fecaca,stroke:#991b1b,color:#111
+    classDef doc fill:#f5f5f4,stroke:#57534e,color:#111
+```
+
+| Task | Title | Layer | Blocked by | ACs | Findings | Est. |
+|---|---|---|---|---|---|---|
+| [T112](./T112-wire-consent-drive-address-and-test-api-wiring.md) | Give the production storage consent its Drive address and test the wiring cmd/api runs | wiring | — | AC-26, AC-27, AC-28, AC-28b | R01, R02 (N09 remainder, SEC-13) | M |
+| [T113](./T113-drive-resolver-one-read-cached-token-deadline.md) | Resolve an association's Drive storage with one read, a reused token and a deadline | app | T112 | AC-26, AC-28 | S03 | M |
+| [T114](./T114-refuse-another-storage-account-while-files-exist.md) | Refuse to connect another storage account while the association has files | ports | — | AC-26, AC-27 | R07 | L |
+| [T115](./T115-ui-storage-account-refusal.md) | Tell the член правління why another storage account was refused | ui | T114 | AC-27 | R07 (web half) | S |
+| [T116](./T116-ui-lasting-links-to-applications.md) | Give every signed-in person a lasting way to their заявки and to the заявка на підключення form | ui | — | AC-01, AC-04d, AC-05, AC-06, AC-14 | R03 (N03 remainder) | M |
+| [T117](./T117-ui-transfer-request-link-for-every-member.md) | Offer the запит на передачу on the association card to every member | ui | — | AC-17 | R04 | S |
+| [T118](./T118-ui-extract-refusal-with-every-other-field.md) | Name a refused extract together with every other broken field | ui | — | AC-02 | R05 | S |
+| [T119](./T119-ui-one-reader-for-memberships.md) | Read memberships through one hook everywhere and stop the page loop on a repeated cursor | ui | — | AC-04d, AC-19 | R06, S12 (Q12, Q15 remainders) | M |
+| [T120](./T120-ui-protocol-screen-one-cache-key.md) | Read and write the protocol draft under one cache key and tighten the reuse test | ui | T119 | AC-25 | S08, S11 | S |
+| [T121](./T121-ui-operator-loading-states-and-way-back.md) | Show a loading state in the оператор's queue and a way back from a missing protocol or справа | ui | — | AC-04c, AC-26 | S09, S10 (Q11, Q13 remainders) | S |
+| [T122](./T122-bound-sign-in-replay-set.md) | Bound the set of used sign-in states | app | — | AC-05 | S01 (Q03 remainder) | S |
+| [T123](./T123-sign-in-cookie-path-from-callback-address.md) | Scope the pending sign-in cookie by the path of the callback address | app | T122 | AC-05 | S05 | S |
+| [T124](./T124-multipart-operations-outside-guard-transaction.md) | Run every multipart operation outside the guard's transaction and fail the build when one is missed | wiring | — | AC-25, AC-28 | S04 (Q01 remainder) | M |
+| [T125](./T125-storage-race-test-reports-on-test-goroutine.md) | Report the storage race test's failures on the test goroutine | tests | — | AC-27 | S02 (Q05 again) | S |
+| [T126](./T126-decision-effect-after-two-approvals.md) | Prove each roster entry's decision effect after two transfers in a row | tests | — | AC-19b, AC-20 | R13 (N01 test gap) | S |
+| [T127](./T127-dev-storage-unique-file-ids.md) | Give the development storage file ids that are unique across associations | infra | — | AC-26 | S07 | S |
+| [T128](./T128-load-job-gates-on-throughput-and-errors.md) | Fail the CI load job on throughput and errors and report its latency | tests | — | AC-01, AC-05, AC-08, AC-29 | S06 (Q10 caveat) | S |
+| [T129](./T129-guard-refusal-codes-from-identity.md) | Take the guard's refusal codes from identity through cmd/api and drop the mirror | wiring | T112 | AC-25, AC-26 | R09 (N05 remainder) | M |
+| [T130](./T130-contract-cookie-413-term-end-and-decision-effect.md) | Bring the contract in line with the sign-in cookie, the 413 answers, the term-end refusal and the decision effect | wiring | T114 | AC-02, AC-05, AC-19, AC-20, AC-26 | R08 (contract half), R10, R11 (delta) | M |
+| [T131](./T131-reconcile-sync-report-and-design-docs.md) | Reconcile the sync report and write the roster rules into ADR-0006, the SAD and the data model | docs | T124, T129, T130 | AC-04c, AC-19, AC-20, AC-26 | R08 (report, N08 again), R11 | M |
+| [T132](./T132-record-open-gaps-in-prd.md) | Record every gap left open in PRD §8 with an owner and a due date | docs | — | AC-01, AC-26, AC-27, AC-28 | R12 | S |
+| [T133](./T133-e2e-third-review-fixes.md) | Prove the third review's fixes end to end by clicking | tests | T116, T117, T127 | AC-01, AC-04d, AC-05, AC-16c, AC-17, AC-26 | R03, R04 (e2e halves), S07 | M |
+| [T134](./T134-refresh-visual-baselines-third-review.md) | Refresh the visual baseline of the association card | tests | T116, T117, T118, T121 | AC-17, AC-29 | follow-up of R03, R04, R05, S09 | S |
+| [T135](./T135-sync-docs-after-third-review.md) | Bring the test plan, the trackers and the review record in line with the third follow-up | docs | T113, T115, T119, T120, T123, T125, T126, T128, T131, T132, T133, T134 | AC-01, AC-02, AC-04d, AC-17, AC-26, AC-27 | bookkeeping of R01–R13, S01–S12 | M |
+
+**Finding coverage:** every finding of the record is named by at least one task above. R03 and R04 are carried by T116 and T117 (screens) and T133 (e2e); R07 by T114 (rule, code, contract, PRD, ADR) and T115 (message); R08 by T130 (contract) and T131 (sync report); R11 by T130 (delta) and T131 (ADR-0006, SAD, data model).
+
+### Decisions taken in this breakdown (third follow-up)
+
+Each is the default of its task and is named in the task's Notes with the alternative. None crosses the blast-radius gate for a new ADR: T114 amends ADR-0008 and T124 rewords the amendment of ADR-0003.
+
+- **A connection of another storage account is refused while the association has files (T114).** The product owner's choice of 2026-11-17 for R07; it closes the open question of PRD §8. The same account may connect again. The code's default name is `identity.storage_has_files`.
+- **A refused extract still sends the other fields (T118).** The server stays the one place that validates a filing; the alternative is a second copy of the rules on the client.
+- **The outside-I/O list follows the contract, not the request (T124).** Every association-scoped operation with a multipart body is listed and a test walks the contract; the request's content type does not decide, because the client chooses it.
+- **The guard's refusal codes reach governance through `cmd/api` (T129).** Governance names no identity code; the mirror constants and their test go.
+- **The CI load job enforces throughput and errors and reports latency (T128).** `mise run load` keeps the PRD §6 limits for the run before a release.
+
+### Risks of the third follow-up
+
+- **PRs #55 and #56 are still drafts.** These tasks build on `25cf44e`, so they continue on `fix/association-onboarding-second-review` or on a branch cut from it; a branch off `main` would not have the code they change. Which one is the product owner's call when `implement-tasks` starts.
+- **`cmd/api/main.go` lane.** T112, T113, T114, T123 and T129 edit it; `deps` order T112 → T113 and T112 → T129, the shared `files_hint` serializes the rest.
+- **Contract lane.** T114 and T130 edit `services/core/api/openapi.yaml`, each lands with its generated code, and T131 reconciles last.
+- **`PRD.md` lane.** T114 (§5, §5.1, §8), T131 (§5.1 marker) and T132 (§8) share the file; the shared `files_hint` serializes them. The due dates of T132 need the product owner's word.
+- **`uk.ts` lane.** T115, T116, T117 and T121 add or remove strings; they serialize on the file and are otherwise independent.
+- **T112 is still not a run against real Google.** It proves the wiring `cmd/api` runs against a fake Google; the real run stays a PRD §8 line.
+- **Two findings rest on reading alone** (R06 in T119, S07 in T127): each task starts by reproducing its finding in a test and records in the review record if it does not reproduce.
+- **T130 changes a generated Go type** (`BoardMemberDecisionEffect`); the roster handler and the web roster follow in the same commit.
+
 ## Board-protocol tasks this epic replaces or needs
 
 `tasks.json` holds only this epic's ids, so these are not `deps`; they are named in the Notes of the task on the right.

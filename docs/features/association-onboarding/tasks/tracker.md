@@ -116,8 +116,32 @@
 | [T109](./T109-refresh-visual-baselines-second-review.md) | Refresh the visual baselines the second review's fixes changed | tests | Andrii Opryshko | S | T88, T89, T102, T104, T105, T106 | done |
 | [T110](./T110-contract-texts-and-reconcile.md) | Correct the contract's descriptions and reconcile the sync report | wiring | Andrii Opryshko | M | T87, T90, T100 | done |
 | [T111](./T111-sync-docs-after-second-review.md) | Bring the test plan, the trackers and the review record in line with the second follow-up | docs | Andrii Opryshko | M | T96, T97, T98, T101, T103, T107, T108, T109, T110 | done |
+| [T112](./T112-wire-consent-drive-address-and-test-api-wiring.md) | Give the production storage consent its Drive address and test the wiring cmd/api runs | wiring | Andrii Opryshko | M | — | todo |
+| [T113](./T113-drive-resolver-one-read-cached-token-deadline.md) | Resolve an association's Drive storage with one read, a reused token and a deadline | app | Andrii Opryshko | M | T112 | todo |
+| [T114](./T114-refuse-another-storage-account-while-files-exist.md) | Refuse to connect another storage account while the association has files | ports | Andrii Opryshko | L | — | todo |
+| [T115](./T115-ui-storage-account-refusal.md) | Tell the член правління why another storage account was refused | ui | Andrii Opryshko | S | T114 | todo |
+| [T116](./T116-ui-lasting-links-to-applications.md) | Give every signed-in person a lasting way to their заявки and to the заявка на підключення form | ui | Andrii Opryshko | M | — | todo |
+| [T117](./T117-ui-transfer-request-link-for-every-member.md) | Offer the запит на передачу on the association card to every member | ui | Andrii Opryshko | S | — | todo |
+| [T118](./T118-ui-extract-refusal-with-every-other-field.md) | Name a refused extract together with every other broken field | ui | Andrii Opryshko | S | — | todo |
+| [T119](./T119-ui-one-reader-for-memberships.md) | Read memberships through one hook everywhere and stop the page loop on a repeated cursor | ui | Andrii Opryshko | M | — | todo |
+| [T120](./T120-ui-protocol-screen-one-cache-key.md) | Read and write the protocol draft under one cache key and tighten the reuse test | ui | Andrii Opryshko | S | T119 | todo |
+| [T121](./T121-ui-operator-loading-states-and-way-back.md) | Show a loading state in the оператор's queue and a way back from a missing protocol or справа | ui | Andrii Opryshko | S | — | todo |
+| [T122](./T122-bound-sign-in-replay-set.md) | Bound the set of used sign-in states | app | Andrii Opryshko | S | — | todo |
+| [T123](./T123-sign-in-cookie-path-from-callback-address.md) | Scope the pending sign-in cookie by the path of the callback address | app | Andrii Opryshko | S | T122 | todo |
+| [T124](./T124-multipart-operations-outside-guard-transaction.md) | Run every multipart operation outside the guard's transaction and fail the build when one is missed | wiring | Andrii Opryshko | M | — | todo |
+| [T125](./T125-storage-race-test-reports-on-test-goroutine.md) | Report the storage race test's failures on the test goroutine | tests | Andrii Opryshko | S | — | todo |
+| [T126](./T126-decision-effect-after-two-approvals.md) | Prove each roster entry's decision effect after two transfers in a row | tests | Andrii Opryshko | S | — | todo |
+| [T127](./T127-dev-storage-unique-file-ids.md) | Give the development storage file ids that are unique across associations | infra | Andrii Opryshko | S | — | todo |
+| [T128](./T128-load-job-gates-on-throughput-and-errors.md) | Fail the CI load job on throughput and errors and report its latency | tests | Andrii Opryshko | S | — | todo |
+| [T129](./T129-guard-refusal-codes-from-identity.md) | Take the guard's refusal codes from identity through cmd/api and drop the mirror | wiring | Andrii Opryshko | M | T112 | todo |
+| [T130](./T130-contract-cookie-413-term-end-and-decision-effect.md) | Bring the contract in line with the sign-in cookie, the 413 answers, the term-end refusal and the decision effect | wiring | Andrii Opryshko | M | T114 | todo |
+| [T131](./T131-reconcile-sync-report-and-design-docs.md) | Reconcile the sync report and write the roster rules into ADR-0006, the SAD and the data model | docs | Andrii Opryshko | M | T124, T129, T130 | todo |
+| [T132](./T132-record-open-gaps-in-prd.md) | Record every gap left open in PRD §8 with an owner and a due date | docs | Andrii Opryshko | S | — | todo |
+| [T133](./T133-e2e-third-review-fixes.md) | Prove the third review's fixes end to end by clicking | tests | Andrii Opryshko | M | T116, T117, T127 | todo |
+| [T134](./T134-refresh-visual-baselines-third-review.md) | Refresh the visual baseline of the association card | tests | Andrii Opryshko | S | T116, T117, T118, T121 | todo |
+| [T135](./T135-sync-docs-after-third-review.md) | Bring the test plan, the trackers and the review record in line with the third follow-up | docs | Andrii Opryshko | M | T113, T115, T119, T120, T123, T125, T126, T128, T131, T132, T133, T134 | todo |
 
-**Total:** 111 tasks, ~61.75 person-days: T01–T49 (~29.5, done, merged in PR #48), the review follow-up T50–T85 (~19.25, done, PRs #52–#55, [review of 2026-11-10](../_review/review-2026-11-10.md) with the commit that closed each finding) and the second follow-up T86–T111 (~13, done, PR #56, [review of 2026-11-17](../_review/review-2026-11-17.md) with the commit that closed each finding).
+**Total:** 135 tasks, ~71 person-days: T01–T49 (~29.5, done, merged in PR #48), the review follow-up T50–T85 (~19.25, done, PRs #52–#55, [review of 2026-11-10](../_review/review-2026-11-10.md) with the commit that closed each finding), the second follow-up T86–T111 (~13, done, PR #56, [review of 2026-11-17](../_review/review-2026-11-17.md) with the commit that closed each finding) and the third follow-up T112–T135 (~9.25, todo, [second re-review of 2026-11-17](../_review/review-2026-11-17-2.md)).
 
 ## Known gaps (found during implementation)
 

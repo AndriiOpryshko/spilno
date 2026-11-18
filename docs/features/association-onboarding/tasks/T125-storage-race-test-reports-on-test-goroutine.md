@@ -8,7 +8,7 @@ files_hint:
   - "services/core/internal/identity/storage_test.go"
 owner: "Andrii Opryshko"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T125 — Report the storage race test's failures on the test goroutine

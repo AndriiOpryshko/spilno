@@ -173,9 +173,19 @@ func seedStorageT33Member(t *testing.T, pool *pgxpool.Pool, assoc, email string)
 
 func (e *storageT33Env) do(t *testing.T, as, method, path, body string) (int, http.Header, []byte) {
 	t.Helper()
-	req, err := http.NewRequest(method, e.srv.URL+path, bytes.NewBufferString(body))
+	status, h, b, err := e.doErr(as, method, path, body)
 	if err != nil {
 		t.Fatal(err)
+	}
+	return status, h, b
+}
+
+// doErr is do for code that does not run on the test goroutine: it returns the error instead of
+// failing the test, so the caller reports it from the test goroutine.
+func (e *storageT33Env) doErr(as, method, path, body string) (int, http.Header, []byte, error) {
+	req, err := http.NewRequest(method, e.srv.URL+path, bytes.NewBufferString(body))
+	if err != nil {
+		return 0, nil, nil, err
 	}
 	if body != "" {
 		req.Header.Set("Content-Type", "application/json")
@@ -185,11 +195,11 @@ func (e *storageT33Env) do(t *testing.T, as, method, path, body string) (int, ht
 	}
 	resp, err := signInNoRedirect.Do(req)
 	if err != nil {
-		t.Fatal(err)
+		return 0, nil, nil, err
 	}
 	defer resp.Body.Close()
-	b, _ := io.ReadAll(resp.Body)
-	return resp.StatusCode, resp.Header, b
+	b, err := io.ReadAll(resp.Body)
+	return resp.StatusCode, resp.Header, b, err
 }
 
 func storageT33Path(assoc string) string {
@@ -520,27 +530,29 @@ func TestStorageCodeExchangeHoldsNoConnection(t *testing.T) { // AC-27
 	type result struct {
 		status int
 		body   []byte
+		err    error
+	}
+	// The goroutines use doErr and send the error to the test goroutine: t.Fatal is only legal there.
+	complete := func(as, code, state string) result {
+		s, _, b, err := env.doErr(as, "POST", storageT33Path(env.a), `{"code":"`+code+`","state":"`+state+`"}`)
+		return result{s, b, err}
 	}
 	done := make(chan result, 1)
-	go func() {
-		s, b := env.complete(t, "member", env.a, "code-1", state1)
-		done <- result{s, b}
-	}()
+	go func() { done <- complete("member", "code-1", state1) }()
 	select {
 	case <-inExchange:
 	case <-time.After(10 * time.Second):
 		t.Fatalf("completeStorageConnection never reached the token endpoint on a pool with one free connection: the request holds its transaction before the exchange (acquired = %d, one pinned by the test); want the exchange to run with none", env.pool.Stat().AcquiredConns())
 	}
 
-	other := make(chan int, 1)
-	go func() {
-		s, _ := env.complete(t, "other", env.a, "code-2", state2)
-		other <- s
-	}()
+	other := make(chan result, 1)
+	go func() { other <- complete("other", "code-2", state2) }()
 	select {
-	case s := <-other:
-		if s != http.StatusCreated {
-			t.Errorf("second completion during the exchange: status %d, want 201", s)
+	case o := <-other:
+		if o.err != nil {
+			t.Errorf("second completion during the exchange: %v", o.err)
+		} else if o.status != http.StatusCreated {
+			t.Errorf("second completion during the exchange: status %d, want 201", o.status)
 		}
 	case <-time.After(5 * time.Second):
 		t.Errorf("another request was not served while the code exchange was in flight: pooled connections held by the exchange = %d, want 0", held)
@@ -548,6 +560,9 @@ func TestStorageCodeExchangeHoldsNoConnection(t *testing.T) { // AC-27
 
 	unblock()
 	r := <-done
+	if r.err != nil {
+		t.Fatalf("completeStorageConnection: %v", r.err)
+	}
 	if r.status != http.StatusCreated {
 		t.Fatalf("completeStorageConnection: status %d, want 201; body %s", r.status, r.body)
 	}

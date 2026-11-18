@@ -2,6 +2,7 @@ package identity_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"testing"
@@ -529,4 +530,110 @@ func TestApprovalTransfer_AnEditOfThePreviousHeadDoesNotTurnTheNextTransferAroun
 	if status, body := transferApprovalProbe(e, t, "head", assoc); status != http.StatusOK {
 		t.Errorf("second transfer's голова request = %d %s, want 200", status, body)
 	}
+}
+
+type transferApprovalListed struct {
+	SignInEmail    string  `json:"sign_in_email"`
+	Position       string  `json:"position"`
+	DecisionID     *string `json:"decision_id"`
+	DecisionEffect *string `json:"decision_effect"`
+}
+
+// transferApprovalRoster reads listBoardMembers over the API as `as` and returns the entries by e-mail.
+func transferApprovalRoster(t *testing.T, e *reviewEnv, as, assoc string) map[string][]transferApprovalListed {
+	t.Helper()
+	status, _, body := e.do(t, as, http.MethodGet, "/governance/associations/"+assoc+"/board-members", "")
+	if status != http.StatusOK {
+		t.Fatalf("listBoardMembers = %d: %s", status, body)
+	}
+	var page struct {
+		Items      []transferApprovalListed `json:"items"`
+		NextCursor *string                  `json:"next_cursor"`
+	}
+	if err := json.Unmarshal(body, &page); err != nil {
+		t.Fatal(err)
+	}
+	if page.NextCursor != nil {
+		t.Fatalf("roster spans more than one page: %s", body)
+	}
+	by := map[string][]transferApprovalListed{}
+	for _, it := range page.Items {
+		by[it.SignInEmail] = append(by[it.SignInEmail], it)
+	}
+	return by
+}
+
+func transferApprovalWantEntry(t *testing.T, by map[string][]transferApprovalListed, email, effect, decision string) {
+	t.Helper()
+	items := by[email]
+	if len(items) != 1 {
+		t.Errorf("%s has %d entries on the roster, want 1", email, len(items))
+		return
+	}
+	it := items[0]
+	if it.DecisionEffect == nil || *it.DecisionEffect != effect || it.DecisionID == nil || *it.DecisionID != decision {
+		t.Errorf("%s entry = effect %q decision %q, want %s under decision %s", email, deref(it.DecisionEffect), deref(it.DecisionID), effect, decision)
+	}
+}
+
+// AC-19b, AC-20: a connection and two approved transfers in a row; the roster read through the API
+// reports the first голова ended by the first transfer, the second ended by the second, the third
+// seated by the second, each entry with the decision that did it.
+func TestApprovalTransfer_TheRosterReportsEachEntrysDecisionEffectAfterTwoTransfers(t *testing.T) {
+	e := newApprovalEnv(t, nil)
+	assoc, _ := transferApprovalSeedHead(t, e)
+
+	f1 := transferApprovalFile(t, e, "second", fileAppEdrpou, "", "2026-11-05")
+	approvalRecordCheck(t, e, f1, true, fileAppEdrpou, "Test User")
+	if status, body := approvalApprove(e, t, "operator", f1, ""); status != http.StatusOK {
+		t.Fatalf("first transfer = %d: %s", status, body)
+	}
+	f2 := transferApprovalFile(t, e, "head", fileAppEdrpou, "", "2026-11-10")
+	approvalRecordCheck(t, e, f2, true, fileAppEdrpou, "Test User")
+	if status, body := approvalApprove(e, t, "operator", f2, ""); status != http.StatusOK {
+		t.Fatalf("second transfer = %d: %s", status, body)
+	}
+	d1, d2 := transferApprovalDecision(t, e, f1), transferApprovalDecision(t, e, f2)
+	if d1 == d2 {
+		t.Fatal("the two transfers share a decision")
+	}
+
+	by := transferApprovalRoster(t, e, "head", assoc)
+	if len(by) != 3 {
+		t.Errorf("roster has %d people, want 3: %+v", len(by), by)
+	}
+	transferApprovalWantEntry(t, by, "first@example.test", "ended", d1)
+	transferApprovalWantEntry(t, by, "second@example.test", "ended", d2)
+	transferApprovalWantEntry(t, by, "head@example.test", "seated", d2)
+}
+
+// AC-19, AC-20: an applicant already on the roster is re-seated on the existing entry, which the
+// roster reports once, seated, under the transfer's decision; the previous голова is ended by it.
+func TestApprovalTransfer_AReseatedApplicantHasOneEntryReportedSeated(t *testing.T) {
+	e := newApprovalEnv(t, nil)
+	assoc, _ := transferApprovalSeedHead(t, e)
+	transferApprovalSeedMember(t, e, assoc, "second@example.test", "member")
+	f := transferApprovalFile(t, e, "second", fileAppEdrpou, "", "2026-11-05")
+	approvalRecordCheck(t, e, f, true, fileAppEdrpou, "Test User")
+	if status, body := approvalApprove(e, t, "operator", f, ""); status != http.StatusOK {
+		t.Fatalf("transfer = %d: %s", status, body)
+	}
+	dec := transferApprovalDecision(t, e, f)
+
+	by := transferApprovalRoster(t, e, "second", assoc)
+	if len(by) != 2 {
+		t.Errorf("roster has %d people, want 2: %+v", len(by), by)
+	}
+	transferApprovalWantEntry(t, by, "second@example.test", "seated", dec)
+	if got := by["second@example.test"]; len(got) == 1 && got[0].Position != "head" {
+		t.Errorf("re-seated applicant position = %q, want head", got[0].Position)
+	}
+	transferApprovalWantEntry(t, by, "first@example.test", "ended", dec)
+}
+
+func deref(s *string) string {
+	if s == nil {
+		return "<null>"
+	}
+	return *s
 }

@@ -9,7 +9,7 @@ files_hint:
   - "services/core/internal/governance/roster_endpoints_test.go"
 owner: "Andrii Opryshko"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T126 — Prove each roster entry's decision effect after two transfers in a row

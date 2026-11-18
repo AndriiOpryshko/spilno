@@ -62,8 +62,10 @@ func newApprovalEnvWith(t *testing.T, seat func(ctx context.Context, association
 	r.Group(func(r chi.Router) {
 		r.Use(idm.Guard(guardRoster{gov}))
 		r.Get("/probe/associations/{association_id}", guardProbe(pool))
-		if err := idm.Routes(r); err != nil {
-			t.Fatal(err)
+		for _, err := range []error{idm.Routes(r), gov.Routes(r)} {
+			if err != nil {
+				t.Fatal(err)
+			}
 		}
 	})
 	srv := httptest.NewServer(r)

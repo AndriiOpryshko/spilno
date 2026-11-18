@@ -136,7 +136,7 @@
 | [T129](./T129-guard-refusal-codes-from-identity.md) | Take the guard's refusal codes from identity through cmd/api and drop the mirror | wiring | Andrii Opryshko | M | T112 | done |
 | [T130](./T130-contract-cookie-413-term-end-and-decision-effect.md) | Bring the contract in line with the sign-in cookie, the 413 answers, the term-end refusal and the decision effect | wiring | Andrii Opryshko | M | T114 | done |
 | [T131](./T131-reconcile-sync-report-and-design-docs.md) | Reconcile the sync report and write the roster rules into ADR-0006, the SAD and the data model | docs | Andrii Opryshko | M | T124, T129, T130 | done |
-| [T132](./T132-record-open-gaps-in-prd.md) | Record every gap left open in PRD §8 with an owner and a due date | docs | Andrii Opryshko | S | — | todo |
+| [T132](./T132-record-open-gaps-in-prd.md) | Record every gap left open in PRD §8 with an owner and a due date | docs | Andrii Opryshko | S | — | done |
 | [T133](./T133-e2e-third-review-fixes.md) | Prove the third review's fixes end to end by clicking | tests | Andrii Opryshko | M | T116, T117, T127 | done |
 | [T134](./T134-refresh-visual-baselines-third-review.md) | Refresh the visual baseline of the association card | tests | Andrii Opryshko | S | T116, T117, T118, T121 | todo |
 | [T135](./T135-sync-docs-after-third-review.md) | Bring the test plan, the trackers and the review record in line with the third follow-up | docs | Andrii Opryshko | M | T113, T115, T119, T120, T123, T125, T126, T128, T131, T132, T133, T134 | todo |
@@ -145,46 +145,41 @@
 
 ## Known gaps (found during implementation)
 
-- **No adapter for the real sign-in provider.** T18 built the provider port, an in-process fake and the
-  development shim (`SPILNO_DEV_SIGN_IN=true`); without the shim the four sign-in operations answer 501.
-  The Google OIDC adapter (ID-token verification, client configuration from the environment) is a
-  separate piece of work after this feature (decided 2026-11-10).
-- **Sign-in state is sealed with a per-process key** (`identity/app/signin.go`: state, PKCE verifier, nonce and
-  expiry travel in a cookie of the browser that started the sign-in; since T99 the server keeps nothing). One API
-  instance is enough; more than one needs a shared key. The storage consent keeps one server-side entry per account.
-- **Security review findings are open** ([record](../_review/security-2026-11-10.md)): it counts no High, six
-  Medium (SEC-01 to SEC-06, due 2026-11-24) and eight Low, and has not been run again after either follow-up.
-  T53 answers SEC-03 (body limits), T57 SEC-04 (a role that bypasses row-level security) and T99 SEC-02 and
-  SEC-12 (the sign-in `state` bound to the browser, no map of pending sign-ins). SEC-01 with the first gap means
-  the feature must not be deployed where anyone but the developer can reach it until the real provider adapter
-  exists.
-- **The e2e suite needs a fresh database per run.** The оператор's queue and list of associations page with
-  «Показати ще» since T105, but the specs look for a заявка on the first page of the queue (20 rows, oldest
-  first) and do not press it, and the AC-16c spec files as the оператор from `/`, which offers the form only
-  while the оператор is on no roster or on several (the AC-16b spec seats them on one). The two runs on one
-  database that T105 asked for were made on 2026-11-17: the first passes, the second fails AC-16c for that
-  reason and AC-26 (`us07-read-only-association.spec.ts:63`, the link of a just attached document did not
-  appear; cause not looked into).
-- **A person on exactly one roster has no link to the заявка на підключення form.** `/` opens their
-  association and no screen inside it leads to the form; the list of заявки and the picker carry the link
-  (T89). A член правління who connects a second association (AC-04d) has to type the address. Found by T108.
+Each gap this feature leaves open is a line of [PRD §8](../PRD.md#8-open-questions) with an owner and a due
+date (T132); this section only says where the line is and what the code does now.
+
+- **No adapter for the real sign-in provider** and **sign-in state sealed with a per-process key**: two lines
+  of PRD §8. T18 built the provider port, an in-process fake and the development shim
+  (`SPILNO_DEV_SIGN_IN=true`); without the shim the four sign-in operations answer 501. The pending sign-in
+  travels in a cookie sealed with a key random per process (`identity/app/signin.go`, since T99); the storage
+  consent keeps one server-side entry per account.
+- **Security review findings are open** ([record](../_review/security-2026-11-10.md)): one line of PRD §8
+  lists which are closed (SEC-02 and SEC-12 by T99, SEC-04 by T57, SEC-08 by T50, SEC-13 by T112, SEC-03 in
+  part by T53) and which stay open with their dates. SEC-01 with the first gap means the feature must not be
+  deployed where anyone but the developer can reach it until the real provider adapter exists.
+- **The e2e suite needs a fresh database per run**: one line of PRD §8. T127 fixed the file-id collision and
+  T133 took the AC-16c spec off the оператор's rosters, so AC-16c and AC-26 pass twice on one database; what
+  remains is that the specs read only the first page of the оператор's queue (20 rows, not paged by the specs).
+- **The Drive storage has not run against real Google**: one line of PRD §8, closed by board-protocol T13.
+  T97, T112 and T113 are proven on a fake Google through HTTP.
+- **An uploaded file whose record failed is removed in the request, best effort** (T94): one line of PRD §8,
+  closed by board-protocol T14 and T32 (`remove_orphan_file`).
+- **The load smoke in CI proves the throughput and the error rate, not production latency** (T107, T128):
+  one line of PRD §8; the full run of PRD §6 stays `mise run load` before a release.
 - **No screen creates a справа.** The справи list and the case screen read the API (T80); a справа is created
-  only through `createCase` until board-protocol builds the draft flow. The e2e specs create it through the API.
-- **The Drive storage has not run against real Google.** T97 builds each association's storage from its Google
-  connection and T112 gives the consent its Drive address; both are proven on a fake Google through HTTP
-  (`cmd/api/drive_consent_test.go` runs the consent `wireGoogle` builds and the resolver `driveFiles` builds;
-  `drive_wiring_test.go` calls the same `governance.NewDriveResolver`). What remains is a run with a test Google
-  account: board-protocol T13.
-- **An uploaded file whose record failed is removed in the request, best effort** (T94). A removal that fails
-  is logged with the storage id and the file stays in the storage until board-protocol builds the
-  `remove_orphan_file` job (T14, T32).
-- **The load smoke in CI proves the throughput and the error rate, not production latency** (T107): 30 s of
-  reads and writes and 5 filings on a shared runner. The full run of PRD §6 stays `mise run load` before a release.
+  only through `createCase` until board-protocol builds the draft flow (its UI tasks T37 to T44). The e2e
+  specs create it through the API.
 - **Board-protocol work still open behind this feature's ACs:** the association settings (board-protocol T10,
   T35), the needs-review event and the upload metric of document versions (T21), and the lock that writes a
   signed protocol (T29; the реєстр is tested on seeded protocols). Each task file there says what this feature
   delivered.
 - **The correction note of a signed protocol** is one section under the agenda, not beside the corrected item
   (board-protocol AC-15, noted in board-protocol T43).
-- **SAD §6 Flow 5 has no branch for 409 `identity.application_already_open`** on a refile; the contract lists
-  it since T60 and [api-sync-report.md](../contracts/api-sync-report.md) carries the deferral.
+- **Contract deferrals of [api-sync-report.md](../contracts/api-sync-report.md) §D**, each with an owner and a
+  next step there: SAD §6 Flow 5 has no branch for 409 `identity.application_already_open` on a refile (the
+  contract lists it since T60); two more are PRD §8 lines (the 413 on operations that do not advertise it, and
+  SAD §6 Flow 10 without the AC-27b refusal).
+
+Closed since the last list: a person on exactly one roster had no link to the заявка на підключення form
+(found by T108); T116 put «Мої заявки» and «Подати заявку на підключення» in the association sidebar and T117
+offers the запит на передачу on the card to every member.

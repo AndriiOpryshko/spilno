@@ -9,7 +9,7 @@ files_hint:
   - "docs/features/association-onboarding/tasks/tracker.md"
 owner: "Andrii Opryshko"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T132 — Record every gap left open in PRD §8 with an owner and a due date

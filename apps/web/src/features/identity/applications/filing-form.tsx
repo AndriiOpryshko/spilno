@@ -95,10 +95,9 @@ export function FilingForm({ kind, associationId, refile }: FilingFormProps) {
     setRefusal(undefined);
     setSummary(undefined);
     setFiled(false);
-    if (extract && extractRefused(extract)) {
-      refuseExtract();
-      return;
-    }
+    // A refused file is never sent: the other fields go without it, the server names what else is broken
+    // and the extract's own message is put under «Витяг».
+    const sendable = extract && !extractRefused(extract) ? extract : undefined;
     const common = {
       association_name: values.association_name,
       association_address: values.association_address,
@@ -106,7 +105,7 @@ export function FilingForm({ kind, associationId, refile }: FilingFormProps) {
       position: 'head' as const,
       term_start: values.term_start,
       ...(values.term_end ? { term_end: values.term_end } : {}),
-      extract: extract ?? new Blob([], { type: 'application/pdf' }),
+      extract: sendable ?? new Blob([], { type: 'application/pdf' }),
     };
     const handlers = {
       onSuccess: () => {
@@ -122,7 +121,7 @@ export function FilingForm({ kind, associationId, refile }: FilingFormProps) {
         } else if (problem.errors?.length) {
           const reported = problem.errors.map((x) => x.pointer.replace(/^\//, '')).filter((name) => name in t.fieldNames);
           // The server leaves /extract out when the multipart file is empty next to other errors.
-          const broken = [...new Set(extract ? reported : [...reported, 'extract'])];
+          const broken = [...new Set(sendable ? reported : [...reported, 'extract'])];
           if (broken.length) {
             setFieldErrors(Object.fromEntries(broken.map((name) => [name, t.fieldErrors[name] ?? t.fieldInvalid])));
             setSummary(uk.applications.invalid(broken.map((name) => t.fieldNames[name]).join(', ')));

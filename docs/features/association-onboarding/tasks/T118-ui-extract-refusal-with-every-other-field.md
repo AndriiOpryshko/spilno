@@ -9,7 +9,7 @@ files_hint:
   - "apps/web/src/features/identity/applications/filing-form.test.tsx"
 owner: "Andrii Opryshko"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T118 — Name a refused extract together with every other broken field

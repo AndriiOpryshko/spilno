@@ -17,7 +17,7 @@ files_hint:
   - "apps/web/src/features/identity/reuse.test.tsx"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T119 — Read memberships through one hook everywhere and stop the page loop on a repeated cursor

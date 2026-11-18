@@ -1,7 +1,7 @@
 import { useParams } from '@tanstack/react-router';
 
 import { useGetSignedProtocol } from '@/api/gen/endpoints/governance/governance';
-import { useListMemberships } from '@/api/gen/endpoints/identity/identity';
+import { useAllMemberships } from '@/features/identity/shell/use-all-memberships';
 import { TopBar } from '@/components/app-shell';
 import { Skeleton } from '@/components/ui/skeleton';
 import { RequestFallback } from '@/features/identity/shell/request-fallback';
@@ -15,7 +15,7 @@ export function SignedProtocolScreen({ protocolId }: { protocolId: string }) {
   const query = useGetSignedProtocol(associationId, protocolId, { query: { retry: false } });
   const protocol = query.data?.data;
   // The layout already loaded the roster; this reads the same cache entry.
-  const { data: roster } = useListMemberships(undefined, { query: { refetchOnMount: false } });
+  const { data: roster } = useAllMemberships({ refetchOnMount: false });
   const associationName = roster?.data.items.find((m) => m.association_id === associationId)?.association_name;
 
   const crumbs = [{ label: uk.nav.registry, to: `/o/${associationId}/registry` }, ...(protocol ? [{ label: uk.registry.signed.breadcrumb(protocol.number) }] : [])];

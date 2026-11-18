@@ -340,4 +340,51 @@ describe('a person on more than one page of memberships (AC-04d)', () => {
     expect((await screen.findAllByText(names[last] ?? '')).length).toBeGreaterThan(0);
     expect(router.state.location.pathname).toBe(`/o/${last}/cases`);
   });
+
+  const twentyOne = () => {
+    const ids = Array.from({ length: 21 }, (_, i) => `00000000-0000-7000-8000-0000000d${String(i).padStart(4, '0')}`);
+    for (const id of ids) names[id] = `ОСББ ${id.slice(-4)}`;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) => {
+        const u = new URL(String(input), 'http://localhost');
+        if (u.pathname.endsWith('/identity/memberships')) {
+          const second = u.searchParams.get('cursor') === 'm-2';
+          return Promise.resolve(json(200, { items: (second ? ids.slice(20) : ids.slice(0, 20)).map(membershipOf), next_cursor: second ? null : 'm-2' }));
+        }
+        return fakeApi(input);
+      }),
+    );
+    return ids[20] ?? '';
+  };
+
+  it('stays in the twenty-first association on the protocol page (T119, R06)', async () => {
+    const last = twentyOne();
+    const router = open(`/o/${last}/cases/${caseId}/protocol`);
+    expect((await screen.findAllByText(names[last] ?? '')).length).toBeGreaterThan(0);
+    // The protocol screen reads the roster too; give a first-page refetch time to land and be refused.
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(router.state.location.pathname).toBe(`/o/${last}/cases/${caseId}/protocol`);
+    expect(screen.queryByText('Немає доступу')).not.toBeInTheDocument();
+  });
+
+  it('ends in the shared fallback after a bounded number of requests when the server repeats a cursor (T119, S12)', async () => {
+    let calls = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) => {
+        const u = new URL(String(input), 'http://localhost');
+        if (u.pathname.endsWith('/identity/memberships')) {
+          calls += 1;
+          // A runaway loop is cut off by the server error after 300 pages so the test ends instead of hanging.
+          if (calls > 300) return Promise.resolve(json(500, { type: 'about:blank', title: 'stop', status: 500 }));
+          return Promise.resolve(json(200, { items: [membershipOf(lypky)], next_cursor: 'same' }));
+        }
+        return fakeApi(input);
+      }),
+    );
+    open(`/o/${lypky}/cases`);
+    expect(await screen.findByText('Не вдалося виконати запит')).toBeInTheDocument();
+    expect(calls).toBeLessThanOrEqual(50);
+  });
 });

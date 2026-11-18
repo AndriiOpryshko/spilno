@@ -3,7 +3,7 @@ import { Link, useParams } from '@tanstack/react-router';
 import { useMemo } from 'react';
 
 import { getListCasesQueryKey, listCases, useGetCase } from '@/api/gen/endpoints/governance/governance';
-import { useListMemberships } from '@/api/gen/endpoints/identity/identity';
+import { useAllMemberships } from '@/features/identity/shell/use-all-memberships';
 import type { Case } from '@/api/gen/model';
 import { TopBar } from '@/components/app-shell';
 import { Button } from '@/components/ui/button';
@@ -23,7 +23,7 @@ const isDisabledProblem = (error: unknown) => {
 
 function useAssociationName(associationId: string) {
   // The layout already loaded the roster; this reads the same cache entry.
-  const { data: roster } = useListMemberships(undefined, { query: { refetchOnMount: false } });
+  const { data: roster } = useAllMemberships({ refetchOnMount: false });
   return roster?.data.items.find((m) => m.association_id === associationId)?.association_name;
 }
 

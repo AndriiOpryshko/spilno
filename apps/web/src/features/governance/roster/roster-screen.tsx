@@ -2,7 +2,8 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 
 import { getListBoardMembersQueryKey, listBoardMembers } from '@/api/gen/endpoints/governance/governance';
-import { useGetAssociationCard, useListMemberships } from '@/api/gen/endpoints/identity/identity';
+import { useGetAssociationCard } from '@/api/gen/endpoints/identity/identity';
+import { useAllMemberships } from '@/features/identity/shell/use-all-memberships';
 import type { BoardMember } from '@/api/gen/model';
 import { TopBar } from '@/components/app-shell';
 import { Button } from '@/components/ui/button';
@@ -30,7 +31,7 @@ export function RosterScreen({ associationId }: { associationId: string }) {
   // The decision history of the card feeds the mark on the entries a decision touched.
   const card = useGetAssociationCard(associationId, { query: { retry: false } });
   // The layout already loaded the roster of memberships; this reads the same cache entry.
-  const { data: memberships } = useListMemberships(undefined, { query: { refetchOnMount: false } });
+  const { data: memberships } = useAllMemberships({ refetchOnMount: false });
   const associationName = memberships?.data.items.find((m) => m.association_id === associationId)?.association_name;
 
   if (roster.error) {

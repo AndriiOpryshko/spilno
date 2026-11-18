@@ -2,10 +2,11 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useEffect, useRef } from 'react';
 
-import { completeStorageConnection, getGetStorageConnectionQueryKey, getStartStorageConnectionUrl, useGetStorageConnection, useListMemberships } from '@/api/gen/endpoints/identity/identity';
+import { completeStorageConnection, getGetStorageConnectionQueryKey, getStartStorageConnectionUrl, useGetStorageConnection } from '@/api/gen/endpoints/identity/identity';
 import { Skeleton } from '@/components/ui/skeleton';
 import { InlineAlert } from '@/features/governance/inline-alert';
 import { isNoAccessProblem } from '@/features/identity/shell/entry';
+import { useAllMemberships } from '@/features/identity/shell/use-all-memberships';
 import { RequestFallback } from '@/features/identity/shell/request-fallback';
 import { uk } from '@/i18n/uk';
 
@@ -95,7 +96,7 @@ export function StorageCallbackLost({ associationId }: { associationId: string |
 
 // Without the association id, the way back is the card of each association the person belongs to.
 function CardLinks() {
-  const memberships = useListMemberships();
+  const memberships = useAllMemberships();
   if (memberships.isPending) return null;
   const items = memberships.data?.data.items ?? [];
   if (items.length === 0) {

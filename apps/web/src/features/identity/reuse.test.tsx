@@ -56,6 +56,10 @@ describe('the screens under src/features follow the reuse conventions (W5)', () 
     expect(anchorsWithoutApiUrl).toEqual([]);
   });
 
+  it('reads memberships only through useAllMemberships (T119, R06)', () => {
+    expect(offenders(/useListMemberships\(/).filter((f) => !f.endsWith('/identity/shell/use-all-memberships.ts'))).toEqual([]);
+  });
+
   it('has no in-app address in a link description either', () => {
     expect(offenders(/href:\s*['"`]\//)).toEqual([]);
   });

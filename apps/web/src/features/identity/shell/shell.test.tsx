@@ -83,6 +83,16 @@ describe('AssociationPicker: filing for another association (AC-04d)', () => {
   });
 });
 
+describe('AssociationPicker: the lasting link to the list of заявки (AC-05, AC-14)', () => {
+  it.each([
+    ['one roster', [membership(lypky, 'ОСББ «Липки»')]],
+    ['several rosters', [membership(lypky, 'ОСББ «Липки»'), membership(sonyachnyi, 'ОСББ «Сонячний»')]],
+  ])('offers «Мої заявки» to /applications for a person on %s', async (_label, memberships) => {
+    await renderInRouter(<AssociationPicker memberships={memberships} isOperator={false} />);
+    expect(screen.getByRole('link', { name: 'Мої заявки' })).toHaveAttribute('href', '/applications');
+  });
+});
+
 describe('SignInPage', () => {
   it('offers the sign-in link that starts the identity flow', () => {
     render(<SignInPage />);

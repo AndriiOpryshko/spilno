@@ -36,8 +36,8 @@ type Story = StoryObj<typeof meta>;
 
 export const TwoAssociations: Story = {
   play: async ({ canvasElement }) => {
-    // Each association offers its cases and its card, then the link to file another.
-    await expect(within(canvasElement).getAllByRole('link')).toHaveLength(5);
+    // Each association offers its cases and its card, then the list of заявки and the link to file another.
+    await expect(within(canvasElement).getAllByRole('link')).toHaveLength(6);
   },
 };
 
@@ -45,6 +45,12 @@ export const WithConnectionLink: Story = {
   play: async ({ canvasElement }) => {
     const link = within(canvasElement).getByRole('link', { name: 'Подати заявку на підключення' });
     await expect(link).toHaveAttribute('href', '/applications/new?kind=connection');
+  },
+};
+
+export const WithApplicationsLink: Story = {
+  play: async ({ canvasElement }) => {
+    await expect(within(canvasElement).getByRole('link', { name: 'Мої заявки' })).toHaveAttribute('href', '/applications');
   },
 };
 

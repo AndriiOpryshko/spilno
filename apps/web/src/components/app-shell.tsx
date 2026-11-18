@@ -42,6 +42,12 @@ export function Sidebar({ associationId, associationName, isOperator, casesCount
         <Link to="/o/$associationId/registry" params={{ associationId }} className="flex items-center justify-between rounded-md px-3 py-2 opacity-75 hover:bg-sidebar-accent" activeProps={{ className: 'bg-sidebar-accent font-medium !opacity-100' }}>
           {uk.nav.registry}
         </Link>
+        <Link to="/applications" className="flex items-center justify-between rounded-md px-3 py-2 opacity-75 hover:bg-sidebar-accent" activeProps={{ className: 'bg-sidebar-accent font-medium !opacity-100' }} activeOptions={{ exact: true }}>
+          {uk.applications.filing.linkOpen}
+        </Link>
+        <Link to="/applications/new" search={{ kind: 'connection' }} className="flex items-center justify-between rounded-md px-3 py-2 opacity-75 hover:bg-sidebar-accent">
+          {uk.applications.filing.linkConnection}
+        </Link>
         {isOperator && (
           <Link to="/operator" className="flex items-center justify-between rounded-md px-3 py-2 opacity-75 hover:bg-sidebar-accent">
             {uk.operator.entry}

@@ -14,7 +14,7 @@ files_hint:
   - "apps/web/src/i18n/uk.ts"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T116 — Give every signed-in person a lasting way to their заявки and to the заявка на підключення form

@@ -153,6 +153,17 @@ describe('the association card in the navigation (AC-04d, AC-27, AC-29)', () => 
     expect(within(nav).getByRole('link', { name: 'ОСББ' }).getAttribute('href')).toBe(`/o/${sonyachnyi}/association`);
   });
 
+  it.each([
+    ['one roster', [lypky]],
+    ['several rosters', [lypky, sonyachnyi]],
+  ])('links «Мої заявки» and «Подати заявку на підключення» in the sidebar for a person on %s (AC-01, AC-05, AC-06, AC-14)', async (_label, roster) => {
+    rosters = roster;
+    open(`/o/${lypky}/cases`);
+    const nav = await screen.findByRole('complementary');
+    expect((await within(nav).findByRole('link', { name: 'Мої заявки' })).getAttribute('href')).toBe('/applications');
+    expect(within(nav).getByRole('link', { name: 'Подати заявку на підключення' }).getAttribute('href')).toBe('/applications/new?kind=connection');
+  });
+
   it('offers the card of each association next to its cases in the picker', async () => {
     const memberships = [membershipOf(lypky), membershipOf(sonyachnyi)] as never;
     await renderInRouter(<AssociationPicker memberships={memberships} isOperator={false} />);

@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -142,20 +141,7 @@ func newWiringEnv(t *testing.T) *wiringEnv {
 		t.Fatal(err)
 	}
 	apiURL, uploadURL := drive.srv.URL+"/drive/v3", drive.srv.URL+"/upload/drive/v3"
-	resolve := func(ctx context.Context, assoc uuid.UUID) (governance.Files, error) {
-		ts, err := idm.GoogleTokenSource(ctx, assoc)
-		if errors.Is(err, identity.ErrGoogleNotConnected) {
-			return nil, nil
-		}
-		if err != nil {
-			return nil, err
-		}
-		folder, err := idm.GoogleFolderID(ctx, assoc)
-		if err != nil || folder == "" {
-			return nil, err
-		}
-		return governance.NewDriveFiles(oauth2.NewClient(ctx, ts), folder, apiURL, uploadURL), nil
-	}
+	resolve := governance.NewDriveResolver(idm, identity.ErrGoogleNotConnected, apiURL, uploadURL)
 	gov := governance.New(pool, idm.HasStorageConnection, actorAccess).WithFiles(resolve)
 	r := httpapi.NewRouter()
 	r.Group(func(r chi.Router) {

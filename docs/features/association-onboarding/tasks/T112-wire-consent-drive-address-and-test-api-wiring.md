@@ -12,7 +12,7 @@ files_hint:
   - "services/core/internal/platform/google/consent.go"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T112 — Give the production storage consent its Drive address and test the wiring cmd/api runs

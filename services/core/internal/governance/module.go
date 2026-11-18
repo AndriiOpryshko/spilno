@@ -6,6 +6,7 @@ package governance
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"sync"
@@ -14,6 +15,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"golang.org/x/oauth2"
 
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/adapters/filesfake"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/adapters/gdrive"
@@ -78,6 +80,31 @@ func NewDevFiles() FilesResolver {
 // association's Google account, every upload goes into folderID. The addresses have no trailing slash.
 func NewDriveFiles(client *http.Client, folderID, apiURL, uploadURL string) Files {
 	return gdrive.New(gdrive.Config{HTTP: client, APIURL: apiURL, UploadURL: uploadURL, FolderID: folderID})
+}
+
+// GoogleConnections is what the Drive resolver reads of an association's Google connection.
+type GoogleConnections interface {
+	GoogleTokenSource(ctx context.Context, association uuid.UUID) (oauth2.TokenSource, error)
+	GoogleFolderID(ctx context.Context, association uuid.UUID) (string, error)
+}
+
+// NewDriveResolver resolves an association's Drive storage from its Google connection: nil Files when
+// it has no connection (the error notConnected) or no folder yet. cmd/api and the module tests share it.
+func NewDriveResolver(conns GoogleConnections, notConnected error, apiURL, uploadURL string) FilesResolver {
+	return func(ctx context.Context, association uuid.UUID) (Files, error) {
+		ts, err := conns.GoogleTokenSource(ctx, association)
+		if errors.Is(err, notConnected) {
+			return nil, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		folder, err := conns.GoogleFolderID(ctx, association)
+		if err != nil || folder == "" {
+			return nil, err
+		}
+		return NewDriveFiles(oauth2.NewClient(ctx, ts), folder, apiURL, uploadURL), nil
+	}
 }
 
 // WithFiles wires the storage behind downloadFile and addCaseDocument; without it they answer 503

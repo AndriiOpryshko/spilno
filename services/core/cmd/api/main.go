@@ -14,7 +14,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
-	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/endpoints"
 
 	"github.com/AndriiOpryshko/spilno/services/core/internal/finance"
@@ -44,27 +43,17 @@ func (g rosterOf) CurrentMember(ctx context.Context, association uuid.UUID, emai
 // driveFiles resolves an association's Drive storage from its Google connection: nil Files when it has no
 // connection or no folder yet.
 func driveFiles(idm *identity.Module, apiURL, uploadURL string) governance.FilesResolver {
-	return func(ctx context.Context, association uuid.UUID) (governance.Files, error) {
-		ts, err := idm.GoogleTokenSource(ctx, association)
-		if errors.Is(err, identity.ErrGoogleNotConnected) {
-			return nil, nil
-		}
-		if err != nil {
-			return nil, err
-		}
-		folder, err := idm.GoogleFolderID(ctx, association)
-		if err != nil || folder == "" {
-			return nil, err
-		}
-		return governance.NewDriveFiles(oauth2.NewClient(ctx, ts), folder, apiURL, uploadURL), nil
-	}
+	return governance.NewDriveResolver(idm, identity.ErrGoogleNotConnected, apiURL, uploadURL)
 }
 
 // wireGoogle turns the Google connection and the storage connection operations on when the
 // configuration is present; without it both stay off and the operations answer 501.
-func wireGoogle(idm *identity.Module, gov *governance.Module, gc *identity.GoogleConfig) (bool, error) {
+func wireGoogle(idm *identity.Module, gov *governance.Module, gc *identity.GoogleConfig, driveURL string) (bool, error) {
 	if gc == nil {
 		return false, nil
+	}
+	if driveURL == "" {
+		return false, errors.New("the Google storage consent needs the Drive API address")
 	}
 	cfg := *gc
 	if cfg.OAuth != nil && cfg.OAuth.Endpoint.TokenURL == "" {
@@ -76,7 +65,7 @@ func wireGoogle(idm *identity.Module, gov *governance.Module, gc *identity.Googl
 	if err := idm.EnableGoogle(cfg); err != nil {
 		return false, err
 	}
-	idm.EnableStorageConnection(identity.StorageConnectionConfig{Consent: google.Consent{OAuth: cfg.OAuth}, Members: gov})
+	idm.EnableStorageConnection(identity.StorageConnectionConfig{Consent: google.Consent{OAuth: cfg.OAuth, DriveURL: driveURL}, Members: gov})
 	return true, nil
 }
 
@@ -173,7 +162,7 @@ func run() error {
 	if gcfg != nil {
 		gc = &identity.GoogleConfig{KeyID: gcfg.TokenKeyID, Key: gcfg.TokenKey, OAuth: gcfg.OAuth(cfg.WebOrigin + "/storage/callback")}
 	}
-	wired, err := wireGoogle(idm, gov, gc)
+	wired, err := wireGoogle(idm, gov, gc, gcfgDriveURL(gcfg))
 	if err != nil {
 		return err
 	}
@@ -232,4 +221,11 @@ func run() error {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	return srv.Shutdown(shutdownCtx)
+}
+
+func gcfgDriveURL(g *config.Google) string {
+	if g == nil {
+		return ""
+	}
+	return g.DriveAPIURL
 }

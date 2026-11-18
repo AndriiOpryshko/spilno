@@ -116,7 +116,7 @@
 | [T109](./T109-refresh-visual-baselines-second-review.md) | Refresh the visual baselines the second review's fixes changed | tests | Andrii Opryshko | S | T88, T89, T102, T104, T105, T106 | done |
 | [T110](./T110-contract-texts-and-reconcile.md) | Correct the contract's descriptions and reconcile the sync report | wiring | Andrii Opryshko | M | T87, T90, T100 | done |
 | [T111](./T111-sync-docs-after-second-review.md) | Bring the test plan, the trackers and the review record in line with the second follow-up | docs | Andrii Opryshko | M | T96, T97, T98, T101, T103, T107, T108, T109, T110 | done |
-| [T112](./T112-wire-consent-drive-address-and-test-api-wiring.md) | Give the production storage consent its Drive address and test the wiring cmd/api runs | wiring | Andrii Opryshko | M | — | todo |
+| [T112](./T112-wire-consent-drive-address-and-test-api-wiring.md) | Give the production storage consent its Drive address and test the wiring cmd/api runs | wiring | Andrii Opryshko | M | — | done |
 | [T113](./T113-drive-resolver-one-read-cached-token-deadline.md) | Resolve an association's Drive storage with one read, a reused token and a deadline | app | Andrii Opryshko | M | T112 | todo |
 | [T114](./T114-refuse-another-storage-account-while-files-exist.md) | Refuse to connect another storage account while the association has files | ports | Andrii Opryshko | L | — | todo |
 | [T115](./T115-ui-storage-account-refusal.md) | Tell the член правління why another storage account was refused | ui | Andrii Opryshko | S | T114 | todo |
@@ -171,10 +171,10 @@
 - **No screen creates a справа.** The справи list and the case screen read the API (T80); a справа is created
   only through `createCase` until board-protocol builds the draft flow. The e2e specs create it through the API.
 - **The Drive storage has not run against real Google.** T97 builds each association's storage from its Google
-  connection; it is proven on a fake Drive through HTTP (`drive_wiring_test.go`, which builds the resolver the
-  way `cmd/api` does; `driveFiles` in `cmd/api/main.go` is under no test). The consent that creates a real
-  connection cannot finish as wired: `cmd/api` gives `google.Consent` no Drive address (SEC-13 of the security
-  review). A run with a test Google account is board-protocol T13.
+  connection and T112 gives the consent its Drive address; both are proven on a fake Google through HTTP
+  (`cmd/api/drive_consent_test.go` runs the consent `wireGoogle` builds and the resolver `driveFiles` builds;
+  `drive_wiring_test.go` calls the same `governance.NewDriveResolver`). What remains is a run with a test Google
+  account: board-protocol T13.
 - **An uploaded file whose record failed is removed in the request, best effort** (T94). A removal that fails
   is logged with the storage id and the file stays in the storage until board-protocol builds the
   `remove_orphan_file` job (T14, T32).

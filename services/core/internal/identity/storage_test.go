@@ -662,6 +662,14 @@ func TestStorageConnectionRefusesAnotherAccountWhileFilesExist(t *testing.T) { /
 	if status != http.StatusConflict || assocStateProblemCode(body) != "identity.storage_has_files" {
 		t.Errorf("another account with a file: status %d code %q, want 409 identity.storage_has_files; body %s", status, assocStateProblemCode(body), body)
 	}
+	// The detail explains this refusal, not the personal-account one the same 409 also carries.
+	var problem struct {
+		Detail string `json:"detail"`
+	}
+	_ = json.Unmarshal(body, &problem)
+	if !strings.Contains(problem.Detail, "files") || strings.Contains(problem.Detail, "sign-in account") {
+		t.Errorf("detail = %q, want it to say the storage already has files", problem.Detail)
+	}
 	if after := env.rows(t, env.a); len(after) != 1 || len(before) != 1 || after[0] != before[0] {
 		t.Errorf("rows after the refusal = %v, want the connection unchanged %v", after, before)
 	}

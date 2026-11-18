@@ -83,6 +83,9 @@ func (h *Handler) CompleteStorageConnection(ctx context.Context, req gen.Complet
 		return storageInvalid("/code", "refused by the provider"), nil
 	case errors.As(err, &ce):
 		detail := "This Google account is a member's sign-in account; connect an association-owned account."
+		if ce.Code == domain.CodeStorageHasFiles {
+			detail = "The association's storage already has files; connect the account they were saved with."
+		}
 		code := ce.Code
 		return gen.CompleteStorageConnection409ApplicationProblemPlusJSONResponse{
 			Type: "about:blank", Title: http.StatusText(http.StatusConflict), Status: http.StatusConflict, Detail: &detail, Code: &code,

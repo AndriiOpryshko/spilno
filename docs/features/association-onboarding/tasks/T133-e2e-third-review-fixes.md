@@ -14,7 +14,7 @@ files_hint:
   - "apps/web/e2e/association-support.ts"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T133 — Prove the third review's fixes end to end by clicking

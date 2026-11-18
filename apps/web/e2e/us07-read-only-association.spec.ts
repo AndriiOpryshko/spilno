@@ -107,7 +107,7 @@ test('AC-26: a member of a вимкнене ОСББ opens the реєстр and 
 test('AC-28: attaching a document to a справа names the missing storage and leads to connecting it', async ({ browser }) => {
   const c = await connected(browser, newFiling());
   await openNewCase(c.head, c.associationId, 'Заміна ліфта');
-  await attachDocument(c.head, pdf);
+  await attachDocument(c.head, pdf, 409); // no storage is connected yet
 
   const refusal = c.head.getByRole('alert');
   await expect(refusal.getByText('Спершу підключіть сховище документів ОСББ')).toBeVisible();

@@ -139,14 +139,15 @@ export interface Upload {
   buffer: Buffer;
 }
 
-export async function attachDocument(page: Page, file: Upload) {
+// The upload is asserted to land (201); a spec whose subject is a refusal names the status it expects instead.
+export async function attachDocument(page: Page, file: Upload, expected = 201) {
   await page.getByLabel('Файл (PDF, JPEG або PNG, до 20 МБ)').setInputFiles(file);
   const answer = page.waitForResponse(
     (r) => r.request().method() === 'POST' && /\/cases\/[^/]+\/documents$/.test(new URL(r.url()).pathname),
   );
   await page.getByRole('button', { name: 'Додати документ' }).click();
   const response = await answer;
-  expect(response.status(), `document upload answered ${response.status()}`).toBe(201);
+  expect(response.status(), `document upload answered ${response.status()}`).toBe(expected);
 }
 
 // The ids of the files behind the documents of a справа, by file name.

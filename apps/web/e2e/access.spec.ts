@@ -20,14 +20,27 @@ const noAccess = 'Немає доступу';
 const missingId = '0198a0a0-0000-7000-8000-00000000dead';
 
 test('AC-04d: two windows of one person hold two associations and keep them after reloads', async ({ browser }) => {
-  // The person files both заявки from their list of заявки, before either is approved: once on a single
-  // roster, `/` opens that association, where no screen links to the form.
+  // AC-04d's own Given: the first заявка is approved, so the person is a current член of one association, and `/`
+  // opens it. The second заявка is filed from inside it, by the sidebar link (AC-01: «whether or not they are a
+  // член правління of another association»).
   const fa = newFiling();
   const fb = newFiling();
   const first = await sessionFor(browser, newEmail('head'));
   await fileAndConfirm(first, fa);
+  await approveApplication(browser, await applicationIdOf(first, fa.name), checkFor(fa));
+  await first.goto('/');
+  await expect(first).toHaveURL(/\/o\/[^/]+\/cases/);
+  await expect(first.getByRole('link', { name: 'Подати заявку на підключення' })).toBeVisible();
   await fileAndConfirm(first, fb);
-  for (const f of [fa, fb]) await approveApplication(browser, await applicationIdOf(first, f.name), checkFor(f));
+
+  // AC-05: they follow it from inside the association, by the sidebar link to their заявки.
+  await first.goto('/');
+  await expect(first).toHaveURL(/\/o\/[^/]+\/cases/);
+  await first.getByRole('link', { name: 'Мої заявки' }).click();
+  await first.getByRole('link', { name: fb.name, exact: true }).click();
+  await expect(first.getByText(/^очікує розгляду з/)).toBeVisible();
+  await expect(first.getByText(`Питання щодо заявки: ${operatorEmail}`)).toBeVisible();
+  await approveApplication(browser, new URL(first.url()).pathname.split('/').pop() ?? '', checkFor(fb));
   const memberships = (await (await api(first).get('/api/identity/memberships')).json()) as {
     items: { association_id: string; association_name: string }[];
   };
@@ -127,51 +140,46 @@ test('AC-16b: the оператор sees the queue and no association records', a
   await operator.goto(`/o/${foreign.associationId}/cases`);
   await expect(operator.getByRole('heading', { name: noAccess })).toBeVisible();
   await openQueue(operator);
-
 });
 
-// The оператор files a заявка from `/`, which offers the form on the picker but not inside a single association.
-// The second test seats the оператор on one roster, so on a fresh database the filing has to come first.
-test.describe('the оператор as an applicant and as a член правління', () => {
-  test.describe.configure({ mode: 'serial' });
+// The оператор files a заявка by the lasting link: on the picker, in the list of заявки or in the sidebar of the
+// one association they sit in, so the spec holds on a fresh database and on a reused one alike.
+test('AC-16c: the оператор decides nothing they filed themselves', async ({ browser }) => {
+  const f = newFiling();
+  const operator = await sessionFor(browser, operatorEmail);
+  await fileAndConfirm(operator, f);
+  const id = await applicationIdOf(operator, f.name);
+  await openReview(operator, id);
+  await expect(operator.getByText('Це ваша власна заявка — оператор не ухвалює рішення щодо себе')).toBeVisible();
+  await expect(operator.getByRole('button', { name: 'Схвалити' })).toHaveCount(0);
+});
 
-  test('AC-16c: the оператор decides nothing they filed themselves', async ({ browser }) => {
-    const f = newFiling();
-    const operator = await sessionFor(browser, operatorEmail);
-    await fileAndConfirm(operator, f);
-    const id = await applicationIdOf(operator, f.name);
-    await openReview(operator, id);
-    await expect(operator.getByText('Це ваша власна заявка — оператор не ухвалює рішення щодо себе')).toBeVisible();
-    await expect(operator.getByRole('button', { name: 'Схвалити' })).toHaveCount(0);
-  });
+test('AC-16b: an оператор who is a член правління works in their own association only', async ({ browser }) => {
+  const own = await connected(browser, newFiling());
+  const foreign = await connected(browser, newFiling());
 
-  test('AC-16b: an оператор who is a член правління works in their own association only', async ({ browser }) => {
-    const own = await connected(browser, newFiling());
-    const foreign = await connected(browser, newFiling());
+  // The голова seats the оператор's address on the roster.
+  await openRoster(own.head);
+  await addBoardMember(own.head, { fullName: 'Оператор Правлінський Тестович', email: operatorEmail, termStart: '2025-02-01' });
 
-    // The голова seats the оператор's address on the roster.
-    await openRoster(own.head);
-    await addBoardMember(own.head, { fullName: 'Оператор Правлінський Тестович', email: operatorEmail, termStart: '2025-02-01' });
+  // `/` lands the оператор in the association, or on the picker when another run seated them elsewhere too.
+  const operator = await sessionFor(browser, operatorEmail);
+  await operator.goto('/');
+  await expect(operator.getByRole('link', { name: 'Оператор' })).toBeVisible();
+  const picked = operator.getByRole('link', { name: own.f.name, exact: true });
+  if (await picked.isVisible()) await picked.click();
+  await expect(operator).toHaveURL(new RegExp(`/o/${own.associationId}/`));
 
-    // `/` lands the оператор in the association, or on the picker when another run seated them elsewhere too.
-    const operator = await sessionFor(browser, operatorEmail);
-    await operator.goto('/');
-    await expect(operator.getByRole('link', { name: 'Оператор' })).toBeVisible();
-    const picked = operator.getByRole('link', { name: own.f.name, exact: true });
-    if (await picked.isVisible()) await picked.click();
-    await expect(operator).toHaveURL(new RegExp(`/o/${own.associationId}/`));
+  // There they work as any член правління: they read the roster and change a record.
+  await openRoster(operator);
+  await expect(rosterEntry(operator, own.f.fullName).getByText('голова правління', { exact: true })).toBeVisible();
+  expect((await scheduleMeeting(operator, own.associationId)).status()).toBe(201);
 
-    // There they work as any член правління: they read the roster and change a record.
-    await openRoster(operator);
-    await expect(rosterEntry(operator, own.f.fullName).getByText('голова правління', { exact: true })).toBeVisible();
-    expect((await scheduleMeeting(operator, own.associationId)).status()).toBe(201);
-
-    // Another association stays closed to them, and the role is still theirs.
-    const refused = await problemOf(await api(operator).get(`${base(foreign.associationId)}/board-members`));
-    expect(refused).toMatchObject({ status: 403, code: 'identity.not_current_member' });
-    expect(refused, 'the same answer as for a missing association (AC-07)').toEqual(await problemOf(await api(operator).get(`${base(missingId)}/board-members`)));
-    await operator.goto(`/o/${foreign.associationId}/roster`);
-    await expect(operator.getByRole('heading', { name: noAccess })).toBeVisible();
-    await openQueue(operator);
-  });
+  // Another association stays closed to them, and the role is still theirs.
+  const refused = await problemOf(await api(operator).get(`${base(foreign.associationId)}/board-members`));
+  expect(refused).toMatchObject({ status: 403, code: 'identity.not_current_member' });
+  expect(refused, 'the same answer as for a missing association (AC-07)').toEqual(await problemOf(await api(operator).get(`${base(missingId)}/board-members`)));
+  await operator.goto(`/o/${foreign.associationId}/roster`);
+  await expect(operator.getByRole('heading', { name: noAccess })).toBeVisible();
+  await openQueue(operator);
 });

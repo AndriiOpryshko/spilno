@@ -65,6 +65,8 @@ export async function sessionFor(browser: Browser, email: string) {
   return page;
 }
 
+export const isInsideAssociation = (page: Page) => /^\/o\/[^/]+/.test(new URL(page.url(), 'http://localhost').pathname);
+
 export async function fillFiling(page: Page, f: Partial<Filing>) {
   const text = (label: string, value: string | undefined) =>
     value === undefined ? undefined : page.getByLabel(label, { exact: true }).fill(value);
@@ -76,14 +78,15 @@ export async function fillFiling(page: Page, f: Partial<Filing>) {
   await text('Кінець строку повноважень (необов’язково)', f.termEnd);
 }
 
-// The заявка на підключення form the way a person reaches it. `/` lands a person without an association on
-// their заявки and a person with several associations (or the оператор without one) on the picker; both carry
-// the link. Inside a single association no screen links to the form, so a person on exactly one roster cannot
-// get here by clicking.
+// The заявка на підключення form the way a person reaches it, by its lasting link: the list of заявки, the picker
+// and the sidebar of an association all carry «Подати заявку на підключення». A page that is already inside an
+// association uses its sidebar; any other page enters through `/`, which lands a person without an association on
+// their заявки and a person with several (or the оператор without one) on the picker. So the form is reachable
+// whatever rosters the person is on, the оператор included.
 export async function openConnectionForm(page: Page) {
-  await page.goto('/');
+  if (!isInsideAssociation(page)) await page.goto('/');
   const link = page.getByRole('link', { name: 'Подати заявку на підключення' });
-  await expect(link, '`/` must offer the form: the list of заявки and the picker do, a single association does not').toBeVisible();
+  await expect(link, 'the list of заявки, the picker and the association sidebar must offer the form').toBeVisible();
   await link.click();
   await expect(page.getByRole('heading', { name: 'Заявка на підключення' })).toBeVisible();
 }
@@ -147,7 +150,7 @@ export async function openReviewFromQueue(page: Page, name: string) {
 
 // The association card from the sidebar; a page that is not inside an association yet enters through `/`.
 export async function openCard(page: Page) {
-  if (!/\/o\/[^/]+/.test(new URL(page.url(), 'http://localhost').pathname)) await page.goto('/');
+  if (!isInsideAssociation(page)) await page.goto('/');
   await page.getByRole('link', { name: 'ОСББ', exact: true }).click();
   await expect(page).toHaveURL(/\/o\/[^/]+\/association/);
 }

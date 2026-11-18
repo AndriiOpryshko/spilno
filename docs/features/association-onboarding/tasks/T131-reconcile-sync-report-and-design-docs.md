@@ -13,7 +13,7 @@ files_hint:
   - "services/core/internal/governance/domain/errors.go"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T131 — Reconcile the sync report and write the roster rules into ADR-0006, the SAD and the data model

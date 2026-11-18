@@ -342,9 +342,9 @@ Traceability and deviations:
 | `identity.term_ended` | invariant | Строк повноважень голови вже завершився — подайте витяг після переобрання | AC-30 |
 | `identity.storage_account_personal` | invariant | Це особистий акаунт члена правління — підключіть акаунт ОСББ | AC-28b |
 | `identity.storage_has_files` | conflict | У сховищі ОСББ уже є файли — підключіть той самий акаунт, з яким вони були збережені | AC-27b |
-| `governance.drive_not_connected` | invariant | Спершу підключіть сховище документів ОСББ (planned — not yet in `governance` ErrorRegistry) | AC-28 |
+| `governance.drive_not_connected` | invariant | Спершу підключіть сховище документів ОСББ | AC-28 |
 
-Objects of another association, and another person's заявка, answer as not existing (same body as `identity.not_current_member`), so their existence is not revealed. All `identity.*` codes except `identity.not_current_member` are planned in the existing `identity` context.
+Objects of another association, and another person's заявка, answer as not existing (same body as `identity.not_current_member`), so their existence is not revealed. The `identity.*` codes are registered in `identity/domain.ErrorRegistry` (with `identity.session_required`, which the board-protocol feature added), `governance.drive_not_connected` in `governance/domain.ErrorRegistry`; each is defined once, with the string above.
 
 ## 6. Non-functional requirements
 

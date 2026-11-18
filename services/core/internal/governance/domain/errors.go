@@ -33,7 +33,7 @@ const (
 	CodeNoteRequired       = "governance.correction_note_required"
 )
 
-// Problem codes of uploads, the registry search, printing and the register start; each is listed in ErrorRegistry.
+// Problem codes of uploads, the registry search and printing; each is listed in ErrorRegistry.
 const (
 	// CodeFileInvalid is answered for an upload over MaxDocumentSize or not PDF, JPEG or PNG by content.
 	CodeFileInvalid = "governance.file_invalid"
@@ -48,7 +48,7 @@ const (
 const CodeStorageUnavailable = "governance.storage_unavailable"
 
 // CodeDriveNotConnected is answered when the association has no connected
-// Google Drive storage; each is listed in ErrorRegistry.
+// Google Drive storage; it is listed in ErrorRegistry.
 const CodeDriveNotConnected = "governance.drive_not_connected"
 
 // DomainError is a rule violation identified only by its problem code.
@@ -101,6 +101,7 @@ var ErrorRegistry = []ErrorDef{
 	{CodeNotReadyForSigning, http.StatusConflict},
 	{CodePollNotOpen, http.StatusConflict},
 	{CodeProtocolLocked, http.StatusConflict},
+	// Registered by literal: no operation raises it yet; the settings operation that will is board-protocol T10.
 	{"governance.register_start_locked", http.StatusConflict},
 	{CodeTransitionDenied, http.StatusConflict},
 	{CodeStorageUnavailable, http.StatusServiceUnavailable},

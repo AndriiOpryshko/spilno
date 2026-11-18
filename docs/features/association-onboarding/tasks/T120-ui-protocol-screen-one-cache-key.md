@@ -11,7 +11,7 @@ files_hint:
   - "apps/web/src/features/identity/reuse.test.tsx"
 owner: "Andrii Opryshko"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T120 — Read and write the protocol draft under one cache key and tighten the reuse test

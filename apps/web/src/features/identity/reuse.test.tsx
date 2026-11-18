@@ -38,12 +38,13 @@ describe('the screens under src/features follow the reuse conventions (W5)', () 
   });
 
   it('renders no ad-hoc alert paragraph: every role="alert" comes from InlineAlert', () => {
-    // Scoped to identity and the routes: InlineAlert itself and the system health card own their role="alert".
-    expect(offenders(/role="alert"/).filter((f) => !f.includes('/features/governance/') && !f.includes('/features/system/'))).toEqual([]);
+    // Only InlineAlert itself and the system health card own a role="alert".
+    expect(offenders(/role="alert"/).filter((f) => !f.endsWith('/governance/inline-alert.tsx') && !f.endsWith('/system/health-card.tsx'))).toEqual([]);
   });
 
   it('builds no query key by hand: the generated key helpers name the cache entries', () => {
     expect(offenders(/queryKey:\s*\['/)).toEqual([]);
+    expect(offenders(/(?:setQueryData|invalidateQueries|getQueryData|setQueriesData)\(\s*(?:\{\s*queryKey:\s*)?\[/)).toEqual([]);
   });
 
   it('has no <a href> for in-app navigation: only the generated API URL helpers (redirects, downloads) stay anchors', () => {

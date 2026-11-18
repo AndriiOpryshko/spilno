@@ -141,7 +141,12 @@ export interface Upload {
 
 export async function attachDocument(page: Page, file: Upload) {
   await page.getByLabel('Файл (PDF, JPEG або PNG, до 20 МБ)').setInputFiles(file);
+  const answer = page.waitForResponse(
+    (r) => r.request().method() === 'POST' && /\/cases\/[^/]+\/documents$/.test(new URL(r.url()).pathname),
+  );
   await page.getByRole('button', { name: 'Додати документ' }).click();
+  const response = await answer;
+  expect(response.status(), `document upload answered ${response.status()}`).toBe(201);
 }
 
 // The ids of the files behind the documents of a справа, by file name.

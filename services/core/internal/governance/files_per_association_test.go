@@ -99,3 +99,25 @@ func TestDownloadFileResolvesTheStoragePerAssociation(t *testing.T) {
 		e.requireServed(t, "A's scan", e.fetch(t, e.a, e.signedA.ScanFileID), e.signedA.ScanFileName, e.scanBytes)
 	})
 }
+
+// T127 (AC-26, review S07): files.drive_file_id is unique across associations, so the first upload of two
+// associations under the development storage must not get the same storage id.
+func TestDevFilesGiveFirstUploadsOfTwoAssociationsDistinctIDs(t *testing.T) {
+	ctx := context.Background()
+	resolve := governance.NewDevFiles()
+	ids := map[string]uuid.UUID{}
+	for _, assoc := range []uuid.UUID{uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())} {
+		store, err := resolve(ctx, assoc)
+		if err != nil {
+			t.Fatalf("resolve(%s): %v", assoc, err)
+		}
+		stored, err := store.Upload(ctx, "contract.pdf", "application/pdf", bytes.NewReader([]byte("%PDF-1.7 first")))
+		if err != nil {
+			t.Fatalf("first upload of %s: %v", assoc, err)
+		}
+		if other, dup := ids[stored.ID]; dup {
+			t.Fatalf("first upload of %s got storage id %q, already issued to %s: files.drive_file_id would collide", assoc, stored.ID, other)
+		}
+		ids[stored.ID] = assoc
+	}
+}

@@ -12,7 +12,7 @@ files_hint:
   - "apps/web/e2e/association-support.ts"
 owner: "Andrii Opryshko"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T127 — Give the development storage file ids that are unique across associations

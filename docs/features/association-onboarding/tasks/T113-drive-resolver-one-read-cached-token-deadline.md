@@ -13,7 +13,7 @@ files_hint:
   - "services/core/internal/governance/drive_wiring_test.go"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T113 — Resolve an association's Drive storage with one read, a reused token and a deadline

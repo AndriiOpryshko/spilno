@@ -84,26 +84,42 @@ func NewDriveFiles(client *http.Client, folderID, apiURL, uploadURL string) File
 
 // GoogleConnections is what the Drive resolver reads of an association's Google connection.
 type GoogleConnections interface {
-	GoogleTokenSource(ctx context.Context, association uuid.UUID) (oauth2.TokenSource, error)
-	GoogleFolderID(ctx context.Context, association uuid.UUID) (string, error)
+	// GoogleStorage returns the token source and the folder id of the connection from one read.
+	GoogleStorage(ctx context.Context, association uuid.UUID) (oauth2.TokenSource, string, error)
 }
 
+// DriveOption tunes NewDriveResolver.
+type DriveOption func(*driveConfig)
+
+type driveConfig struct{ timeout time.Duration }
+
+// defaultDriveTimeout bounds one request to Drive, including streaming the body.
+const defaultDriveTimeout = 60 * time.Second
+
+// WithDriveTimeout bounds every request to Drive.
+func WithDriveTimeout(d time.Duration) DriveOption { return func(c *driveConfig) { c.timeout = d } }
+
 // NewDriveResolver resolves an association's Drive storage from its Google connection: nil Files when
-// it has no connection (the error notConnected) or no folder yet. cmd/api and the module tests share it.
-func NewDriveResolver(conns GoogleConnections, notConnected error, apiURL, uploadURL string) FilesResolver {
+// it has no connection (the error notConnected) or no folder yet. Any other failure is returned as is.
+// cmd/api and the module tests share it.
+func NewDriveResolver(conns GoogleConnections, notConnected error, apiURL, uploadURL string, opts ...DriveOption) FilesResolver {
+	cfg := driveConfig{timeout: defaultDriveTimeout}
+	for _, o := range opts {
+		o(&cfg)
+	}
 	return func(ctx context.Context, association uuid.UUID) (Files, error) {
-		ts, err := conns.GoogleTokenSource(ctx, association)
+		ts, folder, err := conns.GoogleStorage(ctx, association)
 		if errors.Is(err, notConnected) {
 			return nil, nil
 		}
 		if err != nil {
 			return nil, err
 		}
-		folder, err := conns.GoogleFolderID(ctx, association)
-		if err != nil || folder == "" {
-			return nil, err
+		if folder == "" {
+			return nil, nil
 		}
-		return NewDriveFiles(oauth2.NewClient(ctx, ts), folder, apiURL, uploadURL), nil
+		client := &http.Client{Transport: &oauth2.Transport{Source: ts, Base: http.DefaultTransport}, Timeout: cfg.timeout}
+		return NewDriveFiles(client, folder, apiURL, uploadURL), nil
 	}
 }
 

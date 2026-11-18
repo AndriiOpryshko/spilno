@@ -117,7 +117,7 @@
 | [T110](./T110-contract-texts-and-reconcile.md) | Correct the contract's descriptions and reconcile the sync report | wiring | Andrii Opryshko | M | T87, T90, T100 | done |
 | [T111](./T111-sync-docs-after-second-review.md) | Bring the test plan, the trackers and the review record in line with the second follow-up | docs | Andrii Opryshko | M | T96, T97, T98, T101, T103, T107, T108, T109, T110 | done |
 | [T112](./T112-wire-consent-drive-address-and-test-api-wiring.md) | Give the production storage consent its Drive address and test the wiring cmd/api runs | wiring | Andrii Opryshko | M | — | done |
-| [T113](./T113-drive-resolver-one-read-cached-token-deadline.md) | Resolve an association's Drive storage with one read, a reused token and a deadline | app | Andrii Opryshko | M | T112 | todo |
+| [T113](./T113-drive-resolver-one-read-cached-token-deadline.md) | Resolve an association's Drive storage with one read, a reused token and a deadline | app | Andrii Opryshko | M | T112 | done |
 | [T114](./T114-refuse-another-storage-account-while-files-exist.md) | Refuse to connect another storage account while the association has files | ports | Andrii Opryshko | L | — | done |
 | [T115](./T115-ui-storage-account-refusal.md) | Tell the член правління why another storage account was refused | ui | Andrii Opryshko | S | T114 | todo |
 | [T116](./T116-ui-lasting-links-to-applications.md) | Give every signed-in person a lasting way to their заявки and to the заявка на підключення form | ui | Andrii Opryshko | M | — | done |

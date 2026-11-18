@@ -101,10 +101,8 @@ func resolveFiles(ctx context.Context, resolve ports.FilesResolver, association 
 		return nil, &domain.DomainError{Code: domain.CodeStorageUnavailable}
 	}
 	store, err := resolve(ctx, association)
-	if err != nil {
-		return nil, err
-	}
-	if store == nil {
+	if err != nil || store == nil {
+		// A resolver failure (an unreadable token, a database error) is a storage outage to the caller.
 		return nil, &domain.DomainError{Code: domain.CodeStorageUnavailable}
 	}
 	return store, nil

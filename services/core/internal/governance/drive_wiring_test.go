@@ -27,8 +27,8 @@ import (
 )
 
 // T97 (AC-26, AC-28, review N09): with SPILNO_DEV_STORAGE unset, an association's documents live in the Drive folder
-// of its Google connection, reached with its token. The resolver below is the composition cmd/api builds from
-// identity.GoogleFolderID / GoogleTokenSource and governance.NewDriveFiles.
+// of its Google connection, reached with its token. The resolver is the one cmd/api builds:
+// governance.NewDriveResolver over identity.GoogleStorage and governance.NewDriveFiles.
 
 // wiringDrive is a fake Google (token endpoint and Drive) that records whom each upload was for.
 type wiringDrive struct {
@@ -38,6 +38,11 @@ type wiringDrive struct {
 	sessions map[string]wiringSession
 	files    map[string][]byte
 	uploads  []wiringSession // in order, with the bearer token and parent folder of each
+
+	tokenCalls int           // requests to the token endpoint
+	hang       bool          // when set, Drive metadata and media reads never answer
+	release    chan struct{} // closed to free hanging handlers
+	once       sync.Once
 }
 
 type wiringSession struct {
@@ -47,11 +52,14 @@ type wiringSession struct {
 
 func newWiringDrive(t *testing.T) *wiringDrive {
 	t.Helper()
-	d := &wiringDrive{sessions: map[string]wiringSession{}, files: map[string][]byte{}}
+	d := &wiringDrive{sessions: map[string]wiringSession{}, files: map[string][]byte{}, release: make(chan struct{})}
 	mux := http.NewServeMux()
 	// Token endpoint: the access token names the refresh token it was minted from.
 	mux.HandleFunc("/token", func(w http.ResponseWriter, r *http.Request) {
 		_ = r.ParseForm()
+		d.mu.Lock()
+		d.tokenCalls++
+		d.mu.Unlock()
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = fmt.Fprintf(w, `{"access_token":"at-for-%s","token_type":"Bearer","expires_in":3600}`, r.PostForm.Get("refresh_token"))
 	})
@@ -85,6 +93,16 @@ func newWiringDrive(t *testing.T) *wiringDrive {
 	})
 	mux.HandleFunc("/drive/v3/files/", func(w http.ResponseWriter, r *http.Request) {
 		d.mu.Lock()
+		hang := d.hang
+		d.mu.Unlock()
+		if hang {
+			select {
+			case <-r.Context().Done():
+			case <-d.release:
+			}
+			return
+		}
+		d.mu.Lock()
 		body, ok := d.files[strings.TrimPrefix(r.URL.Path, "/drive/v3/files/")]
 		d.mu.Unlock()
 		if !ok {
@@ -101,7 +119,22 @@ func newWiringDrive(t *testing.T) *wiringDrive {
 	})
 	d.srv = httptest.NewServer(mux)
 	t.Cleanup(d.srv.Close)
+	t.Cleanup(d.unhang)
 	return d
+}
+
+func (d *wiringDrive) tokenRequests() int {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.tokenCalls
+}
+
+func (d *wiringDrive) unhang() { d.once.Do(func() { close(d.release) }) }
+
+func (d *wiringDrive) setHang(v bool) {
+	d.mu.Lock()
+	d.hang = v
+	d.mu.Unlock()
 }
 
 func firstNonEmpty(a, b string) string {
@@ -122,6 +155,11 @@ type wiringEnv struct {
 	*caseEnv
 	drive *wiringDrive
 	idm   *identity.Module
+	// useResolver replaces the storage resolver the running API asks.
+	useResolver func(governance.FilesResolver)
+	// otherKeyModule is a second identity module on the same database sealed under another key: it cannot read
+	// the tokens idm stored.
+	otherKeyModule func(t *testing.T) *identity.Module
 }
 
 func newWiringEnv(t *testing.T) *wiringEnv {
@@ -129,20 +167,31 @@ func newWiringEnv(t *testing.T) *wiringEnv {
 	drive := newWiringDrive(t)
 	pool, a, b := testdb.NewTwoAssociations(t)
 	idm := identity.New(pool)
+	googleCfg := func(key byte) identity.GoogleConfig {
+		return identity.GoogleConfig{KeyID: "k1", Key: bytes.Repeat([]byte{key}, 32), OAuth: &oauth2.Config{
+			ClientID: "client-1", ClientSecret: "secret-1",
+			Endpoint: oauth2.Endpoint{TokenURL: drive.srv.URL + "/token", AuthStyle: oauth2.AuthStyleInParams},
+		}}
+	}
 	people := map[string]identity.ProviderIdentity{}
 	for name, email := range map[string]string{"head": caseHeadEmail, "bhead": rosterBOnlyEmail} {
 		people[name] = identity.ProviderIdentity{Issuer: "https://accounts.example.test", Subject: "sub-" + name, Email: email, EmailVerified: true}
 	}
 	idm.EnableSignIn(identity.SignInConfig{Provider: rosterProvider{people}})
-	if err := idm.EnableGoogle(identity.GoogleConfig{KeyID: "k1", Key: make([]byte, 32), OAuth: &oauth2.Config{
-		ClientID: "client-1", ClientSecret: "secret-1",
-		Endpoint: oauth2.Endpoint{TokenURL: drive.srv.URL + "/token", AuthStyle: oauth2.AuthStyleInParams},
-	}}); err != nil {
+	if err := idm.EnableGoogle(googleCfg(0)); err != nil {
 		t.Fatal(err)
 	}
 	apiURL, uploadURL := drive.srv.URL+"/drive/v3", drive.srv.URL+"/upload/drive/v3"
 	resolve := governance.NewDriveResolver(idm, identity.ErrGoogleNotConnected, apiURL, uploadURL)
-	gov := governance.New(pool, idm.HasStorageConnection, actorAccess).WithFiles(resolve)
+	var resMu sync.Mutex
+	current := resolve
+	swappable := func(ctx context.Context, assoc uuid.UUID) (governance.Files, error) {
+		resMu.Lock()
+		f := current
+		resMu.Unlock()
+		return f(ctx, assoc)
+	}
+	gov := governance.New(pool, idm.HasStorageConnection, actorAccess).WithFiles(swappable)
 	r := httpapi.NewRouter()
 	r.Group(func(r chi.Router) {
 		r.Use(idm.Guard(guardedRoster{gov}))
@@ -162,7 +211,15 @@ func newWiringEnv(t *testing.T) *wiringEnv {
 	for name := range people {
 		e.cookies[name] = rosterSignIn(t, r, name)
 	}
-	return &wiringEnv{caseEnv: e, drive: drive, idm: idm}
+	return &wiringEnv{caseEnv: e, drive: drive, idm: idm,
+		useResolver: func(f governance.FilesResolver) { resMu.Lock(); current = f; resMu.Unlock() },
+		otherKeyModule: func(t *testing.T) *identity.Module {
+			other := identity.New(pool)
+			if err := other.EnableGoogle(googleCfg(1)); err != nil {
+				t.Fatal(err)
+			}
+			return other
+		}}
 }
 
 // connect stores the association's Google connection; folder "" leaves the spilno folder uncreated.

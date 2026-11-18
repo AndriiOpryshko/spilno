@@ -11,7 +11,7 @@ files_hint:
   - "apps/web/src/i18n/uk.ts"
 owner: "Andrii Opryshko"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T117 — Offer the запит на передачу on the association card to every member

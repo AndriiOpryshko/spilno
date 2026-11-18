@@ -11,7 +11,7 @@ files_hint:
   - "services/core/cmd/api/main.go"
 owner: "Andrii Opryshko"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T123 — Scope the pending sign-in cookie by the path of the callback address

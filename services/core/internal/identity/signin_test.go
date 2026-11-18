@@ -381,3 +381,55 @@ func TestSignInCallbackNeedsTheCookieOfItsState(t *testing.T) {
 		}
 	})
 }
+
+// redirectingFake is a provider that knows the address it sends the browser back to. It states it both as
+// the redirect_uri of the authorization link (what a real provider does) and through RedirectURL, so the
+// cookie path can follow either without a path passed beside the address.
+type redirectingFake struct {
+	signInFake
+	redirect string
+}
+
+func (f *redirectingFake) RedirectURL() string { return f.redirect }
+
+func (f *redirectingFake) AuthCodeURL(state, nonce, codeChallenge string) string {
+	q := url.Values{"state": {state}, "nonce": {nonce}, "code_challenge": {codeChallenge}, "redirect_uri": {f.redirect}}
+	return "https://accounts.example.test/o/oauth2/auth?" + q.Encode()
+}
+
+// AC-05: the pending sign-in cookie is scoped to the path of the provider's redirect address, with or
+// without the web app's /api prefix; no separate callback path is configured.
+func TestSignInCookiePathFollowsTheRedirectAddress(t *testing.T) {
+	for _, tc := range []struct{ name, redirect, wantPath string }{
+		{"behind the api prefix", "https://app.example.test/api/identity/sign-in/callback", "/api/identity/sign-in/callback"},
+		{"without a prefix", "https://app.example.test/identity/sign-in/callback", "/identity/sign-in/callback"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			pool := testdb.NewApp(t)
+			m := identity.New(pool)
+			m.EnableSignIn(identity.SignInConfig{
+				Provider:      &redirectingFake{redirect: tc.redirect},
+				OperatorEmail: signInOperatorEmail,
+			})
+			r := httpapi.NewRouter()
+			if err := m.Routes(r); err != nil {
+				t.Fatal(err)
+			}
+			srv := httptest.NewServer(r)
+			t.Cleanup(srv.Close)
+
+			_, cookies := startSignIn(t, srv)
+			if len(cookies) == 0 {
+				t.Fatal("startSignIn set no cookie")
+			}
+			var paths []string
+			for _, c := range cookies {
+				paths = append(paths, c.Path)
+				if c.Path == tc.wantPath {
+					return
+				}
+			}
+			t.Fatalf("no pending sign-in cookie scoped to %q; cookie paths = %q", tc.wantPath, paths)
+		})
+	}
+}

@@ -10,6 +10,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"net/url"
 	"sync"
 	"time"
 
@@ -37,8 +38,8 @@ type pending struct {
 	Expires  time.Time `json:"e"`
 }
 
-// DefaultCallbackPath is where the pending sign-in cookie is scoped unless configured.
-const DefaultCallbackPath = "/identity/sign-in/callback"
+// apiCallbackPath is the API's own sign-in callback path.
+const apiCallbackPath = "/identity/sign-in/callback"
 
 // SignIn runs the sign-in flow and keeps sessions.
 type SignIn struct {
@@ -48,7 +49,6 @@ type SignIn struct {
 	operatorEmail string
 	now           func() time.Time
 	aead          cipher.AEAD // random per process, seals the pending sign-in
-	callbackPath  string
 
 	mu   sync.Mutex
 	used map[string]time.Time // states already completed -> expiry; only completed sign-ins are kept
@@ -67,21 +67,25 @@ func NewSignIn(p ports.SignInProvider, a ports.AccountRepository, s ports.Sessio
 	if err != nil {
 		panic(err)
 	}
-	return &SignIn{provider: p, accounts: a, sessions: s, operatorEmail: operatorEmail, now: time.Now, aead: aead, callbackPath: DefaultCallbackPath, used: map[string]time.Time{}}
+	return &SignIn{provider: p, accounts: a, sessions: s, operatorEmail: operatorEmail, now: time.Now, aead: aead, used: map[string]time.Time{}}
 }
 
 // SetClock replaces the clock the pending sign-in expiry is read from.
 func (s *SignIn) SetClock(now func() time.Time) { s.now = now }
 
-// SetCallbackPath sets the path, as the browser reaches it, the pending sign-in cookie is scoped to.
-func (s *SignIn) SetCallbackPath(path string) {
-	if path != "" {
-		s.callbackPath = path
+// CallbackPath is the path the pending sign-in cookie is scoped to: the path of the provider's redirect address.
+// A provider that does not state its address gets the API's own callback path.
+func (s *SignIn) CallbackPath() string {
+	r, ok := s.provider.(ports.RedirectAddresser)
+	if !ok {
+		return apiCallbackPath
 	}
+	u, err := url.Parse(r.RedirectURL())
+	if err != nil || u.Path == "" {
+		return apiCallbackPath
+	}
+	return u.Path
 }
-
-// CallbackPath is the path the pending sign-in cookie is scoped to.
-func (s *SignIn) CallbackPath() string { return s.callbackPath }
 
 // StateMaxAge is how long the pending sign-in cookie lives, in seconds.
 func StateMaxAge() int { return int(stateTTL / time.Second) }

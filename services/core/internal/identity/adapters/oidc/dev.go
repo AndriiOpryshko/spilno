@@ -21,16 +21,23 @@ type Dev struct {
 	Callback string
 }
 
-var _ ports.SignInProvider = Dev{}
+var (
+	_ ports.SignInProvider    = Dev{}
+	_ ports.RedirectAddresser = Dev{}
+)
 
 const devIssuer = "https://dev.spilno.invalid"
 
-func (d Dev) AuthCodeURL(state, _, _ string) string {
-	callback := d.Callback
-	if callback == "" {
-		callback = "/identity/sign-in/callback"
+// RedirectURL is the callback address; empty Callback means the API's own path.
+func (d Dev) RedirectURL() string {
+	if d.Callback == "" {
+		return "/identity/sign-in/callback"
 	}
-	return callback + "?" + url.Values{"code": {d.Email}, "state": {state}}.Encode()
+	return d.Callback
+}
+
+func (d Dev) AuthCodeURL(state, _, _ string) string {
+	return d.RedirectURL() + "?" + url.Values{"code": {d.Email}, "state": {state}}.Encode()
 }
 
 func (d Dev) Exchange(_ context.Context, code, _, _ string) (ports.ProviderIdentity, error) {

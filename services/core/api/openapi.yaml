@@ -168,12 +168,19 @@ paths:
       operationId: startSignIn
       tags: [identity]
       summary: Redirect to the identity provider (OIDC authorization code + PKCE)
-      description: ADR-0003. Public. Stores the PKCE verifier and state server-side and redirects.
+      description: |
+        ADR-0003. Public. The server keeps no pending state: the PKCE verifier and the state are sealed into the
+        short-lived `spilno_signin` cookie (HttpOnly, Secure, SameSite=Lax, scoped to the callback address)
+        that the 302 sets and the callback reads.
       security: []
       responses:
         "302":
-          description: Redirect to the provider's authorization endpoint.
+          description: Redirect to the provider's authorization endpoint; the sealed pending sign-in is set as a cookie.
           headers:
+            Set-Cookie:
+              description: The sealed pending sign-in, `spilno_signin`; HttpOnly, Secure, SameSite=Lax, scoped to the callback address.
+              schema: { type: string }
+              example: spilno_signin=<sealed>; Path=/api/identity/sign-in/callback; Max-Age=600; HttpOnly; Secure; SameSite=Lax
             Location:
               schema: { type: string, format: uri }
               example: https://accounts.example.test/o/oauth2/auth?client_id=test-client&state=test-state
@@ -184,7 +191,8 @@ paths:
       summary: Finish sign-in, create the session and redirect to the SPA
       description: |
         ADR-0003, ADR-0004. Public. Any person with a verified email gets a session, on or off a roster;
-        the associations they belong to come from `listMemberships`.
+        the associations they belong to come from `listMemberships`. The `state` must match the pending
+        sign-in sealed in the `spilno_signin` cookie that `startSignIn` set; the callback clears that cookie.
       security: []
       parameters:
         - name: code
@@ -205,11 +213,13 @@ paths:
               schema: { type: string }
               example: /
             Set-Cookie:
-              description: HttpOnly, Secure, SameSite=Lax session cookie.
+              description: |
+                The HttpOnly, Secure, SameSite=Lax session cookie; a second `Set-Cookie` clears the pending
+                `spilno_signin` cookie.
               schema: { type: string }
               example: spilno_session=<token>; Path=/; HttpOnly; Secure; SameSite=Lax
         "401":
-          description: Unknown, expired or replayed state — start sign-in again.
+          description: The `spilno_signin` cookie is missing or was set for another sign-in, or the state is unknown, expired or replayed — start sign-in again.
           content:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
@@ -344,6 +354,7 @@ paths:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
               examples: { application_invalid: { $ref: "#/components/examples/ApplicationInvalid" } }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
 
   /identity/applications/{application_id}:
     parameters:
@@ -425,6 +436,7 @@ paths:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
               examples: { application_invalid: { $ref: "#/components/examples/ApplicationInvalid" } }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
 
   /identity/applications/{application_id}/filings/{filing_id}/extract:
     parameters:
@@ -999,7 +1011,9 @@ paths:
         "403": { $ref: "#/components/responses/MemberOrDisabled" }
         "404": { $ref: "#/components/responses/NotFound" }
         "422":
-          description: Term start missing or term end before term start (`governance.roster_entry_invalid`).
+          description: |
+            Term start missing or term end before term start (`governance.roster_entry_invalid`); also the refusal on
+            `/term_end` of an entry a decision ended: its term end cannot be cleared or moved later.
           content:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
@@ -1118,6 +1132,7 @@ paths:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
               examples: { file_invalid: { $ref: "#/components/examples/FileInvalid" } }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
         "503": { $ref: "#/components/responses/StorageUnavailable" }
   /governance/associations/{association_id}/files/{file_id}:
     parameters:
@@ -1991,6 +2006,12 @@ components:
             title: Validation failed
             status: 422
             errors: [{ pointer: /protocol_revision, detail: property "protocol_revision" is missing }]
+    PayloadTooLarge:
+      description: The request body is over the limit of its operation (6 MB for the identity uploads, 21 MB for a case document).
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+          examples: { payload_too_large: { $ref: "#/components/examples/PayloadTooLarge" } }
     StorageUnavailable:
       description: File storage unavailable; nothing was committed, try again later (`governance.storage_unavailable`, Flow 8).
       content:
@@ -2227,6 +2248,8 @@ components:
         status: 422
         code: governance.file_invalid
         errors: [{ pointer: /file, detail: "media type text/html is not allowed; PDF, JPEG or PNG up to 20 MB" }]
+    PayloadTooLarge:
+      value: { type: about:blank, title: Request Entity Too Large, status: 413 }
     StorageUnavailable:
       value: { type: about:blank, title: Service Unavailable, status: 503, code: governance.storage_unavailable, detail: Сховище файлів недоступне, спробуйте пізніше }
     DraftRevisionConflict:
@@ -2569,6 +2592,10 @@ components:
           description: Not before term_start (domain). Null = open term.
           type: [string, "null"]
           format: date
+    DecisionEffect:
+      description: What a decision did to a roster entry. `seated` — the approval made the entry голова; `ended` — it ended the entry.
+      type: string
+      enum: [seated, ended]
     BoardMember:
       description: board_members + its latest board_member_revisions row.
       type: object
@@ -2589,8 +2616,9 @@ components:
             What the entry's decision did to it: `seated` (the approval made this entry голова) or `ended`
             (it ended this entry); null for an entry without a decision. The board cannot clear or move later
             the term end of an `ended` entry (422 `governance.roster_entry_invalid` on `/term_end`).
-          type: [string, "null"]
-          enum: [seated, ended, null]
+          oneOf:
+            - { $ref: "#/components/schemas/DecisionEffect" }
+            - { type: "null" }
     BoardMemberPage:
       type: object
       required: [items, next_cursor]

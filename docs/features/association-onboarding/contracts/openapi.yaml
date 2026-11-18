@@ -24,6 +24,8 @@ servers:
 tags:
   - name: identity
     description: Sign-in, sessions and the current principal; associations, applications, the operator back office and the storage connection.
+  - name: governance
+    description: Board meetings and their decisions; the delta carries the changed file download and the roster entry.
 
 security:
   - SessionCookie: []
@@ -147,6 +149,7 @@ paths:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
               examples: { application_invalid: { $ref: "#/components/examples/ApplicationInvalid" } }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
 
   /identity/applications/{application_id}:
     parameters:
@@ -228,6 +231,7 @@ paths:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
               examples: { application_invalid: { $ref: "#/components/examples/ApplicationInvalid" } }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
 
   /identity/applications/{application_id}/filings/{filing_id}/extract:
     parameters:
@@ -660,6 +664,46 @@ paths:
         "401": { $ref: "#/components/responses/SessionRequired" }
         "403": { $ref: "#/components/responses/MemberOrDisabled" }
 
+  # ─────────────────────── governance (changed operation) ───────────────────────
+  /governance/associations/{association_id}/files/{file_id}:
+    parameters:
+      - $ref: '#/components/parameters/AssociationId'
+      - $ref: "#/components/parameters/FileId"
+    get:
+      operationId: downloadFile
+      tags: [governance]
+      summary: Download a stored file — case document, print copy or signed scan (US-07, Flow 13)
+      description: Served as an attachment with `X-Content-Type-Options nosniff`, never inline (SAD §8 Files).
+      responses:
+        "200":
+          description: The file bytes of the pinned revision.
+          headers:
+            Content-Disposition:
+              schema: { type: string }
+              example: attachment; filename="protocol-14-signed.pdf"
+            X-Content-Type-Options:
+              schema: { type: string, const: nosniff }
+          content:
+            application/pdf:
+              schema: { type: string, contentMediaType: application/pdf }
+            image/jpeg:
+              schema: { type: string, contentMediaType: image/jpeg }
+            image/png:
+              schema: { type: string, contentMediaType: image/png }
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403":
+          description: |
+            Not a current член правління (`identity.not_current_member`), or a вимкнене ОСББ asking for a file
+            that is not a signed protocol's (`identity.association_disabled`, ADR-0007).
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+              examples:
+                not_current_member: { $ref: "#/components/examples/NotCurrentMember" }
+                association_disabled: { $ref: "#/components/examples/AssociationDisabled" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/StorageUnavailable" }
+
 components:
   securitySchemes:
     SessionCookie:
@@ -686,6 +730,11 @@ components:
       in: path
       required: true
       description: identity.associations.id; every association-scoped path carries it (ADR-0002).
+      schema: { type: string, format: uuid }
+    FileId:
+      name: file_id
+      in: path
+      required: true
       schema: { type: string, format: uuid }
     ApplicationId:
       name: application_id
@@ -752,6 +801,18 @@ components:
           examples:
             not_current_member: { $ref: "#/components/examples/NotCurrentMember" }
             association_disabled: { $ref: "#/components/examples/AssociationDisabled" }
+    PayloadTooLarge:
+      description: The request body is over the limit of its operation (6 MB for the identity uploads, 21 MB for a case document).
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+          examples: { payload_too_large: { $ref: "#/components/examples/PayloadTooLarge" } }
+    StorageUnavailable:
+      description: File storage unavailable; nothing was committed, try again later (`governance.storage_unavailable`, Flow 8).
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+          examples: { storage_unavailable: { $ref: "#/components/examples/StorageUnavailable" } }
     ExtractFile:
       description: The extract as uploaded, as an attachment with `X-Content-Type-Options nosniff`, never inline (SAD §8 Files).
       headers:
@@ -765,6 +826,10 @@ components:
           schema: { type: string, contentMediaType: application/octet-stream }
 
   examples:
+    PayloadTooLarge:
+      value: { type: about:blank, title: Request Entity Too Large, status: 413 }
+    StorageUnavailable:
+      value: { type: about:blank, title: Service Unavailable, status: 503, code: governance.storage_unavailable, detail: Сховище файлів недоступне, спробуйте пізніше }
     SessionRequired:
       value: { type: about:blank, title: Unauthorized, status: 401, code: identity.session_required, detail: Увійдіть, щоб продовжити }
     NotCurrentMember:
@@ -963,6 +1028,33 @@ components:
       description: application_filings.position and board_member_revisions.position — голова правління / член правління.
       type: string
       enum: [head, member]
+    DecisionEffect:
+      description: What a decision did to a roster entry. `seated` — the approval made the entry голова; `ended` — it ended the entry.
+      type: string
+      enum: [seated, ended]
+    BoardMember:
+      description: board_members + its latest board_member_revisions row.
+      type: object
+      additionalProperties: false
+      required: [id, full_name, sign_in_email, term_start, term_end, revised_by_member_id, revised_at, position, decision_id, decision_effect]
+      properties:
+        id: { type: string, format: uuid }
+        full_name: { type: string, maxLength: 200 }
+        sign_in_email: { type: [string, "null"], format: email, maxLength: 320 }
+        term_start: { type: string, format: date }
+        term_end: { type: [string, "null"], format: date }
+        revised_by_member_id: { type: [string, "null"], format: uuid }
+        revised_at: { type: string, format: date-time }
+        position: { $ref: "#/components/schemas/BoardPosition" }
+        decision_id: { type: [string, "null"], format: uuid }
+        decision_effect:
+          description: |
+            What the entry's decision did to it: `seated` (the approval made this entry голова) or `ended`
+            (it ended this entry); null for an entry without a decision. The board cannot clear or move later
+            the term end of an `ended` entry (422 `governance.roster_entry_invalid` on `/term_end`).
+          oneOf:
+            - { $ref: "#/components/schemas/DecisionEffect" }
+            - { type: "null" }
     AssociationState:
       description: associations.state — підключене ОСББ / вимкнене ОСББ.
       type: string

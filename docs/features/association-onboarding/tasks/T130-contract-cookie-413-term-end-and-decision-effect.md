@@ -16,7 +16,7 @@ files_hint:
   - "apps/web/src/features/governance/roster/"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T130 — Bring the contract in line with the sign-in cookie, the 413 answers, the term-end refusal and the decision effect

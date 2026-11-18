@@ -129,7 +129,7 @@ func boardMemberToAPI(e ports.RosterEntry) gen.BoardMember {
 		out.DecisionId = &id
 	}
 	if e.DecisionEffect != "" {
-		eff := gen.BoardMemberDecisionEffect(e.DecisionEffect)
+		eff := gen.DecisionEffect(e.DecisionEffect)
 		out.DecisionEffect = &eff
 	}
 	if e.RevisedByMemberID != uuid.Nil {

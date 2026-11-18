@@ -51,6 +51,7 @@ import type {
   NotFoundResponse,
   NotOperatorResponse,
   OperatorAssociationPage,
+  PayloadTooLargeResponse,
   Principal,
   Problem,
   QueueApplicationPage,
@@ -100,7 +101,9 @@ export const getStartSignInUrl = () => {
 }
 
 /**
- * ADR-0003. Public. Stores the PKCE verifier and state server-side and redirects.
+ * ADR-0003. Public. The server keeps no pending state: the PKCE verifier and the state are sealed into the
+ * short-lived `spilno_signin` cookie (HttpOnly, Secure, SameSite=Lax, scoped to the callback address)
+ * that the 302 sets and the callback reads.
  * @summary Redirect to the identity provider (OIDC authorization code + PKCE)
  */
 export const startSignIn = async ( options?: RequestInit): Promise<startSignInResponse> => {
@@ -240,7 +243,8 @@ export const getCompleteSignInUrl = (params: CompleteSignInParams,) => {
 
 /**
  * ADR-0003, ADR-0004. Public. Any person with a verified email gets a session, on or off a roster;
- * the associations they belong to come from `listMemberships`.
+ * the associations they belong to come from `listMemberships`. The `state` must match the pending
+ * sign-in sealed in the `spilno_signin` cookie that `startSignIn` set; the callback clears that cookie.
  * @summary Finish sign-in, create the session and redirect to the SPA
  */
 export const completeSignIn = async (params: CompleteSignInParams, options?: RequestInit): Promise<completeSignInResponse> => {
@@ -883,6 +887,11 @@ export type fileApplicationResponse409 = {
   status: 409
 }
 
+export type fileApplicationResponse413 = {
+  data: PayloadTooLargeResponse
+  status: 413
+}
+
 export type fileApplicationResponse422 = {
   data: Problem
   status: 422
@@ -891,7 +900,7 @@ export type fileApplicationResponse422 = {
 export type fileApplicationResponseSuccess = (fileApplicationResponse201) & {
   headers: Headers;
 };
-export type fileApplicationResponseError = (fileApplicationResponse401 | fileApplicationResponse409 | fileApplicationResponse422) & {
+export type fileApplicationResponseError = (fileApplicationResponse401 | fileApplicationResponse409 | fileApplicationResponse413 | fileApplicationResponse422) & {
   headers: Headers;
 };
 
@@ -961,7 +970,7 @@ formData.append(`extract`, newApplication.extract instanceof Blob ? newApplicati
 
 export const getFileApplicationMutationKey = () => ['fileApplication'] as const;
 
-export const getFileApplicationMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | Problem; status?: number },
+export const getFileApplicationMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | Problem | PayloadTooLargeResponse; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof fileApplication>>, TError,FileApplicationMutationVariables, TContext>, fetch?: RequestInit}
 ): UseMutationOptions<Awaited<ReturnType<typeof fileApplication>>, TError,FileApplicationMutationVariables, TContext> => {
 
@@ -990,13 +999,13 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
     export type FileApplicationMutationResult = NonNullable<Awaited<ReturnType<typeof fileApplication>>>
     export type FileApplicationMutationBody = NewApplication
-    export type FileApplicationMutationError = globalThis.Error & { info?: SessionRequiredResponse | Problem; status?: number }
+    export type FileApplicationMutationError = globalThis.Error & { info?: SessionRequiredResponse | Problem | PayloadTooLargeResponse; status?: number }
     export type FileApplicationMutationVariables = {data: NewApplication}
 
     /**
  * @summary File a заявка на підключення or a запит на передачу with the signed extract (US-01, US-04, Flows 1 and 6)
  */
-export const useFileApplication = <TError = globalThis.Error & { info?: SessionRequiredResponse | Problem; status?: number },
+export const useFileApplication = <TError = globalThis.Error & { info?: SessionRequiredResponse | Problem | PayloadTooLargeResponse; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof fileApplication>>, TError,FileApplicationMutationVariables, TContext>, fetch?: RequestInit}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof fileApplication>>,
@@ -1163,6 +1172,11 @@ export type refileApplicationResponse409 = {
   status: 409
 }
 
+export type refileApplicationResponse413 = {
+  data: PayloadTooLargeResponse
+  status: 413
+}
+
 export type refileApplicationResponse422 = {
   data: Problem
   status: 422
@@ -1171,7 +1185,7 @@ export type refileApplicationResponse422 = {
 export type refileApplicationResponseSuccess = (refileApplicationResponse201) & {
   headers: Headers;
 };
-export type refileApplicationResponseError = (refileApplicationResponse401 | refileApplicationResponse404 | refileApplicationResponse409 | refileApplicationResponse422) & {
+export type refileApplicationResponseError = (refileApplicationResponse401 | refileApplicationResponse404 | refileApplicationResponse409 | refileApplicationResponse413 | refileApplicationResponse422) & {
   headers: Headers;
 };
 
@@ -1233,7 +1247,7 @@ formData.append(`extract`, applicationRefiling.extract instanceof Blob ? applica
 
 export const getRefileApplicationMutationKey = () => ['refileApplication'] as const;
 
-export const getRefileApplicationMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotFoundResponse | Problem; status?: number },
+export const getRefileApplicationMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotFoundResponse | Problem | PayloadTooLargeResponse; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refileApplication>>, TError,RefileApplicationMutationVariables, TContext>, fetch?: RequestInit}
 ): UseMutationOptions<Awaited<ReturnType<typeof refileApplication>>, TError,RefileApplicationMutationVariables, TContext> => {
 
@@ -1262,13 +1276,13 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
     export type RefileApplicationMutationResult = NonNullable<Awaited<ReturnType<typeof refileApplication>>>
     export type RefileApplicationMutationBody = ApplicationRefiling
-    export type RefileApplicationMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotFoundResponse | Problem; status?: number }
+    export type RefileApplicationMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotFoundResponse | Problem | PayloadTooLargeResponse; status?: number }
     export type RefileApplicationMutationVariables = {applicationId: string;data: ApplicationRefiling}
 
     /**
  * @summary Fix and file a rejected application again (US-02, AC-06, Flow 5)
  */
-export const useRefileApplication = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotFoundResponse | Problem; status?: number },
+export const useRefileApplication = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotFoundResponse | Problem | PayloadTooLargeResponse; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refileApplication>>, TError,RefileApplicationMutationVariables, TContext>, fetch?: RequestInit}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof refileApplication>>,

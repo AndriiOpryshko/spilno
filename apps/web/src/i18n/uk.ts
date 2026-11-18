@@ -314,7 +314,6 @@ export const uk = {
       breadcrumb: (number: number) => `Протокол № ${number}`,
       meetingDate: (date: string) => `Засідання ${date}`,
       loadError: 'Не вдалося відкрити протокол',
-      loadErrorHint: 'Протокол не знайдено або його не вдалося завантажити. Поверніться до реєстру й спробуйте ще раз.',
       back: 'До реєстру',
       newDecision: 'Нове рішення, що посилається на цей протокол',
       agenda: 'Рішення протоколу',

@@ -134,7 +134,19 @@ export function CaseScreen({ caseId }: { caseId: string }) {
         </header>
 
         {query.isPending && <CasesSkeleton />}
-        {query.isError && !disabled && <RequestFallback error={query.error} onRetry={() => void query.refetch()} />}
+        {query.isError && !disabled && (
+          <RequestFallback
+            error={query.error}
+            onRetry={() => void query.refetch()}
+            action={
+              <Button variant="outline" asChild>
+                <Link to="/o/$associationId/cases" params={{ associationId }}>
+                  {uk.cases.backToList}
+                </Link>
+              </Button>
+            }
+          />
+        )}
         {detail && <CaseDocuments associationId={associationId} caseId={caseId} documents={detail.documents} />}
       </div>
     </>

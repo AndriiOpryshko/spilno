@@ -16,7 +16,7 @@ files_hint:
   - "apps/web/src/i18n/uk.ts"
 owner: "Andrii Opryshko"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T121 — Show a loading state in the оператор's queue and a way back from a missing protocol or справа

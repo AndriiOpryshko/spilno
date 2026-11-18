@@ -2,7 +2,7 @@ import { createFileRoute, Link, Navigate, Outlet } from '@tanstack/react-router'
 
 import { useGetSession, useListApplicationsForReview } from '@/api/gen/endpoints/identity/identity';
 import { isNoAccessProblem } from '@/features/identity/shell/entry';
-import { RequestFallback } from '@/features/identity/shell/request-fallback';
+import { PageSkeleton, RequestFallback } from '@/features/identity/shell/request-fallback';
 import { uk } from '@/i18n/uk';
 
 export const Route = createFileRoute('/operator')({
@@ -23,7 +23,7 @@ function OperatorLayout() {
   if (session.isError) return <RequestFallback error={session.error} onRetry={() => void session.refetch()} />;
   if (!session.data) return null;
   if (!isOperator || isNoAccessProblem(queue.error)) return <Navigate to="/no-access" replace />;
-  if (queue.isPending) return null;
+  if (queue.isPending) return <PageSkeleton />;
 
   return (
     <>

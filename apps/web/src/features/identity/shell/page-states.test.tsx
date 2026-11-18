@@ -144,6 +144,7 @@ const pages: Page[] = [
   { name: 'an application', url: `/applications/${appId}`, path: `/identity/applications/${appId}`, settled: () => screen.findByRole('heading', { name: 'ОСББ «Тест»' }) },
   { name: "the оператор's review page", url: `/operator/applications/${appId}`, path: `/identity/operator/applications/${appId}`, operator: true, settled: () => screen.findByRole('heading', { level: 1, name: 'ОСББ «Тест»' }) },
   { name: "the оператор's competing item", url: `/operator/applications/${appId}`, path: `/identity/operator/applications/${otherId}`, operator: true, settled: () => screen.findByRole('link', { name: 'ОСББ «Конкурент»' }) },
+  { name: "the оператор's queue", url: '/operator/applications', path: '/identity/operator/applications', operator: true, settled: () => screen.findByRole('link', { name: 'ОСББ «Тест»' }) },
   { name: "the оператор's associations list", url: '/operator/associations', path: '/identity/operator/associations', operator: true, settled: () => screen.findByRole('heading', { level: 1, name: uk.operator.associationsTitle }) },
 ];
 

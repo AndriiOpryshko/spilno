@@ -301,6 +301,19 @@ const linkTo = (id: string) =>
   screen.getAllByRole('link').find((a) => a.getAttribute('href')?.endsWith(`/operator/applications/${id}`)) as HTMLElement;
 
 describe('ReviewPage competing applications (AC-04c, AC-19b)', () => {
+  it('keeps the list markup valid while a competing заявка loads: only <li> children, the skeleton inside one', async () => {
+    review = { ...base, competing_application_ids: otherIds };
+    const answer = fetch as unknown as typeof fetch;
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) =>
+      String(input).endsWith(`/identity/operator/applications/${otherIds[0]}`) ? new Promise<Response>(() => {}) : answer(input, init),
+    ));
+    await renderInRouter(<ReviewPage applicationId={appId} />);
+    const list = (await screen.findByText(uk.operator.competingConnection)).parentElement!.querySelector('ul') as HTMLElement;
+    await waitFor(() => expect(list.querySelector('[data-slot="skeleton"]')).not.toBeNull());
+    expect(Array.from(list.children).map((c) => c.tagName)).toEqual(['LI', 'LI']);
+    expect(list.querySelector('[data-slot="skeleton"]')!.closest('li')).not.toBeNull();
+  });
+
   it('lists two competing заявки with applicant, filing date and a link to each', async () => {
     review = { ...base, competing_application_ids: otherIds };
     otherReviews = {

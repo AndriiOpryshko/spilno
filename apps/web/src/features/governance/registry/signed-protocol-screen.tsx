@@ -1,8 +1,9 @@
-import { useParams } from '@tanstack/react-router';
+import { Link, useParams } from '@tanstack/react-router';
 
 import { useGetSignedProtocol } from '@/api/gen/endpoints/governance/governance';
 import { useAllMemberships } from '@/features/identity/shell/use-all-memberships';
 import { TopBar } from '@/components/app-shell';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { RequestFallback } from '@/features/identity/shell/request-fallback';
 import { uk } from '@/i18n/uk';
@@ -29,7 +30,19 @@ export function SignedProtocolScreen({ protocolId }: { protocolId: string }) {
             <Skeleton className="h-32 w-full rounded-lg" />
           </div>
         )}
-        {query.isError && <RequestFallback error={query.error} onRetry={() => void query.refetch()} />}
+        {query.isError && (
+          <RequestFallback
+            error={query.error}
+            onRetry={() => void query.refetch()}
+            action={
+              <Button variant="outline" asChild>
+                <Link to="/o/$associationId/registry" params={{ associationId }}>
+                  {uk.registry.signed.back}
+                </Link>
+              </Button>
+            }
+          />
+        )}
         {protocol && <SignedProtocolView associationId={associationId} protocol={protocol} />}
       </div>
     </>

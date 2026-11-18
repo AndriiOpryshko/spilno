@@ -40,7 +40,13 @@ function CompetingItem({ id }: { id: string }) {
       </li>
     );
   }
-  if (!review) return <PageSkeleton />;
+  if (!review) {
+    return (
+      <li>
+        <PageSkeleton />
+      </li>
+    );
+  }
   const [filing] = [...review.filings].sort((a, b) => b.created_at.localeCompare(a.created_at));
   return (
     <li className="flex flex-col rounded-md border px-3 py-2">

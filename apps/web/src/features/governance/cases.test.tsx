@@ -7,7 +7,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getAddCaseDocumentUrl, getDownloadFileUrl, getGetCaseUrl, getListCasesUrl } from '@/api/gen/endpoints/governance/governance';
-import { formatDate } from '@/i18n/uk';
+import { formatDate, uk } from '@/i18n/uk';
 import { routeTree } from '@/routeTree.gen';
 
 import * as mockData from './mock-data';
@@ -248,6 +248,17 @@ describe('the case screen with its documents (AC-09, T36)', () => {
     const row = screen.getByText('kosztorys-v2.pdf').closest<HTMLElement>('li, tr, article, [role="row"], [role="listitem"]');
     expect(row, 'the document row').not.toBeNull();
     expect(row?.textContent).toMatch(/версі/i);
+  });
+});
+
+describe('a справа that is not found (AC-25)', () => {
+  it('offers a link back to the list in the fallback, next to the retry', async () => {
+    open(`/o/${lypky}/cases/00000000-0000-7000-8000-00000000dead`);
+    const alert = await screen.findByRole('alert');
+    expect(within(alert).getByRole('button', { name: 'Спробувати ще раз' })).toBeInTheDocument();
+    const back = within(alert).queryByRole('link', { name: uk.cases.backToList });
+    expect(back, 'a link back to the справи list inside the fallback').not.toBeNull();
+    expect(back!.getAttribute('href')).toBe(listPath);
   });
 });
 

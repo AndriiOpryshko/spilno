@@ -5,7 +5,7 @@ import { useMemo } from 'react';
 import { getListApplicationsForReviewQueryKey, listApplicationsForReview } from '@/api/gen/endpoints/identity/identity';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { RequestFallback } from '@/features/identity/shell/request-fallback';
+import { PageSkeleton, RequestFallback } from '@/features/identity/shell/request-fallback';
 import { uk } from '@/i18n/uk';
 
 export function OperatorQueue() {
@@ -22,7 +22,7 @@ export function OperatorQueue() {
     if ((query.error as { status?: number } | null)?.status === 403) return null;
     return <RequestFallback error={query.error} onRetry={() => void query.refetch()} />;
   }
-  if (!query.data) return null;
+  if (!query.data) return <PageSkeleton />;
   return (
     <section className="mx-auto mt-8 flex max-w-2xl flex-col gap-3">
       <h1 className="text-xl font-semibold">{uk.operator.queueTitle}</h1>

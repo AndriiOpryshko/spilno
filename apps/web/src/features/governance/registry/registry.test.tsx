@@ -392,6 +392,17 @@ describe('the signed protocol (AC-18, AC-26, AC-15, AC-17, AC-41)', () => {
   });
 });
 
+describe('a protocol that is not found (AC-26)', () => {
+  it('offers a link back to the registry in the fallback, next to the retry', async () => {
+    open(`/o/${lypky}/registry/00000000-0000-7000-8000-00000000dead`);
+    const alert = await screen.findByRole('alert');
+    expect(within(alert).getByRole('button', { name: 'Спробувати ще раз' })).toBeInTheDocument();
+    const back = within(alert).queryByRole('link', { name: uk.registry.signed.back });
+    expect(back, 'a link back to the registry inside the fallback').not.toBeNull();
+    expect(back!.getAttribute('href')).toBe(listPath);
+  });
+});
+
 describe('the registry of a вимкнене ОСББ stays readable (AC-26)', () => {
   beforeEach(() => {
     disabled = true;

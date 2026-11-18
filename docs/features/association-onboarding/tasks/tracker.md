@@ -125,7 +125,7 @@
 | [T118](./T118-ui-extract-refusal-with-every-other-field.md) | Name a refused extract together with every other broken field | ui | Andrii Opryshko | S | — | todo |
 | [T119](./T119-ui-one-reader-for-memberships.md) | Read memberships through one hook everywhere and stop the page loop on a repeated cursor | ui | Andrii Opryshko | M | — | done |
 | [T120](./T120-ui-protocol-screen-one-cache-key.md) | Read and write the protocol draft under one cache key and tighten the reuse test | ui | Andrii Opryshko | S | T119 | todo |
-| [T121](./T121-ui-operator-loading-states-and-way-back.md) | Show a loading state in the оператор's queue and a way back from a missing protocol or справа | ui | Andrii Opryshko | S | — | todo |
+| [T121](./T121-ui-operator-loading-states-and-way-back.md) | Show a loading state in the оператор's queue and a way back from a missing protocol or справа | ui | Andrii Opryshko | S | — | done |
 | [T122](./T122-bound-sign-in-replay-set.md) | Bound the set of used sign-in states | app | Andrii Opryshko | S | — | done |
 | [T123](./T123-sign-in-cookie-path-from-callback-address.md) | Scope the pending sign-in cookie by the path of the callback address | app | Andrii Opryshko | S | T122 | todo |
 | [T124](./T124-multipart-operations-outside-guard-transaction.md) | Run every multipart operation outside the guard's transaction and fail the build when one is missed | wiring | Andrii Opryshko | M | — | todo |

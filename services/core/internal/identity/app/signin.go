@@ -21,7 +21,7 @@ import (
 
 const (
 	stateTTL = 10 * time.Minute
-	// maxPendingStates caps the pending storage consents held in memory.
+	// maxPendingStates caps the pending storage consents and the used sign-in states held in memory.
 	maxPendingStates = 1000
 	sessionTTL       = 30 * 24 * time.Hour
 )
@@ -187,8 +187,10 @@ func (s *SignIn) Complete(ctx context.Context, code, state, sealed string) (stri
 	return token, nil
 }
 
-// markUsed records the state as completed and reports false for a replay. Only completed
-// states are kept, and only until the cookie that carried them would have expired.
+// markUsed records the state as used and reports false for a replay. States are kept only until
+// the cookie that carried them would have expired, and at most maxPendingStates at a time: past
+// the cap expired states are swept and, if the set is still full, the one closest to expiry is
+// forgotten. Losing an old entry reopens only the replay of a code the provider has already consumed.
 func (s *SignIn) markUsed(p pending) bool {
 	now := s.now()
 	s.mu.Lock()
@@ -196,11 +198,7 @@ func (s *SignIn) markUsed(p pending) bool {
 	if _, ok := s.used[p.State]; ok {
 		return false
 	}
-	for k, exp := range s.used {
-		if now.After(exp) {
-			delete(s.used, k)
-		}
-	}
+	evictToCap(s.used, now, func(exp time.Time) time.Time { return exp })
 	s.used[p.State] = p.Expires
 	return true
 }

@@ -3,6 +3,7 @@ package identity_test
 import (
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"runtime"
 	"testing"
 )
@@ -103,5 +104,64 @@ func TestStorageConsentHoldsOnePendingEntryPerAccount(t *testing.T) {
 	}
 	if status, body := env.complete(t, "member", env.a, "code-1", second); status != 201 {
 		t.Errorf("latest state = %d, want 201; body %s", status, body)
+	}
+}
+
+// bogusCallback starts a sign-in on h and sends its callback with a code the provider does not know,
+// the way an anonymous caller can: the cookie is genuine, the exchange fails.
+func bogusCallback(t *testing.T, h http.Handler) (state string, status int) {
+	t.Helper()
+	start := httptest.NewRecorder()
+	h.ServeHTTP(start, httptest.NewRequest("GET", "/identity/sign-in", nil))
+	loc, err := url.Parse(start.Header().Get("Location"))
+	if err != nil || loc.Query().Get("state") == "" {
+		t.Fatalf("startSignIn Location %q carries no state (err %v)", start.Header().Get("Location"), err)
+	}
+	state = loc.Query().Get("state")
+	req := httptest.NewRequest("GET", signInCallbackPath+"?code=bogus&state="+url.QueryEscape(state), nil)
+	for _, c := range start.Result().Cookies() {
+		req.AddCookie(c)
+	}
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	return state, rec.Code
+}
+
+// AC-05 (review S01): callbacks with a genuine cookie and a bogus code do not grow server memory.
+func TestBogusSignInCallbacksLeaveServerMemoryBounded(t *testing.T) {
+	srv, _ := newSignInServer(t)
+	h := srv.Config.Handler
+	growth := heapGrowthOf(t, func(i int) {
+		bogusCallback(t, h)
+		if i >= 0 && i < 2*stateStarts { // extra rounds: a thin margin would make the test flaky
+			bogusCallback(t, h)
+			bogusCallback(t, h)
+		}
+	})
+	if growth > stateBudget {
+		t.Errorf("heap grew by %d bytes after %d bogus callbacks, want at most %d: the used-state set must be capped", growth, 3*stateStarts, stateBudget)
+	}
+}
+
+// AC-05 (review S01): a flood of bogus callbacks does not stop a sign-in started before it from
+// completing, and a completed state stays refused on replay.
+func TestBogusCallbackFloodKeepsEarlierSignInAndReplayRefusal(t *testing.T) {
+	srv, pool := newSignInServer(t)
+	earlier, earlierCookies := startSignIn(t, srv)
+	h := srv.Config.Handler
+	for i := 0; i < 2500; i++ {
+		bogusCallback(t, h)
+	}
+	first := callbackWith(t, srv, earlier, earlierCookies)
+	if first.StatusCode != http.StatusFound || sessionCookieOf(first) == nil {
+		t.Fatalf("callback of an earlier start after a bogus flood = %d (session cookie %v), want 302 with a session", first.StatusCode, sessionCookieOf(first) != nil)
+	}
+	sessions := count(t, pool, "sessions")
+	replay := callbackWith(t, srv, earlier, earlierCookies)
+	if replay.StatusCode < 400 || sessionCookieOf(replay) != nil {
+		t.Errorf("replay of a completed state = %d (session cookie %v), want a refusal", replay.StatusCode, sessionCookieOf(replay) != nil)
+	}
+	if n := count(t, pool, "sessions"); n != sessions {
+		t.Errorf("sessions after the replay = %d, want %d", n, sessions)
 	}
 }

@@ -10,7 +10,7 @@ files_hint:
   - "services/core/internal/identity/signin_test.go"
 owner: "Andrii Opryshko"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T122 — Bound the set of used sign-in states

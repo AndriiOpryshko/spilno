@@ -53,3 +53,12 @@ func TestWireGoogleRefusesAnInvalidConfiguration(t *testing.T) {
 		t.Errorf("wireGoogle with a 16-byte key: nil error, want the EnableGoogle error")
 	}
 }
+
+// A consent without the Drive address fails after the code exchange (SEC-13), so the wiring refuses it.
+func TestWireGoogleRefusesAConfigurationWithoutTheDriveAddress(t *testing.T) { // AC-27
+	gc := &identity.GoogleConfig{KeyID: "k1", Key: make([]byte, 32), OAuth: &oauth2.Config{ClientID: "c", ClientSecret: "s"}}
+	wired, err := wireGoogle(identity.New(nil), governance.New(nil, nil, nil), gc, "")
+	if err == nil || wired {
+		t.Errorf("wireGoogle without a Drive address: wired %v, err %v; want false and an error", wired, err)
+	}
+}

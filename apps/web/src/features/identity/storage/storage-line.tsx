@@ -48,6 +48,7 @@ export function StorageCallback({ associationId, code, state }: { associationId:
 
   if (!complete.isError) return <Skeleton className="m-8 h-24 max-w-md" />;
   const { status, info } = complete.error as { status?: number; info?: { code?: string } };
+  if (info?.code === 'identity.storage_has_files') return <StorageHasFiles associationId={associationId} />;
   if (info?.code !== 'identity.storage_account_personal') {
     // A refusal of the request itself (a bad or replayed state, a refused code, a вимкнене ОСББ): the code is
     // single-use, so reading it again cannot help; the way out is to start over from the card.
@@ -70,6 +71,25 @@ export function StorageCallback({ associationId, code, state }: { associationId:
     <div className="mx-auto max-w-2xl space-y-4 px-4 py-8">
       <InlineAlert title={uk.storage.personalAccount} />
       <StorageLine associationId={associationId} />
+    </div>
+  );
+}
+
+// Another account was refused because the association already has files: name the account that keeps them.
+function StorageHasFiles({ associationId }: { associationId: string }) {
+  const connection = useGetStorageConnection(associationId);
+  const email = connection.data?.data.google_account_email ?? '';
+  if (!connection.data && !connection.isError) return <Skeleton className="m-8 h-24 max-w-md" />;
+  return (
+    <div className="mx-auto max-w-2xl px-4 py-8">
+      <InlineAlert
+        title={uk.storage.hasFiles(email)}
+        action={
+          <Link className="underline" to="/o/$associationId/association" params={{ associationId }}>
+            {uk.storage.callbackToCard}
+          </Link>
+        }
+      />
     </div>
   );
 }

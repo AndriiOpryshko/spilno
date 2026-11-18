@@ -85,6 +85,24 @@ describe('StorageCallback (AC-27, AC-28b)', () => {
     expect(await screen.findByText('сховище не підключене')).toBeInTheDocument();
     expect(screen.queryByText(/Сховище документів:/)).not.toBeInTheDocument();
   });
+
+  it('tells why another account was refused while the files exist: names the connected account, says the files stay, links back to the card (AC-27b)', async () => {
+    stubApi((_url, init) =>
+      init?.method === 'POST'
+        ? json(409, { type: 'about:blank', title: 'Conflict', status: 409, code: 'identity.storage_has_files', detail: 'the storage already holds files' }, 'application/problem+json')
+        : json(200, connected),
+    );
+    renderRoutes('/storage/callback', () => <StorageCallback associationId={associationId} code="auth-code" state="auth-state" />);
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(address);
+    expect(alert).toHaveTextContent('файли');
+    expect(alert).toHaveTextContent('залиша');
+    expect(alert).not.toHaveTextContent('the storage already holds files');
+    expect(alert).not.toHaveTextContent('Conflict');
+    expect(screen.queryByText('Підключення сховища не завершено: запит відхилено. Почніть підключення спочатку з картки ОСББ.')).not.toBeInTheDocument();
+    const back = screen.getByRole('link', { name: 'До картки ОСББ' });
+    expect(back.getAttribute('href')).toBe(`/o/${associationId}/association`);
+  });
 });
 
 describe('StorageCallbackLost without an association id (T119, R06)', () => {

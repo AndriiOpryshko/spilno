@@ -13,7 +13,7 @@ files_hint:
   - "docs/features/association-onboarding/sad.md"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T124 — Run every multipart operation outside the guard's transaction and fail the build when one is missed

@@ -142,10 +142,14 @@ var readOnlyOperations = map[string]string{
 
 // outsideIOOperations are the operations that talk to an outside service (file storage, the Google
 // code exchange) or stream a large body. They run after the guard's check transaction, not inside it.
+// Every association-scoped multipart/form-data operation of the contract belongs here
+// (TestEveryAssociationMultipartOperationIsOutsideIO walks the contract).
 var outsideIOOperations = map[string]bool{
-	"POST /governance/associations/{association_id}/cases/{case_id}/documents": true, // addCaseDocument
-	"GET /governance/associations/{association_id}/files/{file_id}":            true, // downloadFile
-	"POST /identity/associations/{association_id}/storage-connection":          true, // completeStorageConnection
+	"POST /governance/associations/{association_id}/cases/{case_id}/documents":             true, // addCaseDocument
+	"GET /governance/associations/{association_id}/files/{file_id}":                        true, // downloadFile
+	"POST /identity/associations/{association_id}/storage-connection":                      true, // completeStorageConnection
+	"POST /governance/associations/{association_id}/meetings/{meeting_id}/assistant-turns": true, // createAssistantTurn
+	"POST /governance/associations/{association_id}/protocols/{protocol_id}/signed-copy":   true, // lockProtocolWithSignedCopy
 }
 
 func routePattern(r *http.Request) string {

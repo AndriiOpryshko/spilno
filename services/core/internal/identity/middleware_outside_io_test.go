@@ -61,6 +61,7 @@ func TestGuardOutsideIOHoldsNoConnection(t *testing.T) {
 		r.Post("/governance/associations/{association_id}/cases/{case_id}/documents", probe)
 		r.Get("/governance/associations/{association_id}/files/{file_id}", probe)
 		r.Post("/identity/associations/{association_id}/storage-connection", probe)
+		r.Post("/governance/associations/{association_id}/protocols/{protocol_id}/signed-copy", probe)
 	})
 	srv := httptest.NewServer(r)
 	t.Cleanup(srv.Close)
@@ -86,6 +87,7 @@ func TestGuardOutsideIOHoldsNoConnection(t *testing.T) {
 	cases := []struct{ op, method, path string }{
 		{"addCaseDocument", "POST", base + "/cases/" + uuid.NewString() + "/documents"},
 		{"downloadFile", "GET", base + "/files/" + uuid.NewString()},
+		{"lockProtocolWithSignedCopy", "POST", base + "/protocols/" + uuid.NewString() + "/signed-copy"},
 		{"completeStorageConnection", "POST", "/identity/associations/" + a + "/storage-connection"},
 	}
 	for _, c := range cases {

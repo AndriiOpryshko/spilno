@@ -114,9 +114,10 @@ func newIsoEnv(t *testing.T) *isoEnv {
 	}
 	idm := identity.New(pool)
 	idm.EnableSignIn(identity.SignInConfig{Provider: isoProvider{people}, OperatorEmail: isoOperatorEmail})
-	gov := governance.New(pool, idm.HasStorageConnection, func(ctx context.Context) (bool, string, bool) {
+	gov := governance.New(pool, idm.HasStorageConnection, func(ctx context.Context) governance.Access {
 		a, ok := identity.ActorFrom(ctx)
-		return a.ReadOnly, a.DisabledReason, ok
+		return governance.Access{Actor: ok, ReadOnly: a.ReadOnly, Reason: a.DisabledReason,
+			NotMemberCode: identity.CodeNotCurrentMember, DisabledCode: identity.CodeAssociationDisabled}
 	})
 
 	r := httpapi.NewRouter()

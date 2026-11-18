@@ -26,9 +26,18 @@ type Handler struct {
 // StorageConnected reports whether the association has a connected document storage.
 type StorageConnected func(ctx context.Context, association uuid.UUID) (bool, error)
 
-// AccessOf reports whether the request's association is read-only and why; ok is false when the
-// request carries no actor.
-type AccessOf func(ctx context.Context) (readOnly bool, reason string, ok bool)
+// Access is what the identity guard knows about the request: whether the association is read-only and
+// why, and the problem codes a refused download answers with (the codes belong to identity; cmd/api
+// supplies them). Actor is false when the request carries no actor.
+type Access struct {
+	Actor                       bool
+	ReadOnly                    bool
+	Reason                      string
+	NotMemberCode, DisabledCode string
+}
+
+// AccessOf reads the Access of the request.
+type AccessOf func(ctx context.Context) Access
 
 var _ gen.StrictServerInterface = (*Handler)(nil)
 

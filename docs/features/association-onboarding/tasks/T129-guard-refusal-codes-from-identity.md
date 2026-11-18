@@ -15,7 +15,7 @@ files_hint:
   - "services/core/internal/governance/file_download_actor_test.go"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T129 — Take the guard's refusal codes from identity through cmd/api and drop the mirror

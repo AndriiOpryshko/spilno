@@ -131,9 +131,10 @@ func run() error {
 		}
 		idm.EnableSignIn(identity.SignInConfig{Provider: identity.DevSignInProvider(email, cfg.WebOrigin+"/api/identity/sign-in/callback"), OperatorEmail: cfg.OperatorEmail, CallbackPath: "/api/identity/sign-in/callback"})
 	}
-	gov := governance.New(pool, idm.HasStorageConnection, func(ctx context.Context) (bool, string, bool) {
-		actor, ok := identity.ActorFrom(ctx)
-		return actor.ReadOnly, actor.DisabledReason, ok
+	gov := governance.New(pool, idm.HasStorageConnection, func(ctx context.Context) governance.Access {
+		a, ok := identity.ActorFrom(ctx)
+		return governance.Access{Actor: ok, ReadOnly: a.ReadOnly, Reason: a.DisabledReason,
+			NotMemberCode: identity.CodeNotCurrentMember, DisabledCode: identity.CodeAssociationDisabled}
 	})
 	if cfg.DevStorage {
 		// Development only: downloads read from an in-memory storage. Without it downloadFile

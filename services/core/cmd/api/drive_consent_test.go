@@ -124,9 +124,10 @@ func (consentProvider) Exchange(context.Context, string, string, string) (identi
 	return identity.ProviderIdentity{Issuer: "https://accounts.example.test", Subject: "sub-member", Email: consentMemberEmail, EmailVerified: true}, nil
 }
 
-func consentActorAccess(ctx context.Context) (bool, string, bool) {
+func consentActorAccess(ctx context.Context) governance.Access {
 	a, ok := identity.ActorFrom(ctx)
-	return a.ReadOnly, a.DisabledReason, ok
+	return governance.Access{Actor: ok, ReadOnly: a.ReadOnly, Reason: a.DisabledReason,
+		NotMemberCode: identity.CodeNotCurrentMember, DisabledCode: identity.CodeAssociationDisabled}
 }
 
 func TestConsentBuiltByWireGoogleCompletesAndDocumentsGoThroughTheDriveResolver(t *testing.T) {

@@ -133,7 +133,7 @@
 | [T126](./T126-decision-effect-after-two-approvals.md) | Prove each roster entry's decision effect after two transfers in a row | tests | Andrii Opryshko | S | — | done |
 | [T127](./T127-dev-storage-unique-file-ids.md) | Give the development storage file ids that are unique across associations | infra | Andrii Opryshko | S | — | todo |
 | [T128](./T128-load-job-gates-on-throughput-and-errors.md) | Fail the CI load job on throughput and errors and report its latency | tests | Andrii Opryshko | S | — | todo |
-| [T129](./T129-guard-refusal-codes-from-identity.md) | Take the guard's refusal codes from identity through cmd/api and drop the mirror | wiring | Andrii Opryshko | M | T112 | todo |
+| [T129](./T129-guard-refusal-codes-from-identity.md) | Take the guard's refusal codes from identity through cmd/api and drop the mirror | wiring | Andrii Opryshko | M | T112 | done |
 | [T130](./T130-contract-cookie-413-term-end-and-decision-effect.md) | Bring the contract in line with the sign-in cookie, the 413 answers, the term-end refusal and the decision effect | wiring | Andrii Opryshko | M | T114 | todo |
 | [T131](./T131-reconcile-sync-report-and-design-docs.md) | Reconcile the sync report and write the roster rules into ADR-0006, the SAD and the data model | docs | Andrii Opryshko | M | T124, T129, T130 | todo |
 | [T132](./T132-record-open-gaps-in-prd.md) | Record every gap left open in PRD §8 with an owner and a due date | docs | Andrii Opryshko | S | — | todo |
@@ -178,9 +178,6 @@
 - **An uploaded file whose record failed is removed in the request, best effort** (T94). A removal that fails
   is logged with the storage id and the file stays in the storage until board-protocol builds the
   `remove_orphan_file` job (T14, T32).
-- **`identity.association_disabled` and `identity.not_current_member` are defined twice:** in the identity
-  registry and as constants of `governance/domain/errors.go`, which may not import identity (T91).
-  `TestGuardCodesMirrorTheIdentityModule` keeps the two definitions equal.
 - **The load smoke in CI proves the throughput and the error rate, not production latency** (T107): 30 s of
   reads and writes and 5 filings on a shared runner. The full run of PRD §6 stays `mise run load` before a release.
 - **Board-protocol work still open behind this feature's ACs:** the association settings (board-protocol T10,

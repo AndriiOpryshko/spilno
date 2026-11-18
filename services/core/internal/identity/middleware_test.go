@@ -301,7 +301,8 @@ func opsOf(m map[string]*openapi3.PathItem) map[string][]string {
 }
 
 // actorAccess is what cmd/api passes governance: the guard's actor, read through the identity module.
-func actorAccess(ctx context.Context) (bool, string, bool) {
+func actorAccess(ctx context.Context) governance.Access {
 	a, ok := identity.ActorFrom(ctx)
-	return a.ReadOnly, a.DisabledReason, ok
+	return governance.Access{Actor: ok, ReadOnly: a.ReadOnly, Reason: a.DisabledReason,
+		NotMemberCode: identity.CodeNotCurrentMember, DisabledCode: identity.CodeAssociationDisabled}
 }

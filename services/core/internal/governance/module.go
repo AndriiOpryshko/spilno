@@ -41,13 +41,17 @@ type Membership = ports.Membership
 // Person is who is being seated on the board.
 type Person struct{ FullName, SignInEmail string }
 
+// Access is the identity guard's view of a request, with the refusal codes; see the http adapter.
+type Access = governancehttp.Access
+
 // Term is a board membership period; a zero End means open.
 type Term = domain.Term
 
 // New builds the module. hasStorage reports whether an association has connected its storage;
 // cmd/api passes it from the identity module. access reports whether the request's association is
-// read-only and why (ok false: no actor, the download is refused); cmd/api passes it from the identity guard's actor.
-func New(_ *pgxpool.Pool, hasStorage func(context.Context, uuid.UUID) (bool, error), access func(context.Context) (readOnly bool, reason string, ok bool)) *Module {
+// read-only and why, and which problem codes a refused download answers with (no actor: the download is
+// refused); cmd/api passes it from the identity guard's actor and identity's codes.
+func New(_ *pgxpool.Pool, hasStorage func(context.Context, uuid.UUID) (bool, error), access func(context.Context) Access) *Module {
 	meetings := app.NewMeetingService(postgres.NewMeetings())
 	roster := app.NewRosterService(postgres.NewRoster(), postgres.NewRoster())
 	files := app.NewFileService(postgres.NewFiles())

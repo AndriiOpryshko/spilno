@@ -109,3 +109,29 @@ func TestGovernanceHasNoProblemCodeLiteralsOutsideTheRegistry(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// T129 (review of 2026-11-17-2, R09): the guard's refusal codes belong to identity and reach governance
+// through cmd/api; no governance source, the registry in domain/errors.go included, spells an identity.* code.
+func TestGovernanceSourcesSpellNoIdentityCode(t *testing.T) {
+	re := regexp.MustCompile(`"identity\.[a-z][a-z0-9_]*"`)
+	err := filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return err
+		}
+		slash := filepath.ToSlash(path)
+		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") || strings.Contains(slash, "/gen/") {
+			return nil
+		}
+		raw, rerr := os.ReadFile(path)
+		if rerr != nil {
+			return rerr
+		}
+		for _, m := range re.FindAllString(string(raw), -1) {
+			t.Errorf("%s spells the identity code %s; take it from the access lookup cmd/api injects", slash, m)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}

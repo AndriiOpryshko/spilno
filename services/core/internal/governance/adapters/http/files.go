@@ -17,18 +17,17 @@ const (
 )
 
 func (h *Handler) DownloadFile(ctx context.Context, req gen.DownloadFileRequestObject) (gen.DownloadFileResponseObject, error) {
-	var readOnly, ok bool
-	var reason string
+	var acc Access
 	if h.access != nil {
-		readOnly, reason, ok = h.access(ctx)
+		acc = h.access(ctx)
 	}
-	if !ok {
+	if !acc.Actor {
 		return gen.DownloadFile403ApplicationProblemPlusJSONResponse{
 			Type: "about:blank", Title: "Forbidden", Status: http.StatusForbidden,
-			Code: ptr(domain.CodeNotCurrentMember), Detail: ptr(notMemberDetail),
+			Code: ptr(acc.NotMemberCode), Detail: ptr(notMemberDetail),
 		}, nil
 	}
-	d, err := h.files.Download(ctx, req.AssociationId, req.FileId, readOnly)
+	d, err := h.files.Download(ctx, req.AssociationId, req.FileId, acc.ReadOnly)
 	switch {
 	case errors.Is(err, app.ErrFileNotFound):
 		return gen.DownloadFile404ApplicationProblemPlusJSONResponse{
@@ -38,13 +37,13 @@ func (h *Handler) DownloadFile(ctx context.Context, req gen.DownloadFileRequestO
 			},
 		}, nil
 	case errors.Is(err, app.ErrFileNotSigned):
-		detail := reason
+		detail := acc.Reason
 		if detail == "" {
 			detail = disabledDetail
 		}
 		return gen.DownloadFile403ApplicationProblemPlusJSONResponse{
 			Type: "about:blank", Title: "Forbidden", Status: http.StatusForbidden,
-			Code: ptr(domain.CodeAssociationDisabled), Detail: ptr(detail),
+			Code: ptr(acc.DisabledCode), Detail: ptr(detail),
 		}, nil
 	}
 	if de, ok := errors.AsType[*domain.DomainError](err); ok && de.Code == domain.CodeStorageUnavailable {

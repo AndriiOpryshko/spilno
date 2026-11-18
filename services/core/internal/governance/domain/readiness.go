@@ -6,10 +6,6 @@ import (
 	"time"
 )
 
-// CodeSlotUnconfirmed blocks printing while a слот рішення is unconfirmed or
-// needs review (AC-21, AC-28b, AC-09); it is listed in ErrorRegistry.
-const CodeSlotUnconfirmed = "governance.slot_unconfirmed"
-
 // Blocker is one reason a draft cannot be marked готовий до підпису.
 type Blocker struct {
 	Code    string

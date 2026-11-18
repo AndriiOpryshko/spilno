@@ -45,7 +45,7 @@ func newReviewEnv(t *testing.T) *reviewEnv {
 	idm.EnableSignIn(identity.SignInConfig{Provider: &signInFake{people: people}, OperatorEmail: guardOperatorEmail})
 	r := httpapi.NewRouter()
 	r.Group(func(r chi.Router) {
-		r.Use(idm.Guard(guardRoster{governance.New(pool, idm.HasStorageConnection)}))
+		r.Use(idm.Guard(guardRoster{governance.New(pool, idm.HasStorageConnection, actorAccess)}))
 		if err := idm.Routes(r); err != nil {
 			t.Fatal(err)
 		}
@@ -77,9 +77,19 @@ func newReviewEnv(t *testing.T) *reviewEnv {
 
 func (e *reviewEnv) do(t *testing.T, as, method, path, body string) (int, http.Header, []byte) {
 	t.Helper()
-	req, err := http.NewRequest(method, e.srv.URL+path, bytes.NewBufferString(body))
+	status, h, b, err := e.doErr(as, method, path, body)
 	if err != nil {
 		t.Fatal(err)
+	}
+	return status, h, b
+}
+
+// doErr is do for code that does not run on the test goroutine: it returns the error instead of
+// failing the test, so the caller reports it from the test goroutine.
+func (e *reviewEnv) doErr(as, method, path, body string) (int, http.Header, []byte, error) {
+	req, err := http.NewRequest(method, e.srv.URL+path, bytes.NewBufferString(body))
+	if err != nil {
+		return 0, nil, nil, err
 	}
 	if body != "" {
 		req.Header.Set("Content-Type", "application/json")
@@ -89,11 +99,11 @@ func (e *reviewEnv) do(t *testing.T, as, method, path, body string) (int, http.H
 	}
 	resp, err := signInNoRedirect.Do(req)
 	if err != nil {
-		t.Fatal(err)
+		return 0, nil, nil, err
 	}
 	defer resp.Body.Close()
-	b, _ := io.ReadAll(resp.Body)
-	return resp.StatusCode, resp.Header, b
+	b, err := io.ReadAll(resp.Body)
+	return resp.StatusCode, resp.Header, b, err
 }
 
 // fileAs files a заявка on the wire and returns its id.

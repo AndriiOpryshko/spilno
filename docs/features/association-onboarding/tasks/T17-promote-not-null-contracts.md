@@ -12,7 +12,7 @@ files_hint:
   - "docs/features/association-onboarding/migrations/MANIFEST.md"
 owner: "Andrii Opryshko"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T17 — Promote the NOT NULL steps and the contracts index

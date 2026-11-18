@@ -12,7 +12,7 @@ files_hint:
   - "apps/web/src/i18n/uk.ts"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T69 — Review the latest filing with its latest check, and let the оператор download the extract

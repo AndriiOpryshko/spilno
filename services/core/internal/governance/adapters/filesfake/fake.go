@@ -9,8 +9,9 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"strconv"
 	"sync"
+
+	"github.com/google/uuid"
 
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/domain"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/ports"
@@ -25,7 +26,6 @@ type file struct {
 type Fake struct {
 	mu          sync.Mutex
 	files       map[string]*file
-	seq         int
 	unavailable bool
 	wrongSHA256 bool
 }
@@ -102,10 +102,10 @@ func (f *Fake) Upload(ctx context.Context, _, mediaType string, body io.Reader) 
 	if reported != computed {
 		return ports.StoredFile{}, ports.ErrChecksumMismatch
 	}
-	f.seq++
+	suffix := uuid.NewString()
 	stored := ports.StoredFile{
-		ID:        "fake-file-" + strconv.Itoa(f.seq),
-		Revision:  "fake-rev-" + strconv.Itoa(f.seq),
+		ID:        "fake-file-" + suffix,
+		Revision:  "fake-rev-" + suffix,
 		SHA256:    reported,
 		Size:      int64(buf.Len()),
 		MediaType: mediaType,
@@ -157,6 +157,17 @@ func (f *Fake) Untrash(_ context.Context, id string) error {
 		return err
 	}
 	fl.status.Trashed = false
+	return nil
+}
+
+// Remove implements ports.Files.
+func (f *Fake) Remove(_ context.Context, id string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.unavailable {
+		return unavailable()
+	}
+	delete(f.files, id)
 	return nil
 }
 

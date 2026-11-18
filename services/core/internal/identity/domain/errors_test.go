@@ -33,6 +33,7 @@ var wantStatus = map[string]int{
 	CodeAssociationDisabled:         http.StatusForbidden,
 	CodeTermEnded:                   http.StatusConflict,
 	CodeStorageAccountPersonal:      http.StatusConflict,
+	CodeStorageHasFiles:             http.StatusConflict,
 	CodeSessionRequired:             http.StatusUnauthorized,
 }
 
@@ -100,6 +101,7 @@ func TestErrorRegistry_ConstantsMatchCatalogueStrings(t *testing.T) {
 		"CodeAssociationDisabled":         "identity.association_disabled",
 		"CodeTermEnded":                   "identity.term_ended",
 		"CodeStorageAccountPersonal":      "identity.storage_account_personal",
+		"CodeStorageHasFiles":             "identity.storage_has_files",
 		"CodeSessionRequired":             "identity.session_required",
 	}
 	got := map[string]string{
@@ -119,6 +121,7 @@ func TestErrorRegistry_ConstantsMatchCatalogueStrings(t *testing.T) {
 		"CodeAssociationDisabled":         CodeAssociationDisabled,
 		"CodeTermEnded":                   CodeTermEnded,
 		"CodeStorageAccountPersonal":      CodeStorageAccountPersonal,
+		"CodeStorageHasFiles":             CodeStorageHasFiles,
 		"CodeSessionRequired":             CodeSessionRequired,
 	}
 	for name, s := range want {

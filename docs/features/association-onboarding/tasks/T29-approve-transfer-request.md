@@ -11,7 +11,7 @@ files_hint:
   - "services/core/internal/identity/adapters/http/"
 owner: "Andrii Opryshko"
 estimate: "L"
-status: "todo"
+status: "done"
 ---
 
 # T29 — Approve a запит на передачу: seat the new голова and end the previous term in one transaction

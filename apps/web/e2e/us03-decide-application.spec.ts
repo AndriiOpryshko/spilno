@@ -1,16 +1,7 @@
 import { expect, test } from '@playwright/test';
 
-import {
-  applicationIdOf,
-  checkFor,
-  fileAndConfirm,
-  newEmail,
-  newFiling,
-  openReview,
-  operatorEmail,
-  recordCheck,
-  sessionFor,
-} from './support';
+import { addBoardMember, connected, openRoster, rosterEntry } from './association-support';
+import { checkFor, fileAndConfirm, newEmail, newFiling, openReviewFromQueue, recordCheck, sessionFor, signInByButton, today } from './support';
 
 test('US-03: the оператор records the check and approves, the applicant opens the new association (AC-08, AC-09, AC-10)', async ({
   browser,
@@ -18,15 +9,13 @@ test('US-03: the оператор records the check and approves, the applicant 
   const f = newFiling();
   const applicant = await sessionFor(browser, newEmail('head'));
   await fileAndConfirm(applicant, f);
-  const id = await applicationIdOf(applicant, f.name);
 
-  const operator = await sessionFor(browser, operatorEmail);
-  await operator.goto('/operator/applications/');
-  await expect(operator.getByRole('heading', { name: 'Заявки та запити' })).toBeVisible();
-  await expect(operator.getByRole('link', { name: f.name, exact: true })).toBeVisible();
+  // The оператор signs in with the button and reaches the заявка through the queue.
+  const operator = await (await browser.newContext()).newPage();
+  await signInByButton(operator);
+  await openReviewFromQueue(operator, f.name);
 
   // AC-10: before the check every checked value says so; after it, the source and date.
-  await openReview(operator, id);
   await expect(operator.getByText('не перевірено').first()).toBeVisible();
   await expect(operator.getByText('введено заявником').first()).toBeVisible();
   await recordCheck(operator, checkFor(f));
@@ -46,5 +35,39 @@ test('US-03: the оператор records the check and approves, the applicant 
   await expect(applicant.getByText('сховище не підключене')).toBeVisible();
 });
 
-// board-protocol T10 (the roster screen) is not merged yet: the step is kept, named and skipped.
-test.fixme('US-03: the approved голова adds a член правління (AC-09, board-protocol T10 roster screen)', async () => {});
+const registryEmpty = 'У реєстрі ще немає підписаних протоколів';
+
+test('US-03: the approved голова adds a член правління, who then opens the association (AC-09, AC-20)', async ({ browser }) => {
+  const c = await connected(browser, newFiling());
+  const member = { fullName: 'Член Правління Тестовий', email: newEmail('member'), termStart: '2025-02-01' };
+
+  // The new голова opens the реєстр протоколів, still empty.
+  await c.head.getByRole('link', { name: 'Реєстр протоколів' }).click();
+  await expect(c.head.getByRole('heading', { name: 'Реєстр протоколів' })).toBeVisible();
+  await expect(c.head.getByText(registryEmpty)).toBeVisible();
+
+  // The голова is the one entry of the new roster, a member from the term start of the заявка.
+  await openRoster(c.head);
+  await expect(rosterEntry(c.head, c.f.fullName).getByText('голова правління', { exact: true })).toBeVisible();
+  await expect(rosterEntry(c.head, c.f.fullName).getByText('з 01.01.2025')).toBeVisible();
+  await expect(c.head.getByText('член правління', { exact: true })).toHaveCount(0);
+
+  // AC-20: the mark of the first голова names the заявка на підключення that seated them, not a запит на передачу.
+  const head = rosterEntry(c.head, c.f.fullName);
+  await expect(head.getByText(`призначено за заявкою на підключення від ${today()}, схвалено оператором ${today()}`)).toBeVisible();
+  await expect(head.getByRole('link', { name: 'Витяг' })).toBeVisible();
+  await expect(c.head.getByText(/за запитом на передачу/)).toHaveCount(0);
+
+  await addBoardMember(c.head, member);
+  await expect(rosterEntry(c.head, member.fullName).getByText('з 01.02.2025')).toBeVisible();
+  // An entry the board added carries no decision, so no mark.
+  await expect(rosterEntry(c.head, member.fullName).getByText(/^призначено/)).toHaveCount(0);
+
+  // The new член правління signs in and lands in the association, with the same roster.
+  const added = await sessionFor(browser, member.email);
+  await added.goto('/');
+  await expect(added).toHaveURL(new RegExp(`/o/${c.associationId}/`));
+  await openRoster(added);
+  await expect(rosterEntry(added, member.fullName).getByText('член правління', { exact: true })).toBeVisible();
+  await expect(rosterEntry(added, c.f.fullName).getByText('голова правління', { exact: true })).toBeVisible();
+});

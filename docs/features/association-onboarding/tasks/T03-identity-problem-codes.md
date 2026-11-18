@@ -11,7 +11,7 @@ files_hint:
   - "services/core/internal/governance/domain/errors_test.go"
 owner: "Andrii Opryshko"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T03 — Register the identity problem codes of PRD §5.1 and governance.drive_not_connected

@@ -15,7 +15,7 @@ files_hint:
   - "apps/web/src/features/identity/operator/review-page.tsx"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T67 — Give the оператор's section an index, its own navigation and one access guard

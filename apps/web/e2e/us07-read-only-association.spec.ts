@@ -1,9 +1,32 @@
+import { readFile } from 'node:fs/promises';
+
 import { expect, test } from '@playwright/test';
 
-import { api, base, connected, disabled, enableAs, meetingTitles, problemOf, reasonText, scheduleMeeting, suspendedText } from './association-support';
-import { newFiling } from './support';
+import {
+  api,
+  attachDocument,
+  base,
+  connected,
+  connectStorage,
+  disabled,
+  enableAs,
+  fileIdsOf,
+  meetingTitles,
+  memberIdOf,
+  openNewCase,
+  problemOf,
+  reasonText,
+  scheduleMeeting,
+  seedSignedProtocol,
+  suspendedText,
+} from './association-support';
+import { daysAgo, newEmail, newFiling, openCard } from './support';
 
 const pdf = { name: 'estimate.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4 test estimate') };
+const scan = { name: 'protocol-signed-scan.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4 test signed scan') };
+const printCopy = { name: 'protocol-signing-copy.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4 test signing copy') };
+const draft = { name: 'draft-estimate.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4 test draft') };
+const subject = 'Затвердити кошторис ремонту даху';
 const someCase = '0198a0a0-0000-7000-8000-00000000ca5e';
 
 test('US-07: in a disabled association every change is refused with the reason and nothing changes (AC-25)', async ({ browser }) => {
@@ -28,7 +51,7 @@ test('US-07: in a disabled association every change is refused with the reason a
   ).toMatchObject(refused);
 
   // The member sees the notice on the screen.
-  await c.head.goto(`/o/${c.associationId}/association`);
+  await openCard(c.head);
   await expect(c.head.getByText(suspendedText)).toBeVisible();
 
   // Nothing was saved: after enabling, only the meeting from before exists.
@@ -37,15 +60,61 @@ test('US-07: in a disabled association every change is refused with the reason a
   expect(await meetingTitles(c.head, c.associationId)).toEqual(['До вимкнення']);
 });
 
-test('AC-26: the registry of a disabled association is still served to its member', async ({ browser }) => {
+test('AC-26: a member of a вимкнене ОСББ opens the реєстр and downloads the signed copy, byte for byte', async ({ browser }) => {
   const c = await connected(browser, newFiling());
+  await connectStorage(c.head, newEmail('osbb-storage'));
+  await expect(c.head.getByText(/^Сховище документів:/)).toBeVisible();
+
+  // The files reach the storage the way a member puts them there; the signed protocol over them is seeded.
+  const caseId = await openNewCase(c.head, c.associationId, 'Ремонт даху');
+  for (const file of [scan, printCopy, draft]) {
+    await attachDocument(c.head, file);
+    await expect(c.head.getByRole('link', { name: file.name })).toBeVisible();
+  }
+  const files = await fileIdsOf(c.head, c.associationId, caseId);
+  seedSignedProtocol({
+    association: c.associationId,
+    member: await memberIdOf(c.head, c.associationId),
+    case_id: caseId,
+    scan_file: files[scan.name]!,
+    print_file: files[printCopy.name]!,
+    number: 1,
+    meeting_date: daysAgo(10),
+    subject,
+  });
+
   await disabled(browser, c);
-  const res = await api(c.head).get(`${base(c.associationId)}/registry/decisions`);
-  const problem = await problemOf(res);
-  expect(problem.code, 'a registry read is not refused for the suspension').not.toBe('identity.association_disabled');
-  expect(res.status()).not.toBe(403);
+
+  // The реєстр and the protocol open under the notice.
+  await c.head.getByRole('link', { name: 'Реєстр протоколів' }).click();
+  await expect(c.head.getByText(suspendedText)).toBeVisible();
+  await c.head.getByRole('link', { name: subject }).click();
+  await expect(c.head.getByRole('heading', { name: 'Протокол № 1' })).toBeVisible();
+  await expect(c.head.getByText(suspendedText)).toBeVisible();
+
+  const downloading = c.head.waitForEvent('download');
+  await c.head.getByRole('link', { name: `Завантажити ${scan.name}` }).click();
+  const download = await downloading;
+  expect(download.suggestedFilename()).toBe(scan.name);
+  expect(await readFile(await download.path())).toEqual(scan.buffer);
+
+  // The search answers, and a file no signed protocol pins stays closed (ADR-0007).
+  expect((await api(c.head).get(`${base(c.associationId)}/registry/decisions`)).status()).toBe(200);
+  const unpinned = await problemOf(await api(c.head).get(`${base(c.associationId)}/files/${files[draft.name]}`));
+  expect(unpinned).toMatchObject({ status: 403, code: 'identity.association_disabled', detail: reasonText });
 });
 
-// The signed copy is served only by the board-protocol registry screens.
-test.fixme('AC-26: a member downloads a signed protocol while disabled (needs board-protocol T29, T31, T43)', async () => {});
-test.fixme('AC-28: attaching a case document in the screen names the missing storage (needs board-protocol T21, T36)', async () => {});
+test('AC-28: attaching a document to a справа names the missing storage and leads to connecting it', async ({ browser }) => {
+  const c = await connected(browser, newFiling());
+  await openNewCase(c.head, c.associationId, 'Заміна ліфта');
+  await attachDocument(c.head, pdf, 409); // no storage is connected yet
+
+  const refusal = c.head.getByRole('alert');
+  await expect(refusal.getByText('Спершу підключіть сховище документів ОСББ')).toBeVisible();
+  await expect(refusal.getByText('Підключити сховище може будь-який член правління')).toBeVisible();
+  await expect(c.head.getByText('У справі ще немає документів. Додайте перший файл нижче.')).toBeVisible();
+
+  await refusal.getByRole('link', { name: 'Підключити сховище' }).click();
+  await expect(c.head).toHaveURL(new RegExp(`/o/${c.associationId}/association`));
+  await expect(c.head.getByText('сховище не підключене')).toBeVisible();
+});

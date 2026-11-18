@@ -168,12 +168,19 @@ paths:
       operationId: startSignIn
       tags: [identity]
       summary: Redirect to the identity provider (OIDC authorization code + PKCE)
-      description: ADR-0003. Public. Stores the PKCE verifier and state server-side and redirects.
+      description: |
+        ADR-0003. Public. The server keeps no pending state: the PKCE verifier and the state are sealed into the
+        short-lived `spilno_signin` cookie (HttpOnly, Secure, SameSite=Lax, scoped to the callback address)
+        that the 302 sets and the callback reads.
       security: []
       responses:
         "302":
-          description: Redirect to the provider's authorization endpoint.
+          description: Redirect to the provider's authorization endpoint; the sealed pending sign-in is set as a cookie.
           headers:
+            Set-Cookie:
+              description: The sealed pending sign-in, `spilno_signin`; HttpOnly, Secure, SameSite=Lax, scoped to the callback address.
+              schema: { type: string }
+              example: spilno_signin=<sealed>; Path=/api/identity/sign-in/callback; Max-Age=600; HttpOnly; Secure; SameSite=Lax
             Location:
               schema: { type: string, format: uri }
               example: https://accounts.example.test/o/oauth2/auth?client_id=test-client&state=test-state
@@ -184,7 +191,8 @@ paths:
       summary: Finish sign-in, create the session and redirect to the SPA
       description: |
         ADR-0003, ADR-0004. Public. Any person with a verified email gets a session, on or off a roster;
-        the associations they belong to come from `listMemberships`.
+        the associations they belong to come from `listMemberships`. The `state` must match the pending
+        sign-in sealed in the `spilno_signin` cookie that `startSignIn` set; the callback clears that cookie.
       security: []
       parameters:
         - name: code
@@ -205,11 +213,13 @@ paths:
               schema: { type: string }
               example: /
             Set-Cookie:
-              description: HttpOnly, Secure, SameSite=Lax session cookie.
+              description: |
+                The HttpOnly, Secure, SameSite=Lax session cookie; a second `Set-Cookie` clears the pending
+                `spilno_signin` cookie.
               schema: { type: string }
               example: spilno_session=<token>; Path=/; HttpOnly; Secure; SameSite=Lax
         "401":
-          description: Unknown, expired or replayed state — start sign-in again.
+          description: The `spilno_signin` cookie is missing or was set for another sign-in, or the state is unknown, expired or replayed — start sign-in again.
           content:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
@@ -297,7 +307,9 @@ paths:
         answers `identity.term_ended` (AC-30). Any signed-in person may file a запит на передачу, on the roster
         of that association or not (AC-17). A code that is pending by another person is accepted and not
         revealed (AC-04c). `association_id` is set only when a член правління files a запит from the card of the
-        association set up by hand (AC-19c). The signature is not checked at filing (AC-03).
+        association set up by hand (AC-19c). A запит на передачу from that card whose code another association
+        already holds answers `identity.association_already_connected` and is not stored (AC-04c, AC-19c).
+        The signature is not checked at filing (AC-03).
       x-problem-types:
         "401": [identity.session_required]
         "409": [identity.association_already_connected, identity.application_already_open, identity.association_not_connected, identity.term_ended]
@@ -342,6 +354,7 @@ paths:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
               examples: { application_invalid: { $ref: "#/components/examples/ApplicationInvalid" } }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
 
   /identity/applications/{application_id}:
     parameters:
@@ -423,6 +436,7 @@ paths:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
               examples: { application_invalid: { $ref: "#/components/examples/ApplicationInvalid" } }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
 
   /identity/applications/{application_id}/filings/{filing_id}/extract:
     parameters:
@@ -555,7 +569,9 @@ paths:
         For a запит на передачу: an applicant who already has a current roster entry gets no second entry, that
         entry takes the position голова правління; only the entry of the голова recorded by an earlier approval
         ends (AC-19). A competing запит stays pending and can be approved later as a new transfer (AC-19b), so
-        `identity.association_already_connected` is answered only for a заявка на підключення (AC-04c).
+        `identity.association_already_connected` is not answered for it because another заявка is pending
+        (AC-04c). It is answered for a заявка на підключення whose code is connected, and for a запит на передачу
+        that claims the code of another association: the transfer is refused, nothing changes (AC-04c, AC-19).
       x-problem-types:
         "401": [identity.session_required]
         "403": [identity.not_operator]
@@ -796,17 +812,17 @@ paths:
       tags: [identity]
       # unresolved: no response is named for an unknown, expired or replayed `state`, or for a code the
       # provider refuses — PRD §5.1 has no code for it (api-sync-report.md §D, /sdlc:clarify-prd).
-      # unresolved: who may replace a connected storage and what happens to the files on the old account is
-      # an open question of PRD §8; until it is closed a later connection replaces the stored one (report §D).
       summary: Finish the storage consent the SPA received back from Google (ADR-0008, AC-27, AC-28b)
       description: |
         The SPA's callback route posts the authorization code and state; the state is bound to the session and
         the association. When a storage is already connected, the new account replaces the stored one under the
-        same rules and no file is moved (SAD §8, open question of PRD §8).
+        same rules and no file is moved; the replacement is refused with `identity.storage_has_files` while the
+        association has a file and the new account is not the connected one (same address, any letter case), so no
+        file is left on an account the app no longer reads (ADR-0008 amendment, PRD §8).
       x-problem-types:
         "401": [identity.session_required]
         "403": [identity.not_current_member, identity.association_disabled]
-        "409": [identity.storage_account_personal]
+        "409": [identity.storage_account_personal, identity.storage_has_files]
         "422": [about:blank]
       requestBody:
         required: true
@@ -824,11 +840,13 @@ paths:
         "401": { $ref: "#/components/responses/SessionRequired" }
         "403": { $ref: "#/components/responses/MemberOrDisabled" }
         "409":
-          description: The Google account is a member's sign-in account.
+          description: The Google account is a member's sign-in account, or it is another account than the connected one while the association has files.
           content:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
-              examples: { storage_account_personal: { $ref: "#/components/examples/StorageAccountPersonal" } }
+              examples:
+                storage_account_personal: { $ref: "#/components/examples/StorageAccountPersonal" }
+                storage_has_files: { $ref: "#/components/examples/StorageHasFiles" }
         "422": { $ref: "#/components/responses/ValidationFailed" }
 
   /identity/associations/{association_id}/storage-connection/authorization:
@@ -930,7 +948,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/BoardMemberPage" }
               example:
-                items: [{"id": "0192f6a0-0000-7000-8000-000000000b02", "full_name": "Test User", "sign_in_email": "user-2@example.test", "term_start": "2025-03-01", "term_end": null, "revised_by_member_id": "0192f6a0-0000-7000-8000-000000000b01", "revised_at": "2026-10-27T09:05:00Z", "position": "member", "decision_id": null}]
+                items: [{"id": "0192f6a0-0000-7000-8000-000000000b02", "full_name": "Test User", "sign_in_email": "user-2@example.test", "term_start": "2025-03-01", "term_end": null, "revised_by_member_id": "0192f6a0-0000-7000-8000-000000000b01", "revised_at": "2026-10-27T09:05:00Z", "position": "member", "decision_id": null, "decision_effect": null}]
                 next_cursor: null
         "401": { $ref: "#/components/responses/SessionRequired" }
         "403": { $ref: "#/components/responses/MemberOrDisabled" }
@@ -993,7 +1011,9 @@ paths:
         "403": { $ref: "#/components/responses/MemberOrDisabled" }
         "404": { $ref: "#/components/responses/NotFound" }
         "422":
-          description: Term start missing or term end before term start (`governance.roster_entry_invalid`).
+          description: |
+            Term start missing or term end before term start (`governance.roster_entry_invalid`); also the refusal on
+            `/term_end` of an entry a decision ended: its term end cannot be cleared or moved later.
           content:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
@@ -1112,6 +1132,7 @@ paths:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
               examples: { file_invalid: { $ref: "#/components/examples/FileInvalid" } }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
         "503": { $ref: "#/components/responses/StorageUnavailable" }
   /governance/associations/{association_id}/files/{file_id}:
     parameters:
@@ -1139,7 +1160,16 @@ paths:
             image/png:
               schema: { type: string, contentMediaType: image/png }
         "401": { $ref: "#/components/responses/SessionRequired" }
-        "403": { $ref: "#/components/responses/NotCurrentMember" }
+        "403":
+          description: |
+            Not a current член правління (`identity.not_current_member`), or a вимкнене ОСББ asking for a file
+            that is not a signed protocol's (`identity.association_disabled`, ADR-0007).
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+              examples:
+                not_current_member: { $ref: "#/components/examples/NotCurrentMember" }
+                association_disabled: { $ref: "#/components/examples/AssociationDisabled" }
         "404": { $ref: "#/components/responses/NotFound" }
         "503": { $ref: "#/components/responses/StorageUnavailable" }
 
@@ -1606,7 +1636,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ProtocolWithJob" }
               example:
-                protocol: {"id": "0192f6a0-0000-7000-8000-000000000e01", "meeting": {"id": "0192f6a0-0000-7000-8000-000000000f01", "held_at": "2026-11-05T16:00:00Z", "meeting_date": "2026-11-05", "chair_board_member_id": "0192f6a0-0000-7000-8000-000000000b01"}, "state": "draft", "revision": 8, "number": 14, "copied_from_protocol_id": null, "created_by_member_id": "0192f6a0-0000-7000-8000-000000000b01", "created_at": "2026-10-27T10:00:00Z", "roster_in_force": [{"id": "0192f6a0-0000-7000-8000-000000000b02", "full_name": "Test User", "sign_in_email": "user-2@example.test", "term_start": "2025-03-01", "term_end": null, "revised_by_member_id": "0192f6a0-0000-7000-8000-000000000b01", "revised_at": "2026-10-27T09:05:00Z", "position": "member", "decision_id": null}], "agenda_items": [{"id": "0192f6a0-0000-7000-8000-000000001001", "position": 1, "case_id": "0192f6a0-0000-7000-8000-000000000c01", "subject": "Про затвердження договору на гідроізоляцію покрівлі", "fragments": [{"text": "Затвердити договір з "}, {"slot": "0192f6a0-0000-7000-8000-000000001101"}], "wording_author_member_id": null, "wording_revised_at": "2026-10-27T10:00:20Z", "slots": [{"id": "0192f6a0-0000-7000-8000-000000001101", "kind": "counterparty", "status": "unconfirmed", "values": [{"id": "0192f6a0-0000-7000-8000-000000001201", "origin": "ai", "amount_kopiyky": null, "currency": null, "text_value": "ТОВ Тест Покрівля", "date_value": null, "date_end_value": null, "person_member_id": null, "source_document_id": "0192f6a0-0000-7000-8000-000000000d01", "source_fragment": "Підрядник: ТОВ «Тест Покрівля»", "assistant_turn_id": "0192f6a0-0000-7000-8000-000000000902", "author_member_id": null, "created_at": "2026-10-27T10:00:20Z"}]}]}], "documents": [{"id": "0192f6a0-0000-7000-8000-000000000d02", "case_id": "0192f6a0-0000-7000-8000-000000000c01", "file": {"id": "0192f6a0-0000-7000-8000-000000000702", "original_name": "rakhunok-123.pdf", "media_type": "application/pdf", "size_bytes": 482113, "sha256": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08", "uploaded_by_member_id": "0192f6a0-0000-7000-8000-000000000b01", "created_at": "2026-10-20T09:10:00Z"}, "previous_version_id": null, "document_date": "2026-10-18", "created_by_member_id": "0192f6a0-0000-7000-8000-000000000b01", "created_at": "2026-10-20T09:10:00Z"}], "poll_rounds": [], "print_copies": [], "transitions": [{"from_state": null, "to_state": "draft", "revision": 1, "actor_member_id": "0192f6a0-0000-7000-8000-000000000b01", "created_at": "2026-10-27T10:00:00Z"}]}
+                protocol: {"id": "0192f6a0-0000-7000-8000-000000000e01", "meeting": {"id": "0192f6a0-0000-7000-8000-000000000f01", "held_at": "2026-11-05T16:00:00Z", "meeting_date": "2026-11-05", "chair_board_member_id": "0192f6a0-0000-7000-8000-000000000b01"}, "state": "draft", "revision": 8, "number": 14, "copied_from_protocol_id": null, "created_by_member_id": "0192f6a0-0000-7000-8000-000000000b01", "created_at": "2026-10-27T10:00:00Z", "roster_in_force": [{"id": "0192f6a0-0000-7000-8000-000000000b02", "full_name": "Test User", "sign_in_email": "user-2@example.test", "term_start": "2025-03-01", "term_end": null, "revised_by_member_id": "0192f6a0-0000-7000-8000-000000000b01", "revised_at": "2026-10-27T09:05:00Z", "position": "member", "decision_id": null, "decision_effect": null}], "agenda_items": [{"id": "0192f6a0-0000-7000-8000-000000001001", "position": 1, "case_id": "0192f6a0-0000-7000-8000-000000000c01", "subject": "Про затвердження договору на гідроізоляцію покрівлі", "fragments": [{"text": "Затвердити договір з "}, {"slot": "0192f6a0-0000-7000-8000-000000001101"}], "wording_author_member_id": null, "wording_revised_at": "2026-10-27T10:00:20Z", "slots": [{"id": "0192f6a0-0000-7000-8000-000000001101", "kind": "counterparty", "status": "unconfirmed", "values": [{"id": "0192f6a0-0000-7000-8000-000000001201", "origin": "ai", "amount_kopiyky": null, "currency": null, "text_value": "ТОВ Тест Покрівля", "date_value": null, "date_end_value": null, "person_member_id": null, "source_document_id": "0192f6a0-0000-7000-8000-000000000d01", "source_fragment": "Підрядник: ТОВ «Тест Покрівля»", "assistant_turn_id": "0192f6a0-0000-7000-8000-000000000902", "author_member_id": null, "created_at": "2026-10-27T10:00:20Z"}]}]}], "documents": [{"id": "0192f6a0-0000-7000-8000-000000000d02", "case_id": "0192f6a0-0000-7000-8000-000000000c01", "file": {"id": "0192f6a0-0000-7000-8000-000000000702", "original_name": "rakhunok-123.pdf", "media_type": "application/pdf", "size_bytes": 482113, "sha256": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08", "uploaded_by_member_id": "0192f6a0-0000-7000-8000-000000000b01", "created_at": "2026-10-20T09:10:00Z"}, "previous_version_id": null, "document_date": "2026-10-18", "created_by_member_id": "0192f6a0-0000-7000-8000-000000000b01", "created_at": "2026-10-20T09:10:00Z"}], "poll_rounds": [], "print_copies": [], "transitions": [{"from_state": null, "to_state": "draft", "revision": 1, "actor_member_id": "0192f6a0-0000-7000-8000-000000000b01", "created_at": "2026-10-27T10:00:00Z"}]}
                 job: {"id": 1042, "kind": "governance.propose_draft", "state": "pending", "protocol_id": "0192f6a0-0000-7000-8000-000000000e01", "attempt": 0, "max_attempts": 5, "created_at": "2026-10-27T10:00:00Z", "finalized_at": null}
         "401": { $ref: "#/components/responses/SessionRequired" }
         "403": { $ref: "#/components/responses/MemberOrDisabled" }
@@ -1976,6 +2006,12 @@ components:
             title: Validation failed
             status: 422
             errors: [{ pointer: /protocol_revision, detail: property "protocol_revision" is missing }]
+    PayloadTooLarge:
+      description: The request body is over the limit of its operation (6 MB for the identity uploads, 21 MB for a case document).
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+          examples: { payload_too_large: { $ref: "#/components/examples/PayloadTooLarge" } }
     StorageUnavailable:
       description: File storage unavailable; nothing was committed, try again later (`governance.storage_unavailable`, Flow 8).
       content:
@@ -2078,6 +2114,8 @@ components:
       value: { type: about:blank, title: Association state unchanged, status: 409, code: identity.association_state_unchanged, detail: ОСББ уже в цьому стані }
     StorageAccountPersonal:
       value: { type: about:blank, title: Storage account personal, status: 409, code: identity.storage_account_personal, detail: Це особистий акаунт члена правління — підключіть акаунт ОСББ }
+    StorageHasFiles:
+      value: { type: about:blank, title: Storage has files, status: 409, code: identity.storage_has_files, detail: У сховищі ОСББ уже є файли — підключіть той самий акаунт, з яким вони були збережені }
     Principal:
       value: { account_id: 00000000-0000-7000-8000-00000000a001, email: user-1@example.test, is_operator: false }
     MembershipPage:
@@ -2171,7 +2209,7 @@ components:
         head_full_name: Тестовий Голова Правління
         connected_by_hand: false
         history:
-          - { kind: connected, occurred_at: "2026-11-11T08:05:00Z", decision_id: 00000000-0000-7000-8000-00000000f002, filed_at: "2026-11-10T09:00:00Z", reason: null, head_full_name: Тестовий Голова Правління, signer_full_name: Тестовий Голова Правління, extract_id: 00000000-0000-7000-8000-00000000e001, extract_dated_on: "2026-11-08" }
+          - { kind: connected, occurred_at: "2026-11-11T08:05:00Z", decision_id: 00000000-0000-7000-8000-00000000f002, filed_at: "2026-11-10T09:00:00Z", reason: null, head_full_name: Тестовий Голова Правління, ended_head_full_name: null, signer_full_name: Тестовий Голова Правління, extract_id: 00000000-0000-7000-8000-00000000e001, extract_dated_on: "2026-11-08" }
     StorageConnection:
       value: { connected: true, google_account_email: osbb-1@example.test, connected_by_member_id: 00000000-0000-7000-8000-00000000b001, connected_at: "2026-11-11T09:00:00Z" }
     DriveNotConnected:
@@ -2210,6 +2248,8 @@ components:
         status: 422
         code: governance.file_invalid
         errors: [{ pointer: /file, detail: "media type text/html is not allowed; PDF, JPEG or PNG up to 20 MB" }]
+    PayloadTooLarge:
+      value: { type: about:blank, title: Request Entity Too Large, status: 413 }
     StorageUnavailable:
       value: { type: about:blank, title: Service Unavailable, status: 503, code: governance.storage_unavailable, detail: Сховище файлів недоступне, спробуйте пізніше }
     DraftRevisionConflict:
@@ -2288,6 +2328,7 @@ components:
         revised_at: "2026-10-27T09:05:00Z"
         position: member
         decision_id: null
+        decision_effect: null
     Case:
       value:
         id: 0192f6a0-0000-7000-8000-000000000c01
@@ -2370,7 +2411,7 @@ components:
         copied_from_protocol_id: null
         created_by_member_id: 0192f6a0-0000-7000-8000-000000000b01
         created_at: "2026-10-27T10:00:00Z"
-        roster_in_force: [{"id": "0192f6a0-0000-7000-8000-000000000b02", "full_name": "Test User", "sign_in_email": "user-2@example.test", "term_start": "2025-03-01", "term_end": null, "revised_by_member_id": "0192f6a0-0000-7000-8000-000000000b01", "revised_at": "2026-10-27T09:05:00Z", "position": "member", "decision_id": null}]
+        roster_in_force: [{"id": "0192f6a0-0000-7000-8000-000000000b02", "full_name": "Test User", "sign_in_email": "user-2@example.test", "term_start": "2025-03-01", "term_end": null, "revised_by_member_id": "0192f6a0-0000-7000-8000-000000000b01", "revised_at": "2026-10-27T09:05:00Z", "position": "member", "decision_id": null, "decision_effect": null}]
         agenda_items:
           - id: 0192f6a0-0000-7000-8000-000000001001
             position: 1
@@ -2551,11 +2592,15 @@ components:
           description: Not before term_start (domain). Null = open term.
           type: [string, "null"]
           format: date
+    DecisionEffect:
+      description: What a decision did to a roster entry. `seated` — the approval made the entry голова; `ended` — it ended the entry.
+      type: string
+      enum: [seated, ended]
     BoardMember:
       description: board_members + its latest board_member_revisions row.
       type: object
       additionalProperties: false
-      required: [id, full_name, sign_in_email, term_start, term_end, revised_by_member_id, revised_at, position, decision_id]
+      required: [id, full_name, sign_in_email, term_start, term_end, revised_by_member_id, revised_at, position, decision_id, decision_effect]
       properties:
         id: { type: string, format: uuid }
         full_name: { type: string, maxLength: 200 }
@@ -2566,6 +2611,14 @@ components:
         revised_at: { type: string, format: date-time }
         position: { $ref: "#/components/schemas/BoardPosition" }
         decision_id: { type: [string, "null"], format: uuid }
+        decision_effect:
+          description: |
+            What the entry's decision did to it: `seated` (the approval made this entry голова) or `ended`
+            (it ended this entry); null for an entry without a decision. The board cannot clear or move later
+            the term end of an `ended` entry (422 `governance.roster_entry_invalid` on `/term_end`).
+          oneOf:
+            - { $ref: "#/components/schemas/DecisionEffect" }
+            - { type: "null" }
     BoardMemberPage:
       type: object
       required: [items, next_cursor]

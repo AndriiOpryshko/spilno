@@ -10,7 +10,7 @@ files_hint:
   - "docs/features/association-onboarding/tasks/_epic.md"
 owner: "Andrii Opryshko"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T61 — Record that the expand, backfill and contract migrations shipped in one release

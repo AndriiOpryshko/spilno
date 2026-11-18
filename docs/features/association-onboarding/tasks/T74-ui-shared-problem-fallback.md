@@ -17,7 +17,7 @@ files_hint:
   - "apps/web/src/features/identity/shell/"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T74 — Give every page a loading state and one fallback for a failed request

@@ -2,10 +2,11 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useEffect, useRef } from 'react';
 
-import { completeStorageConnection, getGetStorageConnectionQueryKey, getStartStorageConnectionUrl, useGetStorageConnection, useListMemberships } from '@/api/gen/endpoints/identity/identity';
+import { completeStorageConnection, getGetStorageConnectionQueryKey, getStartStorageConnectionUrl, useGetStorageConnection } from '@/api/gen/endpoints/identity/identity';
 import { Skeleton } from '@/components/ui/skeleton';
 import { InlineAlert } from '@/features/governance/inline-alert';
 import { isNoAccessProblem } from '@/features/identity/shell/entry';
+import { useAllMemberships } from '@/features/identity/shell/use-all-memberships';
 import { RequestFallback } from '@/features/identity/shell/request-fallback';
 import { uk } from '@/i18n/uk';
 
@@ -47,6 +48,7 @@ export function StorageCallback({ associationId, code, state }: { associationId:
 
   if (!complete.isError) return <Skeleton className="m-8 h-24 max-w-md" />;
   const { status, info } = complete.error as { status?: number; info?: { code?: string } };
+  if (info?.code === 'identity.storage_has_files') return <StorageHasFiles associationId={associationId} />;
   if (info?.code !== 'identity.storage_account_personal') {
     // A refusal of the request itself (a bad or replayed state, a refused code, a вимкнене ОСББ): the code is
     // single-use, so reading it again cannot help; the way out is to start over from the card.
@@ -73,6 +75,25 @@ export function StorageCallback({ associationId, code, state }: { associationId:
   );
 }
 
+// Another account was refused because the association already has files: name the account that keeps them.
+function StorageHasFiles({ associationId }: { associationId: string }) {
+  const connection = useGetStorageConnection(associationId);
+  const email = connection.data?.data.google_account_email ?? '';
+  if (!connection.data && !connection.isError) return <Skeleton className="m-8 h-24 max-w-md" />;
+  return (
+    <div className="mx-auto max-w-2xl px-4 py-8">
+      <InlineAlert
+        title={uk.storage.hasFiles(email)}
+        action={
+          <Link className="underline" to="/o/$associationId/association" params={{ associationId }}>
+            {uk.storage.callbackToCard}
+          </Link>
+        }
+      />
+    </div>
+  );
+}
+
 // The consent page was opened without what it needs to finish: say so and point the way back.
 export function StorageCallbackLost({ associationId }: { associationId: string | null }) {
   return (
@@ -95,7 +116,7 @@ export function StorageCallbackLost({ associationId }: { associationId: string |
 
 // Without the association id, the way back is the card of each association the person belongs to.
 function CardLinks() {
-  const memberships = useListMemberships();
+  const memberships = useAllMemberships();
   if (memberships.isPending) return null;
   const items = memberships.data?.data.items ?? [];
   if (items.length === 0) {

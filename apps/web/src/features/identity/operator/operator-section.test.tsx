@@ -150,3 +150,35 @@ describe('one access guard for every operator page (AC-16, AC-16b)', () => {
     expect(router.state.location.pathname).toBe('/sign-in');
   });
 });
+
+describe('every page of the оператор\'s queue (AC-04c)', () => {
+  it('offers «Показати ще» until next_cursor is null and appends the next page', async () => {
+    const second = { ...application, id: '00000000-0000-7000-8000-0000000000a2', association_name: 'ОСББ «Друга Сторінка»' };
+    const urls: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) => {
+        const u = new URL(String(input), 'http://localhost');
+        if (u.pathname.endsWith('/identity/operator/applications')) {
+          urls.push(u.search);
+          return Promise.resolve(
+            u.searchParams.get('cursor') === 'page-2'
+              ? json(200, { items: [second], next_cursor: null })
+              : json(200, { items: [application], next_cursor: 'page-2' }),
+          );
+        }
+        return fakeApi(input);
+      }),
+    );
+    await open('/operator/applications');
+    expect(await screen.findByRole('link', { name: 'ОСББ «Тестовий Будинок»' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'ОСББ «Друга Сторінка»' })).toBeNull();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Показати ще' }));
+
+    expect(await screen.findByRole('link', { name: 'ОСББ «Друга Сторінка»' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'ОСББ «Тестовий Будинок»' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Показати ще' })).toBeNull();
+    expect(urls.at(-1)).toContain('cursor=page-2');
+  });
+});

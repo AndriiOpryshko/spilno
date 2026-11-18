@@ -14,7 +14,7 @@
 | [T07](./T07-merge-contract-identity-skeleton.md) | Merge the contract delta, add the identity context skeleton and regenerate server and client | wiring | Andrii Opryshko | L | — | done |
 | [T08](./T08-identity-oidc-sessions.md) | Sign in with Google OIDC and keep sessions in Postgres | app | Andrii Opryshko | L | T01, T06, T07, T02, T09 | replaced (association-onboarding) |
 | [T09](./T09-settings-roster-domain.md) | Model association settings and roster entries with all-fields validation | domain | Andrii Opryshko | M | — | done |
-| [T10](./T10-settings-roster-endpoints.md) | Serve settings and roster: use cases, Postgres repositories, handlers and CurrentMember | ports | Andrii Opryshko | L | T02, T06, T07, T09 | todo |
+| [T10](./T10-settings-roster-endpoints.md) | Serve settings and roster: use cases, Postgres repositories, handlers and CurrentMember | ports | Andrii Opryshko | L | T02, T06, T07, T09 | in_progress |
 | [T11](./T11-require-session-current-member.md) | Require a session and a current член правління on the governance and finance routes | wiring | Andrii Opryshko | M | T08, T10 | replaced (association-onboarding) |
 | [T12](./T12-google-connection-token-source.md) | Store the association's Google connection and expose GoogleTokenSource | infra | Andrii Opryshko | M | T01, T07 | done |
 | [T12a](./T12a-google-token-cipher.md) | Seal and open the Google refresh token with AES-256-GCM | infra | Andrii Opryshko | S | — | done |
@@ -34,7 +34,7 @@
 | [T19a](./T19a-meeting-facts.md) | Validate the meeting facts entered with the signed scan | domain | Andrii Opryshko | S | T16, T18 | done |
 | [T19b](./T19b-snapshot-fingerprint.md) | Serialize the protocol snapshot canonically and fingerprint it | domain | Andrii Opryshko | S | T16, T18 | done |
 | [T20](./T20-protocol-repository.md) | Persist the protocol aggregate with a revision guard | infra | Andrii Opryshko | L | T03, T16 | todo |
-| [T21](./T21-cases-endpoints.md) | Serve cases: create, list, open, add document versions and download files | ports | Andrii Opryshko | L | T03, T11, T13 | todo |
+| [T21](./T21-cases-endpoints.md) | Serve cases: create, list, open, add document versions and download files | ports | Andrii Opryshko | L | T03, T11, T13 | in_progress |
 | [T22](./T22-open-draft-endpoints.md) | Open a draft for a meeting from a case, get and list protocols | ports | Andrii Opryshko | L | T10, T20, T21 | todo |
 | [T23](./T23-wording-slot-endpoints.md) | Edit wording and слоти рішення: save wording, add, confirm and correct slots | ports | Andrii Opryshko | L | T17, T22 | todo |
 | [T24](./T24-gemini-textmodel-adapter.md) | Implement the Gemini TextModel adapter as the only importer of the SDK | infra | Andrii Opryshko | M | T07, T17 | todo |
@@ -44,19 +44,35 @@
 | [T28](./T28-ready-for-signing-print.md) | Mark ready for signing: reserve the number and render the print copy in a job | ports | Andrii Opryshko | L | T05, T14, T23, T26, T27 | todo |
 | [T29](./T29-lock-with-signed-copy.md) | Lock with the signed scan and meeting facts, and apply Drive restrictions | ports | Andrii Opryshko | L | T19, T28 | todo |
 | [T30](./T30-withdraw-and-copy.md) | Withdraw a protocol with a reason and copy a withdrawn draft | ports | Andrii Opryshko | M | T29 | todo |
-| [T31](./T31-registry-search.md) | Search the реєстр протоколів and open a signed protocol | ports | Andrii Opryshko | L | T29 | todo |
+| [T31](./T31-registry-search.md) | Search the реєстр протоколів and open a signed protocol | ports | Andrii Opryshko | L | T29 | done |
 | [T32](./T32-nightly-integrity-check.md) | Run the nightly integrity check of snapshots and clean up orphan files | app | Andrii Opryshko | M | T14, T29, T30 | todo |
 | [T33](./T33-nightly-backup-runbook.md) | Back up Postgres nightly off the VM and write the restore-drill runbook | infra | Andrii Opryshko | M | — | todo |
 | [T34](./T34-ui-sign-in-session.md) | Add the sign-in page, the session guard and 401/403 handling | ui | Andrii Opryshko | M | T07 | replaced (association-onboarding) |
-| [T35](./T35-ui-settings-roster.md) | Build the association settings and roster screens | ui | Andrii Opryshko | L | T07 | todo |
-| [T36](./T36-ui-cases-documents.md) | Move the cases list and case screen to generated hooks with document upload | ui | Andrii Opryshko | M | T07 | todo |
+| [T35](./T35-ui-settings-roster.md) | Build the association settings and roster screens | ui | Andrii Opryshko | L | T07 | in_progress |
+| [T36](./T36-ui-cases-documents.md) | Move the cases list and case screen to generated hooks with document upload | ui | Andrii Opryshko | M | T07 | done |
 | [T37](./T37-ui-protocol-on-hooks.md) | Move the protocol screen to generated hooks: agenda, slots and revision conflicts | ui | Andrii Opryshko | L | T07 | todo |
 | [T38](./T38-ui-text-editor-slot-chips.md) | Build the decision text editor with slot chips and highlighted typed facts | ui | Andrii Opryshko | L | T37 | todo |
 | [T39](./T39-ui-assistant-panel.md) | Add the помічник протоколу conversation panel with job polling | ui | Andrii Opryshko | M | T38 | todo |
 | [T40](./T40-ui-live-poll.md) | Make the попереднє голосування live: start, own vote, tally, informal label, return to draft | ui | Andrii Opryshko | M | T39 | todo |
 | [T41](./T41-ui-print-withdraw.md) | Wire printing and withdrawal: ready for signing, job polling, void warning, withdraw and copy | ui | Andrii Opryshko | L | T40 | todo |
 | [T42](./T42-ui-signed-copy-form.md) | Build the signed-scan upload with the meeting facts form | ui | Andrii Opryshko | M | T41 | todo |
-| [T43](./T43-ui-registry.md) | Build the реєстр протоколів search and the signed protocol view | ui | Andrii Opryshko | M | T07 | todo |
+| [T43](./T43-ui-registry.md) | Build the реєстр протоколів search and the signed protocol view | ui | Andrii Opryshko | M | T07 | in_progress |
 | [T44](./T44-e2e-draft-to-registry.md) | Prove the flow end to end: draft to registry through the UI with fake Google and Gemini | tests | Andrii Opryshko | L | T25, T28, T29, T30, T31, T32, T34, T35, T36, T42, T43 | todo |
 
 **Total:** 44 tasks, ~31.25 person-days, 12 dependency phases.
+
+## Delivered by association-onboarding (2026-11-18)
+
+The second and the third follow-up of association-onboarding carried the storage work its ACs needed
+([review of 2026-11-17](../../association-onboarding/_review/review-2026-11-17.md), N06 and N09;
+[second re-review of 2026-11-17](../../association-onboarding/_review/review-2026-11-17-2.md), R01, R02 and S03).
+The status of each task file below says the same in detail.
+
+| Here | Delivered there | Left here |
+|---|---|---|
+| [T13](./T13-drive-files-adapter.md), [T13b](./T13b-drive-files-adapter.md) the Drive `Files` adapter | [T94](../../association-onboarding/tasks/T94-upload-outside-transaction.md) (`d38dbc5`): `Files.Remove` on the port, the fake, the shared contract and the adapter. [T97](../../association-onboarding/tasks/T97-wire-drive-storage-per-association.md) (`f6fde66`): `cmd/api` builds the adapter of each association from its Google connection, proven on a fake Google. [T112](../../association-onboarding/tasks/T112-wire-consent-drive-address-and-test-api-wiring.md) (`ecc440d`): `cmd/api` gives the storage consent its Drive address and refuses to wire one without it (SEC-13, so a real consent can now finish), and the resolver is `governance.NewDriveResolver`, called by `cmd/api` and by the module test; `cmd/api/drive_consent_test.go` runs a consent and a document through both on a fake Google. [T113](../../association-onboarding/tasks/T113-drive-resolver-one-read-cached-token-deadline.md) (`724405f`): the resolver reads the connection once (`GoogleStorage` returns the token source and the folder), reuses the token source until the connection row changes, bounds the Drive client and the token endpoint in time, and answers 503 `governance.storage_unavailable` when the connection cannot be resolved | the contract run against real Google with a test account (the last item of T13's Definition of Done; no real consent has run either) |
+| [T21](./T21-cases-endpoints.md) cases and files | [T92](../../association-onboarding/tasks/T92-files-per-association.md) (`159505b`): the storage resolved per association. T94: the upload before the write transaction, the stored file removed when the write fails | the needs-review event of a newer document version, the upload-duration metric |
+| [T14](./T14-river-worker-jobs.md), [T32](./T32-nightly-integrity-check.md) the worker and its jobs | nothing: T94 removes an orphaned file in the request, best effort, and logs a removal that fails | the `remove_orphan_file` job |
+
+The statuses above are unchanged: T13, T13b and T21 stay `in_progress` for what is left. T12c's consent
+(`google.Consent`) is used as built; T112 only supplied the `DriveURL` it needs in production.

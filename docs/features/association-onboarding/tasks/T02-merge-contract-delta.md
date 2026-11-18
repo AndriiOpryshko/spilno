@@ -11,7 +11,7 @@ files_hint:
   - "docs/features/association-onboarding/contracts/api-sync-report.md"
 owner: "Andrii Opryshko"
 estimate: "L"
-status: "todo"
+status: "done"
 ---
 
 # T02 — Merge the onboarding contract delta and stub the new identity operations

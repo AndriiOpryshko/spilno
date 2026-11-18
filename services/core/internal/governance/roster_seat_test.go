@@ -76,7 +76,7 @@ func TestRosterSeatAndEnd(t *testing.T) {
 
 	setup := func(t *testing.T) (*governance.Module, func(fn func(ctx context.Context, tx db.DBTX) error) error) {
 		pool := testdb.NewApp(t)
-		m := governance.New(pool, nil)
+		m := governance.New(pool, nil, nil)
 		return m, func(fn func(ctx context.Context, tx db.DBTX) error) error {
 			return db.InAssociation(context.Background(), pool, a, "actor@example.test", func(ctx context.Context) error {
 				tx, err := db.From(ctx)

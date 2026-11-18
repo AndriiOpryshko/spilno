@@ -13,7 +13,7 @@ files_hint:
   - "services/core/internal/identity/storage_test.go"
 owner: "Andrii Opryshko"
 estimate: "L"
-status: "todo"
+status: "done"
 ---
 
 # T54 — Commit the association transaction before the response leaves, and keep outside calls out of it

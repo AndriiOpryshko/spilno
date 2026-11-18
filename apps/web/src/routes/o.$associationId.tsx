@@ -2,11 +2,12 @@ import { createFileRoute, Navigate, Outlet, useRouterState } from '@tanstack/rea
 import { useEffect, useRef } from 'react';
 
 import { useListCases } from '@/api/gen/endpoints/governance/governance';
-import { useGetAssociationCard, useGetSession, useListMemberships } from '@/api/gen/endpoints/identity/identity';
+import { useGetAssociationCard, useGetSession } from '@/api/gen/endpoints/identity/identity';
 import { AssociationShell } from '@/components/app-shell';
 import { SuspendedNotice } from '@/features/identity/association/suspended-notice';
 import { isNoAccessProblem } from '@/features/identity/shell/entry';
 import { PageSkeleton, RequestFallback } from '@/features/identity/shell/request-fallback';
+import { useAllMemberships } from '@/features/identity/shell/use-all-memberships';
 
 export const Route = createFileRoute('/o/$associationId')({
   component: AssociationLayout,
@@ -15,7 +16,7 @@ export const Route = createFileRoute('/o/$associationId')({
 function AssociationLayout() {
   const { associationId } = Route.useParams();
   const session = useGetSession({ query: { retry: false } });
-  const memberships = useListMemberships(undefined, { query: { enabled: session.isSuccess, retry: false } });
+  const memberships = useAllMemberships({ enabled: session.isSuccess });
   const cases = useListCases(associationId, undefined, { query: { enabled: session.isSuccess, retry: false } });
 
   // A вимкнене ОСББ refuses its scoped reads with the reason in the problem detail (ADR-0007);

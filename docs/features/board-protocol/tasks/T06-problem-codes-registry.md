@@ -9,7 +9,7 @@ files_hint:
   - "services/core/internal/governance/domain/errors.go"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T06 — Add the problem `code` member to httpapi with a governance error registry

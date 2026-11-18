@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { routeTree } from '@/routeTree.gen';
 
+import { uk } from '@/i18n/uk';
+
 import { storageFlowKey } from '../storage/storage-line';
 
 // Every page that reads the API through the real route tree: a skeleton while the read is out,
@@ -46,7 +48,20 @@ const application = {
 };
 
 type Answer = Response | Promise<Response>;
+const otherId = '00000000-0000-7000-8000-0000000000a2';
+const review = {
+  application: { ...application, edrpou: '12345678' },
+  filings: [],
+  checks: [],
+  decisions: [],
+  warnings: [],
+  competing_application_ids: [otherId],
+  applicant_email: 'applicant@example.test',
+  storage_account_email: null,
+};
+let asOperator = false;
 let rosters: unknown[];
+let applications: unknown[];
 let broken: { match: (path: string, method: string) => boolean; answer: () => Answer } | null;
 let calls: { path: string; method: string }[];
 
@@ -55,9 +70,17 @@ function fakeApi(input: RequestInfo | URL, init?: RequestInit): Answer {
   const method = init?.method ?? 'GET';
   calls.push({ path, method });
   if (broken?.match(path, method)) return broken.answer();
-  if (path === '/identity/session') return json(200, principal);
+  if (path === '/identity/session') return json(200, { ...principal, is_operator: asOperator });
+  if (path === '/identity/operator/applications') return json(200, { items: [{ ...application, competing: true }], next_cursor: null });
+  if (path === `/identity/operator/applications/${appId}`) return json(200, review);
+  if (path === `/identity/operator/applications/${otherId}`) {
+    return json(200, { ...review, application: { ...application, id: otherId, association_name: 'ОСББ «Конкурент»' }, competing_application_ids: [appId] });
+  }
+  if (path === '/identity/operator/associations') {
+    return json(200, { items: [{ id: lypky, name: 'ОСББ «Липки»', edrpou: '12345678', state: 'connected' }], next_cursor: null });
+  }
   if (path === '/identity/memberships') return json(200, { items: rosters, next_cursor: null });
-  if (path === '/identity/applications') return json(200, { items: [application], next_cursor: null });
+  if (path === '/identity/applications') return json(200, { items: applications, next_cursor: null });
   if (path === `/identity/applications/${appId}`) {
     return json(200, { application, filings: [], decisions: [] });
   }
@@ -88,7 +111,9 @@ const countOf = (path: string, method: string) => calls.filter((c) => c.path ===
 
 beforeEach(() => {
   rosters = [membership];
+  applications = [application];
   broken = null;
+  asOperator = false;
   calls = [];
   sessionStorage.clear();
   vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => fakeApi(input, init)));
@@ -105,6 +130,8 @@ interface Page {
   path: string;
   // What to wait for on a healthy page, so a failure is not mistaken for a slow render.
   settled: () => Promise<unknown>;
+  // The page is in the оператор's section: the session is an оператор's.
+  operator?: boolean;
 }
 
 const pages: Page[] = [
@@ -115,9 +142,17 @@ const pages: Page[] = [
   { name: 'the association card', url: `/o/${lypky}/association`, path: `/identity/associations/${lypky}`, settled: () => screen.findByRole('heading', { level: 1, name: 'ОСББ «Липки»' }) },
   { name: 'my applications', url: '/applications/', path: '/identity/applications', settled: () => screen.findByText('ОСББ «Тест»') },
   { name: 'an application', url: `/applications/${appId}`, path: `/identity/applications/${appId}`, settled: () => screen.findByRole('heading', { name: 'ОСББ «Тест»' }) },
+  { name: "the оператор's review page", url: `/operator/applications/${appId}`, path: `/identity/operator/applications/${appId}`, operator: true, settled: () => screen.findByRole('heading', { level: 1, name: 'ОСББ «Тест»' }) },
+  { name: "the оператор's competing item", url: `/operator/applications/${appId}`, path: `/identity/operator/applications/${otherId}`, operator: true, settled: () => screen.findByRole('link', { name: 'ОСББ «Конкурент»' }) },
+  { name: "the оператор's queue", url: '/operator/applications', path: '/identity/operator/applications', operator: true, settled: () => screen.findByRole('link', { name: 'ОСББ «Тест»' }) },
+  { name: "the оператор's associations list", url: '/operator/associations', path: '/identity/operator/associations', operator: true, settled: () => screen.findByRole('heading', { level: 1, name: uk.operator.associationsTitle }) },
 ];
 
-describe.each(pages)('$name', ({ url, path, settled }) => {
+describe.each(pages)('$name', ({ url, path, settled, operator }) => {
+  beforeEach(() => {
+    asOperator = operator === true;
+  });
+
   it('shows a skeleton while the read is out, not a blank page or an empty list', async () => {
     breakPath(path, 'GET', forever);
     open(url);
@@ -140,6 +175,7 @@ describe.each(pages)('$name', ({ url, path, settled }) => {
   });
 
   it.each([
+    ['a 404', () => problem(404)],
     ['a 500', () => problem(500)],
     ['a network error', () => Promise.reject(new TypeError('Failed to fetch'))],
   ])('shows one alert with «Спробувати ще раз» on %s, stays on the page and reads again on retry', async (_what, answer) => {
@@ -208,6 +244,26 @@ describe('the entry page', () => {
     const router = open('/');
     expect(await screen.findByRole('alert')).toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/');
+  });
+});
+
+describe('the link to the заявка на підключення form (AC-01)', () => {
+  const linkName = 'Подати заявку на підключення';
+  const target = '/applications/new?kind=connection';
+
+  it('is on an empty list of applications, next to the empty message', async () => {
+    applications = [];
+    open('/applications/');
+    await screen.findByText('У вас ще немає заявок');
+    expect(screen.getByRole('link', { name: linkName })).toHaveAttribute('href', target);
+  });
+
+  it('is above a list that has a заявка', async () => {
+    open('/applications/');
+    const first = await screen.findByRole('link', { name: 'ОСББ «Тест»' });
+    const link = screen.getByRole('link', { name: linkName });
+    expect(link).toHaveAttribute('href', target);
+    expect(link.compareDocumentPosition(first) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });
 

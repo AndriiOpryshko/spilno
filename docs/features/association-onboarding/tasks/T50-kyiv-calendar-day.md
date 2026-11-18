@@ -17,7 +17,7 @@ files_hint:
   - "services/core/internal/identity/approval_transfer_test.go"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T50 — Take «today» for every roster date from the Europe/Kyiv calendar

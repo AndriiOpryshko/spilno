@@ -15,7 +15,7 @@ files_hint:
   - "apps/web/src/api/gen/"
 owner: "Andrii Opryshko"
 estimate: "L"
-status: "todo"
+status: "done"
 ---
 
 # T07 — Merge the contract delta, add the identity context skeleton and regenerate server and client

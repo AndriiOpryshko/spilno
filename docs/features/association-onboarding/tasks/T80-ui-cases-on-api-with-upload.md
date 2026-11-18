@@ -13,7 +13,7 @@ files_hint:
   - "apps/web/src/features/identity/association/suspended-notice.tsx"
 owner: "Andrii Opryshko"
 estimate: "L"
-status: "todo"
+status: "done"
 ---
 
 # T80 — Move the справи list and the case screen to the API, with document upload and the storage message

@@ -21,6 +21,12 @@ export function AssociationPicker({ memberships, isOperator }: { memberships: Me
             </Link>
           </div>
         ))}
+        <Link to="/applications" className="rounded-md border px-3 py-2 hover:bg-accent">
+          {uk.applications.filing.linkOpen}
+        </Link>
+        <Link to="/applications/new" search={{ kind: 'connection' }} className="rounded-md border px-3 py-2 hover:bg-accent">
+          {uk.applications.filing.linkConnection}
+        </Link>
         {isOperator && (
           <Link to="/operator" className="rounded-md border px-3 py-2 hover:bg-accent">
             {uk.operator.entry}

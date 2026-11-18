@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router';
 import { getDownloadExtractForReviewUrl, useGetApplicationForReview } from '@/api/gen/endpoints/identity/identity';
 import type { ExtractCheck, ReviewWarning } from '@/api/gen/model';
 import { Badge } from '@/components/ui/badge';
+import { PageSkeleton, RequestFallback } from '@/features/identity/shell/request-fallback';
 import { formatDate, uk } from '@/i18n/uk';
 
 import { CheckForm } from './check-form';
@@ -30,9 +31,22 @@ function ExtractLink({ applicationId, filingId }: { applicationId: string; filin
 }
 
 function CompetingItem({ id }: { id: string }) {
-  const { data } = useGetApplicationForReview(id);
-  const review = data?.data;
-  if (!review) return null;
+  const query = useGetApplicationForReview(id);
+  const review = query.data?.data;
+  if (query.isError) {
+    return (
+      <li>
+        <RequestFallback error={query.error} onRetry={() => void query.refetch()} />
+      </li>
+    );
+  }
+  if (!review) {
+    return (
+      <li>
+        <PageSkeleton />
+      </li>
+    );
+  }
   const [filing] = [...review.filings].sort((a, b) => b.created_at.localeCompare(a.created_at));
   return (
     <li className="flex flex-col rounded-md border px-3 py-2">
@@ -58,9 +72,10 @@ function warningText(warning: ReviewWarning, typedName: string, check: ExtractCh
 }
 
 export function ReviewPage({ applicationId }: { applicationId: string }) {
-  const { data } = useGetApplicationForReview(applicationId);
-  const review = data?.data;
-  if (!review) return null;
+  const query = useGetApplicationForReview(applicationId);
+  const review = query.data?.data;
+  if (query.isError) return <RequestFallback error={query.error} onRetry={() => void query.refetch()} />;
+  if (!review) return <PageSkeleton />;
 
   const { application, filings, checks, warnings } = review;
   const [filing, ...earlier] = [...filings].sort((a, b) => b.created_at.localeCompare(a.created_at));

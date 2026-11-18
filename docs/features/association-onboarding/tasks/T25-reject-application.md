@@ -11,7 +11,7 @@ files_hint:
   - "services/core/internal/identity/adapters/http/"
 owner: "Andrii Opryshko"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T25 — Reject an application with a reason

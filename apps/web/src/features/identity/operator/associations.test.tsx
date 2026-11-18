@@ -189,3 +189,30 @@ describe('OperatorAssociations', () => {
     expect(alert).toHaveTextContent(uk.operator.actionFailed);
   });
 });
+
+describe('every page of the associations list (AC-21)', () => {
+  it('offers «Показати ще» until next_cursor is null and appends the next page', async () => {
+    const urls: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) => {
+        const u = new URL(String(input), 'http://localhost');
+        urls.push(u.search);
+        return Promise.resolve(
+          u.searchParams.get('cursor') === 'page-2'
+            ? json(200, { items: [rows[1]], next_cursor: null })
+            : json(200, { items: [rows[0]], next_cursor: 'page-2' }),
+        );
+      }),
+    );
+    await renderPage();
+    expect(screen.queryByText(/Сонячний/)).toBeNull();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Показати ще' }));
+
+    expect(await screen.findByText(/Сонячний/)).toBeInTheDocument();
+    expect(screen.getByText(/Липки/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Показати ще' })).toBeNull();
+    expect(urls.at(-1)).toContain('cursor=page-2');
+  });
+});

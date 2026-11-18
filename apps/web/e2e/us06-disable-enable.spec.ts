@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { connected, disableAs, disabled, enableAs, openOperatorAssociations, operatorPage, problemOf, reasonText, scheduleMeeting, suspendedText } from './association-support';
-import { newFiling } from './support';
+import { newFiling, openCard } from './support';
 
 test('US-06: the оператор disables with a reason, the member is stopped, enabling lets them change a record again (AC-21, AC-23)', async ({ browser }) => {
   const c = await connected(browser, newFiling());
@@ -10,7 +10,7 @@ test('US-06: the оператор disables with a reason, the member is stopped,
   const operator = await disabled(browser, c);
 
   // AC-21: on the next action the member sees the reason.
-  await c.head.goto(`/o/${c.associationId}/association`);
+  await openCard(c.head);
   await expect(c.head.getByText(suspendedText)).toBeVisible();
   const refused = await problemOf(await scheduleMeeting(c.head, c.associationId));
   expect(refused).toMatchObject({ status: 403, code: 'identity.association_disabled', detail: reasonText });
@@ -18,7 +18,12 @@ test('US-06: the оператор disables with a reason, the member is stopped,
   // AC-23: enabling restores the association as it was.
   const row = await enableAs(operator, c.f.name);
   await expect(row.getByText('Підключене')).toBeVisible();
-  await c.head.goto(`/o/${c.associationId}/association`);
+  // The section's navigation leads back to the queue as well.
+  await operator.getByRole('link', { name: 'Заявки', exact: true }).click();
+  await expect(operator.getByRole('heading', { name: 'Заявки та запити' })).toBeVisible();
+  await c.head.getByRole('link', { name: 'Справи' }).click();
+  await expect(c.head.getByText(suspendedText)).toHaveCount(0);
+  await openCard(c.head);
   await expect(c.head.getByRole('heading', { name: c.f.name })).toBeVisible();
   expect((await scheduleMeeting(c.head, c.associationId)).status()).toBe(201);
 });
@@ -48,7 +53,7 @@ test('AC-24: disabling a disabled and enabling an enabled association is refused
   await expect(staleDisable.getByText('ОСББ уже в цьому стані')).toBeVisible();
 
   // The recorded reason is the first one.
-  await c.head.goto(`/o/${c.associationId}/association`);
+  await openCard(c.head);
   await expect(c.head.getByText(suspendedText)).toBeVisible();
 
   const staleEnable = await openOperatorAssociations(second, c.f.name);

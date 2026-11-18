@@ -27,6 +27,13 @@ interface FilingFormProps {
 
 const t = uk.applications.filing;
 
+const maxExtractBytes = 5 * 1024 * 1024;
+const extractExtensions = ['.pdf', '.p7s', '.asice'];
+
+const extractRefused = (file: File) =>
+  file.size > maxExtractBytes ||
+  !(file.type === 'application/pdf' || extractExtensions.some((ext) => file.name.toLowerCase().endsWith(ext)));
+
 const textFields = [
   ['association_name', t.name],
   ['association_address', t.address],
@@ -77,12 +84,20 @@ export function FilingForm({ kind, associationId, refile }: FilingFormProps) {
   const set = (name: keyof typeof values) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setValues((v) => ({ ...v, [name]: e.target.value }));
 
+  const refuseExtract = () => {
+    setFieldErrors({ extract: t.fieldErrors.extract ?? t.fieldInvalid });
+    setSummary(uk.applications.invalid(t.fieldNames.extract ?? ''));
+  };
+
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     setFieldErrors({});
     setRefusal(undefined);
     setSummary(undefined);
     setFiled(false);
+    // A refused file is never sent: the other fields go without it, the server names what else is broken
+    // and the extract's own message is put under «Витяг».
+    const sendable = extract && !extractRefused(extract) ? extract : undefined;
     const common = {
       association_name: values.association_name,
       association_address: values.association_address,
@@ -90,7 +105,7 @@ export function FilingForm({ kind, associationId, refile }: FilingFormProps) {
       position: 'head' as const,
       term_start: values.term_start,
       ...(values.term_end ? { term_end: values.term_end } : {}),
-      extract: extract ?? new Blob([], { type: 'application/pdf' }),
+      extract: sendable ?? new Blob([], { type: 'application/pdf' }),
     };
     const handlers = {
       onSuccess: () => {
@@ -101,10 +116,12 @@ export function FilingForm({ kind, associationId, refile }: FilingFormProps) {
         const problem = ((err as { info?: Problem }).info ?? {}) as Problem;
         if (knownRefusalMessage(problem)) {
           setRefusal(problem);
+        } else if ((err as { status?: number }).status === 413) {
+          refuseExtract();
         } else if (problem.errors?.length) {
           const reported = problem.errors.map((x) => x.pointer.replace(/^\//, '')).filter((name) => name in t.fieldNames);
           // The server leaves /extract out when the multipart file is empty next to other errors.
-          const broken = [...new Set(extract ? reported : [...reported, 'extract'])];
+          const broken = [...new Set(sendable ? reported : [...reported, 'extract'])];
           if (broken.length) {
             setFieldErrors(Object.fromEntries(broken.map((name) => [name, t.fieldErrors[name] ?? t.fieldInvalid])));
             setSummary(uk.applications.invalid(broken.map((name) => t.fieldNames[name]).join(', ')));

@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { cn } from 'cn';
 import { useId, useState } from 'react';
 
@@ -12,21 +12,21 @@ import { InlineHint } from './inline-hint';
 import { LimitNote } from './limit-note';
 import { OriginTag } from './origin-tag';
 import { type GlyphState, StatusGlyph } from './status-glyph';
-import type { ProtocolSlot, ProtocolWarning } from './types';
+import type { ProtocolDraft, ProtocolSlot, ProtocolWarning } from './types';
 import { validateSlot } from './validation';
 
 interface SlotRowProps {
   caseId: string;
   slot: ProtocolSlot;
   warnings: ProtocolWarning[];
-  onSaved: () => void;
+  // The parent owns the draft's cache entry and writes the saved draft there.
+  onSaved: (draft: ProtocolDraft) => void;
   // Outside чернетка the text is frozen: no field, no hints, no Save (BR-09, BR-10, BR-13).
   readOnly?: boolean;
 }
 
 // One protocol slot (SlotRow in Figma): label column + value column on desktop, stacked on mobile.
 export function SlotRow({ caseId, slot, warnings, onSaved, readOnly = false }: SlotRowProps) {
-  const queryClient = useQueryClient();
   const fieldId = useId();
   const [draftValue, setValue] = useState(slot.value);
   const value = readOnly ? slot.value : draftValue;
@@ -36,10 +36,7 @@ export function SlotRow({ caseId, slot, warnings, onSaved, readOnly = false }: S
 
   const save = useMutation({
     mutationFn: () => updateSlot(caseId, slot.id, value),
-    onSuccess: (draft) => {
-      queryClient.setQueryData(['protocol', caseId], draft);
-      onSaved();
-    },
+    onSuccess: onSaved,
   });
 
   const glyph: GlyphState = !value.trim() ? 'empty' : dirty || slot.status === 'needs_review' ? 'attention' : 'done';

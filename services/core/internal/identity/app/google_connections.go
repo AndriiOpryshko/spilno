@@ -34,6 +34,22 @@ func NewGoogleConnections(repo ports.GoogleConnectionRepository, cipher *TokenCi
 	return &GoogleConnections{repo: repo, cipher: cipher}
 }
 
+// Get returns the association's connection row with the refresh token still sealed; it answers
+// ports.ErrGoogleConnectionNotFound when there is none.
+func (s *GoogleConnections) Get(ctx context.Context, associationID uuid.UUID) (ports.GoogleConnection, error) {
+	return s.repo.Get(ctx, associationID)
+}
+
+// OpenToken returns the refresh token of c in plain text (ErrUnknownKey or ErrTokenUnreadable when it
+// cannot be opened with this key).
+func (s *GoogleConnections) OpenToken(c ports.GoogleConnection) (string, error) {
+	return s.cipher.Open(SealedToken{
+		Ciphertext: c.RefreshTokenCiphertext,
+		Nonce:      c.RefreshTokenNonce,
+		KeyID:      c.EncryptionKeyID,
+	})
+}
+
 // Connect seals the refresh token and stores the connection, replacing the one the association had.
 func (s *GoogleConnections) Connect(ctx context.Context, c NewGoogleConnection) error {
 	if c.RefreshToken == "" || c.AccountEmail == "" || len(c.Scopes) == 0 {

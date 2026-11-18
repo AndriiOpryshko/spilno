@@ -12,7 +12,7 @@ files_hint:
   - "services/core/internal/platform/db/rls_test.go"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T20 — Promote row-level security for the governance, finance and identity tables

@@ -89,7 +89,7 @@ func TestMembershipsOfUsesTheLoweredSignInEmailIndex(t *testing.T) {
 
 	// The call itself still answers: the one entry carrying the actor's address.
 	err = db.InAssociation(ctx, pool, uuid.Nil, actor, func(ctx context.Context) error {
-		got, err := governance.New(pool, nil).MembershipsOf(ctx, actor, day)
+		got, err := governance.New(pool, nil, nil).MembershipsOf(ctx, actor, day)
 		if err != nil {
 			return err
 		}
@@ -138,7 +138,7 @@ func TestMembershipsOfLatestRevisionDecides(t *testing.T) {
 		moved := newMember(ctx, tx)
 		revision(ctx, tx, moved, actor, 2*time.Hour)
 		revision(ctx, tx, moved, "someone-else@example.test", time.Hour)
-		got, err := governance.New(pool, nil).MembershipsOf(ctx, actor, day)
+		got, err := governance.New(pool, nil, nil).MembershipsOf(ctx, actor, day)
 		if err != nil {
 			return err
 		}
@@ -149,7 +149,7 @@ func TestMembershipsOfLatestRevisionDecides(t *testing.T) {
 		in := newMember(ctx, tx)
 		revision(ctx, tx, in, "old@example.test", 2*time.Hour)
 		revision(ctx, tx, in, "ME@Example.TEST", time.Hour)
-		got, err = governance.New(pool, nil).MembershipsOf(ctx, actor, day)
+		got, err = governance.New(pool, nil, nil).MembershipsOf(ctx, actor, day)
 		if err != nil {
 			return err
 		}

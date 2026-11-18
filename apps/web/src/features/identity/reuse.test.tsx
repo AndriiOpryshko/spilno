@@ -21,7 +21,7 @@ import { StorageCallback, StorageLine } from './storage/storage-line';
 // is what a person sees and can do.
 
 const sources = import.meta.glob(
-  ['/src/features/identity/**/*.{ts,tsx}', '/src/routes/**/*.tsx', '!/**/*.test.{ts,tsx}', '!/**/*.stories.tsx', '!/src/routeTree.gen.ts'],
+  ['/src/features/**/*.{ts,tsx}', '/src/routes/**/*.tsx', '!/**/*.test.{ts,tsx}', '!/**/*.stories.tsx', '!/src/routeTree.gen.ts'],
   { query: '?raw', import: 'default', eager: true },
 ) as Record<string, string>;
 
@@ -31,18 +31,20 @@ const offenders = (pattern: RegExp) =>
     .map(([file]) => file)
     .sort();
 
-describe('the identity screens follow the reuse conventions (W5)', () => {
+describe('the screens under src/features follow the reuse conventions (W5)', () => {
   it('reads the sources it checks', () => {
     expect(Object.keys(sources).length).toBeGreaterThan(20);
     expect(Object.keys(sources).some((f) => f.includes('/routes/'))).toBe(true);
   });
 
   it('renders no ad-hoc alert paragraph: every role="alert" comes from InlineAlert', () => {
-    expect(offenders(/role="alert"/)).toEqual([]);
+    // Only InlineAlert itself and the system health card own a role="alert".
+    expect(offenders(/role="alert"/).filter((f) => !f.endsWith('/governance/inline-alert.tsx') && !f.endsWith('/system/health-card.tsx'))).toEqual([]);
   });
 
   it('builds no query key by hand: the generated key helpers name the cache entries', () => {
     expect(offenders(/queryKey:\s*\['/)).toEqual([]);
+    expect(offenders(/(?:setQueryData|invalidateQueries|getQueryData|setQueriesData)\(\s*(?:\{\s*queryKey:\s*)?\[/)).toEqual([]);
   });
 
   it('has no <a href> for in-app navigation: only the generated API URL helpers (redirects, downloads) stay anchors', () => {
@@ -53,6 +55,10 @@ describe('the identity screens follow the reuse conventions (W5)', () => {
         .map((href) => `${file}: ${href}`),
     );
     expect(anchorsWithoutApiUrl).toEqual([]);
+  });
+
+  it('reads memberships only through useAllMemberships (T119, R06)', () => {
+    expect(offenders(/useListMemberships\(/).filter((f) => !f.endsWith('/identity/shell/use-all-memberships.ts'))).toEqual([]);
   });
 
   it('has no in-app address in a link description either', () => {

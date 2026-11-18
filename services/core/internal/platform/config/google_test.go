@@ -201,3 +201,37 @@ func TestGoogleOAuth_AC5_ClientAgainstGoogleEndpoints(t *testing.T) {
 		t.Errorf(`OAuth("").RedirectURL = %q, want empty`, refreshOnly.RedirectURL)
 	}
 }
+
+// T97 (AC-26, AC-28): the two Drive addresses come from the configuration and default to Google's.
+func TestLoadGoogle_T97_DriveAddresses(t *testing.T) {
+	t.Run("default to Google's", func(t *testing.T) {
+		setGoogleEnv(t, googleEnv())
+		t.Setenv("GOOGLE_DRIVE_API_URL", "")
+		t.Setenv("GOOGLE_DRIVE_UPLOAD_URL", "")
+		got, err := LoadGoogle()
+		if err != nil || got == nil {
+			t.Fatalf("LoadGoogle() = %+v, %v", got, err)
+		}
+		if want := "https://www.googleapis.com/drive/v3"; got.DriveAPIURL != want {
+			t.Errorf("DriveAPIURL = %q, want %q", got.DriveAPIURL, want)
+		}
+		if want := "https://www.googleapis.com/upload/drive/v3"; got.DriveUploadURL != want {
+			t.Errorf("DriveUploadURL = %q, want %q", got.DriveUploadURL, want)
+		}
+	})
+	t.Run("read from the environment without a trailing slash", func(t *testing.T) {
+		setGoogleEnv(t, googleEnv())
+		t.Setenv("GOOGLE_DRIVE_API_URL", "http://127.0.0.1:9000/drive/v3/")
+		t.Setenv("GOOGLE_DRIVE_UPLOAD_URL", "http://127.0.0.1:9000/upload/drive/v3")
+		got, err := LoadGoogle()
+		if err != nil || got == nil {
+			t.Fatalf("LoadGoogle() = %+v, %v", got, err)
+		}
+		if want := "http://127.0.0.1:9000/drive/v3"; got.DriveAPIURL != want {
+			t.Errorf("DriveAPIURL = %q, want %q", got.DriveAPIURL, want)
+		}
+		if want := "http://127.0.0.1:9000/upload/drive/v3"; got.DriveUploadURL != want {
+			t.Errorf("DriveUploadURL = %q, want %q", got.DriveUploadURL, want)
+		}
+	})
+}

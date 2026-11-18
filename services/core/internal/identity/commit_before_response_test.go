@@ -40,7 +40,7 @@ func newCommitEnv(t *testing.T) *commitEnv {
 		}},
 		OperatorEmail: guardOperatorEmail,
 	})
-	gov := governance.New(pool, idm.HasStorageConnection)
+	gov := governance.New(pool, idm.HasStorageConnection, actorAccess)
 
 	insert := func(r *http.Request) error {
 		tx, err := db.From(r.Context())

@@ -20,8 +20,8 @@ const wireGoogleT33Path = "/identity/associations/0198a0a0-0000-7000-8000-000000
 func wireGoogleT33Status(t *testing.T, gc *identity.GoogleConfig) (wired bool, status int) {
 	t.Helper()
 	idm := identity.New(nil)
-	idm.EnableSignIn(identity.SignInConfig{Provider: identity.DevSignInProvider("user@example.test")})
-	wired, err := wireGoogle(idm, governance.New(nil, nil), gc)
+	idm.EnableSignIn(identity.SignInConfig{Provider: identity.DevSignInProvider("user@example.test", "")})
+	wired, err := wireGoogle(idm, governance.New(nil, nil, nil), gc, "http://drive.example.test/drive/v3")
 	if err != nil {
 		t.Fatalf("wireGoogle: %v", err)
 	}
@@ -48,8 +48,17 @@ func TestWireGoogleEnablesStorageConnectionOnlyWithConfiguration(t *testing.T) {
 
 func TestWireGoogleRefusesAnInvalidConfiguration(t *testing.T) {
 	idm := identity.New(nil)
-	_, err := wireGoogle(idm, governance.New(nil, nil), &identity.GoogleConfig{KeyID: "k1", Key: make([]byte, 16), OAuth: &oauth2.Config{}})
+	_, err := wireGoogle(idm, governance.New(nil, nil, nil), &identity.GoogleConfig{KeyID: "k1", Key: make([]byte, 16), OAuth: &oauth2.Config{}}, "http://drive.example.test/drive/v3")
 	if err == nil {
 		t.Errorf("wireGoogle with a 16-byte key: nil error, want the EnableGoogle error")
+	}
+}
+
+// A consent without the Drive address fails after the code exchange (SEC-13), so the wiring refuses it.
+func TestWireGoogleRefusesAConfigurationWithoutTheDriveAddress(t *testing.T) { // AC-27
+	gc := &identity.GoogleConfig{KeyID: "k1", Key: make([]byte, 32), OAuth: &oauth2.Config{ClientID: "c", ClientSecret: "s"}}
+	wired, err := wireGoogle(identity.New(nil), governance.New(nil, nil, nil), gc, "")
+	if err == nil || wired {
+		t.Errorf("wireGoogle without a Drive address: wired %v, err %v; want false and an error", wired, err)
 	}
 }

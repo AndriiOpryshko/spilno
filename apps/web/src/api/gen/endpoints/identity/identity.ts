@@ -51,6 +51,7 @@ import type {
   NotFoundResponse,
   NotOperatorResponse,
   OperatorAssociationPage,
+  PayloadTooLargeResponse,
   Principal,
   Problem,
   QueueApplicationPage,
@@ -100,7 +101,9 @@ export const getStartSignInUrl = () => {
 }
 
 /**
- * ADR-0003. Public. Stores the PKCE verifier and state server-side and redirects.
+ * ADR-0003. Public. The server keeps no pending state: the PKCE verifier and the state are sealed into the
+ * short-lived `spilno_signin` cookie (HttpOnly, Secure, SameSite=Lax, scoped to the callback address)
+ * that the 302 sets and the callback reads.
  * @summary Redirect to the identity provider (OIDC authorization code + PKCE)
  */
 export const startSignIn = async ( options?: RequestInit): Promise<startSignInResponse> => {
@@ -240,7 +243,8 @@ export const getCompleteSignInUrl = (params: CompleteSignInParams,) => {
 
 /**
  * ADR-0003, ADR-0004. Public. Any person with a verified email gets a session, on or off a roster;
- * the associations they belong to come from `listMemberships`.
+ * the associations they belong to come from `listMemberships`. The `state` must match the pending
+ * sign-in sealed in the `spilno_signin` cookie that `startSignIn` set; the callback clears that cookie.
  * @summary Finish sign-in, create the session and redirect to the SPA
  */
 export const completeSignIn = async (params: CompleteSignInParams, options?: RequestInit): Promise<completeSignInResponse> => {
@@ -883,6 +887,11 @@ export type fileApplicationResponse409 = {
   status: 409
 }
 
+export type fileApplicationResponse413 = {
+  data: PayloadTooLargeResponse
+  status: 413
+}
+
 export type fileApplicationResponse422 = {
   data: Problem
   status: 422
@@ -891,7 +900,7 @@ export type fileApplicationResponse422 = {
 export type fileApplicationResponseSuccess = (fileApplicationResponse201) & {
   headers: Headers;
 };
-export type fileApplicationResponseError = (fileApplicationResponse401 | fileApplicationResponse409 | fileApplicationResponse422) & {
+export type fileApplicationResponseError = (fileApplicationResponse401 | fileApplicationResponse409 | fileApplicationResponse413 | fileApplicationResponse422) & {
   headers: Headers;
 };
 
@@ -910,7 +919,9 @@ export const getFileApplicationUrl = () => {
  * answers `identity.term_ended` (AC-30). Any signed-in person may file a запит на передачу, on the roster
  * of that association or not (AC-17). A code that is pending by another person is accepted and not
  * revealed (AC-04c). `association_id` is set only when a член правління files a запит from the card of the
- * association set up by hand (AC-19c). The signature is not checked at filing (AC-03).
+ * association set up by hand (AC-19c). A запит на передачу from that card whose code another association
+ * already holds answers `identity.association_already_connected` and is not stored (AC-04c, AC-19c).
+ * The signature is not checked at filing (AC-03).
  * @summary File a заявка на підключення or a запит на передачу with the signed extract (US-01, US-04, Flows 1 and 6)
  */
 export const fileApplication = async (newApplication: NewApplication, options?: RequestInit): Promise<fileApplicationResponseSuccess> => {
@@ -959,7 +970,7 @@ formData.append(`extract`, newApplication.extract instanceof Blob ? newApplicati
 
 export const getFileApplicationMutationKey = () => ['fileApplication'] as const;
 
-export const getFileApplicationMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | Problem; status?: number },
+export const getFileApplicationMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | Problem | PayloadTooLargeResponse; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof fileApplication>>, TError,FileApplicationMutationVariables, TContext>, fetch?: RequestInit}
 ): UseMutationOptions<Awaited<ReturnType<typeof fileApplication>>, TError,FileApplicationMutationVariables, TContext> => {
 
@@ -988,13 +999,13 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
     export type FileApplicationMutationResult = NonNullable<Awaited<ReturnType<typeof fileApplication>>>
     export type FileApplicationMutationBody = NewApplication
-    export type FileApplicationMutationError = globalThis.Error & { info?: SessionRequiredResponse | Problem; status?: number }
+    export type FileApplicationMutationError = globalThis.Error & { info?: SessionRequiredResponse | Problem | PayloadTooLargeResponse; status?: number }
     export type FileApplicationMutationVariables = {data: NewApplication}
 
     /**
  * @summary File a заявка на підключення or a запит на передачу with the signed extract (US-01, US-04, Flows 1 and 6)
  */
-export const useFileApplication = <TError = globalThis.Error & { info?: SessionRequiredResponse | Problem; status?: number },
+export const useFileApplication = <TError = globalThis.Error & { info?: SessionRequiredResponse | Problem | PayloadTooLargeResponse; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof fileApplication>>, TError,FileApplicationMutationVariables, TContext>, fetch?: RequestInit}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof fileApplication>>,
@@ -1161,6 +1172,11 @@ export type refileApplicationResponse409 = {
   status: 409
 }
 
+export type refileApplicationResponse413 = {
+  data: PayloadTooLargeResponse
+  status: 413
+}
+
 export type refileApplicationResponse422 = {
   data: Problem
   status: 422
@@ -1169,7 +1185,7 @@ export type refileApplicationResponse422 = {
 export type refileApplicationResponseSuccess = (refileApplicationResponse201) & {
   headers: Headers;
 };
-export type refileApplicationResponseError = (refileApplicationResponse401 | refileApplicationResponse404 | refileApplicationResponse409 | refileApplicationResponse422) & {
+export type refileApplicationResponseError = (refileApplicationResponse401 | refileApplicationResponse404 | refileApplicationResponse409 | refileApplicationResponse413 | refileApplicationResponse422) & {
   headers: Headers;
 };
 
@@ -1231,7 +1247,7 @@ formData.append(`extract`, applicationRefiling.extract instanceof Blob ? applica
 
 export const getRefileApplicationMutationKey = () => ['refileApplication'] as const;
 
-export const getRefileApplicationMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotFoundResponse | Problem; status?: number },
+export const getRefileApplicationMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotFoundResponse | Problem | PayloadTooLargeResponse; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refileApplication>>, TError,RefileApplicationMutationVariables, TContext>, fetch?: RequestInit}
 ): UseMutationOptions<Awaited<ReturnType<typeof refileApplication>>, TError,RefileApplicationMutationVariables, TContext> => {
 
@@ -1260,13 +1276,13 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
     export type RefileApplicationMutationResult = NonNullable<Awaited<ReturnType<typeof refileApplication>>>
     export type RefileApplicationMutationBody = ApplicationRefiling
-    export type RefileApplicationMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotFoundResponse | Problem; status?: number }
+    export type RefileApplicationMutationError = globalThis.Error & { info?: SessionRequiredResponse | NotFoundResponse | Problem | PayloadTooLargeResponse; status?: number }
     export type RefileApplicationMutationVariables = {applicationId: string;data: ApplicationRefiling}
 
     /**
  * @summary Fix and file a rejected application again (US-02, AC-06, Flow 5)
  */
-export const useRefileApplication = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotFoundResponse | Problem; status?: number },
+export const useRefileApplication = <TError = globalThis.Error & { info?: SessionRequiredResponse | NotFoundResponse | Problem | PayloadTooLargeResponse; status?: number },
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refileApplication>>, TError,RefileApplicationMutationVariables, TContext>, fetch?: RequestInit}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof refileApplication>>,
@@ -2048,7 +2064,9 @@ export const getApproveApplicationUrl = (applicationId: string,) => {
  * For a запит на передачу: an applicant who already has a current roster entry gets no second entry, that
  * entry takes the position голова правління; only the entry of the голова recorded by an earlier approval
  * ends (AC-19). A competing запит stays pending and can be approved later as a new transfer (AC-19b), so
- * `identity.association_already_connected` is answered only for a заявка на підключення (AC-04c).
+ * `identity.association_already_connected` is not answered for it because another заявка is pending
+ * (AC-04c). It is answered for a заявка на підключення whose code is connected, and for a запит на передачу
+ * that claims the code of another association: the transfer is refused, nothing changes (AC-04c, AC-19).
  * @summary Approve the latest filing — create the association or change its roster (AC-08, AC-16c, AC-19, AC-19c, Flows 2-3)
  */
 export const approveApplication = async (applicationId: string,
@@ -3153,7 +3171,9 @@ export const getCompleteStorageConnectionUrl = (associationId: string,) => {
 /**
  * The SPA's callback route posts the authorization code and state; the state is bound to the session and
  * the association. When a storage is already connected, the new account replaces the stored one under the
- * same rules and no file is moved (SAD §8, open question of PRD §8).
+ * same rules and no file is moved; the replacement is refused with `identity.storage_has_files` while the
+ * association has a file and the new account is not the connected one (same address, any letter case), so no
+ * file is left on an account the app no longer reads (ADR-0008 amendment, PRD §8).
  * @summary Finish the storage consent the SPA received back from Google (ADR-0008, AC-27, AC-28b)
  */
 export const completeStorageConnection = async (associationId: string,

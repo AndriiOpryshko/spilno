@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 	"unicode/utf8"
 
@@ -12,6 +13,7 @@ import (
 
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/domain"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/ports"
+	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/db"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/kyivday"
 )
 
@@ -22,7 +24,7 @@ const maxFileNameLen = 255
 type CaseService struct {
 	repo   ports.CaseRepository
 	roster ports.RosterWriter
-	files  ports.Files // nil until the storage is wired
+	files  ports.FilesResolver // nil until the storage is wired
 	now    func() time.Time
 }
 
@@ -31,7 +33,7 @@ func NewCaseService(repo ports.CaseRepository, roster ports.RosterWriter) *CaseS
 }
 
 // SetFiles wires the storage; call it before serving.
-func (s *CaseService) SetFiles(files ports.Files) { s.files = files }
+func (s *CaseService) SetFiles(files ports.FilesResolver) { s.files = files }
 
 // CasePage is one slice of the newest-first справи listing.
 type CasePage struct {
@@ -123,49 +125,87 @@ type Upload struct {
 // *domain.DomainError{Code: storage_unavailable}. Everything is checked before the upload, so a refusal
 // leaves nothing in the storage.
 func (s *CaseService) AddDocument(ctx context.Context, association, caseID uuid.UUID, up Upload) (ports.CaseDocumentRecord, error) {
-	by, err := s.member(ctx, association)
+	var (
+		by        uuid.UUID
+		mediaType string
+		store     ports.Files
+	)
+	err := db.InScope(ctx, func(ctx context.Context) error {
+		var err error
+		if by, err = s.member(ctx, association); err != nil {
+			return err
+		}
+		if _, ok, err := s.repo.Get(ctx, association, caseID); err != nil {
+			return err
+		} else if !ok {
+			return domain.ErrCaseNotFound
+		}
+		if up.PreviousVersionID != nil {
+			ok, err := s.repo.HasDocument(ctx, association, caseID, *up.PreviousVersionID)
+			if err != nil {
+				return err
+			}
+			if !ok {
+				return domain.ErrPreviousVersionInvalid
+			}
+		}
+		if mediaType, err = checkUpload(up); err != nil {
+			return err
+		}
+		store, err = resolveFiles(ctx, s.files, association)
+		return err
+	})
 	if err != nil {
 		return ports.CaseDocumentRecord{}, err
 	}
-	if _, ok, err := s.repo.Get(ctx, association, caseID); err != nil {
-		return ports.CaseDocumentRecord{}, err
-	} else if !ok {
-		return ports.CaseDocumentRecord{}, domain.ErrCaseNotFound
-	}
-	if up.PreviousVersionID != nil {
-		ok, err := s.repo.HasDocument(ctx, association, caseID, *up.PreviousVersionID)
-		if err != nil {
-			return ports.CaseDocumentRecord{}, err
-		}
-		if !ok {
-			return ports.CaseDocumentRecord{}, domain.ErrPreviousVersionInvalid
-		}
-	}
-	mediaType, err := checkUpload(up)
-	if err != nil {
-		return ports.CaseDocumentRecord{}, err
-	}
-	if s.files == nil {
+	stored, err := store.Upload(ctx, up.Name, mediaType, bytes.NewReader(up.Data))
+	if errors.Is(err, ports.ErrChecksumMismatch) {
 		return ports.CaseDocumentRecord{}, &domain.DomainError{Code: domain.CodeStorageUnavailable}
 	}
-	stored, err := s.files.Upload(ctx, up.Name, mediaType, bytes.NewReader(up.Data))
 	if err != nil {
 		return ports.CaseDocumentRecord{}, err
 	}
+	doc, err := s.recordDocument(ctx, association, caseID, by, mediaType, stored, up)
+	if err != nil {
+		s.removeOrphan(ctx, store, stored.ID)
+		return ports.CaseDocumentRecord{}, err
+	}
+	return doc, nil
+}
+
+// recordDocument writes the files row and the document row in one transaction.
+func (s *CaseService) recordDocument(ctx context.Context, association, caseID, by uuid.UUID, mediaType string, stored ports.StoredFile, up Upload) (doc ports.CaseDocumentRecord, err error) {
 	docID, err := uuid.NewV7()
 	if err != nil {
-		return ports.CaseDocumentRecord{}, fmt.Errorf("document id: %w", err)
+		return doc, fmt.Errorf("document id: %w", err)
 	}
 	fileID, err := uuid.NewV7()
 	if err != nil {
-		return ports.CaseDocumentRecord{}, fmt.Errorf("file id: %w", err)
+		return doc, fmt.Errorf("file id: %w", err)
 	}
-	return s.repo.AddDocument(ctx, association, ports.NewCaseDocument{
-		ID: docID, FileID: fileID, CaseID: caseID,
-		PreviousVersionID: up.PreviousVersionID, DocumentDate: up.DocumentDate, ByMemberID: by,
-		DriveFileID: stored.ID, DriveRevisionID: stored.Revision,
-		SHA256: stored.SHA256, Size: stored.Size, MediaType: mediaType, Name: up.Name,
+	err = db.InScope(ctx, func(ctx context.Context) (e error) {
+		doc, e = s.repo.AddDocument(ctx, association, ports.NewCaseDocument{
+			ID: docID, FileID: fileID, CaseID: caseID,
+			PreviousVersionID: up.PreviousVersionID, DocumentDate: up.DocumentDate, ByMemberID: by,
+			DriveFileID: stored.ID, DriveRevisionID: stored.Revision,
+			SHA256: stored.SHA256, Size: stored.Size, MediaType: mediaType, Name: up.Name,
+		})
+		return e
 	})
+	return doc, err
+}
+
+// orphanRemoveTimeout bounds the cleanup of an uploaded file after a failed write.
+const orphanRemoveTimeout = 30 * time.Second
+
+// removeOrphan deletes an uploaded file whose record was not written, best effort; a failure is logged
+// with the storage id only.
+func (s *CaseService) removeOrphan(ctx context.Context, store ports.Files, id string) {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), orphanRemoveTimeout)
+	defer cancel()
+	if err := store.Remove(ctx, id); err != nil {
+		slog.ErrorContext(ctx, "remove the orphan uploaded file failed", "storage_file_id", id, "error", err)
+	}
 }
 
 // checkUpload returns the media type of the content, or file_invalid naming /file.

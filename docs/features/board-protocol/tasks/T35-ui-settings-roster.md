@@ -10,7 +10,7 @@ files_hint:
   - "apps/web/src/features/governance/settings/"
 owner: "Andrii Opryshko"
 estimate: "L"
-status: "todo"
+status: "in_progress"
 ---
 
 # T35 — Build the association settings and roster screens
@@ -32,3 +32,13 @@ status: "todo"
 - [ ] component tests for multi-field errors and the locked start
 - [ ] stories for empty, filled, error states
 - [ ] `mise run lint` and `mise run test` green
+
+## Status (2026-11-17)
+
+The roster screen is done by association-onboarding [T78](../../association-onboarding/tasks/T78-ui-roster-screen.md) (commits `174f0cc`,
+`3527bb9`) at `/o/$associationId/roster`: the list, the add and change form with every 422 field named next to
+its field, component tests and stories (`apps/web/src/features/governance/roster/`).
+
+Left here: the association settings screen (`getAssociationSettings`, `saveAssociationSettings`, the register
+start read-only after `register_start_locked`), which waits for the settings half of
+[T10](./T10-settings-roster-endpoints.md).

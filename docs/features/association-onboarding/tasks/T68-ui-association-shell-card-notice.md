@@ -14,7 +14,7 @@ files_hint:
   - "apps/web/src/i18n/uk.ts"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T68 — Put the association card in the navigation and the suspended notice in the association layout

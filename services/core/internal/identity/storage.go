@@ -36,6 +36,7 @@ func (m *Module) EnableStorageConnection(cfg StorageConnectionConfig) {
 	m.storage = app.NewStorageConnections(
 		googleConsent{cfg.Consent}, scopedMembers{m.pool, cfg.Members}, m.google.connections, postgres.NewGoogleConnections(m.pool))
 	m.storage.SetClock(m.now)
+	m.storage.SetTransactor(db.InScope)
 	m.handler.EnableStorageConnections(m.storage)
 }
 
@@ -45,7 +46,7 @@ type googleConsent struct{ c StorageConsent }
 func (g googleConsent) AuthURL(state string) string { return g.c.AuthURL(state) }
 
 func (g googleConsent) Complete(ctx context.Context, code string) (ports.StorageGrant, error) {
-	grant, err := g.c.Complete(db.Detached(ctx), code)
+	grant, err := g.c.Complete(ctx, code)
 	switch {
 	case errors.Is(err, google.ErrCodeExchangeFailed), errors.Is(err, google.ErrNoRefreshToken), errors.Is(err, google.ErrScopeNotGranted):
 		return ports.StorageGrant{}, ports.ErrStorageCodeRefused
@@ -76,4 +77,12 @@ func (s scopedMembers) CurrentMemberID(ctx context.Context, association uuid.UUI
 		return e
 	})
 	return id, ok, err
+}
+
+func (s scopedMembers) HasFiles(ctx context.Context, association uuid.UUID) (has bool, err error) {
+	err = db.InAssociation(ctx, s.pool, association, "", func(ctx context.Context) (e error) {
+		has, e = s.StorageMembers.HasFiles(ctx, association)
+		return e
+	})
+	return has, err
 }

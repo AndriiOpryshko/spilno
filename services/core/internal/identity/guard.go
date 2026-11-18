@@ -80,6 +80,7 @@ func (m *Module) serveAssociation(w http.ResponseWriter, r *http.Request, next h
 	}
 	actor.AssociationID = rawID
 	refused := false
+	outsideIO := outsideIOOperations[r.Method+" "+routePattern(r)]
 	var buf *bufferedResponse
 	err = db.InAssociation(r.Context(), m.pool, id, actor.Email, func(ctx context.Context) error {
 		ok, err := roster.CurrentMember(ctx, id, actor.Email, kyivday.Today(m.now()))
@@ -105,6 +106,9 @@ func (m *Module) serveAssociation(w http.ResponseWriter, r *http.Request, next h
 			}
 			return nil
 		}
+		if outsideIO {
+			return nil
+		}
 		buf = newBufferedResponse()
 		next.ServeHTTP(buf, r.WithContext(withActor(ctx, actor)))
 		if buf.status >= http.StatusBadRequest {
@@ -115,6 +119,11 @@ func (m *Module) serveAssociation(w http.ResponseWriter, r *http.Request, next h
 	switch {
 	case refused:
 		refuse()
+	case err == nil && outsideIO:
+		// The check transaction has committed and holds no connection. The handler opens its own
+		// association transactions with db.InScope and writes straight to the client.
+		ctx := db.WithScope(withActor(r.Context(), actor), m.pool, id, actor.Email)
+		next.ServeHTTP(w, r.WithContext(ctx))
 	case errors.Is(err, errHandlerRefused):
 		buf.flushTo(w)
 	case err != nil:
@@ -129,6 +138,25 @@ var readOnlyOperations = map[string]string{
 	"GET /governance/associations/{association_id}/registry/decisions":               "searchRegistry",
 	"GET /governance/associations/{association_id}/registry/protocols/{protocol_id}": "getSignedProtocol",
 	"GET /governance/associations/{association_id}/files/{file_id}":                  "downloadFile",
+}
+
+// outsideIOOperations are the operations that talk to an outside service (file storage, the Google
+// code exchange) or stream a large body. They run after the guard's check transaction, not inside it.
+// Every association-scoped multipart/form-data operation of the contract belongs here
+// (TestEveryAssociationMultipartOperationIsOutsideIO walks the contract).
+var outsideIOOperations = map[string]bool{
+	"POST /governance/associations/{association_id}/cases/{case_id}/documents":             true, // addCaseDocument
+	"GET /governance/associations/{association_id}/files/{file_id}":                        true, // downloadFile
+	"POST /identity/associations/{association_id}/storage-connection":                      true, // completeStorageConnection
+	"POST /governance/associations/{association_id}/meetings/{meeting_id}/assistant-turns": true, // createAssistantTurn
+	"POST /governance/associations/{association_id}/protocols/{protocol_id}/signed-copy":   true, // lockProtocolWithSignedCopy
+}
+
+func routePattern(r *http.Request) string {
+	if rc := chi.RouteContext(r.Context()); rc != nil {
+		return rc.RoutePattern()
+	}
+	return ""
 }
 
 // operationID names the operation the request routed to when the decision table cares about it.

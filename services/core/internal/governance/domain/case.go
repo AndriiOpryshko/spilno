@@ -8,9 +8,6 @@ import (
 	"unicode/utf8"
 )
 
-// CodeFileInvalid is answered for an upload over MaxDocumentSize or not PDF, JPEG or PNG by content.
-const CodeFileInvalid = "governance.file_invalid"
-
 // MaxDocumentSize is the largest document an upload may carry (PRD §6): 20 MiB.
 const MaxDocumentSize = 20 << 20
 

@@ -58,4 +58,21 @@ describe('RosterDecisionMark (AC-20)', () => {
     const { container } = render(<RosterDecisionMark kind="appointed" decisionId="00000000-0000-7000-8000-0000000000ff" history={[approval]} associationId={associationId} />);
     expect(container.textContent).toBe('');
   });
+
+  it('words the mark of a connection by the заявка, not by a запит на передачу', async () => {
+    const connection: AssociationEvent = { ...approval, kind: 'connected' };
+    await renderInRouter(<RosterDecisionMark kind="appointed" decisionId={decisionId} history={[connection]} associationId={associationId} />);
+    const text = document.body.textContent ?? '';
+    expect(text).toContain('призначено за заявкою на підключення від');
+    expect(text).toMatch(filedOn);
+    expect(text).not.toContain('запитом на передачу');
+    expect(screen.getByRole('link').getAttribute('href')).toContain(extractId);
+  });
+
+  it('words the mark of a transfer by the запит на передачу, for both effects', async () => {
+    await renderInRouter(<RosterDecisionMark kind="appointed" decisionId={decisionId} history={[approval]} associationId={associationId} />);
+    expect(document.body.textContent).toContain('призначено за запитом на передачу від');
+    expect(document.body.textContent).not.toContain('заявкою на підключення');
+  });
 });
+

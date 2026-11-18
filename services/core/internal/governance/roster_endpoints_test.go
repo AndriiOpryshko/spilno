@@ -26,8 +26,8 @@ import (
 
 // Handler tests of listBoardMembers, createBoardMember and updateBoardMember (association-onboarding T62:
 // AC-09, AC-16b, AC-20, AC-25), served behind the identity guard exactly as cmd/api does, on two seeded
-// associations. Roster of A: a previous голова (term ended, ended under prevDecision), the голова
-// seated under headDecision, and a plain член. Roster of B: the оператор as a member and one more person.
+// associations. Roster of A: a previous голова (term ended by the transfer's decision), the голова
+// that decision seated, and a plain член. Roster of B: the оператор as a member and one more person.
 
 const (
 	rosterHeadEmail     = "head@example.test"
@@ -61,6 +61,7 @@ type rosterEntry struct {
 	RevisedAt         string  `json:"revised_at"`
 	Position          string  `json:"position"`
 	DecisionID        *string `json:"decision_id"`
+	DecisionEffect    *string `json:"decision_effect"`
 }
 
 type rosterPage struct {
@@ -96,7 +97,7 @@ func newRosterEnv(t *testing.T) *rosterEnv {
 		people[name] = identity.ProviderIdentity{Issuer: "https://accounts.example.test", Subject: "sub-" + name, Email: email, EmailVerified: true}
 	}
 	idm.EnableSignIn(identity.SignInConfig{Provider: rosterProvider{people}, OperatorEmail: rosterOperatorEmail})
-	gov := governance.New(pool, idm.HasStorageConnection)
+	gov := governance.New(pool, idm.HasStorageConnection, actorAccess)
 	r := httpapi.NewRouter()
 	r.Group(func(r chi.Router) {
 		r.Use(idm.Guard(guardedRoster{gov}))
@@ -107,8 +108,11 @@ func newRosterEnv(t *testing.T) *rosterEnv {
 		}
 	})
 
+	// One decision ends the previous голова and seats the new one, as an approved transfer does
+	// (identity's Approve passes its decision to both steps).
+	transfer := uuid.Must(uuid.NewV7())
 	e := &rosterEnv{pool: pool, a: a, b: b, cookies: map[string]*http.Cookie{},
-		headDecision: uuid.Must(uuid.NewV7()), prevDecison: uuid.Must(uuid.NewV7())}
+		headDecision: transfer, prevDecison: transfer}
 	aid, bid := uuid.MustParse(a), uuid.MustParse(b)
 	in := func(assoc uuid.UUID, fn func(ctx context.Context, tx db.DBTX) error) {
 		t.Helper()
@@ -596,4 +600,83 @@ func sameSet(a, b []string) bool {
 	slices.Sort(a)
 	slices.Sort(b)
 	return slices.Equal(a, b)
+}
+
+// AC-19, AC-20 (T87): each entry says what its decision did to it.
+func TestListBoardMembersSaysWhatTheDecisionDid(t *testing.T) {
+	e := newRosterEnv(t)
+	page := e.list(t, "head", e.a, "")
+	eff := func(email string) string {
+		if v := mustEntry(t, page, email).DecisionEffect; v != nil {
+			return *v
+		}
+		return "<null>"
+	}
+	if got := eff(rosterHeadEmail); got != "seated" {
+		t.Errorf("seated head decision_effect = %s, want seated", got)
+	}
+	if got := eff(rosterPrevEmail); got != "ended" {
+		t.Errorf("previous head decision_effect = %s, want ended", got)
+	}
+	if got := eff(rosterMemberEmail); got != "<null>" {
+		t.Errorf("member without a decision decision_effect = %s, want null", got)
+	}
+}
+
+// AC-19: the board cannot reopen an entry an approval ended; a name fix is still saved.
+func TestUpdateBoardMemberRefusesToReopenAnEndedEntry(t *testing.T) {
+	e := newRosterEnv(t)
+	prev := mustEntry(t, e.list(t, "head", e.a, ""), rosterPrevEmail)
+	put := func(termEnd any, name string) (int, []byte) {
+		body := map[string]any{"full_name": name, "sign_in_email": rosterPrevEmail, "term_start": prev.TermStart, "term_end": termEnd}
+		return e.call(t, "head", "PUT", e.board(e.a)+"/"+prev.ID, body)
+	}
+	for name, termEnd := range map[string]any{"cleared": nil, "moved later": rosterDay(100)} {
+		status, raw := put(termEnd, prev.FullName)
+		if status != http.StatusUnprocessableEntity {
+			t.Errorf("%s term end of an ended entry: status = %d, want 422; body %s", name, status, raw)
+			continue
+		}
+		p := rosterProblemOf(t, raw)
+		if p.Code != "governance.roster_entry_invalid" || len(p.Errors) != 1 || p.Errors[0].Pointer != "/term_end" {
+			t.Errorf("%s: problem = %+v, want governance.roster_entry_invalid on /term_end", name, p)
+		}
+	}
+	if again := mustEntry(t, e.list(t, "head", e.a, ""), rosterPrevEmail); again.TermEnd == nil || *again.TermEnd != rosterDay(-31) {
+		t.Errorf("term_end after refusals = %v, want %s kept", again.TermEnd, rosterDay(-31))
+	}
+	status, raw := put(rosterDay(-31), "Test User Fixed")
+	if status != http.StatusOK {
+		t.Fatalf("name fix with the approved term end: status = %d, want 200; body %s", status, raw)
+	}
+	fixed := mustEntry(t, e.list(t, "head", e.a, ""), rosterPrevEmail)
+	if fixed.FullName != "Test User Fixed" || fixed.DecisionEffect == nil || *fixed.DecisionEffect != "ended" {
+		t.Errorf("after name fix = %+v, want the new name and decision_effect ended", fixed)
+	}
+}
+
+// AC-19: a re-added previous голова is a second entry, a член; one current голова remains.
+func TestReAddedPreviousHeadIsAMemberEntry(t *testing.T) {
+	e := newRosterEnv(t)
+	body := map[string]any{"full_name": "Test User", "sign_in_email": rosterPrevEmail, "term_start": rosterDay(0), "term_end": nil}
+	status, raw := e.call(t, "head", "POST", e.board(e.a), body)
+	if status != http.StatusCreated {
+		t.Fatalf("createBoardMember: status = %d, want 201; body %s", status, raw)
+	}
+	page := e.list(t, "head", e.a, "?on="+rosterDay(0))
+	var heads, prevs int
+	for _, it := range page.Items {
+		if it.Position == "head" {
+			heads++
+		}
+		if it.SignInEmail != nil && *it.SignInEmail == rosterPrevEmail {
+			prevs++
+			if it.Position != "member" || it.DecisionID != nil || it.DecisionEffect != nil {
+				t.Errorf("re-added entry = %+v, want member, no decision, no effect", it)
+			}
+		}
+	}
+	if heads != 1 || prevs != 1 {
+		t.Errorf("current heads = %d, re-added current entries = %d, want 1 and 1", heads, prevs)
+	}
 }

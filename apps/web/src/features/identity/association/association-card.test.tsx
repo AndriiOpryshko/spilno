@@ -103,9 +103,17 @@ describe('AssociationCard (AC-29)', () => {
     expect(href).toContain(`association_id=${id}`);
   });
 
-  it('does not offer the запит link once the extract is there', async () => {
+  it('offers the запит link on the card of an association connected by a заявка (AC-17)', async () => {
     await renderInRouter(<AssociationCard card={withExtract} />);
-    expect(screen.queryByRole('link', { name: 'Подати запит на передачу' })).toBeNull();
+    const href = screen.getByRole('link', { name: 'Подати запит на передачу' }).getAttribute('href') ?? '';
+    expect(href).toContain('/applications/new');
+    expect(href).toContain('kind=transfer');
+    expect(href).toContain(`association_id=${id}`);
+  });
+
+  it('shows the by-hand badge only on the hand-made association', async () => {
+    await renderInRouter(<AssociationCard card={withExtract} />);
+    expect(document.body.textContent).not.toContain('підключено вручну, без витягу');
   });
 });
 

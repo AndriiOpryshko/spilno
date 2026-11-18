@@ -88,6 +88,7 @@ func (h *Handler) GetCase(ctx context.Context, req gen.GetCaseRequestObject) (ge
 }
 
 func (h *Handler) AddCaseDocument(ctx context.Context, req gen.AddCaseDocumentRequestObject) (gen.AddCaseDocumentResponseObject, error) {
+	// The service opens its own transactions: the upload runs between them, outside any.
 	connected, err := h.storage(ctx, req.AssociationId)
 	if err != nil {
 		return nil, err

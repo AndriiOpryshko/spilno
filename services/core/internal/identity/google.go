@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
+	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	"golang.org/x/oauth2"
@@ -42,7 +45,19 @@ var (
 type googleState struct {
 	connections *app.GoogleConnections
 	oauth       *oauth2.Config
+
+	mu     sync.Mutex
+	tokens map[uuid.UUID]cachedToken // per association, dropped when the connection row changes
 }
+
+// cachedToken is the token source of one connection row, keyed by the row's id.
+type cachedToken struct {
+	connection uuid.UUID
+	source     oauth2.TokenSource
+}
+
+// tokenEndpointTimeout bounds each call to the token endpoint.
+const tokenEndpointTimeout = 15 * time.Second
 
 // EnableGoogle turns the Google connection on; without it the two methods below refuse to work.
 func (m *Module) EnableGoogle(cfg GoogleConfig) error {
@@ -56,6 +71,7 @@ func (m *Module) EnableGoogle(cfg GoogleConfig) error {
 	m.google = &googleState{
 		connections: app.NewGoogleConnections(postgres.NewGoogleConnections(m.pool), cipher),
 		oauth:       cfg.OAuth,
+		tokens:      map[uuid.UUID]cachedToken{},
 	}
 	return nil
 }
@@ -109,4 +125,35 @@ func (m *Module) HasStorageConnection(ctx context.Context, associationID uuid.UU
 		return false, nil
 	}
 	return err == nil, err
+}
+
+// GoogleStorage returns the token source and the spilno folder of the association's connection from one
+// read; the folder is "" while it is not created. The token source is reused until the connection row
+// changes (a reconnect writes a new row id). ErrGoogleNotConnected when there is no connection.
+func (m *Module) GoogleStorage(ctx context.Context, associationID uuid.UUID) (oauth2.TokenSource, string, error) {
+	if m.google == nil {
+		return nil, "", ErrGoogleNotConfigured
+	}
+	g := m.google
+	c, err := g.connections.Get(ctx, associationID)
+	if errors.Is(err, ports.ErrGoogleConnectionNotFound) {
+		return nil, "", ErrGoogleNotConnected
+	}
+	if err != nil {
+		return nil, "", err
+	}
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if cached, ok := g.tokens[associationID]; ok && cached.connection == c.ID {
+		return cached.source, c.DriveRootFolderID, nil
+	}
+	refreshToken, err := g.connections.OpenToken(c)
+	if err != nil {
+		return nil, "", fmt.Errorf("%w: %w", ErrGoogleTokenUnreadable, err)
+	}
+	// The source outlives the request, so it gets its own context and a bounded token client.
+	tokenCtx := context.WithValue(context.Background(), oauth2.HTTPClient, &http.Client{Timeout: tokenEndpointTimeout})
+	ts := g.oauth.TokenSource(tokenCtx, &oauth2.Token{RefreshToken: refreshToken})
+	g.tokens[associationID] = cachedToken{connection: c.ID, source: ts}
+	return ts, c.DriveRootFolderID, nil
 }

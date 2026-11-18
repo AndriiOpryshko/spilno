@@ -1,17 +1,18 @@
-import { useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
 
 import {
   getListAssociationsForOperatorQueryKey,
   useDisableAssociation,
   useEnableAssociation,
-  useListAssociationsForOperator,
+  listAssociationsForOperator,
 } from '@/api/gen/endpoints/identity/identity';
 import type { OperatorAssociation } from '@/api/gen/model';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { InlineAlert } from '@/features/governance/inline-alert';
+import { PageSkeleton, RequestFallback } from '@/features/identity/shell/request-fallback';
 import { uk } from '@/i18n/uk';
 
 const messageFor = (err: unknown) => {
@@ -84,9 +85,16 @@ function AssociationRow({ association, onChanged }: { association: OperatorAssoc
 
 export function OperatorAssociations() {
   const client = useQueryClient();
-  const { data } = useListAssociationsForOperator();
-  if (!data) return null;
-  const items = data.data.items;
+  const query = useInfiniteQuery({
+    // Pages are a different cache shape from the plain list read, so the key gets a suffix.
+    queryKey: [...getListAssociationsForOperatorQueryKey(), 'pages'],
+    queryFn: ({ pageParam }) => listAssociationsForOperator(pageParam ? { cursor: pageParam } : undefined),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => last.data.next_cursor ?? undefined,
+  });
+  const items = useMemo(() => (query.data?.pages ?? []).flatMap((page) => page.data.items), [query.data]);
+  if (query.isError) return <RequestFallback error={query.error} onRetry={() => void query.refetch()} />;
+  if (!query.data) return <PageSkeleton />;
   const refresh = () => client.invalidateQueries({ queryKey: getListAssociationsForOperatorQueryKey() });
 
   return (
@@ -97,6 +105,11 @@ export function OperatorAssociations() {
           <AssociationRow key={a.id} association={a} onChanged={refresh} />
         ))}
       </ul>
+      {query.hasNextPage && (
+        <Button variant="outline" disabled={query.isFetchingNextPage} onClick={() => void query.fetchNextPage()}>
+          {uk.operator.more}
+        </Button>
+      )}
     </section>
   );
 }

@@ -50,7 +50,7 @@ func newFileAppEnv(t *testing.T) *fileAppEnv {
 	idm.EnableSignIn(identity.SignInConfig{Provider: &signInFake{people: people}, OperatorEmail: guardOperatorEmail})
 	r := httpapi.NewRouter()
 	r.Group(func(r chi.Router) {
-		r.Use(idm.Guard(guardRoster{governance.New(pool, idm.HasStorageConnection)}))
+		r.Use(idm.Guard(guardRoster{governance.New(pool, idm.HasStorageConnection, actorAccess)}))
 		if err := idm.Routes(r); err != nil {
 			t.Fatal(err)
 		}
@@ -117,21 +117,31 @@ func fileAppMultipart(t *testing.T, fields map[string]string, extract []byte) ([
 func (e *fileAppEnv) file(t *testing.T, as string, fields map[string]string, extract []byte) guardReply {
 	t.Helper()
 	body, ct := fileAppMultipart(t, fields, extract)
-	req, err := http.NewRequest("POST", e.srv.URL+"/identity/applications", bytes.NewReader(body))
+	r, err := e.fileBody(as, body, ct)
 	if err != nil {
 		t.Fatal(err)
 	}
-	req.Header.Set("Content-Type", ct)
+	return r
+}
+
+// fileBody posts an already built multipart body; it returns the error instead of failing the
+// test, so a goroutine can use it.
+func (e *fileAppEnv) fileBody(as string, body []byte, contentType string) (guardReply, error) {
+	req, err := http.NewRequest("POST", e.srv.URL+"/identity/applications", bytes.NewReader(body))
+	if err != nil {
+		return guardReply{}, err
+	}
+	req.Header.Set("Content-Type", contentType)
 	if c := e.cookies[as]; c != nil {
 		req.AddCookie(c)
 	}
 	resp, err := signInNoRedirect.Do(req)
 	if err != nil {
-		t.Fatal(err)
+		return guardReply{}, err
 	}
 	defer resp.Body.Close()
-	b, _ := io.ReadAll(resp.Body)
-	return guardReply{resp.StatusCode, b}
+	b, err := io.ReadAll(resp.Body)
+	return guardReply{resp.StatusCode, b}, err
 }
 
 func (e *fileAppEnv) counts(t *testing.T) [3]int {
@@ -362,5 +372,34 @@ func TestFileApplicationRefusesAnOversizeBodyBeforeTheValidatorReadsIt(t *testin
 	}
 	if after := e.counts(t); after != before {
 		t.Errorf("rows %v -> %v, want unchanged after the oversize bodies", before, after)
+	}
+}
+
+// AC-02 (review Q02): a body over the limit sent without Content-Length is 413 problem+json, not a 422
+// field error or a 500; nothing is stored.
+func TestFileApplicationRefusesAnOversizeChunkedBody(t *testing.T) {
+	e := newFileAppEnv(t)
+	before := e.counts(t)
+	body, ct := fileAppMultipart(t, fileAppFields(), fileAppPDF(8*1024*1024))
+	req, err := http.NewRequest("POST", e.srv.URL+"/identity/applications", io.MultiReader(bytes.NewReader(body)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", ct)
+	req.AddCookie(e.cookies["first"])
+	resp, err := signInNoRedirect.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	raw, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusRequestEntityTooLarge {
+		t.Fatalf("chunked 8 MB multipart: status = %d (%.200s), want 413", resp.StatusCode, raw)
+	}
+	if ct := resp.Header.Get("Content-Type"); ct != "application/problem+json" {
+		t.Errorf("Content-Type = %q, want application/problem+json", ct)
+	}
+	if after := e.counts(t); after != before {
+		t.Errorf("rows %v -> %v, want unchanged", before, after)
 	}
 }

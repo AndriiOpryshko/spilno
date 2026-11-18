@@ -32,7 +32,9 @@ export const newFiling = (): Filing => {
 };
 
 export const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString().slice(0, 10);
-export const today = () => new Date().toLocaleDateString('uk-UA');
+// The day the screens print for an instant is the Kyiv calendar day (formatDate in src/i18n/uk.ts), whatever
+// the time zone of the runner.
+export const today = () => new Date().toLocaleDateString('uk-UA', { timeZone: 'Europe/Kyiv' });
 
 export const extractFile = { name: 'extract.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4 test extract') };
 
@@ -48,12 +50,22 @@ export async function signInAs(page: Page, email: string) {
   expect(done.status(), 'sign-in callback must set the session').toBe(302);
 }
 
+// The «Увійти» button, as a person presses it. The shim signs in its one fixed address, the оператор's,
+// so every other person of a spec still comes through signInAs.
+export async function signInByButton(page: Page) {
+  await page.goto('/');
+  await page.getByRole('link', { name: 'Увійти' }).click();
+  await expect(page.getByRole('link', { name: 'Оператор' })).toBeVisible();
+}
+
 export async function sessionFor(browser: Browser, email: string) {
   const context = await browser.newContext();
   const page = await context.newPage();
   await signInAs(page, email);
   return page;
 }
+
+export const isInsideAssociation = (page: Page) => /^\/o\/[^/]+/.test(new URL(page.url(), 'http://localhost').pathname);
 
 export async function fillFiling(page: Page, f: Partial<Filing>) {
   const text = (label: string, value: string | undefined) =>
@@ -66,8 +78,21 @@ export async function fillFiling(page: Page, f: Partial<Filing>) {
   await text('Кінець строку повноважень (необов’язково)', f.termEnd);
 }
 
+// The заявка на підключення form the way a person reaches it, by its lasting link: the list of заявки, the picker
+// and the sidebar of an association all carry «Подати заявку на підключення». A page that is already inside an
+// association uses its sidebar; any other page enters through `/`, which lands a person without an association on
+// their заявки and a person with several (or the оператор without one) on the picker. So the form is reachable
+// whatever rosters the person is on, the оператор included.
+export async function openConnectionForm(page: Page) {
+  if (!isInsideAssociation(page)) await page.goto('/');
+  const link = page.getByRole('link', { name: 'Подати заявку на підключення' });
+  await expect(link, 'the list of заявки, the picker and the association sidebar must offer the form').toBeVisible();
+  await link.click();
+  await expect(page.getByRole('heading', { name: 'Заявка на підключення' })).toBeVisible();
+}
+
 export async function fileConnection(page: Page, f: Filing) {
-  await page.goto('/applications/new?kind=connection');
+  await openConnectionForm(page);
   await fillFiling(page, f);
   await page.getByLabel('Витяг (до 5 МБ)').setInputFiles(extractFile);
   await page.getByRole('button', { name: 'Подати заявку' }).click();
@@ -100,9 +125,34 @@ export const checkFor = (f: Filing, over: Partial<Check> = {}): Check => ({
   ...over,
 });
 
+// The review page by its address: for the specs whose subject is the decision, not the way to it.
 export async function openReview(page: Page, applicationId: string) {
   await page.goto(`/operator/applications/${applicationId}`);
   await expect(page.getByRole('heading', { name: 'Перевірка витягу' })).toBeVisible();
+}
+
+// The оператор's section from wherever `/` lands them: the picker and an association's sidebar both link to it.
+export async function openQueue(page: Page) {
+  await page.goto('/');
+  await page.getByRole('link', { name: 'Оператор' }).click();
+  await expect(page.getByRole('heading', { name: 'Заявки та запити' })).toBeVisible();
+}
+
+export const queueRow = (page: Page, name: string) =>
+  page.getByRole('listitem').filter({ has: page.getByRole('link', { name, exact: true }) });
+
+// The review page the way the оператор reaches it: the queue, then the заявка's row.
+export async function openReviewFromQueue(page: Page, name: string) {
+  await openQueue(page);
+  await page.getByRole('link', { name, exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Перевірка витягу' })).toBeVisible();
+}
+
+// The association card from the sidebar; a page that is not inside an association yet enters through `/`.
+export async function openCard(page: Page) {
+  if (!isInsideAssociation(page)) await page.goto('/');
+  await page.getByRole('link', { name: 'ОСББ', exact: true }).click();
+  await expect(page).toHaveURL(/\/o\/[^/]+\/association/);
 }
 
 export async function recordCheck(page: Page, c: Check) {
@@ -115,16 +165,21 @@ export async function recordCheck(page: Page, c: Check) {
   await expect(page.getByText(/^з КЕП, перевірено оператором/).first()).toBeVisible();
 }
 
+// The оператор, in a session of their own, records the check and approves the заявка or the запит.
+export async function approveApplication(browser: Browser, id: string, check: Check) {
+  const operator = await sessionFor(browser, operatorEmail);
+  await openReview(operator, id);
+  await recordCheck(operator, check);
+  await operator.getByRole('button', { name: 'Схвалити' }).click();
+  await expect(operator.getByText(/^Заявка схвалена/)).toBeVisible();
+  await operator.context().close();
+}
+
 // A connected association through the UI: file, check, approve. Returns the applicant's page.
 export async function connectAssociation(browser: Browser, f: Filing, applicantEmail: string) {
   const applicant = await sessionFor(browser, applicantEmail);
   await fileAndConfirm(applicant, f);
   const id = await applicationIdOf(applicant, f.name);
-  const operator = await sessionFor(browser, operatorEmail);
-  await openReview(operator, id);
-  await recordCheck(operator, checkFor(f));
-  await operator.getByRole('button', { name: 'Схвалити' }).click();
-  await expect(operator.getByText(/^Заявка схвалена/)).toBeVisible();
-  await operator.context().close();
+  await approveApplication(browser, id, checkFor(f));
   return { applicant, id };
 }

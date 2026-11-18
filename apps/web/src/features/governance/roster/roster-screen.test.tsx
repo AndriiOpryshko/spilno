@@ -29,6 +29,7 @@ const previousHead: BoardMember = {
   revised_at: '2026-10-21T08:05:00Z',
   position: 'head',
   decision_id: decisionId,
+  decision_effect: 'ended',
 };
 const newHead: BoardMember = {
   id: currentId,
@@ -40,6 +41,7 @@ const newHead: BoardMember = {
   revised_at: '2026-10-21T08:05:00Z',
   position: 'head',
   decision_id: decisionId,
+  decision_effect: 'seated',
 };
 const plainMember: BoardMember = {
   id: memberId,
@@ -51,6 +53,7 @@ const plainMember: BoardMember = {
   revised_at: '2025-03-01T08:00:00Z',
   position: 'member',
   decision_id: null,
+  decision_effect: null,
 };
 
 const card: AssociationCard = {
@@ -229,6 +232,47 @@ describe('RosterScreen: the decision mark (AC-20)', () => {
   });
 });
 
+describe('RosterScreen: the mark follows the decision effect and kind (AC-20, AC-29)', () => {
+  it('marks the entry with decision_effect ended as ended when both голови share one full name', async () => {
+    const same = 'Однаковий Голова Тестовий';
+    members = [{ ...newHead, full_name: same }, { ...previousHead, full_name: same }, plainMember];
+    await renderScreen();
+    await screen.findAllByText(same);
+    const entries = screen.getAllByText(same).map((el) => el.closest('li') as HTMLElement);
+    const texts = entries.map((li) => li.textContent ?? '');
+    expect(texts.filter((x) => x.includes('призначено за запитом на передачу від'))).toHaveLength(1);
+    expect(texts.filter((x) => x.includes('повноваження завершено за запитом на передачу від'))).toHaveLength(1);
+    const seated = entries.find((li) => li.textContent?.includes('з 25.10.2026') || /25\.10\.2026|25 жовтня 2026/.test(li.textContent ?? ''));
+    expect(seated?.textContent).toContain('призначено за запитом на передачу від');
+  });
+
+  it('words the mark of the голова of a connection by the заявка на підключення', async () => {
+    const connected = { ...card.history[0]!, kind: 'connected' as const, ended_head_full_name: null };
+    members = [newHead, plainMember];
+    const original = fakeApi;
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => (path(String(url)) === getGetAssociationCardUrl(associationId) ? json(200, { ...card, history: [connected] }) : original(String(url), init))));
+    await renderScreen();
+    const entry = await entryOf(newHead.full_name);
+    expect(await entry.findByText(/призначено за заявкою на підключення від/)).toBeInTheDocument();
+    expect(entry.queryByText(/запитом на передачу/)).not.toBeInTheDocument();
+  });
+
+  it('replaces the term fields of an ended entry by a hint to add the person again', async () => {
+    await renderScreen();
+    fireEvent.click((await entryOf(previousHead.full_name)).getByRole('button', { name: /Змінити/ }));
+    expect(screen.queryByLabelText(/Початок строку/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Кінець строку/)).not.toBeInTheDocument();
+    expect(screen.getByText('Щоб повернути людину до правління, додайте запис знову')).toBeInTheDocument();
+  });
+
+  it('keeps the term fields on a seated entry', async () => {
+    await renderScreen();
+    fireEvent.click((await entryOf(newHead.full_name)).getByRole('button', { name: /Змінити/ }));
+    expect(screen.getByLabelText(/Кінець строку/)).toBeInTheDocument();
+    expect(screen.queryByText(/Щоб повернути людину/)).not.toBeInTheDocument();
+  });
+});
+
 describe('RosterScreen: add a член правління (AC-09)', () => {
   const fillAdd = () => {
     fireEvent.change(screen.getByLabelText(/ПІБ/), { target: { value: 'Додана Особа Тестова' } });
@@ -388,5 +432,38 @@ describe('RosterScreen: a вимкнене ОСББ (AC-25)', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/ПІБ/)).not.toBeInTheDocument();
+  });
+});
+
+describe('RosterScreen: every page of the roster (AC-04d, AC-20)', () => {
+  const laterId = '00000000-0000-7000-8000-00000000b0a1';
+  const laterEnded: BoardMember = { ...previousHead, id: laterId, full_name: 'Давній Голова Тестовий' };
+  const cursor = 'page-2';
+
+  beforeEach(() => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const u = new URL(String(url), 'http://localhost');
+        if (u.pathname === getListBoardMembersUrl(associationId) && (init?.method ?? 'GET') === 'GET') {
+          calls.push({ path: u.pathname, method: 'GET' });
+          return u.searchParams.get('cursor') === cursor
+            ? json(200, { items: [laterEnded], next_cursor: null })
+            : json(200, { items: [newHead, plainMember], next_cursor: cursor });
+        }
+        return fakeApi(String(url), init);
+      }),
+    );
+  });
+
+  it('offers «Показати ще» while next_cursor is set, then lists the later entry with its mark', async () => {
+    await renderScreen();
+    expect(await screen.findByText(newHead.full_name)).toBeInTheDocument();
+    expect(screen.queryByText(laterEnded.full_name)).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('button', { name: 'Показати ще' }));
+    const later = await entryOf(laterEnded.full_name);
+    expect(later.getByText(/повноваження завершено за запитом на передачу від/)).toBeInTheDocument();
+    expect(screen.getByText(newHead.full_name)).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Показати ще' })).not.toBeInTheDocument());
   });
 });

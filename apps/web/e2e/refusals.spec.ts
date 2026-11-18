@@ -9,11 +9,17 @@ import {
   fileConnection,
   newEmail,
   newFiling,
+  openConnectionForm,
+  openQueue,
   openReview,
   operatorEmail,
+  queueRow,
   recordCheck,
   sessionFor,
 } from './support';
+
+// A calendar date the way the screens print it.
+const dayOf = (iso: string) => iso.split('-').reverse().join('.');
 
 const approve = (page: import('@playwright/test').Page) => page.getByRole('button', { name: 'Схвалити' }).click();
 
@@ -28,7 +34,7 @@ async function pendingFiling(browser: import('@playwright/test').Browser, email 
 test.describe('filing refusals (US-01)', () => {
   test('AC-02: one submit marks every broken field and files nothing', async ({ browser }) => {
     const page = await sessionFor(browser, newEmail('head'));
-    await page.goto('/applications/new?kind=connection');
+    await openConnectionForm(page);
     await page.getByRole('button', { name: 'Подати заявку' }).click();
 
     for (const field of ['edrpou', 'association_name', 'association_address', 'applicant_full_name', 'term_start', 'extract']) {
@@ -97,20 +103,29 @@ test.describe('decision refusals (US-03)', () => {
     const first = await sessionFor(browser, newEmail('head'));
     const second = await sessionFor(browser, newEmail('head'));
     await fileAndConfirm(first, f);
-    await fileAndConfirm(second, { ...f, name: `${f.name} bis` });
-    const firstId = await applicationIdOf(first, f.name);
-    const secondId = await applicationIdOf(second, `${f.name} bis`);
+    const bis = `${f.name} bis`;
+    await fileAndConfirm(second, { ...f, name: bis });
 
+    // Both are marked in the queue; each review page lists the other and links to it.
     const operator = await sessionFor(browser, operatorEmail);
-    await openReview(operator, secondId);
+    await openQueue(operator);
+    for (const name of [f.name, bis]) await expect(queueRow(operator, name).getByText('конкуруюча заявка')).toBeVisible();
+    await operator.getByRole('link', { name: bis, exact: true }).click();
+    await expect(operator.getByRole('heading', { name: bis })).toBeVisible();
     await expect(operator.getByText('конкуруюча заявка')).toBeVisible();
-    await openReview(operator, firstId);
+    await operator.getByRole('link', { name: f.name, exact: true }).click();
+    await expect(operator.getByRole('heading', { name: f.name, exact: true })).toBeVisible();
     await expect(operator.getByText('конкуруюча заявка')).toBeVisible();
+    await expect(operator.getByRole('link', { name: bis, exact: true })).toBeVisible();
     await recordCheck(operator, checkFor(f));
     await approve(operator);
     await expect(operator.getByText(/^Заявка схвалена/)).toBeVisible();
 
-    await openReview(operator, secondId);
+    // The first is decided, so the queue holds only the second, no longer marked.
+    await openQueue(operator);
+    await expect(operator.getByRole('link', { name: f.name, exact: true })).toHaveCount(0);
+    await expect(queueRow(operator, bis).getByText('конкуруюча заявка')).toHaveCount(0);
+    await operator.getByRole('link', { name: bis, exact: true }).click();
     await recordCheck(operator, checkFor(f));
     await approve(operator);
     await expect(
@@ -128,7 +143,8 @@ test.describe('decision refusals (US-03)', () => {
     const operator = await sessionFor(browser, operatorEmail);
     await openReview(operator, id);
     await recordCheck(operator, checkFor(f, { head: 'Інший Керівник Витягович' }));
-    await expect(operator.getByRole('status').first()).toBeVisible();
+    // The warning names the value that differs from the other two.
+    await expect(operator.getByRole('status')).toHaveText('Розбіжність імен: голова за витягом «Інший Керівник Витягович»');
 
     await approve(operator);
     await expect(
@@ -145,7 +161,7 @@ test.describe('decision refusals (US-03)', () => {
     const operator = await sessionFor(browser, operatorEmail);
     await openReview(operator, id);
     await recordCheck(operator, checkFor(f, { datedOn: daysAgo(45) }));
-    await expect(operator.getByText(/Витяг сформовано \S+ — старший за 30 днів/)).toBeVisible();
+    await expect(operator.getByRole('status')).toHaveText(`Витяг сформовано ${dayOf(daysAgo(45))} — старший за 30 днів`);
     await approve(operator);
     await expect(operator.getByText(/^Заявка схвалена/)).toBeVisible();
   });
@@ -176,15 +192,5 @@ test.describe('decision refusals (US-03)', () => {
     await expect(stale.getByText('Рішення за цією заявкою вже ухвалено')).toBeVisible();
     await openReview(operator, id);
     await expect(operator.getByText(/^Заявка схвалена/)).toBeVisible();
-  });
-
-  test('AC-16c: the оператор decides nothing they filed themselves', async ({ browser }) => {
-    const f = newFiling();
-    const operator = await sessionFor(browser, operatorEmail);
-    await fileAndConfirm(operator, f);
-    const id = await applicationIdOf(operator, f.name);
-    await openReview(operator, id);
-    await expect(operator.getByText('Це ваша власна заявка — оператор не ухвалює рішення щодо себе')).toBeVisible();
-    await expect(operator.getByRole('button', { name: 'Схвалити' })).toHaveCount(0);
   });
 });

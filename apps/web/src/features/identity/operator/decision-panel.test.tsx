@@ -247,6 +247,8 @@ describe('DecisionPanel on the review page', () => {
   it('announces an approval as a status (AC-08)', async () => {
     await renderPage();
     fireEvent.click(await screen.findByRole('button', { name: 'Схвалити' }));
-    expect((await screen.findByRole('status')).textContent).toMatch(/схвалена/);
+    const status = await screen.findByRole('status');
+    expect(status.textContent).toMatch(/схвалена/);
+    await waitFor(() => expect(status).toHaveFocus());
   });
 });

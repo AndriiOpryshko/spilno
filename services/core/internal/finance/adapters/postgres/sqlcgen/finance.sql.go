@@ -14,7 +14,7 @@ import (
 const createContract = `-- name: CreateContract :one
 INSERT INTO contracts (counterparty, amount_cents, currency, signed_at, ends_at, association_id)
 VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, counterparty, amount_cents, currency, signed_at, ends_at, created_at, updated_at, association_id
+RETURNING id, counterparty, amount_cents, currency, signed_at, ends_at, created_at, updated_at, association_id, uah_amount_kopiyky, uah_rate_micros
 `
 
 type CreateContractParams struct {
@@ -46,12 +46,14 @@ func (q *Queries) CreateContract(ctx context.Context, arg CreateContractParams) 
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.AssociationID,
+		&i.UahAmountKopiyky,
+		&i.UahRateMicros,
 	)
 	return i, err
 }
 
 const getContract = `-- name: GetContract :one
-SELECT id, counterparty, amount_cents, currency, signed_at, ends_at, created_at, updated_at, association_id FROM contracts WHERE id = $1 AND association_id = $2
+SELECT id, counterparty, amount_cents, currency, signed_at, ends_at, created_at, updated_at, association_id, uah_amount_kopiyky, uah_rate_micros FROM contracts WHERE id = $1 AND association_id = $2
 `
 
 type GetContractParams struct {
@@ -72,12 +74,14 @@ func (q *Queries) GetContract(ctx context.Context, arg GetContractParams) (Contr
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.AssociationID,
+		&i.UahAmountKopiyky,
+		&i.UahRateMicros,
 	)
 	return i, err
 }
 
 const listContracts = `-- name: ListContracts :many
-SELECT id, counterparty, amount_cents, currency, signed_at, ends_at, created_at, updated_at, association_id FROM contracts
+SELECT id, counterparty, amount_cents, currency, signed_at, ends_at, created_at, updated_at, association_id, uah_amount_kopiyky, uah_rate_micros FROM contracts
 WHERE association_id = $1
   AND ($2::timestamptz IS NULL
    OR (created_at, id) < ($2::timestamptz, $3::uuid))
@@ -118,6 +122,8 @@ func (q *Queries) ListContracts(ctx context.Context, arg ListContractsParams) ([
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.AssociationID,
+			&i.UahAmountKopiyky,
+			&i.UahRateMicros,
 		); err != nil {
 			return nil, err
 		}

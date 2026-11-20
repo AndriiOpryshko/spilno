@@ -10,7 +10,7 @@ files_hint:
   - "services/core/internal/finance/adapters/postgres/sqlcgen/"
 owner: "Andrii Opryshko"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T01 — Promote the migration that adds the hryvnia equivalent columns to contracts

@@ -45,7 +45,7 @@ func (s *ContractService) Create(ctx context.Context, terms domain.ContractTerms
 	if err := terms.Validate(); err != nil {
 		return domain.Contract{}, err
 	}
-	return s.repo.Create(ctx, terms)
+	return s.repo.Create(ctx, terms, nil)
 }
 
 // Get returns domain.ErrContractNotFound when no contract has the id.

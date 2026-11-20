@@ -1,0 +1,147 @@
+package mcprates_test
+
+import (
+	"context"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+
+	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/AndriiOpryshko/spilno/services/core/internal/finance/adapters/mcprates"
+	"github.com/AndriiOpryshko/spilno/services/core/internal/finance/domain"
+	"github.com/AndriiOpryshko/spilno/services/core/internal/finance/ports"
+)
+
+var (
+	_ ports.RateProvider = (*mcprates.Provider)(nil)
+	_ ports.RateProvider = mcprates.Disabled{}
+)
+
+type in struct {
+	Currency string `json:"currency"`
+	Date     string `json:"date"`
+}
+
+type out struct {
+	Currency string `json:"currency"`
+	Date     string `json:"date"`
+	Rate     string `json:"rate"`
+	Source   string `json:"source"`
+}
+
+var day = time.Date(2026, 3, 10, 0, 0, 0, 0, time.UTC)
+
+// stub starts an in-process MCP server whose get_rate runs h.
+func stub(t *testing.T, h func(ctx context.Context, in in) (out, error)) string {
+	t.Helper()
+	s := mcp.NewServer(&mcp.Implementation{Name: "stub", Version: "0"}, nil)
+	mcp.AddTool(s, &mcp.Tool{Name: "get_rate", Description: "stub"},
+		func(ctx context.Context, _ *mcp.CallToolRequest, i in) (*mcp.CallToolResult, out, error) {
+			o, err := h(ctx, i)
+			return nil, o, err
+		})
+	srv := httptest.NewServer(mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return s }, nil))
+	t.Cleanup(srv.Close)
+	return srv.URL
+}
+
+func answer(o out) func(context.Context, in) (out, error) {
+	return func(context.Context, in) (out, error) { return o, nil }
+}
+
+func good() out {
+	return out{Currency: "EUR", Date: "2026-03-10", Rate: "50.5311", Source: "NBU"}
+}
+
+func TestGoodAnswerBecomesRate(t *testing.T) {
+	var got in
+	url := stub(t, func(_ context.Context, i in) (out, error) { got = i; return good(), nil })
+	r, err := mcprates.New(url).Rate(context.Background(), domain.CurrencyEUR, day)
+	if err != nil {
+		t.Fatalf("Rate: unexpected error %v", err)
+	}
+	if r.Currency != domain.CurrencyEUR || !r.Day.Equal(day) || r.Micros != 50531100 {
+		t.Fatalf("rate = %+v, want EUR 2026-03-10 50531100 micros", r)
+	}
+	if got.Currency != "EUR" || got.Date != "2026-03-10" {
+		t.Fatalf("tool called with %+v, want EUR 2026-03-10", got)
+	}
+}
+
+func TestNotPublished(t *testing.T) {
+	url := stub(t, func(context.Context, in) (out, error) {
+		return out{}, errors.New("rate_not_published: the NBU has no official rate")
+	})
+	_, err := mcprates.New(url).Rate(context.Background(), domain.CurrencyEUR, day)
+	if !errors.Is(err, domain.ErrRateNotPublished) {
+		t.Fatalf("err = %v, want ErrRateNotPublished", err)
+	}
+}
+
+func TestUnavailable(t *testing.T) {
+	bad := func(mut func(*out)) out { o := good(); mut(&o); return o }
+	cases := map[string]func(context.Context, in) (out, error){
+		"other tool error": func(context.Context, in) (out, error) {
+			return out{}, errors.New("upstream_unavailable: the NBU rate service did not answer")
+		},
+		"invalid argument": func(context.Context, in) (out, error) {
+			return out{}, errors.New("invalid_argument: bad")
+		},
+		"wrong currency":  answer(bad(func(o *out) { o.Currency = "USD" })),
+		"wrong date":      answer(bad(func(o *out) { o.Date = "2026-03-09" })),
+		"wrong source":    answer(bad(func(o *out) { o.Source = "ECB" })),
+		"malformed rate":  answer(bad(func(o *out) { o.Rate = "abc" })),
+		"zero rate":       answer(bad(func(o *out) { o.Rate = "0" })),
+		"too many digits": answer(bad(func(o *out) { o.Rate = "1.1234567" })),
+	}
+	for name, h := range cases {
+		t.Run(name, func(t *testing.T) {
+			_, err := mcprates.New(stub(t, h)).Rate(context.Background(), domain.CurrencyEUR, day)
+			if !errors.Is(err, domain.ErrRateUnavailable) {
+				t.Fatalf("err = %v, want ErrRateUnavailable", err)
+			}
+		})
+	}
+}
+
+func TestRefusedConnection(t *testing.T) {
+	srv := httptest.NewServer(http.NotFoundHandler())
+	url := srv.URL
+	srv.Close()
+	_, err := mcprates.New(url).Rate(context.Background(), domain.CurrencyEUR, day)
+	if !errors.Is(err, domain.ErrRateUnavailable) {
+		t.Fatalf("err = %v, want ErrRateUnavailable", err)
+	}
+}
+
+func TestExpiringContextReturnsPromptly(t *testing.T) {
+	release := make(chan struct{})
+	t.Cleanup(func() { close(release) })
+	url := stub(t, func(ctx context.Context, _ in) (out, error) {
+		select {
+		case <-release:
+		case <-ctx.Done():
+		}
+		return good(), nil
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	_, err := mcprates.New(url).Rate(ctx, domain.CurrencyEUR, day)
+	if !errors.Is(err, domain.ErrRateUnavailable) {
+		t.Fatalf("err = %v, want ErrRateUnavailable", err)
+	}
+	if d := time.Since(start); d > 2*time.Second {
+		t.Fatalf("returned after %v, want promptly", d)
+	}
+}
+
+func TestDisabled(t *testing.T) {
+	_, err := mcprates.Disabled{}.Rate(context.Background(), domain.CurrencyEUR, day)
+	if !errors.Is(err, domain.ErrRateUnavailable) {
+		t.Fatalf("err = %v, want ErrRateUnavailable", err)
+	}
+}

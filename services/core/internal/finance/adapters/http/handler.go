@@ -102,6 +102,20 @@ func (h *Handler) ListContracts(ctx context.Context, req gen.ListContractsReques
 	return out, nil
 }
 
+// ResolveContractUahEquivalent is a stub until the rate source is wired: it always answers
+// 503 finance.rate_unavailable.
+func (h *Handler) ResolveContractUahEquivalent(_ context.Context, _ gen.ResolveContractUahEquivalentRequestObject) (gen.ResolveContractUahEquivalentResponseObject, error) {
+	return gen.ResolveContractUahEquivalent503ApplicationProblemPlusJSONResponse{
+		RateUnavailableApplicationProblemPlusJSONResponse: gen.RateUnavailableApplicationProblemPlusJSONResponse{
+			Type:   "about:blank",
+			Title:  "Service Unavailable",
+			Status: http.StatusServiceUnavailable,
+			Code:   ptr("finance.rate_unavailable"),
+			Detail: ptr("the rate source did not answer"),
+		},
+	}, nil
+}
+
 // bodyPointers maps domain fields to their JSON pointer in NewContract, the
 // same pointer shape the request validator reports.
 var bodyPointers = map[string]string{

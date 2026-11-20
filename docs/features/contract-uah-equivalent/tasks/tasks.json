@@ -1,0 +1,228 @@
+{
+  "slug": "contract-uah-equivalent",
+  "tasks": [
+    {
+      "id": "T01",
+      "title": "Promote the migration that adds the hryvnia equivalent columns to contracts",
+      "layer": "migration",
+      "deps": [],
+      "acs": [
+        "AC-01"
+      ],
+      "dod": "The staged migration is live under a goose number from `mise run migrate:new`, applies and reverts cleanly, `mise run gen` leaves sqlcgen with the two nullable columns and every existing test stays green.",
+      "files_hint": [
+        "docs/features/contract-uah-equivalent/migrations/NNNNN_add_contracts_uah_equivalent.sql",
+        "services/core/migrations/",
+        "services/core/internal/finance/adapters/postgres/sqlcgen/"
+      ]
+    },
+    {
+      "id": "T02",
+      "title": "Model the official rate and compute the hryvnia equivalent with half-up rounding",
+      "layer": "domain",
+      "deps": [],
+      "acs": [
+        "AC-02",
+        "AC-09"
+      ],
+      "dod": "Unit tests prove the rounding table of AC-02 with exact integers, refuse a rate that is not a positive decimal with at most six fraction digits, and format a rate back to the published decimal with trailing zeros dropped.",
+      "files_hint": [
+        "services/core/internal/finance/domain/rate.go",
+        "services/core/internal/finance/domain/rate_test.go",
+        "services/core/internal/finance/domain/contract.go"
+      ]
+    },
+    {
+      "id": "T03",
+      "title": "Register the finance problem codes of PRD §5.1",
+      "layer": "domain",
+      "deps": [],
+      "acs": [
+        "AC-07"
+      ],
+      "dod": "Each of the three codes of PRD §5.1 has exactly one constant whose string equals the catalogue, with its HTTP status in a registry, and a test fails when a code is missing or misspelt.",
+      "files_hint": [
+        "services/core/internal/finance/domain/errors.go",
+        "services/core/internal/finance/domain/errors_test.go"
+      ]
+    },
+    {
+      "id": "T04",
+      "title": "Merge the contract delta and stub the new finance operation",
+      "layer": "wiring",
+      "deps": [],
+      "acs": [
+        "AC-05",
+        "AC-09"
+      ],
+      "dod": "The live contract holds `resolveContractUahEquivalent`, `UahEquivalent` and the changed `Contract`; `mise run gen` is clean; every contract answer carries `uah_equivalent: null`; the new operation compiles as a stub; lint and tests are green.",
+      "files_hint": [
+        "services/core/api/openapi.yaml",
+        "services/core/internal/finance/adapters/http/gen/",
+        "services/core/internal/finance/adapters/http/handler.go",
+        "services/core/internal/finance/module_test.go",
+        "apps/web/src/api/gen/"
+      ]
+    },
+    {
+      "id": "T05",
+      "title": "Read the official rate through the nbu-rates MCP server behind a finance port",
+      "layer": "infra",
+      "deps": [
+        "T02"
+      ],
+      "acs": [
+        "AC-10"
+      ],
+      "dod": "An adapter test against an in-process MCP server proves: a good `get_rate` answer becomes a `domain.Rate`; a `rate_not_published` tool error becomes `ErrRateNotPublished`; any other tool error, a refused connection, a wrong currency or date in the answer, a wrong source or a malformed rate become `ErrRateUnavailable`; the disabled provider always answers `ErrRateUnavailable`.",
+      "files_hint": [
+        "services/core/internal/finance/ports/rates.go",
+        "services/core/internal/finance/adapters/mcprates/",
+        "services/core/go.mod",
+        "services/core/go.sum",
+        "services/core/.golangci.yml"
+      ]
+    },
+    {
+      "id": "T06",
+      "title": "Store the hryvnia equivalent with a contract and set it only once",
+      "layer": "infra",
+      "deps": [
+        "T01",
+        "T02"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-06"
+      ],
+      "dod": "Repository tests on a real database show: a contract created with an equivalent reads back with the same kopiykas and rate; one created without reads back with none; `SetUAHEquivalent` sets it on a contract that has none and changes nothing on one that has; another association's contract is not found.",
+      "files_hint": [
+        "services/core/internal/finance/adapters/postgres/queries/finance.sql",
+        "services/core/internal/finance/adapters/postgres/sqlcgen/",
+        "services/core/internal/finance/adapters/postgres/contracts.go",
+        "services/core/internal/finance/adapters/postgres/contracts_test.go",
+        "services/core/internal/finance/ports/ports.go"
+      ]
+    },
+    {
+      "id": "T07",
+      "title": "Work out the equivalent when a foreign-currency contract is created, and never fail the creation over it",
+      "layer": "app",
+      "deps": [
+        "T05",
+        "T06"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-03",
+        "AC-04"
+      ],
+      "dod": "Use-case tests with a fake rate port show: a EUR contract is stored with the equivalent of AC-01; a UAH contract is stored without one and the port is not called; when the port answers not-published, unavailable or blocks past 3 s the contract is still stored without an equivalent and the call returns within the budget.",
+      "files_hint": [
+        "services/core/internal/finance/app/contracts.go",
+        "services/core/internal/finance/app/contracts_test.go",
+        "services/core/internal/finance/module.go"
+      ]
+    },
+    {
+      "id": "T08",
+      "title": "Add the use case that works out a missing equivalent later, once",
+      "layer": "app",
+      "deps": [
+        "T03",
+        "T07"
+      ],
+      "acs": [
+        "AC-05",
+        "AC-06",
+        "AC-07"
+      ],
+      "dod": "Use-case tests show: a contract without an equivalent gets one; a contract with one is returned unchanged and the port is not called; a UAH contract, a not-published rate and an unavailable source return errors carrying `finance.equivalent_not_applicable`, `finance.rate_not_published` and `finance.rate_unavailable`; a lost race (`SetUAHEquivalent` updated nothing) returns the stored contract.",
+      "files_hint": [
+        "services/core/internal/finance/app/contracts.go",
+        "services/core/internal/finance/app/contracts_test.go"
+      ]
+    },
+    {
+      "id": "T09",
+      "title": "Return the equivalent on every contract answer and serve the «get it later» operation",
+      "layer": "ports",
+      "deps": [
+        "T04",
+        "T08"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-05",
+        "AC-06",
+        "AC-07",
+        "AC-08",
+        "AC-09"
+      ],
+      "dod": "Module tests through the router on a real database, with a fake rate port, show AC-01 (create, get and list carry the same `uah_equivalent`), AC-05, AC-06 (also two concurrent calls → one stored value), every answer of AC-07 as `application/problem+json` with its `code`, and AC-08 (401, 403, 403 disabled, 404 for another association's id); the isolation test covers the new operation.",
+      "files_hint": [
+        "services/core/internal/finance/adapters/http/handler.go",
+        "services/core/internal/finance/module.go",
+        "services/core/internal/finance/module_test.go",
+        "services/core/internal/finance/guarded_test.go",
+        "services/core/internal/finance/uah_equivalent_test.go",
+        "services/core/internal/platform/isolation_test.go"
+      ]
+    },
+    {
+      "id": "T10",
+      "title": "Wire NBU_RATES_MCP_URL from the environment to the finance module",
+      "layer": "wiring",
+      "deps": [
+        "T09"
+      ],
+      "acs": [
+        "AC-10",
+        "AC-04"
+      ],
+      "dod": "A config test reads `NBU_RATES_MCP_URL`; `cmd/api` builds the finance module with the MCP provider when it is set and the disabled one when it is not; the API starts in both cases; `mise.toml` sets the local default.",
+      "files_hint": [
+        "services/core/internal/platform/config/config.go",
+        "services/core/internal/platform/config/config_test.go",
+        "services/core/cmd/api/main.go",
+        "services/core/internal/finance/module.go",
+        "mise.toml"
+      ]
+    },
+    {
+      "id": "T11",
+      "title": "Prove the chain end to end against the real nbu-rates binary and a fake NBU",
+      "layer": "tests",
+      "deps": [
+        "T10"
+      ],
+      "acs": [
+        "AC-11",
+        "AC-01",
+        "AC-10"
+      ],
+      "dod": "One test builds `mcp/nbu-rates`, starts it on a free loopback port with `NBU_BASE_URL` pointing at an `httptest` NBU, creates a EUR contract through the finance module's HTTP surface and reads `uah_equivalent` = 6316388 at `50.5311`; a second contract for a day the fake does not publish is created with `uah_equivalent: null` and the later call answers `409 finance.rate_not_published`. No request leaves the machine.",
+      "files_hint": [
+        "services/core/internal/finance/rates_e2e_test.go"
+      ]
+    },
+    {
+      "id": "T12",
+      "title": "Document the feature: Bruno request, environment variable, CLAUDE.md gotcha",
+      "layer": "docs",
+      "deps": [
+        "T09"
+      ],
+      "acs": [
+        "AC-05"
+      ],
+      "dod": "A Bruno request for the new operation sits next to the other finance requests; README and CLAUDE.md name `NBU_RATES_MCP_URL`, `mise run mcp:nbu` and what happens when the server is down; the root `.mcp.json` question is noted for the PR that owns that file.",
+      "files_hint": [
+        "services/core/api/bruno/finance/",
+        "README.md",
+        "CLAUDE.md",
+        "mcp/nbu-rates/README.md"
+      ]
+    }
+  ]
+}

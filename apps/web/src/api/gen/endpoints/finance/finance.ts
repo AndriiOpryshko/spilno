@@ -32,6 +32,9 @@ import type {
   MemberOrDisabledResponse,
   NewContract,
   NotFoundResponse,
+  RateUnavailableResponse,
+  SessionRequiredResponse,
+  UahEquivalentConflictResponse,
   UnprocessableEntityResponse
 } from '../../model';
 
@@ -478,3 +481,137 @@ export function useGetContract<TData = Awaited<ReturnType<typeof getContract>>, 
 
 
 
+export type resolveContractUahEquivalentResponse200 = {
+  data: Contract
+  status: 200
+}
+
+export type resolveContractUahEquivalentResponse401 = {
+  data: SessionRequiredResponse
+  status: 401
+}
+
+export type resolveContractUahEquivalentResponse403 = {
+  data: MemberOrDisabledResponse
+  status: 403
+}
+
+export type resolveContractUahEquivalentResponse404 = {
+  data: NotFoundResponse
+  status: 404
+}
+
+export type resolveContractUahEquivalentResponse409 = {
+  data: UahEquivalentConflictResponse
+  status: 409
+}
+
+export type resolveContractUahEquivalentResponse422 = {
+  data: UnprocessableEntityResponse
+  status: 422
+}
+
+export type resolveContractUahEquivalentResponse503 = {
+  data: RateUnavailableResponse
+  status: 503
+}
+
+export type resolveContractUahEquivalentResponseSuccess = (resolveContractUahEquivalentResponse200) & {
+  headers: Headers;
+};
+export type resolveContractUahEquivalentResponseError = (resolveContractUahEquivalentResponse401 | resolveContractUahEquivalentResponse403 | resolveContractUahEquivalentResponse404 | resolveContractUahEquivalentResponse409 | resolveContractUahEquivalentResponse422 | resolveContractUahEquivalentResponse503) & {
+  headers: Headers;
+};
+
+export const getResolveContractUahEquivalentUrl = (associationId: string,
+    id: string,) => {
+
+
+
+
+  return `/api/finance/associations/${associationId}/contracts/${id}/uah-equivalent`
+}
+
+/**
+ * Reads the офіційний курс of the contract's signing day and stores the гривневий еквівалент. Computed
+ * once: a contract that already has an equivalent is returned as stored and the rate source is not
+ * asked (AC-06), so the call is safe to repeat and needs no `Idempotency-Key`. No request body.
+ * @summary Work out the hryvnia equivalent of a contract that has none yet
+ */
+export const resolveContractUahEquivalent = async (associationId: string,
+    id: string, options?: RequestInit): Promise<resolveContractUahEquivalentResponseSuccess> => {
+
+  const res = await fetch(getResolveContractUahEquivalentUrl(associationId,id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+
+    const err: globalThis.Error & {info?: resolveContractUahEquivalentResponseError['data'], status?: number} = new globalThis.Error();
+    const data : resolveContractUahEquivalentResponseError['data'] = body ? JSON.parse(body) : {}
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: resolveContractUahEquivalentResponseSuccess['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as resolveContractUahEquivalentResponseSuccess
+}
+
+
+
+
+
+export const getResolveContractUahEquivalentMutationKey = () => ['resolveContractUahEquivalent'] as const;
+
+export const getResolveContractUahEquivalentMutationOptions = <TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | UahEquivalentConflictResponse | UnprocessableEntityResponse | RateUnavailableResponse; status?: number },
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolveContractUahEquivalent>>, TError,ResolveContractUahEquivalentMutationVariables, TContext>, fetch?: RequestInit}
+): UseMutationOptions<Awaited<ReturnType<typeof resolveContractUahEquivalent>>, TError,ResolveContractUahEquivalentMutationVariables, TContext> => {
+
+const mutationKey = getResolveContractUahEquivalentMutationKey();
+const {mutation: mutationOptions, fetch: fetchOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, fetch: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resolveContractUahEquivalent>>, ResolveContractUahEquivalentMutationVariables> = (props) => {
+          const {associationId,id} = props ?? {};
+
+          return  resolveContractUahEquivalent(associationId,id,fetchOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResolveContractUahEquivalentMutationResult = NonNullable<Awaited<ReturnType<typeof resolveContractUahEquivalent>>>
+
+    export type ResolveContractUahEquivalentMutationError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | UahEquivalentConflictResponse | UnprocessableEntityResponse | RateUnavailableResponse; status?: number }
+    export type ResolveContractUahEquivalentMutationVariables = {associationId: string;id: string}
+
+    /**
+ * @summary Work out the hryvnia equivalent of a contract that has none yet
+ */
+export const useResolveContractUahEquivalent = <TError = globalThis.Error & { info?: SessionRequiredResponse | MemberOrDisabledResponse | NotFoundResponse | UahEquivalentConflictResponse | UnprocessableEntityResponse | RateUnavailableResponse; status?: number },
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolveContractUahEquivalent>>, TError,ResolveContractUahEquivalentMutationVariables, TContext>, fetch?: RequestInit}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof resolveContractUahEquivalent>>,
+        TError,
+        ResolveContractUahEquivalentMutationVariables,
+        TContext
+      > => {
+      return useMutation(getResolveContractUahEquivalentMutationOptions(options), queryClient);
+    }

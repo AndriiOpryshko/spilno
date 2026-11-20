@@ -39,6 +39,7 @@ run = "git diff --exit-code -- services/core apps/web/src/api/gen apps/web/src/r
 [tasks.lint]
 run = [
   "cd services/core && go tool -modfile=tools/go.mod golangci-lint run ./...",
+  "cd mcp/nbu-rates && go tool -modfile=../../services/core/tools/go.mod golangci-lint run -c ../../services/core/.golangci.yml ./...",
   "pnpm --filter @spilno/web lint",
   "pnpm --filter @spilno/web typecheck",
 ]
@@ -47,8 +48,20 @@ run = [
 description = "Go unit + integration (testcontainers) and Vitest"
 run = [
   "cd services/core && go test ./...",
+  "cd mcp/nbu-rates && go test ./...",
   "pnpm --filter @spilno/web test",
   "pnpm --filter @spilno/web test:stories",
+]
+
+[tasks."mcp:nbu"]
+description = "Run the nbu-rates MCP server over Streamable HTTP on 127.0.0.1:3336 (the core API reads it through NBU_RATES_MCP_URL)"
+run = "cd mcp/nbu-rates && go run . -http 127.0.0.1:3336"
+
+[tasks."mcp:nbu:inspect"]
+description = "List the nbu-rates tools and call get_rate once through the MCP Inspector CLI (live NBU API)"
+run = [
+  "cd mcp/nbu-rates && npx -y @modelcontextprotocol/inspector --cli go run . --method tools/list",
+  "cd mcp/nbu-rates && npx -y @modelcontextprotocol/inspector --cli go run . --method tools/call --tool-name get_rate --tool-arg currency=EUR --tool-arg date=2026-10-20",
 ]
 
 [tasks.load]

@@ -6,7 +6,7 @@
 | # | Task | Layer | Owner | Estimate | Blocked by | Status |
 |---|---|---|---|---|---|---|
 | [T01](./T01-promote-uah-equivalent-migration.md) | Promote the migration that adds the hryvnia equivalent columns to contracts | migration | Andrii Opryshko | S | — | done |
-| [T02](./T02-rate-and-equivalent-domain.md) | Model the official rate and compute the hryvnia equivalent with half-up rounding | domain | Andrii Opryshko | M | — | todo |
+| [T02](./T02-rate-and-equivalent-domain.md) | Model the official rate and compute the hryvnia equivalent with half-up rounding | domain | Andrii Opryshko | M | — | done |
 | [T03](./T03-finance-problem-codes.md) | Register the finance problem codes of PRD §5.1 | domain | Andrii Opryshko | S | — | todo |
 | [T04](./T04-merge-contract-delta.md) | Merge the contract delta and stub the new finance operation | wiring | Andrii Opryshko | M | — | todo |
 | [T05](./T05-mcp-rate-provider.md) | Read the official rate through the nbu-rates MCP server behind a finance port | infra | Andrii Opryshko | L | T02 | todo |

@@ -10,7 +10,7 @@ files_hint:
   - "services/core/internal/finance/domain/contract.go"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T02 — Model the official rate and compute the hryvnia equivalent with half-up rounding

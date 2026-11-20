@@ -9,7 +9,7 @@
 | [T02](./T02-rate-and-equivalent-domain.md) | Model the official rate and compute the hryvnia equivalent with half-up rounding | domain | Andrii Opryshko | M | — | done |
 | [T03](./T03-finance-problem-codes.md) | Register the finance problem codes of PRD §5.1 | domain | Andrii Opryshko | S | — | done |
 | [T04](./T04-merge-contract-delta.md) | Merge the contract delta and stub the new finance operation | wiring | Andrii Opryshko | M | — | done |
-| [T05](./T05-mcp-rate-provider.md) | Read the official rate through the nbu-rates MCP server behind a finance port | infra | Andrii Opryshko | L | T02 | todo |
+| [T05](./T05-mcp-rate-provider.md) | Read the official rate through the nbu-rates MCP server behind a finance port | infra | Andrii Opryshko | L | T02 | done |
 | [T06](./T06-store-uah-equivalent.md) | Store the hryvnia equivalent with a contract and set it only once | infra | Andrii Opryshko | M | T01, T02 | todo |
 | [T07](./T07-resolve-equivalent-on-create.md) | Work out the equivalent when a foreign-currency contract is created, and never fail the creation over it | app | Andrii Opryshko | M | T05, T06 | todo |
 | [T08](./T08-resolve-equivalent-later.md) | Add the use case that works out a missing equivalent later, once | app | Andrii Opryshko | M | T03, T07 | todo |

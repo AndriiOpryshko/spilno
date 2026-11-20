@@ -12,7 +12,7 @@ files_hint:
   - "services/core/.golangci.yml"
 owner: "Andrii Opryshko"
 estimate: "L"
-status: "todo"
+status: "done"
 ---
 
 # T05 — Read the official rate through the nbu-rates MCP server behind a finance port

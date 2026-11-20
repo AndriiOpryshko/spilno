@@ -44,6 +44,21 @@ func (e Currency) Valid() bool {
 	}
 }
 
+// Defines values for UahEquivalentSource.
+const (
+	UahEquivalentSourceNBU UahEquivalentSource = "NBU"
+)
+
+// Valid indicates whether the value is a known member of the UahEquivalentSource enum.
+func (e UahEquivalentSource) Valid() bool {
+	switch e {
+	case UahEquivalentSourceNBU:
+		return true
+	default:
+		return false
+	}
+}
+
 // Contract defines model for Contract.
 type Contract struct {
 	AmountCents  int64     `json:"amount_cents"`
@@ -51,11 +66,14 @@ type Contract struct {
 	CreatedAt    time.Time `json:"created_at"`
 
 	// Currency Existing repo schema (finance), reused as slot_values.currency / registry_entries.currency.
-	Currency  Currency            `json:"currency"`
-	EndsAt    *openapi_types.Date `json:"ends_at"`
-	Id        openapi_types.UUID  `json:"id"`
-	SignedAt  openapi_types.Date  `json:"signed_at"`
-	UpdatedAt time.Time           `json:"updated_at"`
+	Currency Currency            `json:"currency"`
+	EndsAt   *openapi_types.Date `json:"ends_at"`
+	Id       openapi_types.UUID  `json:"id"`
+	SignedAt openapi_types.Date  `json:"signed_at"`
+
+	// UahEquivalent Null for a UAH contract and while the rate has not been read (AC-03, AC-04).
+	UahEquivalent *UahEquivalent `json:"uah_equivalent"`
+	UpdatedAt     time.Time      `json:"updated_at"`
 }
 
 // ContractPage defines model for ContractPage.
@@ -101,6 +119,22 @@ type Problem struct {
 	Title    string        `json:"title"`
 	Type     string        `json:"type"`
 }
+
+// UahEquivalent The гривневий еквівалент of a foreign-currency contract and the rate it came from (AC-09).
+type UahEquivalent struct {
+	// AmountKopiyky amount_cents × rate, rounded half up to the kopiyka.
+	AmountKopiyky int64 `json:"amount_kopiyky"`
+
+	// Rate The офіційний курс as published, hryvnias per one unit of the contract's currency; a decimal string, never a float.
+	Rate string `json:"rate"`
+
+	// RateDate The дата курсу; always the contract's signed_at.
+	RateDate openapi_types.Date  `json:"rate_date"`
+	Source   UahEquivalentSource `json:"source"`
+}
+
+// UahEquivalentSource defines model for UahEquivalent.Source.
+type UahEquivalentSource string
 
 // AgendaItemId defines model for AgendaItemId.
 type AgendaItemId = openapi_types.UUID
@@ -151,6 +185,21 @@ type MemberOrDisabled = Problem
 // Delta to the repo schema: adds `code`.
 type NotFound = Problem
 
+// RateUnavailable RFC 9457 problem details (internal/platform/httpapi). `code` is an extension member
+// `<context>.<error_name>`; it is set by a context and absent on a 422 from the shared request validator.
+// Delta to the repo schema: adds `code`.
+type RateUnavailable = Problem
+
+// SessionRequired RFC 9457 problem details (internal/platform/httpapi). `code` is an extension member
+// `<context>.<error_name>`; it is set by a context and absent on a 422 from the shared request validator.
+// Delta to the repo schema: adds `code`.
+type SessionRequired = Problem
+
+// UahEquivalentConflict RFC 9457 problem details (internal/platform/httpapi). `code` is an extension member
+// `<context>.<error_name>`; it is set by a context and absent on a 422 from the shared request validator.
+// Delta to the repo schema: adds `code`.
+type UahEquivalentConflict = Problem
+
 // UnprocessableEntity RFC 9457 problem details (internal/platform/httpapi). `code` is an extension member
 // `<context>.<error_name>`; it is set by a context and absent on a 422 from the shared request validator.
 // Delta to the repo schema: adds `code`.
@@ -179,6 +228,9 @@ type ServerInterface interface {
 	// GetContract Get one contract
 	// (GET /finance/associations/{association_id}/contracts/{id})
 	GetContract(w http.ResponseWriter, r *http.Request, associationId AssociationId, id openapi_types.UUID)
+	// ResolveContractUahEquivalent Work out the hryvnia equivalent of a contract that has none yet
+	// (POST /finance/associations/{association_id}/contracts/{id}/uah-equivalent)
+	ResolveContractUahEquivalent(w http.ResponseWriter, r *http.Request, associationId AssociationId, id openapi_types.UUID)
 }
 
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
@@ -200,6 +252,12 @@ func (_ Unimplemented) CreateContract(w http.ResponseWriter, r *http.Request, as
 // GetContract Get one contract
 // (GET /finance/associations/{association_id}/contracts/{id})
 func (_ Unimplemented) GetContract(w http.ResponseWriter, r *http.Request, associationId AssociationId, id openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ResolveContractUahEquivalent Work out the hryvnia equivalent of a contract that has none yet
+// (POST /finance/associations/{association_id}/contracts/{id}/uah-equivalent)
+func (_ Unimplemented) ResolveContractUahEquivalent(w http.ResponseWriter, r *http.Request, associationId AssociationId, id openapi_types.UUID) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -319,6 +377,41 @@ func (siw *ServerInterfaceWrapper) GetContract(w http.ResponseWriter, r *http.Re
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetContract(w, r, associationId, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ResolveContractUahEquivalent operation middleware
+func (siw *ServerInterfaceWrapper) ResolveContractUahEquivalent(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "association_id" -------------
+	var associationId AssociationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "association_id", chi.URLParam(r, "association_id"), &associationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "association_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "id" -------------
+	var id openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ResolveContractUahEquivalent(w, r, associationId, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -450,6 +543,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/finance/associations/{association_id}/contracts/{id}", wrapper.GetContract)
 	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/finance/associations/{association_id}/contracts/{id}/uah-equivalent", wrapper.ResolveContractUahEquivalent)
+	})
 
 	return r
 }
@@ -457,6 +553,12 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 type MemberOrDisabledApplicationProblemPlusJSONResponse Problem
 
 type NotFoundApplicationProblemPlusJSONResponse Problem
+
+type RateUnavailableApplicationProblemPlusJSONResponse Problem
+
+type SessionRequiredApplicationProblemPlusJSONResponse Problem
+
+type UahEquivalentConflictApplicationProblemPlusJSONResponse Problem
 
 type UnprocessableEntityApplicationProblemPlusJSONResponse Problem
 
@@ -641,6 +743,125 @@ func (response GetContract422ApplicationProblemPlusJSONResponse) VisitGetContrac
 	return err
 }
 
+type ResolveContractUahEquivalentRequestObject struct {
+	AssociationId AssociationId      `json:"association_id"`
+	Id            openapi_types.UUID `json:"id"`
+}
+
+type ResolveContractUahEquivalentResponseObject interface {
+	VisitResolveContractUahEquivalentResponse(w http.ResponseWriter) error
+}
+
+type ResolveContractUahEquivalent200JSONResponse Contract
+
+func (response ResolveContractUahEquivalent200JSONResponse) VisitResolveContractUahEquivalentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResolveContractUahEquivalent401ApplicationProblemPlusJSONResponse struct {
+	SessionRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response ResolveContractUahEquivalent401ApplicationProblemPlusJSONResponse) VisitResolveContractUahEquivalentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResolveContractUahEquivalent403ApplicationProblemPlusJSONResponse struct {
+	MemberOrDisabledApplicationProblemPlusJSONResponse
+}
+
+func (response ResolveContractUahEquivalent403ApplicationProblemPlusJSONResponse) VisitResolveContractUahEquivalentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResolveContractUahEquivalent404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
+}
+
+func (response ResolveContractUahEquivalent404ApplicationProblemPlusJSONResponse) VisitResolveContractUahEquivalentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResolveContractUahEquivalent409ApplicationProblemPlusJSONResponse struct {
+	UahEquivalentConflictApplicationProblemPlusJSONResponse
+}
+
+func (response ResolveContractUahEquivalent409ApplicationProblemPlusJSONResponse) VisitResolveContractUahEquivalentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResolveContractUahEquivalent422ApplicationProblemPlusJSONResponse struct {
+	UnprocessableEntityApplicationProblemPlusJSONResponse
+}
+
+func (response ResolveContractUahEquivalent422ApplicationProblemPlusJSONResponse) VisitResolveContractUahEquivalentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResolveContractUahEquivalent503ApplicationProblemPlusJSONResponse struct {
+	RateUnavailableApplicationProblemPlusJSONResponse
+}
+
+func (response ResolveContractUahEquivalent503ApplicationProblemPlusJSONResponse) VisitResolveContractUahEquivalentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// ListContracts List contracts, newest first, one page at a time
@@ -652,6 +873,9 @@ type StrictServerInterface interface {
 	// GetContract Get one contract
 	// (GET /finance/associations/{association_id}/contracts/{id})
 	GetContract(ctx context.Context, request GetContractRequestObject) (GetContractResponseObject, error)
+	// ResolveContractUahEquivalent Work out the hryvnia equivalent of a contract that has none yet
+	// (POST /finance/associations/{association_id}/contracts/{id}/uah-equivalent)
+	ResolveContractUahEquivalent(ctx context.Context, request ResolveContractUahEquivalentRequestObject) (ResolveContractUahEquivalentResponseObject, error)
 }
 
 type StrictHandlerFunc func(ctx context.Context, w http.ResponseWriter, r *http.Request, request any) (any, error)
@@ -780,60 +1004,105 @@ func (sh *strictHandler) GetContract(w http.ResponseWriter, r *http.Request, ass
 	}
 }
 
+// ResolveContractUahEquivalent operation middleware
+func (sh *strictHandler) ResolveContractUahEquivalent(w http.ResponseWriter, r *http.Request, associationId AssociationId, id openapi_types.UUID) {
+	var request ResolveContractUahEquivalentRequestObject
+
+	request.AssociationId = associationId
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ResolveContractUahEquivalent(ctx, request.(ResolveContractUahEquivalentRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ResolveContractUahEquivalent")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ResolveContractUahEquivalentResponseObject); ok {
+		if err := validResponse.VisitResolveContractUahEquivalentResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // Base64 encoded, compressed with deflate, json marshaled OpenAPI spec.
 // Stored as a slice of fixed-width chunks rather than one concatenated
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"5Fvdjhu3FX4Vgg0QGxlp5PXmT4tebNZ2ktaxDW985d3uUjNHEu0ZckxydlcRBnCSi7ZA0SJAkMsCfQMj",
-	"iFEjju1XGL1Cn6QgOb/SSLtryfK6vZNmSJ7vHH4855A8M8YeDyPOgCmJu2MMJySMAjC/t6XkHiWKcnaN",
-	"StILwNePj0gQg/7hcR9wF1MfmKJq1CZl+wM/7+BgHxShAe7i9Mf05eTbyXeT79NXKH01eZw+S/+t/6TP",
-	"0hfp0/RF+rKLJt+mryY/TR6jyV/Tl+kv6Uv95Nf0efok/WXyve32JP05fT75KX2Rvpj8AztYKqJiibub",
-	"nasOVlQFGtYNLnrU94FhB6tRpB+RHo9VtxcQ9hAniYNvcbUTCwFMfQVhD8RC7RhXB55tfRDa5nN1+y19",
-	"Mvn75LvJ31D6PH02+Uv6FE3+bLR8MflJ/3xu1H22SnUSB0dEkBAUCDt9A2A++VJB+KWZN8pwF0dEDbGD",
-	"GQnNCKbJAVUQHlA9VwIexVToeVYiBgdLbwgh0b37XIRE4S6OY+qXGKQSlA2MNbejKKCemf75Ass2KxBY",
-	"8s0K9EF6gkb6Ae7ir4eAKpREaghIgOSx8AD1IOBsIJHibew0Iq2QeWmkn3EifMuxuabp6TYZs5aXuEMk",
-	"zBXlEQnLi7h+ogTx1FwpYN8vL+gGDebr0qcBrEQEZYNFQigbLC/mD7w3V8YD3juzAMrUR5vYwSFlNIxD",
-	"3L1SSKNMwQCEEfcVgFqkVmjfL6/XHcEV93gwV1KUNVhe1F0eM/9WnLvrBllCtzhgceaiz2bOqxunm3M3",
-	"4PPZLgO+NNUT3VlGnEkbgK3HuC2q0dfjTAFT+mfFmbqR4L0Awg8eSM6m43hjXO6O8XsC+riLf+eWKYCb",
-	"93Obgn/i4IYoeNpIM1E2SapGaepr30r3jtXKmqbu3Q8XBOZD9J/HPyLGFTJun8pqHHhfIsGlAoEU98kI",
-	"XZIkBNTj/gj1uUAEhVRKygZ7rNLJQds7rc7Hl7fQ4cJ0x0omyOJAvI8ISn9On6W/pb9mOc5TlP4z/Vf6",
-	"Q/qDRkfYCPEIhBlmj/FYSepDFqsGVCoxQgKILxFhvnks6YCB3/J4NEI+P2YBJz66tH3tbqvT6Xy8pYFu",
-	"XDF4Nz683EbW5nJII0Ql8obgPQQf9amQqr3HdIxMX6av0qc6D5l8l76cPEaCB6AbawMSqZsPQUAXETbb",
-	"lvf7Fqw16QCURIunJqAPYY8RNuIMnOYxWXVIKkt7ahswroaUDVDIBaBL2zutKx/1HJTp/+nl9h7DNrW7",
-	"of3A+ZeM/llmYJtlBnaLK2THbM7AVkDqWxzJ2BuWaQq1pqhQra0F3WOR4B5IQ7rrxtbnUHRpmHfhUQxS",
-	"oT6hAfjoiATUz8EVZjCuZ4czkwTo35HQRFc0c0ohj5k68PKNx0xsm3bADvZ0DxAREVbdKffpYE8AUeAf",
-	"EFUb0ScKWoqGMOtyHWzp6Y1OM8dO3i5xMDBfNgkpxr+fC3Awi4MA7ycOpv4ZQoCD7fJeOHqldRz559Q4",
-	"qQao+9iAqBnWqU9NxUJVcKURamavIdovhPPeA/CUBpwT4g4ZwCwpqIKw/mPhlGRj4aQQRIQgZooYnBjX",
-	"I7mY3RncIVKHBGTfI8W13zILTXdDERnAFtITl7uigEj7uL1giqcta1SoI2m0SIWAdZjXT6jU+RkSEHFk",
-	"tUaX+pQR5sFlBwmIJfhaEZN8mJ2rbOfThdwighwAU4JW3rXN/OlM5z6+t/0FdvD1e3exg+/tXqtgLGl2",
-	"g0LgXxeCi9k5y7fADesx4nr1ioZ3U7bKGxYb6iZD3YLjqjshvk+1oUhwp4KnTwIJzim+pm7mfFBkDKhd",
-	"bkgZFyhmVEkdwqtWO1cKPuuyQnJyE9hADXF3o9MxvfP/V1bvnOp63tQk1hkPtyHby/Te0izXmU9fh9ti",
-	"ibfRLb0CdE7EI2AtYD74NROc6vLO48umGPEaLqmJM3kQmzHG3Rs76NPNDz9GWXBElngSXTJMZCRwo4Ao",
-	"DdodKhWRiF5uo0N9KHRoUhKG4EQBk5SzLDvZY4d7cadz1TNh+ESZP9C2z0AvngNGQrCPD7cQVXogCQr1",
-	"RoigrJfJcUhPAjPZK0GbGxuoL3hok78hEeAjkQXgLPJy0d5j1yBQRPsymzsWHqOLiO/LDLrOjqZXh2cO",
-	"usY4Ikprjrv4T/dJ65v9D/b22vrHwf4H7zXFngUL32h7dkdecS8NrpwyqbTHa5SUZ2rjhsWXJW4NveyD",
-	"07ySeZsPU4iapZmGAV4sqBrtao2sWXdBanLscP6QwiwBd0EcgWiZbF/apkUWf/XyFvpCqeg2C0YO2tVj",
-	"g4N2SQi7VMHvb5KT4tDKs8OX29CIBowfZCOW00Yi+kcY2WSOsj5vAETZICi9gln41k0IjVAcUQ/a6PoR",
-	"iMqOBXlECAoSwQnxVDBCnAFSZIAYCXXk0h60p3Nm8HOCbyFOItrSrBsAQwNgeiw9BPGGeaP3pREJwlJf",
-	"D8OPmR7ZMjib2kxdi3H7zpfYwUcgpFWo077S7ujZ1u6LRBR38VXzyDFbdzNJbhZN3UqGLd1x/fAvcXOj",
-	"mD4DMP6ssIE+EsA3qVQ7Rav6Uez92fxjoPdx30AxjY9iEKNyFgMaUoWrGwof+iQOlA4bjo4iWczJYsiC",
-	"U4tp2bcj8iiGPPUx1iUoEnBEeSxNjvO+RJWcZQvxkJZsMBvHIhVqwm671cAvjHLJ/tSpx0ans2Azc75N",
-	"TC3dbNjJ3GZglDFhPp8+s8Xa7FydN3iB1p05oNEdNzZO79i0gTN+JA5DIkYZoUpIDmJwbLZc2v4O4jlu",
-	"ohBBeaZPBpptOOO0CcFTPGxCVTZx6yfqemYiLhvYvmMy/ty42ZkXSPUZ90crm7tqvpckyfTBWjJDmysr",
-	"p00TZb6upE7oWO8i7PbnQrDmrsn4QSBSwUjV0PyvZVSzZEmcc7tDd0z9ZK5P/BxUhSJTTGw4Ql3y9HQd",
-	"fuQ0QixJgs7m6R2Lk63VseZzUMajeOVsrd6XaHoN+BGIszDMXIa1bF4tbXL6dmS746l7uWRpNM6pHerX",
-	"heeE75GM/2s0mZHpjrN7xXWYKLvfXA6n63MvDvNTgQuJWF9vSnec3XKuw7LZbes5cT7gPemO7R3mOlDa",
-	"m9RlQLoClBhdVKjZ1ey6F3Iutgjsb0V2eS+duLZEpVWcI7zhySqvzFeDXkoqFWGqpWLBLrQC+RX9uilX",
-	"yHXHlSqBdfiQStXCajDXyOqO69VViSsDruSa9Tq9da1MbC12OObC1yn7/4Ul1u4AVs9qXWrwTgKPeBC0",
-	"TDmQfNfxu+NqWVPiHnEFF8+XVIuzVmQDAcQftfpcH5UP2Prdxqq00Mu/pXjLF6Sv3kkdKoVH7yZ+HX7d",
-	"cVaoZ06x+lSExB7jXLCVlNUaviHVbanA/7jS+tzTF+SYBBearnmRhuuDR6Vus+YEvADwLmbiEtQK98l5",
-	"4aJbOSnWQ899547rXzS8jrFqn00k+2eX5dqydPk2ZJojqXyXm1X6L43jTIdT1c1tiXkRSVbNjYWEzGwh",
-	"3XH5/cM6llD5Nca54ErFBRlAy+OMgbeSULiceJfEasgF/Ya8ATBhUQw9s6rt1RUXC5d+Y6M37QPOJlS/",
-	"FfzotYLdCqSbwnL5dmRfTJd0RvACHrz2ujub7SoLcD6fF65S+3XDKvZe+68jHtgbkZ7XSE3ZRG9zWnTe",
-	"Y9cjQdAj3sPG9zxW2XM5kgpCdwgkUEP9rFIkZpBPlYfd39f317bmyaoWiwB3sa497LpuwD0SDLlU3U86",
-	"n3RMZUZ2Q9tUV0Y9QFayqSYUMVM0BERZn7fL63YLEc+WCFWshrL7X9mufgxnHjV03LU2cvKCtvKjlewj",
-	"EBQJyjwakaBdvfaH7FJ6ZkBzEYryo/V8NCpQkStXxilzRj3T/x0A",
+	"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",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

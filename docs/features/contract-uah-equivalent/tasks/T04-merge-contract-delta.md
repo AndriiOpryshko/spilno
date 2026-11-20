@@ -12,7 +12,7 @@ files_hint:
   - "apps/web/src/api/gen/"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T04 — Merge the contract delta and stub the new finance operation

@@ -9,7 +9,7 @@ files_hint:
   - "services/core/internal/finance/domain/errors_test.go"
 owner: "Andrii Opryshko"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T03 — Register the finance problem codes of PRD §5.1

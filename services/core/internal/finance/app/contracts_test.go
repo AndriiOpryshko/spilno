@@ -23,7 +23,7 @@ type fakeRepo struct {
 	createdOK bool
 }
 
-func (f *fakeRepo) Create(_ context.Context, t domain.ContractTerms) (domain.Contract, error) {
+func (f *fakeRepo) Create(_ context.Context, t domain.ContractTerms, _ *domain.UAHEquivalent) (domain.Contract, error) {
 	f.createdOK = true
 	return domain.Contract{ID: uuid.New(), ContractTerms: t}, nil
 }

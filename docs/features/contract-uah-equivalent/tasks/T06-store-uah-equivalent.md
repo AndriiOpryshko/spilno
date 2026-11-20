@@ -12,7 +12,7 @@ files_hint:
   - "services/core/internal/finance/ports/ports.go"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T06 — Store the hryvnia equivalent with a contract and set it only once

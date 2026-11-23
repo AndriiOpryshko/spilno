@@ -12,7 +12,7 @@ files_hint:
   - "mise.toml"
 owner: "Andrii Opryshko"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T10 — Wire NBU_RATES_MCP_URL from the environment to the finance module

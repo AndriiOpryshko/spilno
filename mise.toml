@@ -12,6 +12,7 @@ MIGRATIONS_DATABASE_URL = "postgres://spilno:spilno@localhost:5432/spilno?sslmod
 DATABASE_URL = "postgres://spilno_app_login:spilno_app_login@localhost:5432/spilno?sslmode=disable"
 OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:4318"
 OTEL_SERVICE_NAME = "spilno-core"
+NBU_RATES_MCP_URL = "http://127.0.0.1:3336/mcp"
 
 [tasks.setup]
 description = "Install JS dependencies and the Playwright browser"

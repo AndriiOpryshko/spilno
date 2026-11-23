@@ -169,11 +169,16 @@ func run() error {
 			return err
 		}
 	}
+	if cfg.NBURatesMCPURL != "" {
+		slog.Info("nbu rate source is the MCP server", "url", cfg.NBURatesMCPURL)
+	} else {
+		slog.Info("nbu rate source is not configured")
+	}
 	// Association and operator routes sit behind the identity guard: session, roster, scoped transaction.
 	var routeErr error
 	r.Group(func(r chi.Router) {
 		r.Use(idm.Guard(rosterOf{gov}))
-		for _, m := range []module{finance.New(pool, finance.Config{}), gov, idm} {
+		for _, m := range []module{finance.New(pool, finance.Config{RatesMCPURL: cfg.NBURatesMCPURL}), gov, idm} {
 			if routeErr = m.Routes(r); routeErr != nil {
 				return
 			}

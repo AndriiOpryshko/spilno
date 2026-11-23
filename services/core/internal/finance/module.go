@@ -27,12 +27,16 @@ type Module struct {
 type Config struct {
 	// Rates reads the official rate; nil means the source is not configured.
 	Rates ports.RateProvider
+	// RatesMCPURL is the NBU rates MCP endpoint; empty means the source is not configured.
+	RatesMCPURL string
 }
 
 func New(_ *pgxpool.Pool, cfg Config) *Module {
 	var rates ports.RateProvider = mcprates.Disabled{}
 	if cfg.Rates != nil {
 		rates = cfg.Rates
+	} else if cfg.RatesMCPURL != "" {
+		rates = mcprates.New(cfg.RatesMCPURL)
 	}
 	contracts := app.NewContractService(postgres.NewContracts(), rates)
 	return &Module{handler: financehttp.NewHandler(contracts)}

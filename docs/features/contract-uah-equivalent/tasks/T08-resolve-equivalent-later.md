@@ -9,7 +9,7 @@ files_hint:
   - "services/core/internal/finance/app/contracts_test.go"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T08 — Add the use case that works out a missing equivalent later, once

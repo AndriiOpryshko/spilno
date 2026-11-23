@@ -60,19 +60,58 @@ func (s *ContractService) equivalent(ctx context.Context, terms domain.ContractT
 	if !terms.Currency.Foreign() {
 		return nil
 	}
-	y, m, d := terms.SignedAt.Date()
-	day := time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
-
-	rctx, cancel := context.WithTimeout(ctx, RateTimeout)
-	defer cancel()
-	rate, err := s.rates.Rate(rctx, terms.Currency, day)
+	rate, err := s.signingDayRate(ctx, terms.Currency, terms.SignedAt)
 	if err != nil {
-		slog.WarnContext(ctx, "uah equivalent not resolved",
-			"currency", terms.Currency, "day", day.Format(time.DateOnly), "error", err)
 		return nil
 	}
 	eq := rate.Convert(terms.AmountCents)
 	return &eq
+}
+
+// signingDayRate fetches the rate for the calendar day of signedAt within
+// RateTimeout. It logs any failure; the caller decides what it means.
+func (s *ContractService) signingDayRate(ctx context.Context, currency domain.Currency, signedAt time.Time) (domain.Rate, error) {
+	y, m, d := signedAt.Date()
+	day := time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
+
+	rctx, cancel := context.WithTimeout(ctx, RateTimeout)
+	defer cancel()
+	rate, err := s.rates.Rate(rctx, currency, day)
+	if err != nil {
+		slog.WarnContext(ctx, "uah equivalent not resolved",
+			"currency", currency, "day", day.Format(time.DateOnly), "error", err)
+	}
+	return rate, err
+}
+
+// ResolveUAHEquivalent works out a missing equivalent once (Flow 2). A stored
+// equivalent is returned as is; a lost race returns what the winner stored.
+func (s *ContractService) ResolveUAHEquivalent(ctx context.Context, id uuid.UUID) (domain.Contract, error) {
+	c, err := s.repo.Get(ctx, id)
+	if err != nil {
+		return domain.Contract{}, err
+	}
+	if c.UAHEquivalent != nil {
+		return c, nil
+	}
+	if !c.Currency.Foreign() {
+		return domain.Contract{}, &domain.DomainError{Code: domain.CodeEquivalentNotApplicable}
+	}
+	rate, err := s.signingDayRate(ctx, c.Currency, c.SignedAt)
+	if err != nil {
+		if errors.Is(err, domain.ErrRateNotPublished) {
+			return domain.Contract{}, &domain.DomainError{Code: domain.CodeRateNotPublished}
+		}
+		return domain.Contract{}, &domain.DomainError{Code: domain.CodeRateUnavailable}
+	}
+	updated, ok, err := s.repo.SetUAHEquivalent(ctx, id, rate.Convert(c.AmountCents))
+	if err != nil {
+		return domain.Contract{}, err
+	}
+	if !ok {
+		return s.repo.Get(ctx, id)
+	}
+	return updated, nil
 }
 
 // Get returns domain.ErrContractNotFound when no contract has the id.

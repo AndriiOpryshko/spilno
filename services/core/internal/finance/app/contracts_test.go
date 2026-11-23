@@ -22,6 +22,34 @@ type fakeRepo struct {
 	gotLimit  int
 	createdOK bool
 	gotEq     *domain.UAHEquivalent
+
+	stored    domain.Contract // served by Get
+	getErr    error
+	setOK     bool // result of SetUAHEquivalent
+	setCalls  int
+	setEq     domain.UAHEquivalent
+	afterLost *domain.Contract // what Get serves once SetUAHEquivalent ran
+}
+
+func (f *fakeRepo) Get(_ context.Context, _ uuid.UUID) (domain.Contract, error) {
+	if f.getErr != nil {
+		return domain.Contract{}, f.getErr
+	}
+	if f.setCalls > 0 && f.afterLost != nil {
+		return *f.afterLost, nil
+	}
+	return f.stored, nil
+}
+
+func (f *fakeRepo) SetUAHEquivalent(_ context.Context, _ uuid.UUID, eq domain.UAHEquivalent) (domain.Contract, bool, error) {
+	f.setCalls++
+	f.setEq = eq
+	if !f.setOK {
+		return domain.Contract{}, false, nil
+	}
+	c := f.stored
+	c.UAHEquivalent = &eq
+	return c, true, nil
 }
 
 func (f *fakeRepo) Create(_ context.Context, t domain.ContractTerms, eq *domain.UAHEquivalent) (domain.Contract, error) {
@@ -248,5 +276,110 @@ func TestCreateInvalidTermsDoNotAskRates(t *testing.T) {
 	}
 	if rates.calls != 0 {
 		t.Errorf("rate port called %d times for invalid terms", rates.calls)
+	}
+}
+
+func storedContract(cur domain.Currency, eq *domain.UAHEquivalent) domain.Contract {
+	return domain.Contract{ID: uuid.New(), ContractTerms: terms(cur), UAHEquivalent: eq}
+}
+
+func wantCode(t *testing.T, err error, code string) {
+	t.Helper()
+	var de *domain.DomainError
+	if !errors.As(err, &de) || de.Code != code {
+		t.Fatalf("err = %v, want *DomainError with code %s", err, code)
+	}
+}
+
+func TestResolveUAHEquivalentFillsMissingEquivalent(t *testing.T) {
+	rate, err := domain.ParseRate(domain.CurrencyEUR, time.Time{}, "50.5311")
+	if err != nil {
+		t.Fatal(err)
+	}
+	repo := &fakeRepo{stored: storedContract(domain.CurrencyEUR, nil), setOK: true}
+	rates := &fakeRates{rate: rate}
+	c, err := app.NewContractService(repo, rates).ResolveUAHEquivalent(context.Background(), repo.stored.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rates.calls != 1 || repo.setCalls != 1 {
+		t.Errorf("rate calls=%d set calls=%d, want 1 and 1", rates.calls, repo.setCalls)
+	}
+	if c.UAHEquivalent == nil || c.UAHEquivalent.AmountKopiyky != 6316388 || c.UAHEquivalent.Rate.Decimal() != "50.5311" {
+		t.Fatalf("returned equivalent = %+v, want 6316388 kopiyky at 50.5311", c.UAHEquivalent)
+	}
+}
+
+func TestResolveUAHEquivalentReturnsStoredOneWithoutAskingRates(t *testing.T) {
+	rate, _ := domain.ParseRate(domain.CurrencyEUR, time.Time{}, "50.5311")
+	eq := domain.UAHEquivalent{AmountKopiyky: 1, Rate: rate}
+	repo := &fakeRepo{stored: storedContract(domain.CurrencyEUR, &eq)}
+	rates := &fakeRates{}
+	c, err := app.NewContractService(repo, rates).ResolveUAHEquivalent(context.Background(), repo.stored.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rates.calls != 0 || repo.setCalls != 0 {
+		t.Errorf("rate calls=%d set calls=%d, want none", rates.calls, repo.setCalls)
+	}
+	if c.UAHEquivalent == nil || c.UAHEquivalent.AmountKopiyky != 1 {
+		t.Errorf("equivalent = %+v, want the stored one unchanged", c.UAHEquivalent)
+	}
+}
+
+func TestResolveUAHEquivalentRefusesHryvniaContract(t *testing.T) {
+	repo := &fakeRepo{stored: storedContract(domain.CurrencyUAH, nil)}
+	rates := &fakeRates{}
+	_, err := app.NewContractService(repo, rates).ResolveUAHEquivalent(context.Background(), repo.stored.ID)
+	wantCode(t, err, domain.CodeEquivalentNotApplicable)
+	if rates.calls != 0 || repo.setCalls != 0 {
+		t.Errorf("rate calls=%d set calls=%d, want none", rates.calls, repo.setCalls)
+	}
+}
+
+func TestResolveUAHEquivalentRateFailures(t *testing.T) {
+	old := app.RateTimeout
+	app.RateTimeout = 100 * time.Millisecond
+	t.Cleanup(func() { app.RateTimeout = old })
+
+	cases := map[string]struct {
+		rates *fakeRates
+		code  string
+	}{
+		"not published": {&fakeRates{err: domain.ErrRateNotPublished}, domain.CodeRateNotPublished},
+		"unavailable":   {&fakeRates{err: domain.ErrRateUnavailable}, domain.CodeRateUnavailable},
+		"slow":          {&fakeRates{block: true}, domain.CodeRateUnavailable},
+	}
+	for name, tt := range cases {
+		t.Run(name, func(t *testing.T) {
+			repo := &fakeRepo{stored: storedContract(domain.CurrencyUSD, nil), setOK: true}
+			_, err := app.NewContractService(repo, tt.rates).ResolveUAHEquivalent(context.Background(), repo.stored.ID)
+			wantCode(t, err, tt.code)
+			if repo.setCalls != 0 {
+				t.Error("an equivalent was stored after a failed lookup")
+			}
+		})
+	}
+}
+
+func TestResolveUAHEquivalentLostRaceReturnsStoredContract(t *testing.T) {
+	rate, _ := domain.ParseRate(domain.CurrencyEUR, time.Time{}, "50.5311")
+	winner := domain.UAHEquivalent{AmountKopiyky: 42, Rate: rate}
+	won := storedContract(domain.CurrencyEUR, &winner)
+	repo := &fakeRepo{stored: storedContract(domain.CurrencyEUR, nil), setOK: false, afterLost: &won}
+	c, err := app.NewContractService(repo, &fakeRates{rate: rate}).ResolveUAHEquivalent(context.Background(), repo.stored.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.UAHEquivalent == nil || c.UAHEquivalent.AmountKopiyky != 42 {
+		t.Fatalf("equivalent = %+v, want the winner's stored 42", c.UAHEquivalent)
+	}
+}
+
+func TestResolveUAHEquivalentUnknownContract(t *testing.T) {
+	repo := &fakeRepo{getErr: domain.ErrContractNotFound}
+	_, err := app.NewContractService(repo, &fakeRates{}).ResolveUAHEquivalent(context.Background(), uuid.New())
+	if !errors.Is(err, domain.ErrContractNotFound) {
+		t.Fatalf("err = %v, want ErrContractNotFound", err)
 	}
 }

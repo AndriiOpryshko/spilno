@@ -1,0 +1,25 @@
+meta {
+  name: Resolve UAH equivalent
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/finance/associations/{{associationId}}/contracts/{{contractId}}/uah-equivalent
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.id: eq {{contractId}}
+  res.body.uah_equivalent.source: eq NBU
+}
+
+docs {
+  Works out the hryvnia equivalent of a EUR or USD contract that has none yet, at the official NBU rate of
+  its signing day. Needs the nbu-rates MCP server (mise run mcp:nbu) and NBU_RATES_MCP_URL. Safe to repeat:
+  a stored equivalent is returned unchanged. A UAH contract returns 409 finance.equivalent_not_applicable,
+  a day without a published rate 409 finance.rate_not_published, an unreachable rate source
+  503 finance.rate_unavailable. Set associationId in the environment; Create contract sets contractId.
+}

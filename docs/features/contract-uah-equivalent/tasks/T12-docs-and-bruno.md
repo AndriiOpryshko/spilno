@@ -11,7 +11,7 @@ files_hint:
   - "mcp/nbu-rates/README.md"
 owner: "Andrii Opryshko"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T12 — Document the feature: Bruno request, environment variable, CLAUDE.md gotcha

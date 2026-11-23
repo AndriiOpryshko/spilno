@@ -16,4 +16,4 @@
 | [T09](./T09-uah-equivalent-http.md) | Return the equivalent on every contract answer and serve the «get it later» operation | ports | Andrii Opryshko | L | T04, T08 | done |
 | [T10](./T10-wire-rates-config.md) | Wire NBU_RATES_MCP_URL from the environment to the finance module | wiring | Andrii Opryshko | S | T09 | done |
 | [T11](./T11-end-to-end-real-mcp-server.md) | Prove the chain end to end against the real nbu-rates binary and a fake NBU | tests | Andrii Opryshko | M | T10 | done |
-| [T12](./T12-docs-and-bruno.md) | Document the feature: Bruno request, environment variable, CLAUDE.md gotcha | docs | Andrii Opryshko | S | T09 | todo |
+| [T12](./T12-docs-and-bruno.md) | Document the feature: Bruno request, environment variable, CLAUDE.md gotcha | docs | Andrii Opryshko | S | T09 | done |

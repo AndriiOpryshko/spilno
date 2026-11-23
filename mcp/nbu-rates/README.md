@@ -30,6 +30,12 @@ npx @modelcontextprotocol/inspector go run -C mcp/nbu-rates .   # Inspector UI
 | `NBU_RATES_HTTP_ADDR` | empty (stdio) | same as `-http` |
 | `NBU_BASE_URL` | the NBU statistics endpoint | override for tests |
 
+## Consumer
+
+`services/core/internal/finance/adapters/mcprates` calls `get_rate` over Streamable HTTP and relies on the
+structured output (`currency`, `date`, `rate`, `source`) and on the `rate_not_published` error prefix. Change
+either and `finance/rates_e2e_test.go` fails: it runs this binary in front of a fake NBU.
+
 ## Notes
 
 - The HTTP transport is stateless and has no authentication: the data is public and read-only. Keep it on

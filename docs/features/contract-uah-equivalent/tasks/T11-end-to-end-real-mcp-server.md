@@ -8,7 +8,7 @@ files_hint:
   - "services/core/internal/finance/rates_e2e_test.go"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T11 — Prove the chain end to end against the real nbu-rates binary and a fake NBU

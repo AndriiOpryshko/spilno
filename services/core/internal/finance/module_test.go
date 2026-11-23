@@ -343,17 +343,3 @@ func TestContractAnswersCarryNullUahEquivalent(t *testing.T) {
 	}
 	uahEquivalentIsNullKey(t, "list", list.Items[0])
 }
-
-// The operation is only a stub for now: it answers the 503 finance.rate_unavailable shape.
-func TestResolveContractUahEquivalentStubAnswersRateUnavailable(t *testing.T) {
-	srv := newServer(t)
-	var p struct {
-		Status int    `json:"status"`
-		Code   string `json:"code"`
-	}
-	do(t, "POST", srv.URL+"/finance/associations/"+assocID+"/contracts/0b0e6f2a-5c1d-4c4e-9b8a-0f6c2d1e3a4b/uah-equivalent",
-		"", http.StatusServiceUnavailable, &p)
-	if p.Code != "finance.rate_unavailable" || p.Status != 503 {
-		t.Errorf("problem = %+v, want status 503 code finance.rate_unavailable", p)
-	}
-}

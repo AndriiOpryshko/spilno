@@ -15,6 +15,7 @@ import (
 	"github.com/AndriiOpryshko/spilno/services/core/internal/finance/adapters/mcprates"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/finance/adapters/postgres"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/finance/app"
+	"github.com/AndriiOpryshko/spilno/services/core/internal/finance/ports"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/httpapi"
 )
 
@@ -22,8 +23,18 @@ type Module struct {
 	handler *financehttp.Handler
 }
 
-func New(_ *pgxpool.Pool) *Module {
-	contracts := app.NewContractService(postgres.NewContracts(), mcprates.Disabled{})
+// Config carries what the context needs from outside. The zero value disables the rate source.
+type Config struct {
+	// Rates reads the official rate; nil means the source is not configured.
+	Rates ports.RateProvider
+}
+
+func New(_ *pgxpool.Pool, cfg Config) *Module {
+	var rates ports.RateProvider = mcprates.Disabled{}
+	if cfg.Rates != nil {
+		rates = cfg.Rates
+	}
+	contracts := app.NewContractService(postgres.NewContracts(), rates)
 	return &Module{handler: financehttp.NewHandler(contracts)}
 }
 

@@ -173,7 +173,7 @@ func run() error {
 	var routeErr error
 	r.Group(func(r chi.Router) {
 		r.Use(idm.Guard(rosterOf{gov}))
-		for _, m := range []module{finance.New(pool), gov, idm} {
+		for _, m := range []module{finance.New(pool, finance.Config{}), gov, idm} {
 			if routeErr = m.Routes(r); routeErr != nil {
 				return
 			}

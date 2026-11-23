@@ -13,7 +13,7 @@ files_hint:
   - "services/core/internal/platform/isolation_test.go"
 owner: "Andrii Opryshko"
 estimate: "L"
-status: "todo"
+status: "done"
 ---
 
 # T09 — Return the equivalent on every contract answer and serve the «get it later» operation

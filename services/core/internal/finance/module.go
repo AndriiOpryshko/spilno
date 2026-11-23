@@ -12,6 +12,7 @@ import (
 
 	financehttp "github.com/AndriiOpryshko/spilno/services/core/internal/finance/adapters/http"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/finance/adapters/http/gen"
+	"github.com/AndriiOpryshko/spilno/services/core/internal/finance/adapters/mcprates"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/finance/adapters/postgres"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/finance/app"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/httpapi"
@@ -22,7 +23,7 @@ type Module struct {
 }
 
 func New(_ *pgxpool.Pool) *Module {
-	contracts := app.NewContractService(postgres.NewContracts())
+	contracts := app.NewContractService(postgres.NewContracts(), mcprates.Disabled{})
 	return &Module{handler: financehttp.NewHandler(contracts)}
 }
 

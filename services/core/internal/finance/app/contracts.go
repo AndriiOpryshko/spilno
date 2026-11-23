@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 	"time"
@@ -31,12 +32,16 @@ type Page struct {
 	NextCursor string
 }
 
+// RateTimeout bounds the wait for the rate source when a contract is created.
+var RateTimeout = 3 * time.Second
+
 type ContractService struct {
-	repo ports.ContractRepository
+	repo  ports.ContractRepository
+	rates ports.RateProvider
 }
 
-func NewContractService(repo ports.ContractRepository) *ContractService {
-	return &ContractService{repo: repo}
+func NewContractService(repo ports.ContractRepository, rates ports.RateProvider) *ContractService {
+	return &ContractService{repo: repo, rates: rates}
 }
 
 // Create validates the terms and stores them. Broken invariants come back as
@@ -45,7 +50,29 @@ func (s *ContractService) Create(ctx context.Context, terms domain.ContractTerms
 	if err := terms.Validate(); err != nil {
 		return domain.Contract{}, err
 	}
-	return s.repo.Create(ctx, terms, nil)
+	return s.repo.Create(ctx, terms, s.equivalent(ctx, terms))
+}
+
+// equivalent asks the rate source for the signing day's rate of a
+// foreign-currency contract. A failed lookup is logged and yields nil so the
+// contract is still stored.
+func (s *ContractService) equivalent(ctx context.Context, terms domain.ContractTerms) *domain.UAHEquivalent {
+	if !terms.Currency.Foreign() {
+		return nil
+	}
+	y, m, d := terms.SignedAt.Date()
+	day := time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
+
+	rctx, cancel := context.WithTimeout(ctx, RateTimeout)
+	defer cancel()
+	rate, err := s.rates.Rate(rctx, terms.Currency, day)
+	if err != nil {
+		slog.WarnContext(ctx, "uah equivalent not resolved",
+			"currency", terms.Currency, "day", day.Format(time.DateOnly), "error", err)
+		return nil
+	}
+	eq := rate.Convert(terms.AmountCents)
+	return &eq
 }
 
 // Get returns domain.ErrContractNotFound when no contract has the id.

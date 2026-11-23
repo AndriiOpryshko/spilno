@@ -10,7 +10,7 @@ files_hint:
   - "services/core/internal/finance/module.go"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T07 — Work out the equivalent when a foreign-currency contract is created, and never fail the creation over it

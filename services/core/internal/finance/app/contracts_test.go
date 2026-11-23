@@ -21,11 +21,13 @@ type fakeRepo struct {
 	gotAfter  *ports.ContractKey
 	gotLimit  int
 	createdOK bool
+	gotEq     *domain.UAHEquivalent
 }
 
-func (f *fakeRepo) Create(_ context.Context, t domain.ContractTerms, _ *domain.UAHEquivalent) (domain.Contract, error) {
+func (f *fakeRepo) Create(_ context.Context, t domain.ContractTerms, eq *domain.UAHEquivalent) (domain.Contract, error) {
 	f.createdOK = true
-	return domain.Contract{ID: uuid.New(), ContractTerms: t}, nil
+	f.gotEq = eq
+	return domain.Contract{ID: uuid.New(), ContractTerms: t, UAHEquivalent: eq}, nil
 }
 
 func (f *fakeRepo) List(_ context.Context, after *ports.ContractKey, limit int) ([]domain.Contract, error) {
@@ -52,7 +54,7 @@ func rows(n int) []domain.Contract {
 
 func TestCreateRejectsInvalidTermsBeforeStoring(t *testing.T) {
 	repo := &fakeRepo{}
-	_, err := app.NewContractService(repo).Create(context.Background(), domain.ContractTerms{})
+	_, err := app.NewContractService(repo, &fakeRates{}).Create(context.Background(), domain.ContractTerms{})
 	var v *domain.ValidationError
 	if !errors.As(err, &v) {
 		t.Fatalf("err = %v, want *ValidationError", err)
@@ -64,7 +66,7 @@ func TestCreateRejectsInvalidTermsBeforeStoring(t *testing.T) {
 
 func TestListWalksAllPages(t *testing.T) {
 	repo := &fakeRepo{rows: rows(5)}
-	svc := app.NewContractService(repo)
+	svc := app.NewContractService(repo, &fakeRates{})
 
 	var seen []uuid.UUID
 	cursor := ""
@@ -96,7 +98,7 @@ func TestListWalksAllPages(t *testing.T) {
 
 func TestListCursorKeepsMicroseconds(t *testing.T) {
 	repo := &fakeRepo{rows: rows(2)}
-	svc := app.NewContractService(repo)
+	svc := app.NewContractService(repo, &fakeRates{})
 	page, err := svc.List(context.Background(), 1, "")
 	if err != nil {
 		t.Fatal(err)
@@ -120,7 +122,7 @@ func TestListLimitBounds(t *testing.T) {
 	}
 	for _, tt := range tests {
 		repo := &fakeRepo{}
-		if _, err := app.NewContractService(repo).List(context.Background(), tt.limit, ""); err != nil {
+		if _, err := app.NewContractService(repo, &fakeRates{}).List(context.Background(), tt.limit, ""); err != nil {
 			t.Fatal(err)
 		}
 		if repo.gotLimit != tt.wantRepo {
@@ -130,10 +132,121 @@ func TestListLimitBounds(t *testing.T) {
 }
 
 func TestListRejectsForeignCursor(t *testing.T) {
-	svc := app.NewContractService(&fakeRepo{})
+	svc := app.NewContractService(&fakeRepo{}, &fakeRates{})
 	for _, c := range []string{"not base64!", "bm9jb2xvbg", "eDpub3QtYS11dWlk"} {
 		if _, err := svc.List(context.Background(), 10, c); !errors.Is(err, app.ErrInvalidCursor) {
 			t.Errorf("List(cursor=%q) err = %v, want ErrInvalidCursor", c, err)
 		}
+	}
+}
+
+// fakeRates answers with rate/err, or blocks until the context ends when block is set.
+type fakeRates struct {
+	rate  domain.Rate
+	err   error
+	block bool
+	calls int
+}
+
+func (f *fakeRates) Rate(ctx context.Context, c domain.Currency, day time.Time) (domain.Rate, error) {
+	f.calls++
+	if f.block {
+		<-ctx.Done()
+		return domain.Rate{}, ctx.Err()
+	}
+	if f.err != nil {
+		return domain.Rate{}, f.err
+	}
+	r := f.rate
+	r.Currency, r.Day = c, day
+	return r, nil
+}
+
+func terms(cur domain.Currency) domain.ContractTerms {
+	return domain.ContractTerms{
+		Counterparty: "Test Counterparty",
+		AmountCents:  125000,
+		Currency:     cur,
+		SignedAt:     time.Date(2026, 10, 20, 0, 0, 0, 0, time.UTC),
+	}
+}
+
+func TestRateTimeoutIsThreeSeconds(t *testing.T) {
+	if app.RateTimeout != 3*time.Second {
+		t.Errorf("RateTimeout = %v, want 3s", app.RateTimeout)
+	}
+}
+
+func TestCreateForeignContractStoresEquivalent(t *testing.T) {
+	rate, err := domain.ParseRate(domain.CurrencyEUR, time.Time{}, "50.5311")
+	if err != nil {
+		t.Fatal(err)
+	}
+	repo, rates := &fakeRepo{}, &fakeRates{rate: rate}
+	c, err := app.NewContractService(repo, rates).Create(context.Background(), terms(domain.CurrencyEUR))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if repo.gotEq == nil || repo.gotEq.AmountKopiyky != 6316388 || repo.gotEq.Rate.Decimal() != "50.5311" {
+		t.Fatalf("stored equivalent = %+v, want 6316388 kopiyky at 50.5311", repo.gotEq)
+	}
+	if c.UAHEquivalent == nil {
+		t.Error("returned contract has no equivalent")
+	}
+}
+
+func TestCreateHryvniaContractDoesNotAskRates(t *testing.T) {
+	repo, rates := &fakeRepo{}, &fakeRates{}
+	if _, err := app.NewContractService(repo, rates).Create(context.Background(), terms(domain.CurrencyUAH)); err != nil {
+		t.Fatal(err)
+	}
+	if rates.calls != 0 {
+		t.Errorf("rate port called %d times for a UAH contract", rates.calls)
+	}
+	if !repo.createdOK || repo.gotEq != nil {
+		t.Errorf("created=%v equivalent=%+v, want stored without equivalent", repo.createdOK, repo.gotEq)
+	}
+}
+
+func TestCreateStoresWithoutEquivalentWhenRateFails(t *testing.T) {
+	old := app.RateTimeout
+	app.RateTimeout = 100 * time.Millisecond
+	t.Cleanup(func() { app.RateTimeout = old })
+
+	cases := map[string]*fakeRates{
+		"not published": {err: domain.ErrRateNotPublished},
+		"unavailable":   {err: domain.ErrRateUnavailable},
+		"slow":          {block: true},
+	}
+	for name, rates := range cases {
+		t.Run(name, func(t *testing.T) {
+			repo := &fakeRepo{}
+			start := time.Now()
+			_, err := app.NewContractService(repo, rates).Create(context.Background(), terms(domain.CurrencyUSD))
+			if err != nil {
+				t.Fatalf("Create failed over the rate: %v", err)
+			}
+			if rates.calls != 1 {
+				t.Errorf("rate port called %d times, want 1", rates.calls)
+			}
+			if !repo.createdOK || repo.gotEq != nil {
+				t.Errorf("created=%v equivalent=%+v, want stored without equivalent", repo.createdOK, repo.gotEq)
+			}
+			if d := time.Since(start); d > time.Second {
+				t.Errorf("Create took %v, want within the budget", d)
+			}
+		})
+	}
+}
+
+func TestCreateInvalidTermsDoNotAskRates(t *testing.T) {
+	rates := &fakeRates{}
+	bad := terms(domain.CurrencyEUR)
+	bad.AmountCents = 0
+	if _, err := app.NewContractService(&fakeRepo{}, rates).Create(context.Background(), bad); err == nil {
+		t.Fatal("want validation error")
+	}
+	if rates.calls != 0 {
+		t.Errorf("rate port called %d times for invalid terms", rates.calls)
 	}
 }

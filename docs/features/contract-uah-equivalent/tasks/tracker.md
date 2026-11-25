@@ -20,5 +20,5 @@
 | [T13](./T13-live-problem-types.md) | Serve the live contract's problem-type catalogue and check the registry against it | wiring | Andrii Opryshko | S | T09 | done |
 | [T14](./T14-equivalent-out-of-range.md) | Refuse a hryvnia equivalent that does not fit int64 instead of storing a wrong one | domain | Andrii Opryshko | M | T13 | done |
 | [T15](./T15-migration-header.md) | Drop the staging header from the promoted migration | migration | Andrii Opryshko | S | T01 | done |
-| [T16](./T16-redact-rate-url.md) | Log the rate-source address without credentials | wiring | Andrii Opryshko | S | T10 | todo |
+| [T16](./T16-redact-rate-url.md) | Log the rate-source address without credentials | wiring | Andrii Opryshko | S | T10 | done |
 | [T17](./T17-nbu-limit-tests.md) | Pin the NBU client's body cap and deadline with tests | tests | Andrii Opryshko | S | — | todo |

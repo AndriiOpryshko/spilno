@@ -170,7 +170,7 @@ func run() error {
 		}
 	}
 	if cfg.NBURatesMCPURL != "" {
-		slog.Info("nbu rate source is the MCP server", "url", cfg.NBURatesMCPURL)
+		slog.Info("nbu rate source is the MCP server", "url", rateSourceForLog(cfg.NBURatesMCPURL))
 	} else {
 		slog.Info("nbu rate source is not configured")
 	}

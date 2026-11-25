@@ -1,5 +1,3 @@
--- Staged as docs/features/contract-uah-equivalent/migrations/NNNNN_add_contracts_uah_equivalent.sql.
--- Promote with `mise run migrate:new add_contracts_uah_equivalent`; never hand-type the number.
 -- Owner: finance. Origin: PRD AC-01, AC-09, §9; ADR-0002.
 -- Expand only: both columns stay nullable for good (NULL = no equivalent: a UAH contract, or the rate
 -- could not be read yet). Set together, once, by the app; no CHECK (business invariant).

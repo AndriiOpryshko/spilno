@@ -19,7 +19,8 @@ const config = defineConfig({
   resolve: {
     alias: { '@': path.resolve(import.meta.dirname, './src') },
   },
-  server: { port: 5180, strictPort: true, proxy: apiProxy },
+  // WEB_PORT moves the dev server off :5180 in a worktree (scripts/wt.sh init).
+  server: { port: Number(process.env.WEB_PORT ?? 5180), strictPort: true, proxy: apiProxy },
   preview: { port: 4180, strictPort: true, proxy: apiProxy },
   test: {
     projects: [

@@ -79,6 +79,9 @@ All tasks run from the repo root through mise (`mise tasks` lists them):
 - Commit only when the user asks. Open the PR early: the first commit on a branch is followed in
   the same step by `git push -u` and `gh pr create --draft` (a request to commit covers this);
   later commits are pushed to the same PR. Mark it ready only when green and the user agrees.
+- Push only to an explicitly named branch: `git push -u origin <branch>`. Never push to `main`,
+  and never run a bare `git push` while on `main`. `.claude/hooks/block-main-push.sh` blocks a
+  push command that names `main`.
 - Never `git reset --hard`, never force-push (`--force`, `-f`, `--force-with-lease`), never
   rewrite pushed history. Undo with `git revert` or a new commit; a session slip with `/rewind`.
   Both are denied in `.claude/settings.json`.

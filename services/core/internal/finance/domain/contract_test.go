@@ -35,6 +35,8 @@ func TestValidate(t *testing.T) {
 		{name: "ends on the signing day", edit: func(c *ContractTerms) { e := c.SignedAt; c.EndsAt = &e }},
 		{name: "200 multibyte characters", edit: func(c *ContractTerms) { c.Counterparty = strings.Repeat("ї", 200) }},
 		{name: "empty counterparty", edit: func(c *ContractTerms) { c.Counterparty = "" }, wantFields: []string{FieldCounterparty}},
+		{name: "spaces-only counterparty", edit: func(c *ContractTerms) { c.Counterparty = "   " }, wantFields: []string{FieldCounterparty}},
+		{name: "whitespace-control counterparty", edit: func(c *ContractTerms) { c.Counterparty = "\t\n" }, wantFields: []string{FieldCounterparty}},
 		{name: "201 characters", edit: func(c *ContractTerms) { c.Counterparty = strings.Repeat("x", 201) }, wantFields: []string{FieldCounterparty}},
 		{name: "zero amount", edit: func(c *ContractTerms) { c.AmountCents = 0 }, wantFields: []string{FieldAmountCents}},
 		{name: "negative amount", edit: func(c *ContractTerms) { c.AmountCents = -1 }, wantFields: []string{FieldAmountCents}},

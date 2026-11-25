@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/google/uuid"
@@ -55,7 +56,7 @@ type ContractTerms struct {
 // *ValidationError.
 func (t ContractTerms) Validate() error {
 	var v ValidationError
-	if n := utf8.RuneCountInString(t.Counterparty); n < 1 || n > MaxCounterpartyLen {
+	if n := utf8.RuneCountInString(t.Counterparty); isBlank(t.Counterparty) || n < 1 || n > MaxCounterpartyLen {
 		v.add(FieldCounterparty, fmt.Sprintf("must be 1 to %d characters", MaxCounterpartyLen))
 	}
 	if t.AmountCents <= 0 {
@@ -102,6 +103,16 @@ func (e *ValidationError) Error() string {
 
 func (e *ValidationError) add(field, detail string) {
 	e.Fields = append(e.Fields, FieldError{Field: field, Detail: detail})
+}
+
+// isBlank reports whether s holds only whitespace or control characters.
+func isBlank(s string) bool {
+	for _, r := range s {
+		if !unicode.IsSpace(r) && !unicode.IsControl(r) {
+			return false
+		}
+	}
+	return true
 }
 
 func dateOf(t time.Time) time.Time {

@@ -55,7 +55,7 @@ type ContractTerms struct {
 // *ValidationError.
 func (t ContractTerms) Validate() error {
 	var v ValidationError
-	if n := utf8.RuneCountInString(t.Counterparty); n < 1 || n > MaxCounterpartyLen {
+	if n := utf8.RuneCountInString(strings.TrimSpace(t.Counterparty)); n < 1 || n > MaxCounterpartyLen {
 		v.add(FieldCounterparty, fmt.Sprintf("must be 1 to %d characters", MaxCounterpartyLen))
 	}
 	if t.AmountCents <= 0 {

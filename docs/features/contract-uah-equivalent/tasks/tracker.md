@@ -22,7 +22,7 @@
 | [T15](./T15-migration-header.md) | Drop the staging header from the promoted migration | migration | Andrii Opryshko | S | T01 | done |
 | [T16](./T16-redact-rate-url.md) | Log the rate-source address without credentials | wiring | Andrii Opryshko | S | T10 | done |
 | [T17](./T17-nbu-limit-tests.md) | Pin the NBU client's body cap and deadline with tests | tests | Andrii Opryshko | S | — | done |
-| [T18](./T18-keep-rate-url-out-of-errors.md) | Keep the rate-source address out of the lookup error | infra | Andrii Opryshko | S | T16 | todo |
-| [T19](./T19-four-codes-in-docs.md) | Count four finance problem codes in the SAD and the data model | docs | Andrii Opryshko | S | T14 | todo |
-| [T20](./T20-prd-change-note.md) | Record the post-approval change of the PRD | docs | Andrii Opryshko | S | T14 | todo |
-| [T21](./T21-out-of-range-log-fields.md) | Log an out-of-range equivalent without the amount | app | Andrii Opryshko | S | T14 | todo |
+| [T18](./T18-keep-rate-url-out-of-errors.md) | Keep the rate-source address out of the lookup error | infra | Andrii Opryshko | S | T16 | done |
+| [T19](./T19-four-codes-in-docs.md) | Count four finance problem codes in the SAD and the data model | docs | Andrii Opryshko | S | T14 | done |
+| [T20](./T20-prd-change-note.md) | Record the post-approval change of the PRD | docs | Andrii Opryshko | S | T14 | done |
+| [T21](./T21-out-of-range-log-fields.md) | Log an out-of-range equivalent without the amount | app | Andrii Opryshko | S | T14 | done |

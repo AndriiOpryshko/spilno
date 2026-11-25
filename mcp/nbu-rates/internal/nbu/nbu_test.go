@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -83,6 +84,41 @@ func TestRateErrors(t *testing.T) {
 				t.Errorf("err = %v, want %v", err, tt.want)
 			}
 		})
+	}
+}
+
+// A body over the 1 MiB cap is refused even when it is otherwise a valid answer.
+func TestRateRefusesAnOversizedBody(t *testing.T) {
+	pad := strings.Repeat("x", 1<<20)
+	c := upstream(t, func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`[{"rate":45.05,"cc":"EUR","txt":"` + pad + `"}]`))
+	})
+	if _, err := c.Rate(context.Background(), "EUR", day); !errors.Is(err, nbu.ErrUnavailable) {
+		t.Errorf("err = %v, want %v", err, nbu.ErrUnavailable)
+	}
+}
+
+// An upstream that never answers is given up on at the caller's deadline.
+func TestRateGivesUpAtTheDeadline(t *testing.T) {
+	c := upstream(t, func(_ http.ResponseWriter, r *http.Request) {
+		<-r.Context().Done()
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	_, err := c.Rate(ctx, "EUR", day)
+	if !errors.Is(err, nbu.ErrUnavailable) {
+		t.Errorf("err = %v, want %v", err, nbu.ErrUnavailable)
+	}
+	if d := time.Since(start); d > time.Second {
+		t.Errorf("Rate returned after %v, want it at the 50ms deadline", d)
+	}
+}
+
+// Without a caller deadline the client still gives up after 10 s.
+func TestNewClientBoundsEveryRequest(t *testing.T) {
+	if got := nbu.NewClient("").HTTP.Timeout; got != 10*time.Second {
+		t.Errorf("client timeout = %v, want 10s", got)
 	}
 }
 

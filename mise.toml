@@ -21,6 +21,23 @@ run = ["pnpm install", "pnpm --filter @spilno/web exec playwright install chromi
 description = "Run infra, core API (hot reload) and web in mprocs panes"
 run = "mprocs"
 
+[tasks."dev:core"]
+description = "Core API alone on HTTP_ADDR (:8080, or the worktree's port from scripts/wt.sh init)"
+dir = "services/core"
+run = "go run ./cmd/api"
+
+[tasks."dev:web"]
+description = "Web dev server alone on WEB_PORT (:5180 by default), proxying /api to CORE_API_URL"
+run = "pnpm --filter @spilno/web dev"
+
+[tasks."wt:new"]
+description = "New sibling worktree with its own ports, database and deps: mise run wt:new <slug> [branch]"
+run = "scripts/wt.sh new"
+
+[tasks."wt:init"]
+description = "Give the current linked worktree its own ports, database and deps"
+run = "scripts/wt.sh init"
+
 [tasks."infra:up"]
 run = "docker compose -f infra/compose.yaml up -d --wait"
 

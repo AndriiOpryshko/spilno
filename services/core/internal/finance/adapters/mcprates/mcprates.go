@@ -4,6 +4,8 @@ package mcprates
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -20,10 +22,41 @@ const (
 )
 
 // Provider is a ports.RateProvider backed by an MCP server.
-type Provider struct{ endpoint string }
+type Provider struct {
+	endpoint string
+	safe     string   // scheme://host/path, fit for errors and logs
+	leaks    []string // spellings of the endpoint that must never reach an error
+}
 
 // New returns a provider for the MCP endpoint URL.
-func New(endpoint string) *Provider { return &Provider{endpoint: endpoint} }
+func New(endpoint string) *Provider {
+	safe, leaks := addressForms(endpoint)
+	return &Provider{endpoint: endpoint, safe: safe, leaks: leaks}
+}
+
+// addressForms returns the form of endpoint that is safe for errors and logs (scheme, host and path only,
+// or "<unparsable>") and every spelling of the endpoint that net/http may print in a *url.Error: the raw
+// string, the parsed url.String() and, when a password is set, net/http's masked form (user:***@).
+func addressForms(endpoint string) (safe string, leaks []string) {
+	safe = "<unparsable>"
+	candidates := []string{endpoint}
+	if u, err := url.Parse(endpoint); err == nil {
+		safe = (&url.URL{Scheme: u.Scheme, Host: u.Host, Path: u.Path}).String()
+		candidates = append(candidates, u.String())
+		if u.User != nil {
+			if _, has := u.User.Password(); has {
+				candidates = append(candidates,
+					strings.Replace(u.String(), u.User.String()+"@", u.User.Username()+":***@", 1))
+			}
+		}
+	}
+	for _, c := range candidates {
+		if c != "" && !slices.Contains(leaks, c) {
+			leaks = append(leaks, c)
+		}
+	}
+	return safe, leaks
+}
 
 // Rate asks the server for the official rate of currency on day.
 func (p *Provider) Rate(ctx context.Context, currency domain.Currency, day time.Time) (domain.Rate, error) {
@@ -31,7 +64,7 @@ func (p *Provider) Rate(ctx context.Context, currency domain.Currency, day time.
 	client := mcp.NewClient(&mcp.Implementation{Name: "spilno-core", Version: "1"}, nil)
 	session, err := client.Connect(ctx, &mcp.StreamableClientTransport{Endpoint: p.endpoint, DisableStandaloneSSE: true}, nil)
 	if err != nil {
-		return domain.Rate{}, unavailable("connect", err)
+		return domain.Rate{}, p.unavailable("connect", err)
 	}
 	// Close may wait on a server that stopped answering; never make the caller wait for it.
 	defer func() { go func() { _ = session.Close() }() }()
@@ -41,7 +74,7 @@ func (p *Provider) Rate(ctx context.Context, currency domain.Currency, day time.
 		Arguments: map[string]any{"currency": string(currency), "date": date},
 	})
 	if err != nil {
-		return domain.Rate{}, unavailable("call", err)
+		return domain.Rate{}, p.unavailable("call", err)
 	}
 	if res.IsError {
 		text := toolText(res)
@@ -70,8 +103,13 @@ func toolText(res *mcp.CallToolResult) string {
 	return ""
 }
 
-func unavailable(step string, err error) error {
-	return fmt.Errorf("%w: %s: %v", domain.ErrRateUnavailable, step, err)
+// unavailable wraps err with the step and the log-safe address, with the raw endpoint scrubbed out.
+func (p *Provider) unavailable(step string, err error) error {
+	msg := err.Error()
+	for _, l := range p.leaks {
+		msg = strings.ReplaceAll(msg, l, p.safe)
+	}
+	return fmt.Errorf("%w: %s: endpoint=%s: %s", domain.ErrRateUnavailable, step, p.safe, msg)
 }
 
 // Disabled answers domain.ErrRateUnavailable to every lookup.

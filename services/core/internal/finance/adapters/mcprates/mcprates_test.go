@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -114,6 +115,41 @@ func TestRefusedConnection(t *testing.T) {
 	_, err := mcprates.New(url).Rate(context.Background(), domain.CurrencyEUR, day)
 	if !errors.Is(err, domain.ErrRateUnavailable) {
 		t.Fatalf("err = %v, want ErrRateUnavailable", err)
+	}
+}
+
+// A failed call must not leak the endpoint's userinfo, query or fragment into
+// the error: the address is logged and the query may carry a token.
+func TestErrorKeepsCredentialsOutOfTheAddress(t *testing.T) {
+	closed := httptest.NewServer(http.NotFoundHandler())
+	closedHost := closed.Listener.Addr().String()
+	closed.Close()
+	live := httptest.NewServer(http.NotFoundHandler()) // answers, but not MCP
+	t.Cleanup(live.Close)
+
+	cases := map[string]string{
+		"refused connection": closedHost,
+		"non-MCP answer":     live.Listener.Addr().String(),
+	}
+	for name, host := range cases {
+		t.Run(name, func(t *testing.T) {
+			addr := "http://svc-user:pw-secret@" + host + "/mcp?token=q-secret#frag"
+			_, err := mcprates.New(addr).Rate(context.Background(), domain.CurrencyEUR, day)
+			if !errors.Is(err, domain.ErrRateUnavailable) {
+				t.Fatalf("err = %v, want ErrRateUnavailable", err)
+			}
+			msg := err.Error()
+			for _, leak := range []string{"q-secret", "token=", "pw-secret", "frag", "svc-user"} {
+				if strings.Contains(msg, leak) {
+					t.Errorf("error %q leaks %q", msg, leak)
+				}
+			}
+			for _, keep := range []string{host, "/mcp"} {
+				if !strings.Contains(msg, keep) {
+					t.Errorf("error %q lacks %q, the log would not say which endpoint failed", msg, keep)
+				}
+			}
+		})
 	}
 }
 

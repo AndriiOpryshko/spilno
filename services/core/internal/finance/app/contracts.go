@@ -67,17 +67,22 @@ func (s *ContractService) equivalent(ctx context.Context, terms domain.ContractT
 	eq, err := rate.Convert(terms.AmountCents)
 	if err != nil {
 		slog.WarnContext(ctx, "uah equivalent not resolved",
-			"currency", terms.Currency, "amount_cents", terms.AmountCents, "error", err)
+			"currency", terms.Currency, "day", signingDay(terms.SignedAt).Format(time.DateOnly), "error", err)
 		return nil
 	}
 	return &eq
 }
 
+// signingDay truncates signedAt to its calendar day at UTC midnight.
+func signingDay(signedAt time.Time) time.Time {
+	y, m, d := signedAt.Date()
+	return time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
+}
+
 // signingDayRate fetches the rate for the calendar day of signedAt within
 // RateTimeout. It logs any failure; the caller decides what it means.
 func (s *ContractService) signingDayRate(ctx context.Context, currency domain.Currency, signedAt time.Time) (domain.Rate, error) {
-	y, m, d := signedAt.Date()
-	day := time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
+	day := signingDay(signedAt)
 
 	rctx, cancel := context.WithTimeout(ctx, RateTimeout)
 	defer cancel()

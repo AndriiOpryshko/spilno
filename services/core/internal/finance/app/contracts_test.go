@@ -1,8 +1,12 @@
 package app_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
+	"log/slog"
+	"strings"
 	"testing"
 	"time"
 
@@ -281,6 +285,59 @@ func TestCreateStoresWithoutEquivalentWhenOutOfRange(t *testing.T) {
 	}
 	if !repo.createdOK || repo.gotEq != nil {
 		t.Errorf("created=%v equivalent=%+v, want stored without equivalent", repo.createdOK, repo.gotEq)
+	}
+}
+
+// SAD section 8: the warning names currency, day and error class, never an amount.
+// Swaps slog.Default, so it must not run in parallel.
+func TestCreateOutOfRangeWarningLogsCurrencyDayAndNoAmount(t *testing.T) {
+	var buf bytes.Buffer
+	old := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&buf, nil)))
+	t.Cleanup(func() { slog.SetDefault(old) })
+
+	rate, err := domain.ParseRate(domain.CurrencyEUR, time.Time{}, "50.5311")
+	if err != nil {
+		t.Fatal(err)
+	}
+	huge := terms(domain.CurrencyEUR)
+	huge.AmountCents = 200_000_000_000_000_000
+	if _, err := app.NewContractService(&fakeRepo{}, &fakeRates{rate: rate}).Create(context.Background(), huge); err != nil {
+		t.Fatal(err)
+	}
+
+	var warns []map[string]any
+	for _, line := range strings.Split(strings.TrimSpace(buf.String()), "\n") {
+		if line == "" {
+			continue
+		}
+		var rec map[string]any
+		if err := json.Unmarshal([]byte(line), &rec); err != nil {
+			t.Fatalf("log line is not JSON: %q", line)
+		}
+		if rec["level"] == "WARN" {
+			warns = append(warns, rec)
+		}
+	}
+	if len(warns) != 1 {
+		t.Fatalf("got %d warnings, want 1: %s", len(warns), buf.String())
+	}
+	rec := warns[0]
+	if rec["currency"] != "EUR" {
+		t.Errorf("currency = %v, want EUR", rec["currency"])
+	}
+	if rec["day"] != "2026-10-20" {
+		t.Errorf("day = %v, want 2026-10-20", rec["day"])
+	}
+	if e, _ := rec["error"].(string); !strings.Contains(e, "out of range") {
+		t.Errorf("error = %v, want it to mention out of range", rec["error"])
+	}
+	if _, ok := rec["amount_cents"]; ok {
+		t.Error("warning carries amount_cents, want no amount")
+	}
+	raw, _ := json.Marshal(rec)
+	if strings.Contains(string(raw), "200000000000000000") {
+		t.Errorf("warning contains the amount: %s", raw)
 	}
 }
 

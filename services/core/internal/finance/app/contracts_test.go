@@ -267,6 +267,23 @@ func TestCreateStoresWithoutEquivalentWhenRateFails(t *testing.T) {
 	}
 }
 
+// An equivalent that does not fit int64 is not stored; the contract still is.
+func TestCreateStoresWithoutEquivalentWhenOutOfRange(t *testing.T) {
+	rate, err := domain.ParseRate(domain.CurrencyEUR, time.Time{}, "50.5311")
+	if err != nil {
+		t.Fatal(err)
+	}
+	huge := terms(domain.CurrencyEUR)
+	huge.AmountCents = 200_000_000_000_000_000
+	repo := &fakeRepo{}
+	if _, err := app.NewContractService(repo, &fakeRates{rate: rate}).Create(context.Background(), huge); err != nil {
+		t.Fatalf("Create failed over the equivalent: %v", err)
+	}
+	if !repo.createdOK || repo.gotEq != nil {
+		t.Errorf("created=%v equivalent=%+v, want stored without equivalent", repo.createdOK, repo.gotEq)
+	}
+}
+
 func TestCreateInvalidTermsDoNotAskRates(t *testing.T) {
 	rates := &fakeRates{}
 	bad := terms(domain.CurrencyEUR)
@@ -359,6 +376,21 @@ func TestResolveUAHEquivalentRateFailures(t *testing.T) {
 				t.Error("an equivalent was stored after a failed lookup")
 			}
 		})
+	}
+}
+
+func TestResolveUAHEquivalentRefusesOutOfRange(t *testing.T) {
+	rate, err := domain.ParseRate(domain.CurrencyEUR, time.Time{}, "50.5311")
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := storedContract(domain.CurrencyEUR, nil)
+	c.AmountCents = 200_000_000_000_000_000
+	repo := &fakeRepo{stored: c, setOK: true}
+	_, err = app.NewContractService(repo, &fakeRates{rate: rate}).ResolveUAHEquivalent(context.Background(), c.ID)
+	wantCode(t, err, domain.CodeEquivalentOutOfRange)
+	if repo.setCalls != 0 {
+		t.Error("an out-of-range equivalent was stored")
 	}
 }
 

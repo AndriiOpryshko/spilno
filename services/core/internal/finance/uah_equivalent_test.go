@@ -217,18 +217,21 @@ func TestResolveContractUahEquivalentConcurrentCallsStoreOneValue(t *testing.T) 
 // AC-07: every refusal is problem+json with its code and leaves the contract unchanged.
 func TestResolveContractUahEquivalentRefusals(t *testing.T) {
 	const uahBody = `{"counterparty":"A","amount_cents":100,"currency":"UAH","signed_at":"2026-10-20"}`
+	const hugeBody = `{"counterparty":"A","amount_cents":200000000000000000,"currency":"EUR","signed_at":"2026-10-20"}`
 	tests := []struct {
 		name       string
 		disabled   bool
 		body       string
+		rate       string
 		rateErr    error
 		wantStatus int
 		wantCode   string
 	}{
-		{"uah contract", false, uahBody, domain.ErrRateUnavailable, 409, "finance.equivalent_not_applicable"},
-		{"rate not published", false, eurBody, domain.ErrRateNotPublished, 409, "finance.rate_not_published"},
-		{"rate source down", false, eurBody, domain.ErrRateUnavailable, 503, "finance.rate_unavailable"},
-		{"rate source not configured", true, eurBody, nil, 503, "finance.rate_unavailable"},
+		{"uah contract", false, uahBody, "", domain.ErrRateUnavailable, 409, "finance.equivalent_not_applicable"},
+		{"equivalent out of range", false, hugeBody, "50.5311", nil, 409, "finance.equivalent_out_of_range"},
+		{"rate not published", false, eurBody, "", domain.ErrRateNotPublished, 409, "finance.rate_not_published"},
+		{"rate source down", false, eurBody, "", domain.ErrRateUnavailable, 503, "finance.rate_unavailable"},
+		{"rate source not configured", true, eurBody, "", nil, 503, "finance.rate_unavailable"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -242,7 +245,7 @@ func TestResolveContractUahEquivalentRefusals(t *testing.T) {
 
 			var created contractEq
 			do(t, "POST", base, tt.body, http.StatusCreated, &created)
-			rates.set("", false, tt.rateErr)
+			rates.set(tt.rate, false, tt.rateErr)
 
 			var p coded
 			do(t, "POST", base+"/"+created.ID+"/uah-equivalent", "", tt.wantStatus, &p)

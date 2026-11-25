@@ -15,6 +15,9 @@ var ErrRateNotPublished = errors.New("rate not published")
 // ErrRateUnavailable: the source could not be asked or its answer is untrusted.
 var ErrRateUnavailable = errors.New("rate unavailable")
 
+// ErrEquivalentOutOfRange: the hryvnia equivalent does not fit int64 kopiyky.
+var ErrEquivalentOutOfRange = errors.New("equivalent out of range")
+
 // Rate is an official rate: hryvnia times 10^6 per one unit of Currency.
 type Rate struct {
 	Currency Currency
@@ -63,12 +66,16 @@ func (r Rate) Decimal() string {
 	return strconv.FormatInt(whole, 10) + "." + frac
 }
 
-// Convert returns amountCents times the rate in kopiyky, rounded half up.
-func (r Rate) Convert(amountCents int64) UAHEquivalent {
+// Convert returns amountCents times the rate in kopiyky, rounded half up, or
+// ErrEquivalentOutOfRange when the result does not fit int64.
+func (r Rate) Convert(amountCents int64) (UAHEquivalent, error) {
 	n := new(big.Int).Mul(big.NewInt(amountCents), big.NewInt(r.Micros))
 	n.Add(n, big.NewInt(500_000))
 	n.Quo(n, big.NewInt(1_000_000))
-	return UAHEquivalent{AmountKopiyky: n.Int64(), Rate: r}
+	if !n.IsInt64() {
+		return UAHEquivalent{}, ErrEquivalentOutOfRange
+	}
+	return UAHEquivalent{AmountKopiyky: n.Int64(), Rate: r}, nil
 }
 
 // Foreign reports whether the currency is not the hryvnia.

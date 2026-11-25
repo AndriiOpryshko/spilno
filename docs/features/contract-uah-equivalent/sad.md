@@ -127,7 +127,9 @@ sequenceDiagram
         H-->>C: 409 finance.equivalent_not_applicable
     else
         A->>R: Rate(currency, signed_at) within 3 s
-        alt rate returned
+        alt rate returned, equivalent out of int64 range
+            H-->>C: 409 finance.equivalent_out_of_range
+        else rate returned
             A->>DB: UPDATE ... WHERE uah_amount_kopiyky IS NULL RETURNING
             Note over A,DB: no row updated = a concurrent call won, re-read
             H-->>C: 200 Contract

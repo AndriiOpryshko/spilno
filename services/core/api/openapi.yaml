@@ -114,7 +114,7 @@ paths:
         "401": [identity.session_required]
         "403": [identity.not_current_member, identity.association_disabled]
         "404": [about:blank]
-        "409": [finance.equivalent_not_applicable, finance.rate_not_published]
+        "409": [finance.equivalent_not_applicable, finance.equivalent_out_of_range, finance.rate_not_published]
         "422": [about:blank]
         "503": [finance.rate_unavailable]
       parameters:
@@ -1984,14 +1984,17 @@ components:
   responses:
     UahEquivalentConflict:
       description: |
-        `finance.equivalent_not_applicable` — the contract is in UAH; `finance.rate_not_published` — the NBU
-        has no офіційний курс of that currency for the signing day. The contract is unchanged (AC-07).
+        `finance.equivalent_not_applicable` — the contract is in UAH; `finance.equivalent_out_of_range` — the
+        hryvnia equivalent of the amount does not fit a 64-bit number of kopiyky; `finance.rate_not_published` —
+        the NBU has no офіційний курс of that currency for the signing day. The contract is unchanged (AC-07).
       content:
         application/problem+json:
           schema: { $ref: "#/components/schemas/Problem" }
           examples:
             equivalent_not_applicable:
               value: { type: about:blank, title: Conflict, status: 409, code: finance.equivalent_not_applicable, detail: the contract is in UAH }
+            equivalent_out_of_range:
+              value: { type: about:blank, title: Conflict, status: 409, code: finance.equivalent_out_of_range, detail: the hryvnia equivalent of this amount is out of range }
             rate_not_published:
               value: { type: about:blank, title: Conflict, status: 409, code: finance.rate_not_published, detail: the NBU has no official rate of EUR for 2031-01-01 }
     RateUnavailable:

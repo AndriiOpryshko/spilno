@@ -13,7 +13,7 @@ const (
 )
 
 func constants() []string {
-	return []string{CodeEquivalentNotApplicable, CodeRateNotPublished, CodeRateUnavailable}
+	return []string{CodeEquivalentNotApplicable, CodeEquivalentOutOfRange, CodeRateNotPublished, CodeRateUnavailable}
 }
 
 // prdCatalogue returns code -> status from the PRD §5.1 table.
@@ -34,8 +34,8 @@ func prdCatalogue(t *testing.T) map[string]int {
 
 func TestConstantsEqualPRDCatalogue(t *testing.T) {
 	cat := prdCatalogue(t)
-	if len(cat) != 3 {
-		t.Fatalf("PRD §5.1 catalogue has %d finance codes, want 3", len(cat))
+	if len(cat) != 4 {
+		t.Fatalf("PRD §5.1 catalogue has %d finance codes, want 4", len(cat))
 	}
 	got := map[string]bool{}
 	for _, c := range constants() {
@@ -84,8 +84,8 @@ func TestRegistryStatusesMatchContractProblemTypes(t *testing.T) {
 			want[c] = n
 		}
 	}
-	if len(want) != 3 {
-		t.Fatalf("contract x-problem-types lists %d finance codes, want 3", len(want))
+	if len(want) != 4 {
+		t.Fatalf("contract x-problem-types lists %d finance codes, want 4", len(want))
 	}
 	got := map[string]int{}
 	for _, d := range ErrorRegistry {

@@ -120,6 +120,8 @@ func (h *Handler) ResolveContractUahEquivalent(ctx context.Context, req gen.Reso
 		switch de.Code {
 		case domain.CodeEquivalentNotApplicable:
 			return equivalentConflict(de.Code, "a hryvnia contract has no equivalent"), nil
+		case domain.CodeEquivalentOutOfRange:
+			return equivalentConflict(de.Code, "the hryvnia equivalent of this amount is out of range"), nil
 		case domain.CodeRateNotPublished:
 			return equivalentConflict(de.Code, "the rate for the signing day is not published"), nil
 		case domain.CodeRateUnavailable:
@@ -140,7 +142,7 @@ func (h *Handler) ResolveContractUahEquivalent(ctx context.Context, req gen.Reso
 	return gen.ResolveContractUahEquivalent200JSONResponse(toAPI(c)), nil
 }
 
-// equivalentConflict is the 409 answer shared by the two equivalent-specific conflicts.
+// equivalentConflict is the 409 answer shared by the equivalent-specific conflicts.
 func equivalentConflict(code, detail string) gen.ResolveContractUahEquivalent409ApplicationProblemPlusJSONResponse {
 	return gen.ResolveContractUahEquivalent409ApplicationProblemPlusJSONResponse{
 		UahEquivalentConflictApplicationProblemPlusJSONResponse: gen.UahEquivalentConflictApplicationProblemPlusJSONResponse{

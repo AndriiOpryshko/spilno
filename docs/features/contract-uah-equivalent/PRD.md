@@ -75,7 +75,7 @@ Amounts are integer minor units (`amount_cents`, `amount_kopiyky`). The example 
 
 **Given** an amount in minor units and a rate as a decimal string,
 **When** the equivalent is computed,
-**Then** it equals amount × rate rounded half up to the kopiyka, using integer arithmetic only: 125000 × `50.5311` → 6316388; 1 × `45.051` → 45; 1 × `45.055` → 45 (45.055 → 45); 10 × `45.055` → 451 (450.55 → 451); 9 000 000 000 000 000 × `50.5311` does not overflow. A rate that is not a positive decimal with at most six fraction digits is refused.
+**Then** it equals amount × rate rounded half up to the kopiyka, using integer arithmetic only: 125000 × `50.5311` → 6316388; 1 × `45.051` → 45; 1 × `45.055` → 45 (45.055 → 45); 10 × `45.055` → 451 (450.55 → 451); 9 000 000 000 000 000 × `50.5311` does not overflow. A result that does not fit a signed 64-bit number of kopiyky is refused, never truncated (200 000 000 000 000 000 × `50.5311`). A rate that is not a positive decimal with at most six fraction digits is refused.
 
 ### AC-03 (US-01) — domain invariant (hryvnia contract)
 
@@ -85,7 +85,7 @@ Amounts are integer minor units (`amount_cents`, `amount_kopiyky`). The example 
 
 ### AC-04 (US-01) — error (rate source fails at creation)
 
-**Given** the rate source is unreachable, slow, not configured, or has no rate for that day,
+**Given** the rate source is unreachable, slow, not configured, or has no rate for that day, or the equivalent is out of range (AC-02),
 **When** a foreign-currency contract is created,
 **Then** the answer is still `201` with `uah_equivalent: null`, the contract is stored, and the wait for the rate source is at most 3 seconds.
 
@@ -104,6 +104,7 @@ Amounts are integer minor units (`amount_cents`, `amount_kopiyky`). The example 
 ### AC-07 (US-03) — error (refused)
 
 **When** the operation is called for a UAH contract, **Then** `409 finance.equivalent_not_applicable`.
+**When** the equivalent of the amount is out of range (AC-02), **Then** `409 finance.equivalent_out_of_range`.
 **When** the NBU has no rate for the signing day, **Then** `409 finance.rate_not_published`.
 **When** the rate source is unreachable, slow or not configured, **Then** `503 finance.rate_unavailable`.
 **When** no contract has the id in this association, **Then** `404`.
@@ -137,6 +138,7 @@ In every case the contract is unchanged and the body is `application/problem+jso
 | Code | Status | Raised when |
 |---|---|---|
 | `finance.equivalent_not_applicable` | 409 | the contract is in UAH |
+| `finance.equivalent_out_of_range` | 409 | the hryvnia equivalent of the amount does not fit a signed 64-bit number of kopiyky |
 | `finance.rate_not_published` | 409 | the NBU has no rate of that currency for the signing day |
 | `finance.rate_unavailable` | 503 | the rate source did not answer, answered nonsense, or is not configured |
 

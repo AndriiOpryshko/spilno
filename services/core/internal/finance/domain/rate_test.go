@@ -1,6 +1,10 @@
 package domain
 
-import "testing"
+import (
+	"errors"
+	"math"
+	"testing"
+)
 
 func TestRateConvertRoundsHalfUp(t *testing.T) {
 	tests := []struct {
@@ -14,6 +18,7 @@ func TestRateConvertRoundsHalfUp(t *testing.T) {
 		{"45.055 rounds to 45", 1, "45.055", 45},
 		{"450.55 rounds up", 10, "45.055", 451},
 		{"no overflow", 9_000_000_000_000_000, "50.5311", 454_779_900_000_000_000},
+		{"largest amount at rate 1", math.MaxInt64, "1", math.MaxInt64},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -21,7 +26,10 @@ func TestRateConvertRoundsHalfUp(t *testing.T) {
 			if err != nil {
 				t.Fatalf("ParseRate(%q) error: %v", tc.rate, err)
 			}
-			got := r.Convert(tc.amount)
+			got, err := r.Convert(tc.amount)
+			if err != nil {
+				t.Fatalf("Convert(%d) error: %v", tc.amount, err)
+			}
 			if got.AmountKopiyky != tc.want {
 				t.Errorf("%d x %s = %d kopiyky, want %d", tc.amount, tc.rate, got.AmountKopiyky, tc.want)
 			}
@@ -29,6 +37,26 @@ func TestRateConvertRoundsHalfUp(t *testing.T) {
 				t.Errorf("equivalent carries rate %+v, want %+v", got.Rate, r)
 			}
 		})
+	}
+}
+
+// An equivalent that does not fit int64 kopiyky is refused, never truncated.
+func TestRateConvertRefusesOutOfRange(t *testing.T) {
+	for _, tc := range []struct {
+		amount int64
+		rate   string
+	}{
+		{200_000_000_000_000_000, "50.5311"},
+		{math.MaxInt64, "1.000001"},
+	} {
+		r, err := ParseRate(CurrencyEUR, date("2026-10-20"), tc.rate)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got, err := r.Convert(tc.amount)
+		if !errors.Is(err, ErrEquivalentOutOfRange) {
+			t.Errorf("%d x %s = %+v, %v; want ErrEquivalentOutOfRange", tc.amount, tc.rate, got, err)
+		}
 	}
 }
 

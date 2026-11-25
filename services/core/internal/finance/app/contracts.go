@@ -54,8 +54,8 @@ func (s *ContractService) Create(ctx context.Context, terms domain.ContractTerms
 }
 
 // equivalent asks the rate source for the signing day's rate of a
-// foreign-currency contract. A failed lookup is logged and yields nil so the
-// contract is still stored.
+// foreign-currency contract. A failed lookup or an equivalent out of range is
+// logged and yields nil so the contract is still stored.
 func (s *ContractService) equivalent(ctx context.Context, terms domain.ContractTerms) *domain.UAHEquivalent {
 	if !terms.Currency.Foreign() {
 		return nil
@@ -64,7 +64,12 @@ func (s *ContractService) equivalent(ctx context.Context, terms domain.ContractT
 	if err != nil {
 		return nil
 	}
-	eq := rate.Convert(terms.AmountCents)
+	eq, err := rate.Convert(terms.AmountCents)
+	if err != nil {
+		slog.WarnContext(ctx, "uah equivalent not resolved",
+			"currency", terms.Currency, "amount_cents", terms.AmountCents, "error", err)
+		return nil
+	}
 	return &eq
 }
 
@@ -104,7 +109,11 @@ func (s *ContractService) ResolveUAHEquivalent(ctx context.Context, id uuid.UUID
 		}
 		return domain.Contract{}, &domain.DomainError{Code: domain.CodeRateUnavailable}
 	}
-	updated, ok, err := s.repo.SetUAHEquivalent(ctx, id, rate.Convert(c.AmountCents))
+	eq, err := rate.Convert(c.AmountCents)
+	if err != nil {
+		return domain.Contract{}, &domain.DomainError{Code: domain.CodeEquivalentOutOfRange}
+	}
+	updated, ok, err := s.repo.SetUAHEquivalent(ctx, id, eq)
 	if err != nil {
 		return domain.Contract{}, err
 	}

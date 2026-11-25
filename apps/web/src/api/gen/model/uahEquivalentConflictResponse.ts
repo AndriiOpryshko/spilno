@@ -9,7 +9,8 @@
 import type { Problem } from './problem';
 
 /**
- * `finance.equivalent_not_applicable` — the contract is in UAH; `finance.rate_not_published` — the NBU
- * has no офіційний курс of that currency for the signing day. The contract is unchanged (AC-07).
+ * `finance.equivalent_not_applicable` — the contract is in UAH; `finance.equivalent_out_of_range` — the
+ * hryvnia equivalent of the amount does not fit a 64-bit number of kopiyky; `finance.rate_not_published` —
+ * the NBU has no офіційний курс of that currency for the signing day. The contract is unchanged (AC-07).
  */
 export type UahEquivalentConflictResponse = Problem;

@@ -4,7 +4,7 @@ owner: "Andrii Opryshko"
 reviewers: ["Andrii Opryshko"]
 approved_by: "Andrii Opryshko"
 approved_at: "2026-11-20"
-updated_at: "2026-11-20"
+updated_at: "2026-11-25"
 feature_size: "S"
 stage: "03"
 depth: "easy"
@@ -141,6 +141,9 @@ In every case the contract is unchanged and the body is `application/problem+jso
 | `finance.equivalent_out_of_range` | 409 | the hryvnia equivalent of the amount does not fit a signed 64-bit number of kopiyky |
 | `finance.rate_not_published` | 409 | the NBU has no rate of that currency for the signing day |
 | `finance.rate_unavailable` | 503 | the rate source did not answer, answered nonsense, or is not configured |
+
+Amended 2026-11-25 after approval, per [review 2026-11-24](./_review/review-2026-11-24.md) finding 1:
+`finance.equivalent_out_of_range` added here and to AC-02, AC-04 and AC-07. The owner re-confirms the approval.
 
 Reused: `identity.session_required` (401), `identity.not_current_member` / `identity.association_disabled`
 (403), the uncoded `404` and `422` of the existing contract operations.

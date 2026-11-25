@@ -9,7 +9,7 @@ import (
 
 const (
 	prdPath      = "../../../../../docs/features/contract-uah-equivalent/PRD.md"
-	contractPath = "../../../../../docs/features/contract-uah-equivalent/contracts/openapi.yaml"
+	contractPath = "../../../api/openapi.yaml"
 )
 
 func constants() []string {

@@ -110,6 +110,13 @@ paths:
         Reads the офіційний курс of the contract's signing day and stores the гривневий еквівалент. Computed
         once: a contract that already has an equivalent is returned as stored and the rate source is not
         asked (AC-06), so the call is safe to repeat and needs no `Idempotency-Key`. No request body.
+      x-problem-types:
+        "401": [identity.session_required]
+        "403": [identity.not_current_member, identity.association_disabled]
+        "404": [about:blank]
+        "409": [finance.equivalent_not_applicable, finance.rate_not_published]
+        "422": [about:blank]
+        "503": [finance.rate_unavailable]
       parameters:
         - name: id
           in: path

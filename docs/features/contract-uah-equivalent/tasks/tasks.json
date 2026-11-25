@@ -301,6 +301,69 @@
       "files_hint": [
         "mcp/nbu-rates/internal/nbu/nbu_test.go"
       ]
+    },
+    {
+      "id": "T18",
+      "title": "Keep the rate-source address out of the lookup error",
+      "layer": "infra",
+      "deps": [
+        "T16"
+      ],
+      "acs": [],
+      "dod": "Review 2026-11-25 finding 1: an error from the MCP client carries the endpoint as scheme, host and path only (no userinfo, query or fragment); a test with ?token= in the URL asserts the returned error text has no query value.",
+      "files_hint": [
+        "services/core/internal/finance/adapters/mcprates/mcprates.go",
+        "services/core/internal/finance/adapters/mcprates/mcprates_test.go"
+      ]
+    },
+    {
+      "id": "T19",
+      "title": "Count four finance problem codes in the SAD and the data model",
+      "layer": "docs",
+      "deps": [
+        "T14"
+      ],
+      "acs": [
+        "AC-07"
+      ],
+      "dod": "Review 2026-11-25 finding 2: sad.md §5 and §8 and data-model.md name four finance.* codes; the SAD §5 rate.go row lists ErrEquivalentOutOfRange; updated_at is bumped in both.",
+      "files_hint": [
+        "docs/features/contract-uah-equivalent/sad.md",
+        "docs/features/contract-uah-equivalent/data-model.md"
+      ]
+    },
+    {
+      "id": "T20",
+      "title": "Record the post-approval change of the PRD",
+      "layer": "docs",
+      "deps": [
+        "T14"
+      ],
+      "acs": [
+        "AC-02",
+        "AC-04",
+        "AC-07"
+      ],
+      "dod": "Review 2026-11-25 finding 3: PRD updated_at is 2026-11-25 and a one-line note says AC-02, AC-04, AC-07 and §5.1 were amended per review 2026-11-24 finding 1; the owner re-confirms the approval.",
+      "files_hint": [
+        "docs/features/contract-uah-equivalent/PRD.md"
+      ]
+    },
+    {
+      "id": "T21",
+      "title": "Log an out-of-range equivalent without the amount",
+      "layer": "app",
+      "deps": [
+        "T14"
+      ],
+      "acs": [
+        "AC-04"
+      ],
+      "dod": "Review 2026-11-25 finding 4: the out-of-range warning on create logs currency, day and error, no amount, as SAD §8 says; a test pins the fields.",
+      "files_hint": [
+        "services/core/internal/finance/app/contracts.go",
+        "services/core/internal/finance/app/contracts_test.go"
+      ]
     }
   ]
 }

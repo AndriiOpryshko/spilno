@@ -2,7 +2,7 @@
 status: Accepted
 owner: "Andrii Opryshko"
 reviewers: ["Andrii Opryshko"]
-updated_at: "2026-11-20"
+updated_at: "2026-11-25"
 feature_size: "S"
 stage: "04-05"
 depth: "easy"
@@ -60,8 +60,8 @@ separately in `mcp/nbu-rates`), governance, the web app.
 
 | Block | Path | Responsibility |
 |---|---|---|
-| domain | `finance/domain/rate.go` | `Rate` (a decimal parsed into micros), `UAHEquivalent`, the half-up conversion; `ErrRateNotPublished`, `ErrRateUnavailable` |
-| domain | `finance/domain/errors.go` | the three `finance.*` codes of PRD §5.1 with their statuses |
+| domain | `finance/domain/rate.go` | `Rate` (a decimal parsed into micros), `UAHEquivalent`, the half-up conversion; `ErrRateNotPublished`, `ErrRateUnavailable`, `ErrEquivalentOutOfRange` |
+| domain | `finance/domain/errors.go` | the four `finance.*` codes of PRD §5.1 with their statuses |
 | port | `finance/ports/rates.go` | `RateProvider.Rate(ctx, currency, day) (domain.Rate, error)` |
 | adapter | `finance/adapters/mcprates/` | MCP client: connects to `NBU_RATES_MCP_URL`, calls `get_rate`, validates the answer, maps failures; a `Disabled` provider when the URL is empty |
 | adapter | `finance/adapters/postgres/` | reads and writes the two columns; `SetUAHEquivalent` only where it is still `NULL` |
@@ -166,7 +166,7 @@ feature degrades as in AC-04 and AC-07. The MCP port is never published outside 
 - **Money:** a rate is `rate_micros` (hryvnia × 10⁶ per unit, `int64`); the equivalent is
   `round_half_up(amount_cents × rate_micros / 10⁶)` in `math/big`. Six fraction digits cover what the NBU
   publishes (four for EUR and USD); a longer or non-decimal rate is refused, never rounded.
-- **Errors:** the three codes of PRD §5.1 live in `finance/domain/errors.go` (the shape of
+- **Errors:** the four codes of PRD §5.1 live in `finance/domain/errors.go` (the shape of
   `governance/domain/errors.go`) and reach the wire as the `code` member of a problem.
 - **Timeouts:** one `context.WithTimeout(3 s)` around the port call in the app layer; the adapter adds none.
 - **Trust in the tool answer:** the adapter checks that the answer names the currency and the day it asked

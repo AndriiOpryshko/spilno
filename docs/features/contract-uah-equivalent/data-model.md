@@ -1,7 +1,7 @@
 ---
 status: Accepted
 owner: "Andrii Opryshko"
-updated_at: "2026-11-20"
+updated_at: "2026-11-25"
 feature_size: "S"
 prd: "PRD.md"
 sad: "sad.md"
@@ -40,7 +40,7 @@ None: no query filters or orders by the new columns.
 
 ## Error catalogue → constraints
 
-No database constraint backs the `finance.*` codes of PRD §5.1; all three are decided in `app`.
+No database constraint backs the `finance.*` codes of PRD §5.1; all four are decided in `app`.
 
 ## Migration plan
 

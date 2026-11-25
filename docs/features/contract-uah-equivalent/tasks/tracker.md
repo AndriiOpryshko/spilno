@@ -17,3 +17,8 @@
 | [T10](./T10-wire-rates-config.md) | Wire NBU_RATES_MCP_URL from the environment to the finance module | wiring | Andrii Opryshko | S | T09 | done |
 | [T11](./T11-end-to-end-real-mcp-server.md) | Prove the chain end to end against the real nbu-rates binary and a fake NBU | tests | Andrii Opryshko | M | T10 | done |
 | [T12](./T12-docs-and-bruno.md) | Document the feature: Bruno request, environment variable, CLAUDE.md gotcha | docs | Andrii Opryshko | S | T09 | done |
+| [T13](./T13-live-problem-types.md) | Serve the live contract's problem-type catalogue and check the registry against it | wiring | Andrii Opryshko | S | T09 | todo |
+| [T14](./T14-equivalent-out-of-range.md) | Refuse a hryvnia equivalent that does not fit int64 instead of storing a wrong one | domain | Andrii Opryshko | M | T13 | todo |
+| [T15](./T15-migration-header.md) | Drop the staging header from the promoted migration | migration | Andrii Opryshko | S | T01 | todo |
+| [T16](./T16-redact-rate-url.md) | Log the rate-source address without credentials | wiring | Andrii Opryshko | S | T10 | todo |
+| [T17](./T17-nbu-limit-tests.md) | Pin the NBU client's body cap and deadline with tests | tests | Andrii Opryshko | S | — | todo |

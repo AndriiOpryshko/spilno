@@ -223,6 +223,84 @@
         "CLAUDE.md",
         "mcp/nbu-rates/README.md"
       ]
+    },
+    {
+      "id": "T13",
+      "title": "Serve the live contract's problem-type catalogue and check the registry against it",
+      "layer": "wiring",
+      "deps": [
+        "T09"
+      ],
+      "acs": [
+        "AC-07"
+      ],
+      "dod": "Review 2026-11-24 finding 2: `resolveContractUahEquivalent` in services/core/api/openapi.yaml carries the delta's `x-problem-types`; `TestRegistryStatusesMatchContractProblemTypes` reads the live spec; `mise run gen` leaves no diff beyond the embedded spec.",
+      "files_hint": [
+        "services/core/api/openapi.yaml",
+        "services/core/internal/finance/domain/errors_test.go"
+      ]
+    },
+    {
+      "id": "T14",
+      "title": "Refuse a hryvnia equivalent that does not fit int64 instead of storing a wrong one",
+      "layer": "domain",
+      "deps": [
+        "T13"
+      ],
+      "acs": [
+        "AC-02",
+        "AC-04",
+        "AC-07"
+      ],
+      "dod": "Review 2026-11-24 finding 1: `Rate.Convert` returns an error when the product does not fit int64; Create stores the contract with `uah_equivalent: null` and logs it; the get-it-later operation answers `409 finance.equivalent_out_of_range` and leaves the contract unchanged. PRD AC-02/AC-07 + §5.1, the delta and the live contract name the new code; registry and catalogue tests cover 4 codes; a boundary test row exists.",
+      "files_hint": [
+        "services/core/internal/finance/domain/rate.go",
+        "services/core/internal/finance/domain/errors.go",
+        "services/core/internal/finance/app/contracts.go",
+        "services/core/internal/finance/adapters/http/handler.go",
+        "services/core/api/openapi.yaml",
+        "docs/features/contract-uah-equivalent/PRD.md",
+        "docs/features/contract-uah-equivalent/contracts/openapi.yaml"
+      ]
+    },
+    {
+      "id": "T15",
+      "title": "Drop the staging header from the promoted migration",
+      "layer": "migration",
+      "deps": [
+        "T01"
+      ],
+      "acs": [],
+      "dod": "Review 2026-11-24 finding 3: services/core/migrations/00050_add_contracts_uah_equivalent.sql no longer says it is staged; schema unchanged.",
+      "files_hint": [
+        "services/core/migrations/00050_add_contracts_uah_equivalent.sql"
+      ]
+    },
+    {
+      "id": "T16",
+      "title": "Log the rate-source address without credentials",
+      "layer": "wiring",
+      "deps": [
+        "T10"
+      ],
+      "acs": [],
+      "dod": "Review 2026-11-24 finding 4: the startup log line carries the URL with userinfo redacted; a test pins the redaction.",
+      "files_hint": [
+        "services/core/cmd/api/main.go"
+      ]
+    },
+    {
+      "id": "T17",
+      "title": "Pin the NBU client's body cap and deadline with tests",
+      "layer": "tests",
+      "deps": [],
+      "acs": [
+        "AC-10"
+      ],
+      "dod": "Review 2026-11-24 finding 5: TestRateErrors has a body over 1 MiB and a blocking upstream with a short deadline; both end in ErrUnavailable, the second promptly.",
+      "files_hint": [
+        "mcp/nbu-rates/internal/nbu/nbu_test.go"
+      ]
     }
   ]
 }

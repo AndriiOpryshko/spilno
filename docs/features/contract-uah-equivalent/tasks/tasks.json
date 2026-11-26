@@ -364,6 +364,68 @@
         "services/core/internal/finance/app/contracts.go",
         "services/core/internal/finance/app/contracts_test.go"
       ]
+    },
+    {
+      "id": "T22",
+      "title": "Show the out-of-range branch in SAD Flow 1 and count four codes in T03",
+      "layer": "docs",
+      "deps": [
+        "T19"
+      ],
+      "acs": [
+        "AC-04",
+        "AC-07"
+      ],
+      "dod": "Review 2026-11-25 (round 3) finding 1: sad.md §6 Flow 1 has an `equivalent out of int64 range → insert, equivalent NULL (logged)` branch inside `rate returned`, as amended AC-04 says; T03's DoD in tasks.json and T03-finance-problem-codes.md says four codes (extended by T14); sad.md updated_at is bumped.",
+      "files_hint": [
+        "docs/features/contract-uah-equivalent/sad.md",
+        "docs/features/contract-uah-equivalent/tasks/tasks.json",
+        "docs/features/contract-uah-equivalent/tasks/T03-finance-problem-codes.md"
+      ]
+    },
+    {
+      "id": "T23",
+      "title": "Refuse redirects from the rate source and scrub each secret part of its address",
+      "layer": "infra",
+      "deps": [
+        "T18"
+      ],
+      "acs": [],
+      "dod": "Review 2026-11-25 (round 3) finding 2: the MCP transport uses its own http.Client whose CheckRedirect returns http.ErrUseLastResponse; unavailable() removes the password, the username, every query value and the fragment as substrings, not only whole-URL spellings; a test against a server that redirects (e.g. /mcp → /mcp/) asserts the error text has no token, username, password or fragment.",
+      "files_hint": [
+        "services/core/internal/finance/adapters/mcprates/mcprates.go",
+        "services/core/internal/finance/adapters/mcprates/mcprates_test.go"
+      ]
+    },
+    {
+      "id": "T24",
+      "title": "Pin the call step against an address leak",
+      "layer": "tests",
+      "deps": [
+        "T23"
+      ],
+      "acs": [],
+      "dod": "Review 2026-11-25 (round 3) finding 3: the vacuous \"non-MCP answer\" subtest of TestErrorKeepsCredentialsOutOfTheAddress is replaced by a stub that completes initialize and then drops the connection on tools/call (Post \"<url>\": EOF); with the scrubbing removed, that subtest fails.",
+      "files_hint": [
+        "services/core/internal/finance/adapters/mcprates/mcprates_test.go"
+      ]
+    },
+    {
+      "id": "T25",
+      "title": "Bound the rate lookup's HTTP requests so a hung source frees its socket",
+      "layer": "infra",
+      "deps": [
+        "T23"
+      ],
+      "acs": [
+        "AC-04",
+        "AC-10"
+      ],
+      "dod": "Review 2026-11-25 (round 3) finding 4: the transport's http.Client has a Timeout a little above RateTimeout (or a ResponseHeaderTimeout); a test against a server that hangs asserts the server sees its request context cancelled shortly after Rate returns.",
+      "files_hint": [
+        "services/core/internal/finance/adapters/mcprates/mcprates.go",
+        "services/core/internal/finance/adapters/mcprates/mcprates_test.go"
+      ]
     }
   ]
 }

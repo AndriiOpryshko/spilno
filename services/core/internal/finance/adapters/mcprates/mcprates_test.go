@@ -1,8 +1,10 @@
 package mcprates_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -124,14 +126,33 @@ func TestErrorKeepsCredentialsOutOfTheAddress(t *testing.T) {
 	closed := httptest.NewServer(http.NotFoundHandler())
 	closedHost := closed.Listener.Addr().String()
 	closed.Close()
-	live := httptest.NewServer(http.NotFoundHandler()) // answers, but not MCP
-	t.Cleanup(live.Close)
+	// Completes the MCP initialize handshake, then drops the connection on tools/call, so net/http reports
+	// `Post "<url>": EOF` on the call step and the error names the configured address.
+	mcpSrv := mcp.NewServer(&mcp.Implementation{Name: "stub", Version: "0"}, nil)
+	mcp.AddTool(mcpSrv, &mcp.Tool{Name: "get_rate", Description: "stub"},
+		func(context.Context, *mcp.CallToolRequest, in) (*mcp.CallToolResult, out, error) {
+			return nil, good(), nil
+		})
+	inner := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return mcpSrv }, nil)
+	dropper := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		if r.Method == http.MethodPost && bytes.Contains(body, []byte(`"method":"tools/call"`)) {
+			if conn, _, err := w.(http.Hijacker).Hijack(); err == nil {
+				_ = conn.Close()
+			}
+			return
+		}
+		r.Body = io.NopCloser(bytes.NewReader(body))
+		inner.ServeHTTP(w, r)
+	}))
+	t.Cleanup(dropper.Close)
 
-	cases := map[string]string{
-		"refused connection": closedHost,
-		"non-MCP answer":     live.Listener.Addr().String(),
+	cases := map[string]struct{ host, step string }{
+		"refused connection":         {closedHost, "connect"},
+		"connection dropped on call": {dropper.Listener.Addr().String(), "call"},
 	}
-	for name, host := range cases {
+	for name, c := range cases {
+		host := c.host
 		t.Run(name, func(t *testing.T) {
 			addr := "http://svc-user:pw-secret@" + host + "/mcp?token=q-secret#frag"
 			_, err := mcprates.New(addr).Rate(context.Background(), domain.CurrencyEUR, day)
@@ -139,6 +160,9 @@ func TestErrorKeepsCredentialsOutOfTheAddress(t *testing.T) {
 				t.Fatalf("err = %v, want ErrRateUnavailable", err)
 			}
 			msg := err.Error()
+			if !strings.Contains(msg, ": "+c.step+": ") {
+				t.Errorf("error %q does not name the %q step", msg, c.step)
+			}
 			for _, leak := range []string{"q-secret", "token=", "pw-secret", "frag", "svc-user"} {
 				if strings.Contains(msg, leak) {
 					t.Errorf("error %q leaks %q", msg, leak)

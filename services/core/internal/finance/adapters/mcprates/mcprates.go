@@ -4,6 +4,7 @@ package mcprates
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"net/url"
 	"slices"
 	"strings"
@@ -25,44 +26,63 @@ const (
 type Provider struct {
 	endpoint string
 	safe     string   // scheme://host/path, fit for errors and logs
-	leaks    []string // spellings of the endpoint that must never reach an error
+	spelled  []string // whole spellings of the endpoint, replaced by safe in an error
+	secrets  []string // secret parts of the endpoint (userinfo, query, fragment), masked in an error
+	http     *http.Client
 }
 
 // New returns a provider for the MCP endpoint URL.
 func New(endpoint string) *Provider {
-	safe, leaks := addressForms(endpoint)
-	return &Provider{endpoint: endpoint, safe: safe, leaks: leaks}
+	safe, spelled, secrets := addressForms(endpoint)
+	// A redirect would carry the request to an address nobody configured: refuse it.
+	noRedirect := func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	return &Provider{endpoint: endpoint, safe: safe, spelled: spelled, secrets: secrets, http: &http.Client{CheckRedirect: noRedirect}}
 }
 
 // addressForms returns the form of endpoint that is safe for errors and logs (scheme, host and path only,
-// or "<unparsable>") and every spelling of the endpoint that net/http may print in a *url.Error: the raw
-// string, the parsed url.String() and, when a password is set, net/http's masked form (user:***@).
-func addressForms(endpoint string) (safe string, leaks []string) {
+// or "<unparsable>"), every spelling of the endpoint that net/http may print in a *url.Error (the raw
+// string, the parsed url.String() and, when a password is set, net/http's masked form user:***@), and
+// its secret parts on their own, so they are caught inside an address nobody configured too.
+func addressForms(endpoint string) (safe string, spelled, secrets []string) {
 	safe = "<unparsable>"
-	candidates := []string{endpoint}
+	spellings := []string{endpoint}
 	if u, err := url.Parse(endpoint); err == nil {
 		safe = (&url.URL{Scheme: u.Scheme, Host: u.Host, Path: u.Path}).String()
-		candidates = append(candidates, u.String())
+		spellings = append(spellings, u.String())
 		if u.User != nil {
-			if _, has := u.User.Password(); has {
-				candidates = append(candidates,
-					strings.Replace(u.String(), u.User.String()+"@", u.User.Username()+":***@", 1))
+			secrets = append(secrets, u.User.Username())
+			if pw, has := u.User.Password(); has {
+				spellings = append(spellings, strings.Replace(u.String(), u.User.String()+"@", u.User.Username()+":***@", 1))
+				secrets = append(secrets, pw, url.QueryEscape(pw), url.PathEscape(pw))
+			}
+		}
+		secrets = append(secrets, u.RawQuery, u.Fragment, u.EscapedFragment())
+		for _, vs := range u.Query() {
+			for _, v := range vs {
+				secrets = append(secrets, v, url.QueryEscape(v))
 			}
 		}
 	}
-	for _, c := range candidates {
-		if c != "" && !slices.Contains(leaks, c) {
-			leaks = append(leaks, c)
+	return safe, uniqueLongestFirst(spellings), uniqueLongestFirst(secrets)
+}
+
+// uniqueLongestFirst drops empty and repeated strings and orders the rest longest first.
+func uniqueLongestFirst(in []string) []string {
+	var out []string
+	for _, c := range in {
+		if c != "" && !slices.Contains(out, c) {
+			out = append(out, c)
 		}
 	}
-	return safe, leaks
+	slices.SortStableFunc(out, func(a, b string) int { return len(b) - len(a) })
+	return out
 }
 
 // Rate asks the server for the official rate of currency on day.
 func (p *Provider) Rate(ctx context.Context, currency domain.Currency, day time.Time) (domain.Rate, error) {
 	date := day.Format(dayLayout)
 	client := mcp.NewClient(&mcp.Implementation{Name: "spilno-core", Version: "1"}, nil)
-	session, err := client.Connect(ctx, &mcp.StreamableClientTransport{Endpoint: p.endpoint, DisableStandaloneSSE: true}, nil)
+	session, err := client.Connect(ctx, &mcp.StreamableClientTransport{Endpoint: p.endpoint, HTTPClient: p.http, DisableStandaloneSSE: true}, nil)
 	if err != nil {
 		return domain.Rate{}, p.unavailable("connect", err)
 	}
@@ -103,12 +123,20 @@ func toolText(res *mcp.CallToolResult) string {
 	return ""
 }
 
-// unavailable wraps err with the step and the log-safe address, with the raw endpoint scrubbed out.
+// unavailable wraps err with the step and the log-safe address, with the raw endpoint scrubbed out: a
+// whole spelling of it becomes the safe form, and a secret part left anywhere else (an address net/http
+// reports after a redirect, say) becomes ***.
 func (p *Provider) unavailable(step string, err error) error {
+	// The placeholder keeps the safe form out of the secret masking, which could otherwise hit its host.
+	const placeholder = "\x00endpoint\x00"
 	msg := err.Error()
-	for _, l := range p.leaks {
-		msg = strings.ReplaceAll(msg, l, p.safe)
+	for _, s := range p.spelled {
+		msg = strings.ReplaceAll(msg, s, placeholder)
 	}
+	for _, s := range p.secrets {
+		msg = strings.ReplaceAll(msg, s, "***")
+	}
+	msg = strings.ReplaceAll(msg, placeholder, p.safe)
 	return fmt.Errorf("%w: %s: endpoint=%s: %s", domain.ErrRateUnavailable, step, p.safe, msg)
 }
 

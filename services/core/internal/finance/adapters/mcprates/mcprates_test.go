@@ -153,6 +153,48 @@ func TestErrorKeepsCredentialsOutOfTheAddress(t *testing.T) {
 	}
 }
 
+// The rate source must not be able to move the client: a redirect is refused, and whatever address the
+// transport ends up naming (another path, the query carried over) stays free of every secret part of the
+// configured one.
+func TestRedirectIsRefusedAndKeepsSecretsOutOfTheError(t *testing.T) {
+	cases := map[string]struct{ path, target string }{
+		"trailing slash": {"/mcp", "/mcp/"},
+		"another path":   {"/mcp", "/moved/elsewhere?token=q-secret"},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			followed := false
+			mux := http.NewServeMux()
+			mux.HandleFunc(c.path, func(w http.ResponseWriter, r *http.Request) {
+				http.Redirect(w, r, c.target, http.StatusTemporaryRedirect)
+			})
+			mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+				followed = true // drop the connection: the client reports a *url.Error naming the followed address
+				if conn, _, err := w.(http.Hijacker).Hijack(); err == nil {
+					_ = conn.Close()
+				}
+			})
+			srv := httptest.NewServer(mux)
+			t.Cleanup(srv.Close)
+
+			addr := "http://svc-user:pw-secret@" + srv.Listener.Addr().String() + c.path + "?token=q-secret#frag"
+			_, err := mcprates.New(addr).Rate(context.Background(), domain.CurrencyEUR, day)
+			if !errors.Is(err, domain.ErrRateUnavailable) {
+				t.Fatalf("err = %v, want ErrRateUnavailable", err)
+			}
+			if followed {
+				t.Errorf("the redirect was followed, want it refused")
+			}
+			msg := err.Error()
+			for _, leak := range []string{"q-secret", "token=", "svc-user", "pw-secret", "frag"} {
+				if strings.Contains(msg, leak) {
+					t.Errorf("error %q leaks %q", msg, leak)
+				}
+			}
+		})
+	}
+}
+
 func TestExpiringContextReturnsPromptly(t *testing.T) {
 	release := make(chan struct{})
 	t.Cleanup(func() { close(release) })

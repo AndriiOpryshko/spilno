@@ -27,7 +27,7 @@ status: "done"
 
 ## Definition of Done
 
-- [ ] Acceptance: Each of the three codes of PRD §5.1 has exactly one constant whose string equals the catalogue, with its HTTP status in a registry, and a test fails when a code is missing or misspelt.
+- [ ] Acceptance: Each of the codes of PRD §5.1 (three at first; T14 added the fourth, so four) has exactly one constant whose string equals the catalogue, with its HTTP status in a registry, and a test fails when a code is missing or misspelt.
 - [ ] unit: the set of constants equals the `Code` column of PRD §5.1
 - [ ] unit: the statuses match `x-problem-types` of the feature contract
 - [ ] `mise run lint` and `mise run test` green

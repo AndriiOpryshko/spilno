@@ -2,7 +2,7 @@
 status: Accepted
 owner: "Andrii Opryshko"
 reviewers: ["Andrii Opryshko"]
-updated_at: "2026-11-25"
+updated_at: "2026-11-26"
 feature_size: "S"
 stage: "04-05"
 depth: "easy"
@@ -96,7 +96,11 @@ sequenceDiagram
         alt rate returned
             M-->>R: {currency, date, rate, source}
             R-->>A: Rate
-            A->>DB: insert with equivalent and rate
+            alt equivalent out of int64 range
+                A->>DB: insert, equivalent NULL (logged: currency, day, error)
+            else
+                A->>DB: insert with equivalent and rate
+            end
         else not published / unavailable / timeout
             M-->>R: tool error or no answer
             R-->>A: ErrRateNotPublished or ErrRateUnavailable

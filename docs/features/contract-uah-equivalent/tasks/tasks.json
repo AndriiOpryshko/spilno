@@ -40,7 +40,7 @@
       "acs": [
         "AC-07"
       ],
-      "dod": "Each of the three codes of PRD §5.1 has exactly one constant whose string equals the catalogue, with its HTTP status in a registry, and a test fails when a code is missing or misspelt.",
+      "dod": "Each of the codes of PRD §5.1 (three at first; T14 added the fourth, so four) has exactly one constant whose string equals the catalogue, with its HTTP status in a registry, and a test fails when a code is missing or misspelt.",
       "files_hint": [
         "services/core/internal/finance/domain/errors.go",
         "services/core/internal/finance/domain/errors_test.go"

@@ -29,4 +29,4 @@
 | [T22](./T22-sad-flow1-out-of-range.md) | Show the out-of-range branch in SAD Flow 1 and count four codes in T03 | docs | Andrii Opryshko | S | T19 | done |
 | [T23](./T23-refuse-rate-source-redirects.md) | Refuse redirects from the rate source and scrub each secret part of its address | infra | Andrii Opryshko | S | T18 | done |
 | [T24](./T24-call-step-leak-test.md) | Pin the call step against an address leak | tests | Andrii Opryshko | S | T23 | done |
-| [T25](./T25-bound-rate-http-requests.md) | Bound the rate lookup's HTTP requests so a hung source frees its socket | infra | Andrii Opryshko | S | T23 | todo |
+| [T25](./T25-bound-rate-http-requests.md) | Bound the rate lookup's HTTP requests so a hung source frees its socket | infra | Andrii Opryshko | S | T23 | done |

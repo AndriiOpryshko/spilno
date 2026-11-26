@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -238,6 +239,48 @@ func TestExpiringContextReturnsPromptly(t *testing.T) {
 	}
 	if d := time.Since(start); d > 2*time.Second {
 		t.Fatalf("returned after %v, want promptly", d)
+	}
+}
+
+// A source that reads each request and then stops answering must not hold Rate past the caller's deadline,
+// nor keep a request open after Rate has given up. The go-sdk follows an expired call with a
+// notifications/cancelled POST that carries no deadline of its own, so the transport bounds every request
+// by the caller's deadline.
+func TestHungSourceIsBoundedByTheCallersDeadline(t *testing.T) {
+	release := make(chan struct{})
+	var open atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		open.Add(1)
+		defer open.Add(-1)
+		// net/http notices a client hang-up (and cancels r.Context) only once the body has been read.
+		_, _ = io.Copy(io.Discard, r.Body)
+		select {
+		case <-r.Context().Done():
+		case <-release:
+		case <-time.After(10 * time.Second):
+		}
+	}))
+	t.Cleanup(srv.Close)
+	t.Cleanup(func() { close(release) }) // runs before srv.Close, which waits for the handlers
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	_, err := mcprates.New(srv.URL).Rate(ctx, domain.CurrencyEUR, day)
+	took := time.Since(start)
+	if !errors.Is(err, domain.ErrRateUnavailable) {
+		t.Fatalf("err = %v, want ErrRateUnavailable", err)
+	}
+	if took > time.Second {
+		t.Errorf("Rate returned after %v with a 100ms deadline, want it bounded by the deadline", took)
+	}
+
+	returned := time.Now()
+	for open.Load() > 0 {
+		if time.Since(returned) > time.Second {
+			t.Fatalf("%d request(s) still open on the server 1s after Rate returned, want them cancelled", open.Load())
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
 }
 

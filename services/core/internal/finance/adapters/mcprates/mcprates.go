@@ -4,6 +4,7 @@ package mcprates
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"slices"
@@ -22,21 +23,66 @@ const (
 	notPublished = "rate_not_published"
 )
 
+// fallbackBudget bounds the HTTP requests of a lookup whose caller set no deadline. It matches
+// app.RateTimeout (3 s), to which it is tied by hand because an adapter must not import app.
+const fallbackBudget = 3 * time.Second
+
 // Provider is a ports.RateProvider backed by an MCP server.
 type Provider struct {
 	endpoint string
 	safe     string   // scheme://host/path, fit for errors and logs
 	spelled  []string // whole spellings of the endpoint, replaced by safe in an error
 	secrets  []string // secret parts of the endpoint (userinfo, query, fragment), masked in an error
-	http     *http.Client
 }
 
 // New returns a provider for the MCP endpoint URL.
 func New(endpoint string) *Provider {
 	safe, spelled, secrets := addressForms(endpoint)
-	// A redirect would carry the request to an address nobody configured: refuse it.
-	noRedirect := func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
-	return &Provider{endpoint: endpoint, safe: safe, spelled: spelled, secrets: secrets, http: &http.Client{CheckRedirect: noRedirect}}
+	return &Provider{endpoint: endpoint, safe: safe, spelled: spelled, secrets: secrets}
+}
+
+// httpClient returns the client for one lookup. It refuses redirects, which would carry the request to an
+// address nobody configured, and bounds every request by the caller's deadline: the go-sdk sends some
+// requests (the notifications/cancelled that follows an expired call, the DELETE on close) on a context of
+// its own, which would otherwise wait on a source that stopped answering for as long as it likes.
+func httpClient(ctx context.Context) *http.Client {
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		deadline = time.Now().Add(fallbackBudget)
+	}
+	return &http.Client{
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+		Transport:     deadlineTransport{base: http.DefaultTransport, deadline: deadline},
+	}
+}
+
+// deadlineTransport gives every request it carries the same absolute deadline.
+type deadlineTransport struct {
+	base     http.RoundTripper
+	deadline time.Time
+}
+
+func (t deadlineTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	ctx, cancel := context.WithDeadline(req.Context(), t.deadline)
+	resp, err := t.base.RoundTrip(req.WithContext(ctx))
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+	resp.Body = cancelOnClose{ReadCloser: resp.Body, cancel: cancel}
+	return resp, nil
+}
+
+// cancelOnClose releases the request's deadline context once the response body is closed.
+type cancelOnClose struct {
+	io.ReadCloser
+	cancel context.CancelFunc
+}
+
+func (b cancelOnClose) Close() error {
+	err := b.ReadCloser.Close()
+	b.cancel()
+	return err
 }
 
 // addressForms returns the form of endpoint that is safe for errors and logs (scheme, host and path only,
@@ -82,7 +128,7 @@ func uniqueLongestFirst(in []string) []string {
 func (p *Provider) Rate(ctx context.Context, currency domain.Currency, day time.Time) (domain.Rate, error) {
 	date := day.Format(dayLayout)
 	client := mcp.NewClient(&mcp.Implementation{Name: "spilno-core", Version: "1"}, nil)
-	session, err := client.Connect(ctx, &mcp.StreamableClientTransport{Endpoint: p.endpoint, HTTPClient: p.http, DisableStandaloneSSE: true}, nil)
+	session, err := client.Connect(ctx, &mcp.StreamableClientTransport{Endpoint: p.endpoint, HTTPClient: httpClient(ctx), DisableStandaloneSSE: true}, nil)
 	if err != nil {
 		return domain.Rate{}, p.unavailable("connect", err)
 	}

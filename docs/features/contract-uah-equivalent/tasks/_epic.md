@@ -13,7 +13,7 @@ A contract signed in EUR or USD carries its гривневий еквівале�
 
 ## Task map
 
-Same DAG as [tasks.json](./tasks.json). Day-one parallel starts: T01, T02, T03, T04. Longest chain: 7 (T02 → T05 → T07 → T08 → T09 → T10 → T11). Tasks sharing files (`app/contracts.go`, `handler.go`, `module.go`) are serialized by their `deps`.
+Same DAG as [tasks.json](./tasks.json). T01–T12 are the original plan; T13–T29 are review follow-ups ([_review/](../_review/)). Day-one parallel starts: T01, T02, T03, T04. Longest chain: 7 (T02 → T05 → T07 → T08 → T09 → T10 → T11). Tasks sharing files (`app/contracts.go`, `handler.go`, `module.go`) are serialized by their `deps`.
 
 ```mermaid
 flowchart LR
@@ -29,6 +29,23 @@ flowchart LR
     T10["T10 wiring: wire-rates-config"]:::wir
     T11["T11 tests: end-to-end-real-mcp-server"]:::tst
     T12["T12 docs: docs-and-bruno"]:::doc
+    T13["T13 wiring: live-problem-types"]:::wir
+    T14["T14 domain: equivalent-out-of-range"]:::dom
+    T15["T15 migration: migration-header"]:::mig
+    T16["T16 wiring: redact-rate-url"]:::wir
+    T17["T17 tests: nbu-limit-tests"]:::tst
+    T18["T18 infra: keep-rate-url-out-of-errors"]:::inf
+    T19["T19 docs: four-codes-in-docs"]:::doc
+    T20["T20 docs: prd-change-note"]:::doc
+    T21["T21 app: out-of-range-log-fields"]:::app
+    T22["T22 docs: sad-flow1-out-of-range"]:::doc
+    T23["T23 infra: refuse-rate-source-redirects"]:::inf
+    T24["T24 tests: call-step-leak-test"]:::tst
+    T25["T25 infra: bound-rate-http-requests"]:::inf
+    T26["T26 docs: sad-adapter-deadline"]:::doc
+    T27["T27 docs: epic-follow-up-coverage"]:::doc
+    T28["T28 tests: hung-source-test-strength"]:::tst
+    T29["T29 infra: structural-url-redaction"]:::inf
     T02 --> T05
     T01 --> T06
     T02 --> T06
@@ -41,6 +58,24 @@ flowchart LR
     T09 --> T10
     T10 --> T11
     T09 --> T12
+    T09 --> T13
+    T13 --> T14
+    T01 --> T15
+    T10 --> T16
+    T16 --> T18
+    T14 --> T19
+    T14 --> T20
+    T14 --> T21
+    T19 --> T22
+    T18 --> T23
+    T23 --> T24
+    T23 --> T25
+    T25 --> T26
+    T26 --> T27
+    T28 --> T27
+    T29 --> T27
+    T25 --> T28
+    T23 --> T29
     classDef mig fill:#fde68a,stroke:#92400e,color:#111
     classDef dom fill:#bbf7d0,stroke:#166534,color:#111
     classDef inf fill:#bfdbfe,stroke:#1e40af,color:#111
@@ -56,13 +91,13 @@ flowchart LR
 | AC | Tasks |
 |---|---|
 | AC-01 | T01, T06, T07, T09, T11 |
-| AC-02 | T02 |
+| AC-02 | T02, T14, T20 |
 | AC-03 | T07 |
-| AC-04 | T07, T10 |
+| AC-04 | T07, T10, T14, T20, T21, T22, T25, T26, T28 |
 | AC-05 | T04, T08, T09, T12 |
 | AC-06 | T06, T08, T09 |
-| AC-07 | T03, T08, T09 |
+| AC-07 | T03, T08, T09, T13, T14, T19, T20, T22 |
 | AC-08 | T09 |
 | AC-09 | T02, T04, T09 |
-| AC-10 | T05, T10, T11 |
+| AC-10 | T05, T10, T11, T17, T25, T26, T28, T29 |
 | AC-11 | T11 |

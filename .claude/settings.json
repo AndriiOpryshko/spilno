@@ -51,6 +51,13 @@
       "Bash(git push --force *)",
       "Bash(git push -f *)",
       "Bash(git push --force-with-lease *)"
+    ],
+    "allow": [
+      "Bash(gh pr create *)"
+    ],
+    "ask": [
+      "Bash(gh pr merge *)",
+      "Bash(gh pr close *)"
     ]
   }
 }

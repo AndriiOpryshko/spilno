@@ -174,7 +174,7 @@ feature degrades as in AC-04 and AC-07. The MCP port is never published outside 
   `governance/domain/errors.go`) and reach the wire as the `code` member of a problem.
 - **Timeouts:** the app layer sets the budget: one `context.WithTimeout(3 s)` around the port call. The adapter
   carries it to every HTTP request of a lookup, including those the go-sdk sends on a context of its own (the
-  `notifications/cancelled` after an expired call, the `DELETE` on close), so a source that stops answering
+  `DELETE` that closes the session, also after an expired call), so a source that stops answering
   holds neither the caller nor a socket past the deadline; with no caller deadline it falls back to 3 s.
 - **Redirects:** the adapter refuses them. A redirect would carry the request, and the secret parts of
   `NBU_RATES_MCP_URL`, to an address nobody configured.

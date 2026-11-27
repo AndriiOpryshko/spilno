@@ -43,8 +43,8 @@ func New(endpoint string) *Provider {
 
 // httpClient returns the client for one lookup. It refuses redirects, which would carry the request to an
 // address nobody configured, and bounds every request by the caller's deadline: the go-sdk sends some
-// requests (the notifications/cancelled that follows an expired call, the DELETE on close) on a context of
-// its own, which would otherwise wait on a source that stopped answering for as long as it likes.
+// requests (the DELETE of session.Close, which follows an expired call too) on a context of its own, which
+// would otherwise wait on a source that stopped answering for as long as it likes.
 func httpClient(ctx context.Context) *http.Client {
 	deadline, ok := ctx.Deadline()
 	if !ok {

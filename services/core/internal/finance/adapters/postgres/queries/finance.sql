@@ -14,9 +14,12 @@ SELECT * FROM contracts WHERE id = $1 AND association_id = $2;
 
 -- name: ListContracts :many
 -- Pages newest first by the (created_at, id) keyset; a NULL after_created_at
--- starts from the top.
+-- starts from the top. missing_uah_equivalent keeps only the foreign-currency
+-- contracts without a hryvnia equivalent (a UAH contract never has one).
 SELECT * FROM contracts
 WHERE association_id = sqlc.arg(association_id)
+  AND (NOT sqlc.arg(missing_uah_equivalent)::boolean
+   OR (uah_amount_kopiyky IS NULL AND currency <> 'UAH'))
   AND (sqlc.narg(after_created_at)::timestamptz IS NULL
    OR (created_at, id) < (sqlc.narg(after_created_at)::timestamptz, sqlc.narg(after_id)::uuid))
 ORDER BY created_at DESC, id DESC

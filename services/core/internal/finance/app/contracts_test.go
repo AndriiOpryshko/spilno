@@ -62,7 +62,7 @@ func (f *fakeRepo) Create(_ context.Context, t domain.ContractTerms, eq *domain.
 	return domain.Contract{ID: uuid.New(), ContractTerms: t, UAHEquivalent: eq}, nil
 }
 
-func (f *fakeRepo) List(_ context.Context, after *ports.ContractKey, limit int) ([]domain.Contract, error) {
+func (f *fakeRepo) List(_ context.Context, _ ports.ContractFilter, after *ports.ContractKey, limit int) ([]domain.Contract, error) {
 	f.gotAfter, f.gotLimit = after, limit
 	start := 0
 	if after != nil {

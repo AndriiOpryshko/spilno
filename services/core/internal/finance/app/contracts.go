@@ -153,7 +153,7 @@ func (s *ContractService) List(ctx context.Context, limit int, cursor string) (P
 	}
 
 	// One extra row tells whether another page follows.
-	items, err := s.repo.List(ctx, after, limit+1)
+	items, err := s.repo.List(ctx, ports.ContractFilter{}, after, limit+1)
 	if err != nil {
 		return Page{}, err
 	}

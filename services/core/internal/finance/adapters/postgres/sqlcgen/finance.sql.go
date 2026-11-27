@@ -87,24 +87,29 @@ func (q *Queries) GetContract(ctx context.Context, arg GetContractParams) (Contr
 const listContracts = `-- name: ListContracts :many
 SELECT id, counterparty, amount_cents, currency, signed_at, ends_at, created_at, updated_at, association_id, uah_amount_kopiyky, uah_rate_micros FROM contracts
 WHERE association_id = $1
-  AND ($2::timestamptz IS NULL
-   OR (created_at, id) < ($2::timestamptz, $3::uuid))
+  AND (NOT $2::boolean
+   OR (uah_amount_kopiyky IS NULL AND currency <> 'UAH'))
+  AND ($3::timestamptz IS NULL
+   OR (created_at, id) < ($3::timestamptz, $4::uuid))
 ORDER BY created_at DESC, id DESC
-LIMIT $4
+LIMIT $5
 `
 
 type ListContractsParams struct {
-	AssociationID  pgtype.UUID
-	AfterCreatedAt pgtype.Timestamptz
-	AfterID        pgtype.UUID
-	RowLimit       int32
+	AssociationID        pgtype.UUID
+	MissingUahEquivalent bool
+	AfterCreatedAt       pgtype.Timestamptz
+	AfterID              pgtype.UUID
+	RowLimit             int32
 }
 
 // Pages newest first by the (created_at, id) keyset; a NULL after_created_at
-// starts from the top.
+// starts from the top. missing_uah_equivalent keeps only the foreign-currency
+// contracts without a hryvnia equivalent (a UAH contract never has one).
 func (q *Queries) ListContracts(ctx context.Context, arg ListContractsParams) ([]Contract, error) {
 	rows, err := q.db.Query(ctx, listContracts,
 		arg.AssociationID,
+		arg.MissingUahEquivalent,
 		arg.AfterCreatedAt,
 		arg.AfterID,
 		arg.RowLimit,

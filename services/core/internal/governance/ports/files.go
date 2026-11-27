@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"io"
+
+	"github.com/google/uuid"
 )
 
 // ErrFileNotFound means no stored file has the id.
@@ -29,6 +31,10 @@ type FileStatus struct {
 	ReadOnly bool
 }
 
+// FilesResolver yields the storage of one association. A nil Files with a nil error means the
+// association has no storage.
+type FilesResolver func(ctx context.Context, association uuid.UUID) (Files, error)
+
 // Files is the association-owned file storage (ADR-0005). An unavailable
 // storage answers *domain.DomainError{Code: domain.CodeStorageUnavailable}
 // from every method and changes nothing.
@@ -44,4 +50,6 @@ type Files interface {
 	SetReadOnly(ctx context.Context, id string) error
 	// Untrash restores a trashed file; a no-op on a file that is not trashed.
 	Untrash(ctx context.Context, id string) error
+	// Remove deletes the file; idempotent, a file that is not there is not an error.
+	Remove(ctx context.Context, id string) error
 }

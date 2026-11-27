@@ -21,4 +21,6 @@ type FileRecord struct {
 type FileCatalog interface {
 	// Find returns ErrFileNotFound when the association has no file with the id.
 	Find(ctx context.Context, association, id uuid.UUID) (FileRecord, error)
+	// Any reports whether the association has at least one file.
+	Any(ctx context.Context, association uuid.UUID) (bool, error)
 }

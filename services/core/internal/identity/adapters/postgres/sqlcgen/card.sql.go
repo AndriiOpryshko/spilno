@@ -133,14 +133,25 @@ JOIN applications a ON a.id = d.application_id
 JOIN application_filings f ON f.id = d.filing_id
 LEFT JOIN application_checks k ON k.id = d.check_id
 LEFT JOIN (
-    SELECT DISTINCT ON (r.decision_id) r.decision_id, r.full_name
+    SELECT DISTINCT ON (r.decision_id) r.decision_id,
+           (SELECT l.full_name FROM board_member_revisions l
+            WHERE l.association_id = r.association_id AND l.board_member_id = r.board_member_id
+            ORDER BY l.created_at DESC, l.id DESC LIMIT 1) AS full_name
     FROM board_member_revisions r
     WHERE r.association_id = $1 AND r.decision_id IS NOT NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM board_member_revisions p
+        WHERE p.association_id = r.association_id AND p.decision_id = r.decision_id
+          AND p.board_member_id = r.board_member_id AND (p.created_at, p.id) < (r.created_at, r.id))
       AND EXISTS (
         SELECT 1 FROM board_member_revisions s
         WHERE s.association_id = r.association_id AND s.decision_id = r.decision_id
-          AND s.board_member_id <> r.board_member_id AND s.id > r.id)
-    ORDER BY r.decision_id, r.id DESC
+          AND s.board_member_id <> r.board_member_id AND (s.created_at, s.id) > (r.created_at, r.id)
+          AND NOT EXISTS (
+            SELECT 1 FROM board_member_revisions q
+            WHERE q.association_id = s.association_id AND q.decision_id = s.decision_id
+              AND q.board_member_id = s.board_member_id AND (q.created_at, q.id) < (s.created_at, s.id)))
+    ORDER BY r.decision_id, r.created_at DESC, r.id DESC
 ) ended ON ended.decision_id = d.id
 WHERE d.association_id = $1 AND d.outcome = 'approved'
 UNION ALL
@@ -166,7 +177,8 @@ type ListCardHistoryRow struct {
 }
 
 // A decision writes the ended entry first and the seated one after it (approval.go), so the entry it ended
-// is the revision of the decision that a later revision of the same decision, of another board member, follows.
+// is a board member whose first revision carrying the decision precedes the first such revision of another
+// member; a later edit copies the decision into more revisions but never moves a first one.
 func (q *Queries) ListCardHistory(ctx context.Context, associationID pgtype.UUID) ([]ListCardHistoryRow, error) {
 	rows, err := q.db.Query(ctx, listCardHistory, associationID)
 	if err != nil {

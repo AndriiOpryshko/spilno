@@ -34,6 +34,15 @@ export const WithAssociationCard: Story = {
   },
 };
 
+// A person on one roster still reaches their заявки and the form (AC-01, AC-04d, AC-05).
+export const WithApplicationLinks: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(await canvas.findByRole('link', { name: 'Мої заявки' })).toHaveAttribute('href', '/applications');
+    await expect(canvas.getByRole('link', { name: 'Подати заявку на підключення' })).toHaveAttribute('href', '/applications/new?kind=connection');
+  },
+};
+
 export const WithOperatorEntry: Story = {
   args: { isOperator: true },
   play: async ({ canvasElement }) => {

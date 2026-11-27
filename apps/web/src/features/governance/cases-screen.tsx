@@ -1,17 +1,17 @@
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
 import { useMemo } from 'react';
 
-import { listCases, useGetCase } from '@/api/gen/endpoints/governance/governance';
-import { listMemberships } from '@/api/gen/endpoints/identity/identity';
+import { getListCasesQueryKey, listCases, useGetCase } from '@/api/gen/endpoints/governance/governance';
+import { useAllMemberships } from '@/features/identity/shell/use-all-memberships';
 import type { Case } from '@/api/gen/model';
 import { TopBar } from '@/components/app-shell';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { RequestFallback } from '@/features/identity/shell/request-fallback';
 import { formatDate, uk } from '@/i18n/uk';
 
 import { CaseDocuments } from './case-documents';
-import { InlineAlert } from './inline-alert';
 import { StatusGlyph } from './status-glyph';
 
 // A вимкнене ОСББ refuses every governance read (ADR-0007); the layout shows the suspended notice,
@@ -23,7 +23,7 @@ const isDisabledProblem = (error: unknown) => {
 
 function useAssociationName(associationId: string) {
   // The layout already loaded the roster; this reads the same cache entry.
-  const { data: roster } = useQuery({ queryKey: ['memberships'], queryFn: () => listMemberships() });
+  const { data: roster } = useAllMemberships({ refetchOnMount: false });
   return roster?.data.items.find((m) => m.association_id === associationId)?.association_name;
 }
 
@@ -32,7 +32,8 @@ export function CasesScreen() {
   const associationName = useAssociationName(associationId);
   // Paged by next_cursor, like the реєстр: «показати ще» reads the next page.
   const query = useInfiniteQuery({
-    queryKey: ['cases-pages', associationId],
+    // Pages are a different cache shape from the layout's plain list read, so the key gets a suffix.
+    queryKey: [...getListCasesQueryKey(associationId), 'pages'],
     queryFn: ({ pageParam }) => listCases(associationId, pageParam ? { cursor: pageParam } : undefined),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.data.next_cursor ?? undefined,
@@ -51,16 +52,7 @@ export function CasesScreen() {
 
         {query.isPending && <CasesSkeleton />}
         {query.isError && !isDisabledProblem(query.error) && (
-          <InlineAlert
-            title={uk.cases.loadError}
-            action={
-              <Button variant="outline" onClick={() => query.refetch()}>
-                {uk.cases.retry}
-              </Button>
-            }
-          >
-            {uk.cases.loadErrorHint}
-          </InlineAlert>
+          <RequestFallback error={query.error} onRetry={() => void query.refetch()} />
         )}
         {query.isSuccess && items.length === 0 && (
           <div className="flex flex-col items-center gap-2 rounded-lg border bg-card px-6 py-8 text-center">
@@ -142,7 +134,19 @@ export function CaseScreen({ caseId }: { caseId: string }) {
         </header>
 
         {query.isPending && <CasesSkeleton />}
-        {query.isError && !disabled && <InlineAlert title={uk.cases.caseLoadError}>{uk.cases.loadErrorHint}</InlineAlert>}
+        {query.isError && !disabled && (
+          <RequestFallback
+            error={query.error}
+            onRetry={() => void query.refetch()}
+            action={
+              <Button variant="outline" asChild>
+                <Link to="/o/$associationId/cases" params={{ associationId }}>
+                  {uk.cases.backToList}
+                </Link>
+              </Button>
+            }
+          />
+        )}
         {detail && <CaseDocuments associationId={associationId} caseId={caseId} documents={detail.documents} />}
       </div>
     </>

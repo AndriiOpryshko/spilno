@@ -36,3 +36,12 @@ func (Files) Find(ctx context.Context, association, id uuid.UUID) (ports.FileRec
 		MediaType: r.MediaType, Name: r.OriginalName, Pinned: r.Pinned,
 	}, nil
 }
+
+// Any reports whether the association has at least one file.
+func (Files) Any(ctx context.Context, association uuid.UUID) (bool, error) {
+	q, err := queries(ctx)
+	if err != nil {
+		return false, err
+	}
+	return q.AssociationHasFiles(ctx, uuidOf(association))
+}

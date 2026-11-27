@@ -61,7 +61,7 @@ func newGuardedEnvOn(t *testing.T, pool *pgxpool.Pool, cfg finance.Config, assoc
 	t.Helper()
 	idm := identity.New(pool)
 	idm.EnableSignIn(identity.SignInConfig{Provider: financeGuardedFakeProvider{}, OperatorEmail: financeGuardEmail})
-	gov := governance.New(pool, idm.HasStorageConnection)
+	gov := governance.New(pool, idm.HasStorageConnection, nil)
 	r := httpapi.NewRouter()
 	r.Group(func(r chi.Router) {
 		r.Use(idm.Guard(financeGuardedRoster{gov}))

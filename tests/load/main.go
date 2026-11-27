@@ -1,6 +1,7 @@
 // Command load runs the three load scenarios of PRD §6 against a running core API and exits
-// non-zero when a threshold is missed. Defaults are the PRD §6 numbers and the local stack;
-// every parameter is a flag with an environment fallback (LOAD_<NAME>).
+// non-zero when a threshold is missed (-report-p95-only reports the p95 without enforcing it).
+// Defaults are the PRD §6 numbers and the local stack; every parameter is a flag with an
+// environment fallback (LOAD_<NAME>).
 //
 //	mise run load                                  # the PRD numbers, 5 minutes of reads
 //	mise run load -- -duration 20s -read-p95 1ms   # short run, impossible threshold: must fail
@@ -64,6 +65,7 @@ func main() {
 	runID := flag.String("run-id", envOr("RUN_ID", strconv.FormatInt(time.Now().Unix()%1000000, 10)), "makes the seeded people unique per run")
 	edrpouBase := flag.Int("edrpou-base", envInt("EDRPOU_BASE", 0), "first 8-digit code to seed (0 = derived from the run id; must be unused in the database)")
 	only := flag.String("only", envOr("ONLY", ""), "run one scenario: reads, writes or filings (default all)")
+	reportP95 := flag.Bool("report-p95-only", envOr("REPORT_P95_ONLY", "") == "true", "print the p95 next to its limit without failing on it (CI on a shared runner); throughput and errors still fail")
 	flag.Parse()
 
 	if *edrpouBase == 0 {
@@ -91,15 +93,15 @@ func main() {
 	if run("reads") {
 		s, el := readMix(a, w, *readRate, *duration)
 		// the throughput bar is the rate itself, with 2% for the tail of the last second
-		verdicts = append(verdicts, s.judge(el, *readP95, *readRate*0.98))
+		verdicts = append(verdicts, s.judgeMode(el, *readP95, *readRate*0.98, *reportP95))
 	}
 	if run("writes") {
 		s, el := writeMix(a, w, *writeRate, *duration)
-		verdicts = append(verdicts, s.judge(el, *writeP95, 0))
+		verdicts = append(verdicts, s.judgeMode(el, *writeP95, 0, *reportP95))
 	}
 	if run("filings") {
 		s, el := filings(a, cfg, *nFilings, *filingConc, cfg.edrpouBase+*apps+10, 5<<20)
-		verdicts = append(verdicts, s.judge(el, *filingP95, 0))
+		verdicts = append(verdicts, s.judgeMode(el, *filingP95, 0, *reportP95))
 	}
 	failed := false
 	for _, v := range verdicts {

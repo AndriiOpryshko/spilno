@@ -48,8 +48,17 @@ func rejectionState(t *testing.T, e *reviewEnv, app string) string {
 
 func rejectionPost(e *reviewEnv, t *testing.T, as, app, filing, reason string) (int, string, []byte) {
 	t.Helper()
-	status, _, body := e.do(t, as, http.MethodPost, "/identity/operator/applications/"+app+"/rejection", rejectionBody(filing, reason))
-	return status, assocStateProblemCode(body), body
+	status, code, body, err := rejectionPostErr(e, as, app, filing, reason)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return status, code, body
+}
+
+// rejectionPostErr is rejectionPost for a goroutine: it returns the transport error.
+func rejectionPostErr(e *reviewEnv, as, app, filing, reason string) (int, string, []byte, error) {
+	status, _, body, err := e.doErr(as, http.MethodPost, "/identity/operator/applications/"+app+"/rejection", rejectionBody(filing, reason))
+	return status, assocStateProblemCode(body), body, err
 }
 
 // AC-14: a rejection records one decision with the reason and the оператор, sets the заявка

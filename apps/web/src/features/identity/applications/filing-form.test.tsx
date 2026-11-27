@@ -240,6 +240,93 @@ describe('FilingForm', () => {
     expect(message).toMatch(/PDF/);
   });
 
+  const chooseExtract = (file: File) => fireEvent.change(screen.getByLabelText(/Витяг/), { target: { files: [file] } });
+
+  const expectExtractRefused = () => {
+    expect(screen.getByLabelText(/Витяг/)).toHaveAttribute('aria-invalid', 'true');
+    const message = document.getElementById('filing-extract-error')?.textContent ?? '';
+    expect(message).toMatch(/5\s*МБ/);
+    expect(message).toMatch(/PDF/);
+    expect(screen.queryByText(/Не вдалося подати/)).not.toBeInTheDocument();
+  };
+
+  const sentExtracts = (fetchMock: ReturnType<typeof stubApi>) =>
+    (fetchMock.mock.calls as unknown as [string, RequestInit][]).map(([, init]) => (init.body as FormData).get('extract'));
+
+  it('refuses an extract over 5 MB under the field, sending no refused file (AC-02)', async () => {
+    const fetchMock = stubApi(() =>
+      problem(422, 'identity.application_invalid', 'The application is not valid.', [{ pointer: '/extract', detail: 'is required' }]),
+    );
+    await renderForm('connection');
+    fillValid();
+    chooseExtract(new File([new Uint8Array(5 * 1024 * 1024 + 1)], 'big.pdf', { type: 'application/pdf' }));
+    submit();
+    await waitFor(expectExtractRefused);
+    expect(sentExtracts(fetchMock).some((x) => x instanceof File && x.size > 0)).toBe(false);
+  });
+
+  it('refuses an extract of another type under the field, sending no refused file (AC-02)', async () => {
+    const fetchMock = stubApi(() =>
+      problem(422, 'identity.application_invalid', 'The application is not valid.', [{ pointer: '/extract', detail: 'is required' }]),
+    );
+    await renderForm('connection');
+    fillValid();
+    chooseExtract(new File(['x'], 'extract.png', { type: 'image/png' }));
+    submit();
+    await waitFor(expectExtractRefused);
+    expect(sentExtracts(fetchMock).some((x) => x instanceof File && x.size > 0)).toBe(false);
+  });
+
+  it('names a refused extract together with every other broken field after one submit (AC-02)', async () => {
+    // The server cannot see the refused file, so it reports /extract as missing next to the broken text field.
+    const fetchMock = stubApi(() =>
+      problem(422, 'identity.application_invalid', 'The application is not valid.', [
+        { pointer: '/edrpou', detail: 'must be 8 digits' },
+        { pointer: '/extract', detail: 'is required' },
+      ]),
+    );
+    await renderForm('connection');
+    fillValid();
+    fireEvent.change(screen.getByLabelText(/ЄДРПОУ/), { target: { value: '' } });
+    chooseExtract(new File(['x'], 'extract.png', { type: 'image/png' }));
+    submit();
+    await waitFor(() => expect(screen.getByLabelText(/ЄДРПОУ/)).toHaveAttribute('aria-invalid', 'true'));
+    expectExtractRefused();
+    const summary = screen.getByRole('alert');
+    expect(summary.textContent).toMatch(/ЄДРПОУ/);
+    expect(summary.textContent).toMatch(/Витяг/);
+    expect(sentExtracts(fetchMock).some((x) => x instanceof File && x.name === 'extract.png')).toBe(false);
+  });
+
+  it('names only the extract and records nothing when a refused extract sits next to valid fields (AC-02)', async () => {
+    const fetchMock = stubApi(() =>
+      problem(422, 'identity.application_invalid', 'The application is not valid.', [
+        { pointer: '/extract', detail: 'is required' },
+      ]),
+    );
+    await renderForm('connection');
+    fillValid();
+    chooseExtract(new File(['x'], 'extract.png', { type: 'image/png' }));
+    submit();
+    await waitFor(expectExtractRefused);
+    for (const label of [/ЄДРПОУ/, /Назва ОСББ/, /Адреса/, /ПІБ/, /Початок строку/]) {
+      expect(screen.getByLabelText(label)).not.toHaveAttribute('aria-invalid', 'true');
+    }
+    expect(screen.getByRole('alert').textContent).toMatch(/^Перевірте поля заявки: Витяг$/);
+    expect(screen.queryByText(/Заявку подано/)).not.toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalled();
+    expect(sentExtracts(fetchMock).some((x) => x instanceof File && x.name === 'extract.png')).toBe(false);
+  });
+
+  it('shows a 413 answer as the same extract field message (AC-02)', async () => {
+    stubApi(() => problem(413, 'identity.payload_too_large', 'The request body is too large.'));
+    await renderForm('connection');
+    fillValid();
+    submit();
+    await waitFor(expectExtractRefused);
+    expect(screen.queryByText(/too large/)).not.toBeInTheDocument();
+  });
+
   it('shows «Не вдалося подати» for a code it does not know, not the English server detail', async () => {
     stubApi(() => problem(409, 'identity.something_new', 'The application cannot be filed.'));
     await renderForm('connection');

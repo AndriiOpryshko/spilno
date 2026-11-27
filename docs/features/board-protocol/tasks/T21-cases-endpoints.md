@@ -45,6 +45,29 @@ The five operations are served by association-onboarding [T64](../../association
 (`cases_endpoints_test.go`, `file_download_test.go`): 422 `governance.file_invalid`, 503
 `governance.storage_unavailable`, attachment downloads, and the storage guard of association-onboarding AC-28.
 
+The second follow-up of association-onboarding (review of 2026-11-17) put the two file operations on the
+storage of the request's association and took the storage calls out of the database transaction:
+
+- [T92](../../association-onboarding/tasks/T92-files-per-association.md) (commit `159505b`): `addCaseDocument` and `downloadFile` ask a
+  resolver for the storage of their association on every call (`files_per_association_test.go`).
+- [T94](../../association-onboarding/tasks/T94-upload-outside-transaction.md) (commit `d38dbc5`): `addCaseDocument` checks the справа,
+  the previous version and the file in a short transaction, sends the bytes to the storage, then writes the
+  file and the document in one transaction; a failed write removes the stored file (`Files.Remove`, best
+  effort) and a checksum mismatch answers 503 `governance.storage_unavailable`. This is the order of
+  [sad §6 Flow 8](../sad.md).
+- [T97](../../association-onboarding/tasks/T97-wire-drive-storage-per-association.md) (commit `f6fde66`): outside `SPILNO_DEV_STORAGE`
+  the storage is the Drive adapter of [T13b](./T13b-drive-files-adapter.md), built in `cmd/api` from the
+  association's Google connection (`drive_wiring_test.go`, on a fake Google).
+
+With them went [T93](../../association-onboarding/tasks/T93-guard-check-then-handler-for-outside-io.md) (`3ccefed`: the two operations
+run after the guard's check transaction, so no database connection is held while the body is read or the
+storage answers), [T95](../../association-onboarding/tasks/T95-download-outside-transaction.md) (`2052022`: a download is read from the
+storage outside the transaction and a failed read answers 503) and
+[T98](../../association-onboarding/tasks/T98-oversize-body-413-everywhere.md) (`11bc7f7`: a body over the 21 MB limit sent without its
+length answers 413).
+
 Left here: the domain event of a newer document version (the needs-review hook of [T23](./T23-wording-slot-endpoints.md)),
-the upload-duration metric, and running on the Drive adapter of [T13b](./T13b-drive-files-adapter.md): until it
-exists the API has a storage only under `SPILNO_DEV_STORAGE=true` and otherwise answers 503.
+the upload-duration metric, the run against real Google ([T13](./T13-drive-files-adapter.md)), and the
+`remove_orphan_file` job for a file whose removal in the request failed ([T14](./T14-river-worker-jobs.md),
+[T32](./T32-nightly-integrity-check.md)). The upload is still read whole into memory before it goes to the
+storage (20 MB at most), not streamed.

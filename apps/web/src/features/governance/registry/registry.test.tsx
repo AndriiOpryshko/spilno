@@ -392,6 +392,17 @@ describe('the signed protocol (AC-18, AC-26, AC-15, AC-17, AC-41)', () => {
   });
 });
 
+describe('a protocol that is not found (AC-26)', () => {
+  it('offers a link back to the registry in the fallback, next to the retry', async () => {
+    open(`/o/${lypky}/registry/00000000-0000-7000-8000-00000000dead`);
+    const alert = await screen.findByRole('alert');
+    expect(within(alert).getByRole('button', { name: 'Спробувати ще раз' })).toBeInTheDocument();
+    const back = within(alert).queryByRole('link', { name: uk.registry.signed.back });
+    expect(back, 'a link back to the registry inside the fallback').not.toBeNull();
+    expect(back!.getAttribute('href')).toBe(listPath);
+  });
+});
+
 describe('the registry of a вимкнене ОСББ stays readable (AC-26)', () => {
   beforeEach(() => {
     disabled = true;
@@ -437,5 +448,41 @@ describe('the registry in the navigation (AC-09)', () => {
     fireEvent.click(await within(nav).findByRole('link', { name: /Реєстр протоколів/ }));
     await waitFor(() => expect(router.state.location.pathname).toBe(listPath));
     expect(await screen.findByRole('link', { name: /гідроізоляці/ })).toBeInTheDocument();
+  });
+});
+
+describe('the registry screens read through the layout cache and the shared fallback (AC-19, AC-26, T103)', () => {
+  const expired = (match: (path: string) => boolean) =>
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
+      const path = new URL(String(input), 'http://localhost').pathname;
+      return match(path)
+        ? Promise.resolve(json(401, { type: 'about:blank', title: 'Unauthorized', status: 401, code: 'identity.session_required' }))
+        : fakeApi(input);
+    }));
+
+  it('counts one memberships request for a visit to the signed protocol', async () => {
+    open(signedPath);
+    await screen.findByRole('heading', { level: 1 });
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(calls.filter((c) => c.endsWith('/identity/memberships'))).toHaveLength(1);
+  });
+
+  it('counts one memberships request for a visit to the registry', async () => {
+    open(listPath);
+    await screen.findByRole('link', { name: /гідроізоляці/ });
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(calls.filter((c) => c.endsWith('/identity/memberships'))).toHaveLength(1);
+  });
+
+  it('leads an expired session to sign-in from the registry', async () => {
+    expired((path) => path.endsWith('/registry/decisions'));
+    const router = open(listPath);
+    await waitFor(() => expect(router.state.location.pathname).toBe('/sign-in'));
+  });
+
+  it('leads an expired session to sign-in from the signed protocol', async () => {
+    expired((path) => path.endsWith(`/registry/protocols/${protocolId}`));
+    const router = open(signedPath);
+    await waitFor(() => expect(router.state.location.pathname).toBe('/sign-in'));
   });
 });

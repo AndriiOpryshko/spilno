@@ -134,3 +134,22 @@ func TestStorageUnavailableCode_IsNamedAndRegisteredAs503(t *testing.T) {
 	}
 	t.Fatalf("%s is missing from ErrorRegistry", codeStorageUnavailable)
 }
+
+// T127: ids are unique across instances, as Drive's are across accounts.
+func TestFake_IDsDifferAcrossInstances(t *testing.T) {
+	ctx := context.Background()
+	first, err := filesfake.New().Upload(ctx, "a.pdf", "application/pdf", bytes.NewReader([]byte("a")))
+	if err != nil {
+		t.Fatalf("upload into the first fake: %v", err)
+	}
+	second, err := filesfake.New().Upload(ctx, "a.pdf", "application/pdf", bytes.NewReader([]byte("a")))
+	if err != nil {
+		t.Fatalf("upload into the second fake: %v", err)
+	}
+	if first.ID == second.ID {
+		t.Errorf("first upload into two fakes: both ids = %q, want different ids", first.ID)
+	}
+	if first.Revision == second.Revision {
+		t.Errorf("first upload into two fakes: both revisions = %q, want different revisions", first.Revision)
+	}
+}

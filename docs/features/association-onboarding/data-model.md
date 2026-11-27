@@ -318,6 +318,7 @@ Row-level security with the own-entry clause (ADR-0003). `idx_board_member_revis
 | `idx_association_state_changes_association_created` | `association_state_changes` | `(association_id, created_at DESC, id DESC)` | btree | `ListStateChanges`; FK |
 | `idx_board_member_revisions_sign_in_email` | `board_member_revisions` | `(sign_in_email)` | btree, CONCURRENTLY | none: the queries compare `lower(sign_in_email)`; dropped in a later release |
 | `idx_board_member_revisions_lower_sign_in_email` | `board_member_revisions` | `(lower(sign_in_email))` | btree on an expression, CONCURRENTLY | `MembershipsOf`; own-entry clause of the RLS policy |
+| `idx_files_association_id` | `files` | `(association_id)` | btree, CONCURRENTLY | `AssociationHasFiles` |
 | `idx_contracts_association_created` | `contracts` | `(association_id, created_at DESC, id DESC)` | btree, CONCURRENTLY | `ListContracts` |
 
 ## Query -> index map
@@ -331,7 +332,7 @@ Row-level security with the own-entry clause (ADR-0003). `idx_board_member_revis
 | `GetApplicationOfAccount` | identity | AC-05, AC-07 | `id = $1 AND account_id = $2` | PK |
 | `GetApplication` | identity | Flows 2, 3 (оператор) | `id = $1` | PK |
 | `ListPendingApplications` | identity | оператор queue / AC-16 | `state = 'pending' ORDER BY created_at, id` | `idx_applications_state_created` |
-| `ListCompetingApplications` | identity | AC-04c, AC-19b | `edrpou = $1 AND state = 'pending'` | `idx_applications_edrpou_state` |
+| `ListCompetingApplications` | identity | AC-04c, AC-19b | the application itself by `id = $1` (PK), then `edrpou = self.edrpou AND state = 'pending' AND kind = self.kind AND id <> self.id ORDER BY created_at, id`: a заявка and a запит for the same code do not compete | PK; `idx_applications_edrpou_state` (the `kind` test filters the few rows of one code) |
 | `ListTransferRequestsOfAssociation` | identity | AC-19b | `association_id = $1 AND kind = 'transfer'` | `idx_applications_association_id` |
 | `UpdateApplicationState` | identity | Flows 2, 3 | `id = $1` | PK |
 | `GetLatestFiling` | identity | Flows 2, 3 / AC-06 | `application_id = $1 ORDER BY created_at DESC, id DESC LIMIT 1` | `idx_application_filings_application_created` |
@@ -347,7 +348,11 @@ Row-level security with the own-entry clause (ADR-0003). `idx_board_member_revis
 | `CurrentMember` | governance | Flow 4 / AC-07 | `association_id = $1 AND sign_in_email = $2` (latest revision, term covers today) | existing `idx_board_member_revisions_association_email` |
 | `MembershipsOf` | governance | AC-04d | `lower(sign_in_email) = lower($1)` on the latest visible revision of each entry; with no association set the RLS own-entry clause `lower(sign_in_email) = lower(app.actor_email)` selects the rows | `idx_board_member_revisions_lower_sign_in_email` (bitmap scan through the policy; plan pinned by `governance/roster_index_test.go`) |
 | `MemberSignInAddresses` | governance | AC-28b | `association_id = $1` | existing `idx_board_member_revisions_association_email` |
+| `AssociationHasFiles` | governance | AC-27b | `EXISTS (SELECT 1 FROM files WHERE association_id = $1)`, in the association's transaction before the connection row is written | `idx_files_association_id` (file 23, live `00051`); the RLS policy of `files` adds the same `association_id` test |
 | `SeatHead`, `EndTerm` | governance | Flows 2, 3 / AC-08, AC-19 | insert revision | PK; existing `idx_board_member_revisions_member_created` for the latest revision |
+| `GetEntryOfDecision` | identity | Flow 3 / AC-19, AC-19b | revisions with `association_id = $1 AND decision_id = $2`, the first one of each `board_member_id` (`DISTINCT ON … ORDER BY board_member_id, created_at, id`); the member whose first such revision is the latest is the entry the decision seated; then that member's latest revision (`LIMIT 1`, `ORDER BY created_at DESC, id DESC`). A later edit copies `decision_id` into more revisions and moves no first one (ADR-0006, amended 2026-11-17) | `idx_board_member_revisions_association_email` by its `association_id` prefix (the RLS policy adds the same test); `idx_board_member_revisions_member_created` for the latest revision. No index on `decision_id`: one association's revisions are tens of entries with a few revisions each, and the query runs once per approval |
+| `ListCardHistory` | identity | Flow 12 / AC-20, AC-29 | decisions `association_id = $1 AND outcome = 'approved'` joined to the entry each one ended (the member whose first revision carrying the decision precedes the first such revision of another member; that member's latest `full_name`), `UNION ALL` the state changes, `ORDER BY occurred_at DESC` | `idx_application_decisions_association_created` for the decisions; `idx_association_state_changes_association_created` for the state changes; the revisions by the `association_id` prefix as above, no index on `decision_id` (card read, small association) |
+| `RosterDecisionEffects` | governance | Flow 12 / AC-19, AC-20 | the first revision of each `(decision_id, board_member_id)` with `association_id = $1 AND decision_id IS NOT NULL`; an entry whose latest revision carries a decision is `ended` when another member's first revision carrying it is later, else `seated`; an entry without a decision is absent (`decision_effect` null) | `idx_board_member_revisions_association_email` by its `association_id` prefix; `idx_board_member_revisions_member_created` for each entry's latest revision. No index on `decision_id`: one query per roster page, over one association's revisions |
 | `ListContracts` | finance | ADR-0002 path move | `association_id = $1 ORDER BY created_at DESC, id DESC` | `idx_contracts_association_created` |
 
 ## Error catalogue -> constraints
@@ -367,6 +372,7 @@ Row-level security with the own-entry clause (ADR-0003). `idx_board_member_revis
 | `identity.term_ended` | invariant | app only | date comparison on filing |
 | `identity.association_not_connected` | invariant | app only | lookup by `edrpou` |
 | `identity.storage_account_personal` | invariant | app only | cross-context (governance addresses) |
+| `identity.storage_has_files` | conflict | app only | cross-context (governance `AssociationHasFiles`, `idx_files_association_id`) vs `google_connections.google_account_email` |
 | `identity.association_disabled`, `identity.not_operator`, `identity.not_current_member` | authorization | app only + RLS | RLS hides rows of other associations (ADR-0003) |
 | `governance.drive_not_connected` | invariant | app only | no `google_connections` row |
 
@@ -396,6 +402,7 @@ Row-level security with the own-entry clause (ADR-0003). `idx_board_member_revis
 | 20 | `NNNNN_enable_rls_identity.sql` | RLS on `google_connections` | - | #48 (planned: PR 3) | drop policy, disable | - |
 | 21 | `NNNNN_enable_rls_identity_state_changes.sql` | RLS on `association_state_changes` (added in T20) | - | #48 (planned: PR 3) | drop policy, disable | - |
 | 22 | `NNNNN_index_board_member_revisions_lower_sign_in_email.sql` | index on `lower(sign_in_email)`, concurrently (added in T59) | - | review follow-up (T59) | drop index | - |
+| 23 | `NNNNN_index_files_association_id.sql` | index on `files(association_id)`, concurrently (added in T114) | - | second re-review follow-up (T114) | drop index | - |
 
 ### Delivery: one release instead of four
 

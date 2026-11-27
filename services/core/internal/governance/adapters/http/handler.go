@@ -20,15 +20,29 @@ type Handler struct {
 	files    *app.FileService
 	cases    *app.CaseService
 	storage  StorageConnected
+	access   AccessOf
 }
 
 // StorageConnected reports whether the association has a connected document storage.
 type StorageConnected func(ctx context.Context, association uuid.UUID) (bool, error)
 
+// Access is what the identity guard knows about the request: whether the association is read-only and
+// why, and the problem codes a refused download answers with (the codes belong to identity; cmd/api
+// supplies them). Actor is false when the request carries no actor.
+type Access struct {
+	Actor                       bool
+	ReadOnly                    bool
+	Reason                      string
+	NotMemberCode, DisabledCode string
+}
+
+// AccessOf reads the Access of the request.
+type AccessOf func(ctx context.Context) Access
+
 var _ gen.StrictServerInterface = (*Handler)(nil)
 
-func NewHandler(meetings *app.MeetingService, roster *app.RosterService, registry *app.RegistryService, files *app.FileService, cases *app.CaseService, storage StorageConnected) *Handler {
-	return &Handler{meetings: meetings, roster: roster, registry: registry, files: files, cases: cases, storage: storage}
+func NewHandler(meetings *app.MeetingService, roster *app.RosterService, registry *app.RegistryService, files *app.FileService, cases *app.CaseService, storage StorageConnected, access AccessOf) *Handler {
+	return &Handler{meetings: meetings, roster: roster, registry: registry, files: files, cases: cases, storage: storage, access: access}
 }
 
 func (h *Handler) CreateMeeting(ctx context.Context, req gen.CreateMeetingRequestObject) (gen.CreateMeetingResponseObject, error) {

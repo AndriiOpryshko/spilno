@@ -144,3 +144,68 @@ jobs:
         with:
           name: playwright-report
           path: apps/web/playwright-report
+
+  # Load smoke of PRD section 6: the read, write and filing scenarios of tests/load against the
+  # real API on a real Postgres. The run is short (30 s of reads and of writes, 5 filings) because
+  # a shared runner is a 2-4 vCPU VM that also hosts Postgres and the API. What the job proves and
+  # enforces: the throughput (the open-loop client either keeps 50 req/s or does not) and the error
+  # rate (any failed request fails the job), so no query regressed by an order of magnitude. The
+  # three p95 values (200 ms read, 500 ms write, 5 s filing) are printed next to their PRD limits
+  # but not enforced (LOAD_REPORT_P95_ONLY): a neighbour on the runner adds tens of milliseconds,
+  # so a red p95 here would be noise. The p95 limits stay a release check: `mise run load`
+  # without the flag exits 1 on a missed p95.
+  load:
+    runs-on: ubuntu-latest
+    needs: [core]
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18.6-alpine
+        env:
+          POSTGRES_USER: spilno
+          POSTGRES_PASSWORD: spilno
+          POSTGRES_DB: spilno
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U spilno -d spilno"
+          --health-interval 2s --health-timeout 3s --health-retries 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: jdx/mise-action@v2
+        with:
+          # Go from mise.toml serves both the API build and `mise run load`; node, pnpm and
+          # mprocs are not used by this job.
+          install_args: go
+      - name: Create the app login role
+        run: psql postgres://spilno:spilno@localhost:5432/spilno -v ON_ERROR_STOP=1 -f infra/postgres-init/01-app-role.sql
+      - name: Start core API
+        working-directory: services/core
+        env:
+          MIGRATIONS_DATABASE_URL: postgres://spilno:spilno@localhost:5432/spilno?sslmode=disable
+          DATABASE_URL: postgres://spilno_app_login:spilno_app_login@localhost:5432/spilno?sslmode=disable
+          # Same faked sign-in and storage as the e2e job; the load client signs in through the shim.
+          SPILNO_DEV_SIGN_IN: "true"
+          SPILNO_DEV_STORAGE: "true"
+          SPILNO_OPERATOR_EMAIL: operator@example.test
+          GOOGLE_OAUTH_CLIENT_ID: e2e-client.invalid
+          GOOGLE_OAUTH_CLIENT_SECRET: e2e-secret
+          GOOGLE_TOKEN_KEY_ID: e2e
+          GOOGLE_TOKEN_KEY: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+        run: |
+          go build -o /tmp/api ./cmd/api
+          /tmp/api > /tmp/api.log 2>&1 &
+          for _ in $(seq 1 30); do
+            curl -fs http://localhost:8080/system/health >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/api.log; exit 1
+      - name: Load smoke (PRD section 6 thresholds)
+        env:
+          LOAD_BASE_URL: http://localhost:8080
+          LOAD_OPERATOR_EMAIL: operator@example.test
+          LOAD_DURATION: 30s
+          LOAD_FILINGS: "5"
+          LOAD_REPORT_P95_ONLY: "true"
+        run: mise run load
+      - if: failure()
+        run: tail -n 100 /tmp/api.log

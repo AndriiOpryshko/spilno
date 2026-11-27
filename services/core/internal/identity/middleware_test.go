@@ -57,7 +57,7 @@ func newGuardEnv(t *testing.T, operatorOnA bool) *guardEnv {
 		people[p] = identity.ProviderIdentity{Issuer: "https://accounts.example.test", Subject: "sub-" + p, Email: email, EmailVerified: true}
 	}
 	idm.EnableSignIn(identity.SignInConfig{Provider: &signInFake{people: people}, OperatorEmail: guardOperatorEmail})
-	gov := governance.New(pool, idm.HasStorageConnection)
+	gov := governance.New(pool, idm.HasStorageConnection, actorAccess)
 
 	r := httpapi.NewRouter()
 	r.Group(func(r chi.Router) {
@@ -298,4 +298,11 @@ func opsOf(m map[string]*openapi3.PathItem) map[string][]string {
 		}
 	}
 	return out
+}
+
+// actorAccess is what cmd/api passes governance: the guard's actor, read through the identity module.
+func actorAccess(ctx context.Context) governance.Access {
+	a, ok := identity.ActorFrom(ctx)
+	return governance.Access{Actor: ok, ReadOnly: a.ReadOnly, Reason: a.DisabledReason,
+		NotMemberCode: identity.CodeNotCurrentMember, DisabledCode: identity.CodeAssociationDisabled}
 }

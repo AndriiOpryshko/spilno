@@ -1,8 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { type QueryKey, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 
-import { useListMemberships } from '@/api/gen/endpoints/identity/identity';
+import { getGetProtocolQueryKey } from '@/api/gen/endpoints/governance/governance';
+import { useAllMemberships } from '@/features/identity/shell/use-all-memberships';
 import { TopBar } from '@/components/app-shell';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -23,11 +24,12 @@ import type { ProtocolDraft, ProtocolState } from './types';
 export function ProtocolScreen({ caseId }: { caseId: string }) {
   const { associationId } = useParams({ from: '/o/$associationId' });
   // The layout already loaded the roster; this reads the same cache entry.
-  const { data: roster } = useListMemberships();
+  const { data: roster } = useAllMemberships();
   // A вимкнене ОСББ opens no draft (AC-25); the layout shows the suspended notice.
   const membership = roster?.data.items.find((m) => m.association_id === associationId);
   const disabled = membership?.association_state === 'disabled';
-  const query = useQuery({ queryKey: ['protocol', caseId], queryFn: () => getProtocol(caseId), retry: false, enabled: !disabled });
+  const draftKey = getGetProtocolQueryKey(associationId, caseId);
+  const query = useQuery({ queryKey: draftKey, queryFn: () => getProtocol(caseId), retry: false, enabled: !disabled });
   const [savedJustNow, setSavedJustNow] = useState(false);
   const [announcement, setAnnouncement] = useState('');
   const draft = query.data;
@@ -52,6 +54,7 @@ export function ProtocolScreen({ caseId }: { caseId: string }) {
         {!disabled && draft && (
           <ProtocolBody
             draft={draft}
+            draftKey={draftKey}
             onSaved={() => setSavedJustNow(true)}
             onTransitioned={(state) => {
               setSavedJustNow(true);
@@ -66,11 +69,12 @@ export function ProtocolScreen({ caseId }: { caseId: string }) {
 
 interface ProtocolBodyProps {
   draft: ProtocolDraft;
+  draftKey: QueryKey;
   onSaved: () => void;
   onTransitioned: (state: ProtocolState) => void;
 }
 
-function ProtocolBody({ draft, onSaved, onTransitioned }: ProtocolBodyProps) {
+function ProtocolBody({ draft, draftKey, onSaved, onTransitioned }: ProtocolBodyProps) {
   const queryClient = useQueryClient();
   const actionsRef = useRef<HTMLDivElement>(null);
   const focusActions = useRef(false);
@@ -79,10 +83,14 @@ function ProtocolBody({ draft, onSaved, onTransitioned }: ProtocolBodyProps) {
   const warningsFor = (slotId: string) => draft.warnings.filter((w) => w.slotId === slotId);
   const isDraft = draft.state === 'draft';
 
+  const onSlotSaved = (next: ProtocolDraft) => {
+    queryClient.setQueryData(draftKey, next);
+    onSaved();
+  };
   const transition = useMutation({
     mutationFn: (to: ProtocolState) => transitionProtocol(draft.caseId, to),
     onSuccess: (next) => {
-      queryClient.setQueryData(['protocol', draft.caseId], next);
+      queryClient.setQueryData(draftKey, next);
       onTransitioned(next.state);
       focusActions.current = true;
     },
@@ -129,7 +137,14 @@ function ProtocolBody({ draft, onSaved, onTransitioned }: ProtocolBodyProps) {
         />
         <section className="overflow-hidden rounded-lg border bg-card shadow-[0_1px_3px_rgba(22,22,40,0.05)]">
           {draft.slots.map((s) => (
-            <SlotRow key={s.id} caseId={draft.caseId} slot={s} warnings={warningsFor(s.id)} onSaved={onSaved} readOnly={!isDraft} />
+            <SlotRow
+              key={s.id}
+              caseId={draft.caseId}
+              slot={s}
+              warnings={warningsFor(s.id)}
+              onSaved={onSlotSaved}
+              readOnly={!isDraft}
+            />
           ))}
         </section>
         <div className="space-y-4 lg:hidden">

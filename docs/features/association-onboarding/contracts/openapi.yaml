@@ -24,6 +24,8 @@ servers:
 tags:
   - name: identity
     description: Sign-in, sessions and the current principal; associations, applications, the operator back office and the storage connection.
+  - name: governance
+    description: Board meetings and their decisions; the delta carries the changed file download and the roster entry.
 
 security:
   - SessionCookie: []
@@ -100,7 +102,9 @@ paths:
         answers `identity.term_ended` (AC-30). Any signed-in person may file a запит на передачу, on the roster
         of that association or not (AC-17). A code that is pending by another person is accepted and not
         revealed (AC-04c). `association_id` is set only when a член правління files a запит from the card of the
-        association set up by hand (AC-19c). The signature is not checked at filing (AC-03).
+        association set up by hand (AC-19c). A запит на передачу from that card whose code another association
+        already holds answers `identity.association_already_connected` and is not stored (AC-04c, AC-19c).
+        The signature is not checked at filing (AC-03).
       x-problem-types:
         "401": [identity.session_required]
         "409": [identity.association_already_connected, identity.application_already_open, identity.association_not_connected, identity.term_ended]
@@ -145,6 +149,7 @@ paths:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
               examples: { application_invalid: { $ref: "#/components/examples/ApplicationInvalid" } }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
 
   /identity/applications/{application_id}:
     parameters:
@@ -226,6 +231,7 @@ paths:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
               examples: { application_invalid: { $ref: "#/components/examples/ApplicationInvalid" } }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
 
   /identity/applications/{application_id}/filings/{filing_id}/extract:
     parameters:
@@ -358,7 +364,9 @@ paths:
         For a запит на передачу: an applicant who already has a current roster entry gets no second entry, that
         entry takes the position голова правління; only the entry of the голова recorded by an earlier approval
         ends (AC-19). A competing запит stays pending and can be approved later as a new transfer (AC-19b), so
-        `identity.association_already_connected` is answered only for a заявка на підключення (AC-04c).
+        `identity.association_already_connected` is not answered for it because another заявка is pending
+        (AC-04c). It is answered for a заявка на підключення whose code is connected, and for a запит на передачу
+        that claims the code of another association: the transfer is refused, nothing changes (AC-04c, AC-19).
       x-problem-types:
         "401": [identity.session_required]
         "403": [identity.not_operator]
@@ -599,17 +607,17 @@ paths:
       tags: [identity]
       # unresolved: no response is named for an unknown, expired or replayed `state`, or for a code the
       # provider refuses — PRD §5.1 has no code for it (api-sync-report.md §D, /sdlc:clarify-prd).
-      # unresolved: who may replace a connected storage and what happens to the files on the old account is
-      # an open question of PRD §8; until it is closed a later connection replaces the stored one (report §D).
       summary: Finish the storage consent the SPA received back from Google (ADR-0008, AC-27, AC-28b)
       description: |
         The SPA's callback route posts the authorization code and state; the state is bound to the session and
         the association. When a storage is already connected, the new account replaces the stored one under the
-        same rules and no file is moved (SAD §8, open question of PRD §8).
+        same rules and no file is moved; the replacement is refused with `identity.storage_has_files` while the
+        association has a file and the new account is not the connected one (same address, any letter case), so no
+        file is left on an account the app no longer reads (ADR-0008 amendment, PRD §8).
       x-problem-types:
         "401": [identity.session_required]
         "403": [identity.not_current_member, identity.association_disabled]
-        "409": [identity.storage_account_personal]
+        "409": [identity.storage_account_personal, identity.storage_has_files]
         "422": [about:blank]
       requestBody:
         required: true
@@ -627,11 +635,13 @@ paths:
         "401": { $ref: "#/components/responses/SessionRequired" }
         "403": { $ref: "#/components/responses/MemberOrDisabled" }
         "409":
-          description: The Google account is a member's sign-in account.
+          description: The Google account is a member's sign-in account, or it is another account than the connected one while the association has files.
           content:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
-              examples: { storage_account_personal: { $ref: "#/components/examples/StorageAccountPersonal" } }
+              examples:
+                storage_account_personal: { $ref: "#/components/examples/StorageAccountPersonal" }
+                storage_has_files: { $ref: "#/components/examples/StorageHasFiles" }
         "422": { $ref: "#/components/responses/ValidationFailed" }
 
   /identity/associations/{association_id}/storage-connection/authorization:
@@ -653,6 +663,46 @@ paths:
               example: https://accounts.example.test/o/oauth2/auth?client_id=test-client&state=test-state
         "401": { $ref: "#/components/responses/SessionRequired" }
         "403": { $ref: "#/components/responses/MemberOrDisabled" }
+
+  # ─────────────────────── governance (changed operation) ───────────────────────
+  /governance/associations/{association_id}/files/{file_id}:
+    parameters:
+      - $ref: '#/components/parameters/AssociationId'
+      - $ref: "#/components/parameters/FileId"
+    get:
+      operationId: downloadFile
+      tags: [governance]
+      summary: Download a stored file — case document, print copy or signed scan (US-07, Flow 13)
+      description: Served as an attachment with `X-Content-Type-Options nosniff`, never inline (SAD §8 Files).
+      responses:
+        "200":
+          description: The file bytes of the pinned revision.
+          headers:
+            Content-Disposition:
+              schema: { type: string }
+              example: attachment; filename="protocol-14-signed.pdf"
+            X-Content-Type-Options:
+              schema: { type: string, const: nosniff }
+          content:
+            application/pdf:
+              schema: { type: string, contentMediaType: application/pdf }
+            image/jpeg:
+              schema: { type: string, contentMediaType: image/jpeg }
+            image/png:
+              schema: { type: string, contentMediaType: image/png }
+        "401": { $ref: "#/components/responses/SessionRequired" }
+        "403":
+          description: |
+            Not a current член правління (`identity.not_current_member`), or a вимкнене ОСББ asking for a file
+            that is not a signed protocol's (`identity.association_disabled`, ADR-0007).
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+              examples:
+                not_current_member: { $ref: "#/components/examples/NotCurrentMember" }
+                association_disabled: { $ref: "#/components/examples/AssociationDisabled" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/StorageUnavailable" }
 
 components:
   securitySchemes:
@@ -680,6 +730,11 @@ components:
       in: path
       required: true
       description: identity.associations.id; every association-scoped path carries it (ADR-0002).
+      schema: { type: string, format: uuid }
+    FileId:
+      name: file_id
+      in: path
+      required: true
       schema: { type: string, format: uuid }
     ApplicationId:
       name: application_id
@@ -746,6 +801,18 @@ components:
           examples:
             not_current_member: { $ref: "#/components/examples/NotCurrentMember" }
             association_disabled: { $ref: "#/components/examples/AssociationDisabled" }
+    PayloadTooLarge:
+      description: The request body is over the limit of its operation (6 MB for the identity uploads, 21 MB for a case document).
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+          examples: { payload_too_large: { $ref: "#/components/examples/PayloadTooLarge" } }
+    StorageUnavailable:
+      description: File storage unavailable; nothing was committed, try again later (`governance.storage_unavailable`, Flow 8).
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+          examples: { storage_unavailable: { $ref: "#/components/examples/StorageUnavailable" } }
     ExtractFile:
       description: The extract as uploaded, as an attachment with `X-Content-Type-Options nosniff`, never inline (SAD §8 Files).
       headers:
@@ -759,6 +826,10 @@ components:
           schema: { type: string, contentMediaType: application/octet-stream }
 
   examples:
+    PayloadTooLarge:
+      value: { type: about:blank, title: Request Entity Too Large, status: 413 }
+    StorageUnavailable:
+      value: { type: about:blank, title: Service Unavailable, status: 503, code: governance.storage_unavailable, detail: Сховище файлів недоступне, спробуйте пізніше }
     SessionRequired:
       value: { type: about:blank, title: Unauthorized, status: 401, code: identity.session_required, detail: Увійдіть, щоб продовжити }
     NotCurrentMember:
@@ -803,6 +874,8 @@ components:
       value: { type: about:blank, title: Association state unchanged, status: 409, code: identity.association_state_unchanged, detail: ОСББ уже в цьому стані }
     StorageAccountPersonal:
       value: { type: about:blank, title: Storage account personal, status: 409, code: identity.storage_account_personal, detail: Це особистий акаунт члена правління — підключіть акаунт ОСББ }
+    StorageHasFiles:
+      value: { type: about:blank, title: Storage has files, status: 409, code: identity.storage_has_files, detail: У сховищі ОСББ уже є файли — підключіть той самий акаунт, з яким вони були збережені }
     Principal:
       value: { account_id: 00000000-0000-7000-8000-00000000a001, email: user-1@example.test, is_operator: false }
     MembershipPage:
@@ -896,7 +969,7 @@ components:
         head_full_name: Тестовий Голова Правління
         connected_by_hand: false
         history:
-          - { kind: connected, occurred_at: "2026-11-11T08:05:00Z", decision_id: 00000000-0000-7000-8000-00000000f002, filed_at: "2026-11-10T09:00:00Z", reason: null, head_full_name: Тестовий Голова Правління, signer_full_name: Тестовий Голова Правління, extract_id: 00000000-0000-7000-8000-00000000e001, extract_dated_on: "2026-11-08" }
+          - { kind: connected, occurred_at: "2026-11-11T08:05:00Z", decision_id: 00000000-0000-7000-8000-00000000f002, filed_at: "2026-11-10T09:00:00Z", reason: null, head_full_name: Тестовий Голова Правління, ended_head_full_name: null, signer_full_name: Тестовий Голова Правління, extract_id: 00000000-0000-7000-8000-00000000e001, extract_dated_on: "2026-11-08" }
     StorageConnection:
       value: { connected: true, google_account_email: osbb-1@example.test, connected_by_member_id: 00000000-0000-7000-8000-00000000b001, connected_at: "2026-11-11T09:00:00Z" }
 
@@ -955,6 +1028,33 @@ components:
       description: application_filings.position and board_member_revisions.position — голова правління / член правління.
       type: string
       enum: [head, member]
+    DecisionEffect:
+      description: What a decision did to a roster entry. `seated` — the approval made the entry голова; `ended` — it ended the entry.
+      type: string
+      enum: [seated, ended]
+    BoardMember:
+      description: board_members + its latest board_member_revisions row.
+      type: object
+      additionalProperties: false
+      required: [id, full_name, sign_in_email, term_start, term_end, revised_by_member_id, revised_at, position, decision_id, decision_effect]
+      properties:
+        id: { type: string, format: uuid }
+        full_name: { type: string, maxLength: 200 }
+        sign_in_email: { type: [string, "null"], format: email, maxLength: 320 }
+        term_start: { type: string, format: date }
+        term_end: { type: [string, "null"], format: date }
+        revised_by_member_id: { type: [string, "null"], format: uuid }
+        revised_at: { type: string, format: date-time }
+        position: { $ref: "#/components/schemas/BoardPosition" }
+        decision_id: { type: [string, "null"], format: uuid }
+        decision_effect:
+          description: |
+            What the entry's decision did to it: `seated` (the approval made this entry голова) or `ended`
+            (it ended this entry); null for an entry without a decision. The board cannot clear or move later
+            the term end of an `ended` entry (422 `governance.roster_entry_invalid` on `/term_end`).
+          oneOf:
+            - { $ref: "#/components/schemas/DecisionEffect" }
+            - { type: "null" }
     AssociationState:
       description: associations.state — підключене ОСББ / вимкнене ОСББ.
       type: string

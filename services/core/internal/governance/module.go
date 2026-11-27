@@ -6,14 +6,19 @@ package governance
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"golang.org/x/oauth2"
 
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/adapters/filesfake"
+	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/adapters/gdrive"
 	governancehttp "github.com/AndriiOpryshko/spilno/services/core/internal/governance/adapters/http"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/adapters/http/gen"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/adapters/postgres"
@@ -36,28 +41,95 @@ type Membership = ports.Membership
 // Person is who is being seated on the board.
 type Person struct{ FullName, SignInEmail string }
 
+// Access is the identity guard's view of a request, with the refusal codes; see the http adapter.
+type Access = governancehttp.Access
+
 // Term is a board membership period; a zero End means open.
 type Term = domain.Term
 
 // New builds the module. hasStorage reports whether an association has connected its storage;
-// cmd/api passes it from the identity module.
-func New(_ *pgxpool.Pool, hasStorage func(context.Context, uuid.UUID) (bool, error)) *Module {
+// cmd/api passes it from the identity module. access reports whether the request's association is
+// read-only and why, and which problem codes a refused download answers with (no actor: the download is
+// refused); cmd/api passes it from the identity guard's actor and identity's codes.
+func New(_ *pgxpool.Pool, hasStorage func(context.Context, uuid.UUID) (bool, error), access func(context.Context) Access) *Module {
 	meetings := app.NewMeetingService(postgres.NewMeetings())
 	roster := app.NewRosterService(postgres.NewRoster(), postgres.NewRoster())
 	files := app.NewFileService(postgres.NewFiles())
 	cases := app.NewCaseService(postgres.NewCases(), postgres.NewRoster())
-	return &Module{handler: governancehttp.NewHandler(meetings, roster, app.NewRegistryService(postgres.NewRegistry()), files, cases, hasStorage), roster: roster, files: files, cases: cases}
+	return &Module{handler: governancehttp.NewHandler(meetings, roster, app.NewRegistryService(postgres.NewRegistry()), files, cases, hasStorage, access), roster: roster, files: files, cases: cases}
 }
 
 // Files is the association-owned file storage the downloads read from.
 type Files = ports.Files
 
-// NewDevFiles is an in-memory Files for development (SPILNO_DEV_STORAGE=true); it forgets on restart.
-func NewDevFiles() Files { return filesfake.New() }
+// FilesResolver yields the storage of one association; nil Files means it has none.
+type FilesResolver = ports.FilesResolver
+
+// NewDevFiles is a resolver of in-memory storages, one per association, for development
+// (SPILNO_DEV_STORAGE=true); they forget on restart.
+func NewDevFiles() FilesResolver {
+	var mu sync.Mutex
+	stores := map[uuid.UUID]Files{}
+	return func(_ context.Context, association uuid.UUID) (Files, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		if stores[association] == nil {
+			stores[association] = filesfake.New()
+		}
+		return stores[association], nil
+	}
+}
+
+// NewDriveFiles is the storage of one association on Google Drive: client is authorized as the
+// association's Google account, every upload goes into folderID. The addresses have no trailing slash.
+func NewDriveFiles(client *http.Client, folderID, apiURL, uploadURL string) Files {
+	return gdrive.New(gdrive.Config{HTTP: client, APIURL: apiURL, UploadURL: uploadURL, FolderID: folderID})
+}
+
+// GoogleConnections is what the Drive resolver reads of an association's Google connection.
+type GoogleConnections interface {
+	// GoogleStorage returns the token source and the folder id of the connection from one read.
+	GoogleStorage(ctx context.Context, association uuid.UUID) (oauth2.TokenSource, string, error)
+}
+
+// DriveOption tunes NewDriveResolver.
+type DriveOption func(*driveConfig)
+
+type driveConfig struct{ timeout time.Duration }
+
+// defaultDriveTimeout bounds one request to Drive, including streaming the body.
+const defaultDriveTimeout = 60 * time.Second
+
+// WithDriveTimeout bounds every request to Drive.
+func WithDriveTimeout(d time.Duration) DriveOption { return func(c *driveConfig) { c.timeout = d } }
+
+// NewDriveResolver resolves an association's Drive storage from its Google connection: nil Files when
+// it has no connection (the error notConnected) or no folder yet. Any other failure is returned as is.
+// cmd/api and the module tests share it.
+func NewDriveResolver(conns GoogleConnections, notConnected error, apiURL, uploadURL string, opts ...DriveOption) FilesResolver {
+	cfg := driveConfig{timeout: defaultDriveTimeout}
+	for _, o := range opts {
+		o(&cfg)
+	}
+	return func(ctx context.Context, association uuid.UUID) (Files, error) {
+		ts, folder, err := conns.GoogleStorage(ctx, association)
+		if errors.Is(err, notConnected) {
+			return nil, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		if folder == "" {
+			return nil, nil
+		}
+		client := &http.Client{Transport: &oauth2.Transport{Source: ts, Base: http.DefaultTransport}, Timeout: cfg.timeout}
+		return NewDriveFiles(client, folder, apiURL, uploadURL), nil
+	}
+}
 
 // WithFiles wires the storage behind downloadFile and addCaseDocument; without it they answer 503
 // governance.storage_unavailable. Call it before Routes.
-func (m *Module) WithFiles(files Files) *Module {
+func (m *Module) WithFiles(files FilesResolver) *Module {
 	m.files.SetFiles(files)
 	m.cases.SetFiles(files)
 	return m
@@ -100,6 +172,12 @@ func (m *Module) CurrentMemberID(ctx context.Context, association uuid.UUID, ema
 // MemberSignInAddresses returns the sign-in addresses of the association's current members.
 func (m *Module) MemberSignInAddresses(ctx context.Context, association uuid.UUID) ([]string, error) {
 	return m.roster.MemberSignInAddresses(ctx, association)
+}
+
+// HasFiles reports whether the association has at least one stored file. Like the roster
+// methods it reads on the transaction in ctx (db.InAssociation).
+func (m *Module) HasFiles(ctx context.Context, association uuid.UUID) (bool, error) {
+	return m.files.HasFiles(ctx, association)
 }
 
 // SeatHead makes person the head under the decision on the transaction in ctx and returns

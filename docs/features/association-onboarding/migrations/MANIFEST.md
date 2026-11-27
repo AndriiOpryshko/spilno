@@ -33,6 +33,7 @@ schema diff empty except the column position of `accounts.association_id` after 
 | 20 | `NNNNN_enable_rls_identity.sql` | #48 (planned: PR 3) | 9 | - |
 | 21 | `NNNNN_enable_rls_identity_state_changes.sql` | #48 (planned: PR 3) | 5, 9 | - |
 | 22 | `NNNNN_index_board_member_revisions_lower_sign_in_email.sql` | review follow-up (T59) | - | - (NO TRANSACTION) |
+| 23 | `NNNNN_index_files_association_id.sql` | second re-review follow-up (T114) | - | - (NO TRANSACTION) |
 
 The planned PR 3 was to ship together with the app change that connects as a login role in `spilno_app` and runs every
 association-scoped request through `platform/db.InAssociation` (ADR-0003); before that change, enabling
@@ -51,3 +52,6 @@ by account or by the оператор) and are the two named exceptions of that 
 File 22 was added by the review follow-up (T59, 2026-11-16; live `00049`): `MembershipsOf` and the own-entry
 clause of the row-level security policy compare `lower(sign_in_email)`, which the plain index of file 7 cannot
 serve, so the lookup was a sequential scan. The index of file 7 stays until a later release drops it.
+
+File 23 was added by the second re-review follow-up (T114, 2026-11-18; live `00051`, renumbered from `00050` when main's `00050_add_contracts_uah_equivalent` landed first): refusing another storage
+account while the association has files asks `files` by `association_id`, and no index of `files` led with it.

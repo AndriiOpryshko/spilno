@@ -60,3 +60,19 @@
 | [T44](./T44-e2e-draft-to-registry.md) | Prove the flow end to end: draft to registry through the UI with fake Google and Gemini | tests | Andrii Opryshko | L | T25, T28, T29, T30, T31, T32, T34, T35, T36, T42, T43 | todo |
 
 **Total:** 44 tasks, ~31.25 person-days, 12 dependency phases.
+
+## Delivered by association-onboarding (2026-11-18)
+
+The second and the third follow-up of association-onboarding carried the storage work its ACs needed
+([review of 2026-11-17](../../association-onboarding/_review/review-2026-11-17.md), N06 and N09;
+[second re-review of 2026-11-17](../../association-onboarding/_review/review-2026-11-17-2.md), R01, R02 and S03).
+The status of each task file below says the same in detail.
+
+| Here | Delivered there | Left here |
+|---|---|---|
+| [T13](./T13-drive-files-adapter.md), [T13b](./T13b-drive-files-adapter.md) the Drive `Files` adapter | [T94](../../association-onboarding/tasks/T94-upload-outside-transaction.md) (`d38dbc5`): `Files.Remove` on the port, the fake, the shared contract and the adapter. [T97](../../association-onboarding/tasks/T97-wire-drive-storage-per-association.md) (`f6fde66`): `cmd/api` builds the adapter of each association from its Google connection, proven on a fake Google. [T112](../../association-onboarding/tasks/T112-wire-consent-drive-address-and-test-api-wiring.md) (`ecc440d`): `cmd/api` gives the storage consent its Drive address and refuses to wire one without it (SEC-13, so a real consent can now finish), and the resolver is `governance.NewDriveResolver`, called by `cmd/api` and by the module test; `cmd/api/drive_consent_test.go` runs a consent and a document through both on a fake Google. [T113](../../association-onboarding/tasks/T113-drive-resolver-one-read-cached-token-deadline.md) (`724405f`): the resolver reads the connection once (`GoogleStorage` returns the token source and the folder), reuses the token source until the connection row changes, bounds the Drive client and the token endpoint in time, and answers 503 `governance.storage_unavailable` when the connection cannot be resolved | the contract run against real Google with a test account (the last item of T13's Definition of Done; no real consent has run either) |
+| [T21](./T21-cases-endpoints.md) cases and files | [T92](../../association-onboarding/tasks/T92-files-per-association.md) (`159505b`): the storage resolved per association. T94: the upload before the write transaction, the stored file removed when the write fails | the needs-review event of a newer document version, the upload-duration metric |
+| [T14](./T14-river-worker-jobs.md), [T32](./T32-nightly-integrity-check.md) the worker and its jobs | nothing: T94 removes an orphaned file in the request, best effort, and logs a removal that fails | the `remove_orphan_file` job |
+
+The statuses above are unchanged: T13, T13b and T21 stay `in_progress` for what is left. T12c's consent
+(`google.Consent`) is used as built; T112 only supplied the `DriveURL` it needs in production.

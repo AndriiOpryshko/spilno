@@ -38,9 +38,16 @@ func (h *Handler) EnableSignIn(s *app.SignIn) { h.signIn = s }
 // EnableApplications turns fileApplication on.
 func (h *Handler) EnableApplications(a *app.Applications) { h.applications = a }
 
-const sessionCookie = "spilno_session"
+const (
+	sessionCookie = "spilno_session"
+	// pendingCookie carries the sealed pending sign-in from startSignIn to completeSignIn.
+	pendingCookie = "spilno_signin"
+)
 
-type tokenKey struct{}
+type (
+	tokenKey   struct{}
+	pendingKey struct{}
+)
 
 // CaptureSession puts the session cookie's token in the request context, since the
 // strict handlers do not see the request.
@@ -49,6 +56,9 @@ func CaptureSession(next http.Handler) http.Handler {
 		if c, err := r.Cookie(sessionCookie); err == nil {
 			r = r.WithContext(context.WithValue(r.Context(), tokenKey{}, c.Value))
 		}
+		if c, err := r.Cookie(pendingCookie); err == nil {
+			r = r.WithContext(context.WithValue(r.Context(), pendingKey{}, c.Value))
+		}
 		next.ServeHTTP(w, r)
 	})
 }
@@ -56,6 +66,36 @@ func CaptureSession(next http.Handler) http.Handler {
 func tokenOf(ctx context.Context) string {
 	t, _ := ctx.Value(tokenKey{}).(string)
 	return t
+}
+
+func pendingOf(ctx context.Context) string {
+	t, _ := ctx.Value(pendingKey{}).(string)
+	return t
+}
+
+func (h *Handler) pendingCookie(value string, maxAge int) string {
+	return (&http.Cookie{Name: pendingCookie, Value: value, Path: h.signIn.CallbackPath(), MaxAge: maxAge, HttpOnly: true, Secure: true, SameSite: http.SameSiteLaxMode}).String()
+}
+
+// startSignInResponse redirects to the provider and sets the pending sign-in cookie.
+type startSignInResponse struct{ location, cookie string }
+
+func (r startSignInResponse) VisitStartSignInResponse(w http.ResponseWriter) error {
+	w.Header().Set("Location", r.location)
+	w.Header().Add("Set-Cookie", r.cookie)
+	w.WriteHeader(http.StatusFound)
+	return nil
+}
+
+// completeSignInResponse sets the session and clears the pending sign-in cookie.
+type completeSignInResponse struct{ location, session, clear string }
+
+func (r completeSignInResponse) VisitCompleteSignInResponse(w http.ResponseWriter) error {
+	w.Header().Set("Location", r.location)
+	w.Header().Add("Set-Cookie", r.session)
+	w.Header().Add("Set-Cookie", r.clear)
+	w.WriteHeader(http.StatusFound)
+	return nil
 }
 
 func sessionRequired() gen.SessionRequiredApplicationProblemPlusJSONResponse {
@@ -89,18 +129,18 @@ func (h *Handler) StartSignIn(_ context.Context, _ gen.StartSignInRequestObject)
 	if h.signIn == nil {
 		return nil, httpapi.ErrNotImplemented
 	}
-	loc, err := h.signIn.Start()
+	loc, sealed, err := h.signIn.Start()
 	if err != nil {
 		return nil, err
 	}
-	return gen.StartSignIn302Response{Headers: gen.StartSignIn302ResponseHeaders{Location: &loc}}, nil
+	return startSignInResponse{location: loc, cookie: h.pendingCookie(sealed, app.StateMaxAge())}, nil
 }
 
 func (h *Handler) CompleteSignIn(ctx context.Context, req gen.CompleteSignInRequestObject) (gen.CompleteSignInResponseObject, error) {
 	if h.signIn == nil {
 		return nil, httpapi.ErrNotImplemented
 	}
-	token, err := h.signIn.Complete(ctx, req.Params.Code, req.Params.State)
+	token, err := h.signIn.Complete(ctx, req.Params.Code, req.Params.State, pendingOf(ctx))
 	if errors.Is(err, domain.ErrSignInRefused) {
 		code := domain.CodeSessionRequired
 		detail := "Sign-in was refused; start it again."
@@ -112,7 +152,7 @@ func (h *Handler) CompleteSignIn(ctx context.Context, req gen.CompleteSignInRequ
 		return nil, err
 	}
 	loc := "/"
-	return gen.CompleteSignIn302Response{Headers: gen.CompleteSignIn302ResponseHeaders{Location: &loc, SetCookie: cookieHeader(token, int(30*24*time.Hour/time.Second))}}, nil
+	return completeSignInResponse{location: loc, session: *cookieHeader(token, int(30*24*time.Hour/time.Second)), clear: h.pendingCookie("", -1)}, nil
 }
 
 func (h *Handler) SignOut(ctx context.Context, _ gen.SignOutRequestObject) (gen.SignOutResponseObject, error) {

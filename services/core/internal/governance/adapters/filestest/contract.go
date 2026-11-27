@@ -261,4 +261,34 @@ func Run(t *testing.T, newHarness func(t *testing.T) Harness) {
 			t.Fatalf("Upload(cancelled ctx) error = %v, want context.Canceled", err)
 		}
 	})
+
+	t.Run("remove deletes a file, is idempotent and the removed file is not found", func(t *testing.T) {
+		h := newHarness(t)
+		remover, ok := h.Files.(interface {
+			Remove(ctx context.Context, id string) error
+		})
+		if !ok {
+			t.Fatalf("%T has no Remove(ctx, id) error; ports.Files must offer it", h.Files)
+		}
+		ctx := context.Background()
+		got := upload(t, h.Files, body(300))
+		other := upload(t, h.Files, body(301))
+		for i := range 2 {
+			if err := remover.Remove(ctx, got.ID); err != nil {
+				t.Fatalf("Remove #%d: %v", i+1, err)
+			}
+		}
+		if _, err := h.Files.Stat(ctx, got.ID); !errors.Is(err, ports.ErrFileNotFound) {
+			t.Errorf("Stat(removed) error = %v, want ports.ErrFileNotFound", err)
+		}
+		if _, err := h.Files.Open(ctx, got.ID); !errors.Is(err, ports.ErrFileNotFound) {
+			t.Errorf("Open(removed) error = %v, want ports.ErrFileNotFound", err)
+		}
+		if err := remover.Remove(ctx, "no-such-file"); err != nil {
+			t.Errorf("Remove(unknown) = %v, want nil", err)
+		}
+		if st := stat(t, h.Files, other.ID); st.StoredFile != other {
+			t.Errorf("another file changed by Remove: %+v, want %+v", st.StoredFile, other)
+		}
+	})
 }

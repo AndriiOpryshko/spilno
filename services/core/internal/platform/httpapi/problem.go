@@ -88,8 +88,21 @@ func registerFilePartDecoders(spec *openapi3.T) {
 	}
 }
 
+func writeTooLarge(w http.ResponseWriter) {
+	w.Header().Set("Connection", "close")
+	WriteProblem(w, Problem{Title: "Request Entity Too Large", Status: http.StatusRequestEntityTooLarge})
+}
+
+func isTooLarge(err error) bool {
+	var mbe *http.MaxBytesError
+	return errors.As(err, &mbe)
+}
+
 func validationErrorHandler(_ context.Context, err error, w http.ResponseWriter, r *http.Request, opts middleware.ErrorHandlerOpts) {
 	switch {
+	case isTooLarge(err):
+		writeTooLarge(w)
+		return
 	case opts.MatchedRoute == nil && opts.StatusCode == http.StatusNotFound:
 		WriteProblem(w, Problem{Title: "Not Found", Status: http.StatusNotFound, Detail: err.Error()})
 		return
@@ -147,6 +160,10 @@ func fieldErrors(err error) []FieldError {
 // StrictRequestError is for StrictHTTPServerOptions.RequestErrorHandlerFunc
 // (body decode / param binding failures that slip past the validator).
 func StrictRequestError(w http.ResponseWriter, _ *http.Request, err error) {
+	if isTooLarge(err) {
+		writeTooLarge(w)
+		return
+	}
 	WriteProblem(w, Problem{Title: "Bad Request", Status: http.StatusBadRequest, Detail: err.Error()})
 }
 
@@ -156,6 +173,10 @@ var ErrNotImplemented = errors.New("not implemented")
 
 // StrictResponseError is for StrictHTTPServerOptions.ResponseErrorHandlerFunc.
 func StrictResponseError(w http.ResponseWriter, _ *http.Request, err error) {
+	if isTooLarge(err) {
+		writeTooLarge(w)
+		return
+	}
 	if errors.Is(err, ErrNotImplemented) {
 		WriteProblem(w, Problem{Title: "Not Implemented", Status: http.StatusNotImplemented})
 		return

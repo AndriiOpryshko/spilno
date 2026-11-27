@@ -93,3 +93,28 @@ LIMIT sqlc.arg(row_limit);
 -- name: ActorEmail :one
 -- The sign-in address db.InAssociation set for this transaction; empty when none.
 SELECT COALESCE(current_setting('app.actor_email', true), '')::text AS email;
+
+-- name: RosterDecisionEffects :many
+-- What each entry's decision did to it, by the first revision of each member that carries the decision:
+-- the member whose first such revision is the latest was seated, an earlier one was ended. Entries
+-- without a decision are absent.
+WITH firsts AS (
+  SELECT DISTINCT ON (decision_id, board_member_id) decision_id, board_member_id, created_at, id
+  FROM board_member_revisions
+  WHERE association_id = sqlc.arg(association_id) AND decision_id IS NOT NULL
+  ORDER BY decision_id, board_member_id, created_at, id
+)
+SELECT bm.id AS board_member_id,
+       CASE WHEN EXISTS (
+         SELECT 1 FROM firsts o
+         WHERE o.decision_id = f.decision_id AND (o.created_at, o.id) > (f.created_at, f.id)
+       ) THEN 'ended' ELSE 'seated' END::text AS effect
+FROM board_members bm
+JOIN LATERAL (
+  SELECT decision_id FROM board_member_revisions
+  WHERE board_member_id = bm.id AND association_id = bm.association_id
+  ORDER BY created_at DESC, id DESC
+  LIMIT 1
+) l ON l.decision_id IS NOT NULL
+JOIN firsts f ON f.decision_id = l.decision_id AND f.board_member_id = bm.id
+WHERE bm.association_id = sqlc.arg(association_id);

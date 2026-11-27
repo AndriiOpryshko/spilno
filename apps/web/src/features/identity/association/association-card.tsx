@@ -17,16 +17,12 @@ export function AssociationCard({ card }: { card: Card }) {
       <section className="space-y-1">
         <h2 className="text-sm font-medium text-muted-foreground">{t.head}</h2>
         <p>{card.head_full_name ?? t.noHead}</p>
-        {card.connected_by_hand && (
-          <div className="space-y-2">
-            <Badge variant="outline">{t.byHand}</Badge>
-            <div>
-              <Link className="underline" to="/applications/new" search={{ kind: 'transfer', association_id: card.id }}>
-                {t.fileTransfer}
-              </Link>
-            </div>
-          </div>
-        )}
+        {card.connected_by_hand && <Badge variant="outline">{t.byHand}</Badge>}
+        <div>
+          <Link className="underline" to="/applications/new" search={{ kind: 'transfer', association_id: card.id }}>
+            {t.fileTransfer}
+          </Link>
+        </div>
       </section>
       <section className="space-y-3">
         <h2 className="text-sm font-medium text-muted-foreground">{t.history}</h2>

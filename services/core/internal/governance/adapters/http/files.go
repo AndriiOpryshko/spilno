@@ -9,14 +9,25 @@ import (
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/adapters/http/gen"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/app"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/domain"
-	"github.com/AndriiOpryshko/spilno/services/core/internal/identity"
 )
 
-const disabledDetail = "Доступ призупинено"
+const (
+	disabledDetail  = "Доступ призупинено"
+	notMemberDetail = "You are not a current member of this association."
+)
 
 func (h *Handler) DownloadFile(ctx context.Context, req gen.DownloadFileRequestObject) (gen.DownloadFileResponseObject, error) {
-	actor, _ := identity.ActorFrom(ctx)
-	d, err := h.files.Download(ctx, req.AssociationId, req.FileId, actor.ReadOnly)
+	var acc Access
+	if h.access != nil {
+		acc = h.access(ctx)
+	}
+	if !acc.Actor {
+		return gen.DownloadFile403ApplicationProblemPlusJSONResponse{
+			Type: "about:blank", Title: "Forbidden", Status: http.StatusForbidden,
+			Code: ptr(acc.NotMemberCode), Detail: ptr(notMemberDetail),
+		}, nil
+	}
+	d, err := h.files.Download(ctx, req.AssociationId, req.FileId, acc.ReadOnly)
 	switch {
 	case errors.Is(err, app.ErrFileNotFound):
 		return gen.DownloadFile404ApplicationProblemPlusJSONResponse{
@@ -26,15 +37,13 @@ func (h *Handler) DownloadFile(ctx context.Context, req gen.DownloadFileRequestO
 			},
 		}, nil
 	case errors.Is(err, app.ErrFileNotSigned):
-		detail := actor.DisabledReason
+		detail := acc.Reason
 		if detail == "" {
 			detail = disabledDetail
 		}
 		return gen.DownloadFile403ApplicationProblemPlusJSONResponse{
-			NotCurrentMemberApplicationProblemPlusJSONResponse: gen.NotCurrentMemberApplicationProblemPlusJSONResponse{
-				Type: "about:blank", Title: "Forbidden", Status: http.StatusForbidden,
-				Code: ptr("identity.association_disabled"), Detail: ptr(detail),
-			},
+			Type: "about:blank", Title: "Forbidden", Status: http.StatusForbidden,
+			Code: ptr(acc.DisabledCode), Detail: ptr(detail),
 		}, nil
 	}
 	if de, ok := errors.AsType[*domain.DomainError](err); ok && de.Code == domain.CodeStorageUnavailable {

@@ -43,6 +43,12 @@ type ProviderIdentity struct {
 	EmailVerified bool
 }
 
+// RedirectAddresser is implemented by a provider that knows the address it sends the browser back to,
+// as the browser reaches it (behind the web app's /api prefix).
+type RedirectAddresser interface {
+	RedirectURL() string
+}
+
 // SignInProvider is the OIDC identity provider (authorization code + PKCE).
 type SignInProvider interface {
 	AuthCodeURL(state, nonce, codeChallenge string) string

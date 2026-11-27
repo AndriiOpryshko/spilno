@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/compone
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { InlineAlert } from '@/features/governance/inline-alert';
-import { uk } from '@/i18n/uk';
+import { formatDate, uk } from '@/i18n/uk';
 
 interface Problem {
   detail?: string;
@@ -91,8 +91,17 @@ export function RosterForm({ associationId, member, onClose }: { associationId: 
           {refusal && <InlineAlert title={refusal} />}
           {field('full_name', t.fullName, (p) => <Input {...p} value={values.full_name} onChange={set('full_name')} />)}
           {field('sign_in_email', t.email, (p) => <Input {...p} type="email" value={values.sign_in_email} onChange={set('sign_in_email')} />)}
-          {field('term_start', t.termStart, (p) => <DateField {...p} value={values.term_start} onChange={set('term_start')} />)}
-          {field('term_end', t.termEnd, (p) => <DateField {...p} value={values.term_end} onChange={set('term_end')} />)}
+          {member?.decision_effect === 'ended' ? (
+            <>
+              <p className="text-sm">{t.term(formatDate(member.term_start), member.term_end ? formatDate(member.term_end) : undefined)}</p>
+              <p className="text-[13px] text-muted-foreground">{t.endedTermHint}</p>
+            </>
+          ) : (
+            <>
+              {field('term_start', t.termStart, (p) => <DateField {...p} value={values.term_start} onChange={set('term_start')} />)}
+              {field('term_end', t.termEnd, (p) => <DateField {...p} value={values.term_end} onChange={set('term_end')} />)}
+            </>
+          )}
           <Button type="submit" disabled={pending}>
             {t.save}
           </Button>

@@ -16,6 +16,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/governance/domain"
@@ -42,9 +43,47 @@ type driveFiles struct {
 	data        map[string][]byte
 	opens       int
 	unavailable bool
+	failAfter   int         // when > 0, a read fails with a plain error after this many bytes
+	txOpen      func() bool // reports whether a database transaction is open right now
+	sawTx       int         // Open or Read calls made while a transaction was open
 }
 
 var _ ports.Files = (*driveFiles)(nil)
+
+// noteTx counts a storage call made while a transaction is open.
+func (d *driveFiles) noteTx() {
+	if d.txOpen != nil && d.txOpen() {
+		d.mu.Lock()
+		d.sawTx++
+		d.mu.Unlock()
+	}
+}
+
+// failingReader yields n bytes of b, then a plain (non-domain) read error.
+type failingReader struct {
+	b    []byte
+	n    int
+	read func()
+}
+
+func (f *failingReader) Read(p []byte) (int, error) {
+	f.read()
+	if f.n >= len(f.b) || f.n >= cap(f.b) {
+		return 0, io.ErrUnexpectedEOF
+	}
+	c := copy(p, f.b[f.n:])
+	f.n += c
+	return c, nil
+}
+func (f *failingReader) Close() error { return nil }
+
+// Remove deletes the file; an unknown id is not an error.
+func (d *driveFiles) Remove(_ context.Context, id string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	delete(d.data, id)
+	return nil
+}
 
 func (d *driveFiles) put(id string, b []byte) {
 	d.mu.Lock()
@@ -70,6 +109,7 @@ func (d *driveFiles) check(id string) ([]byte, error) {
 }
 
 func (d *driveFiles) Open(_ context.Context, id string) (io.ReadCloser, error) {
+	d.noteTx()
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	b, err := d.check(id)
@@ -77,8 +117,21 @@ func (d *driveFiles) Open(_ context.Context, id string) (io.ReadCloser, error) {
 		return nil, err
 	}
 	d.opens++
-	return io.NopCloser(bytes.NewReader(b)), nil
+	if d.failAfter > 0 {
+		cut := b[:min(d.failAfter, len(b))]
+		return &failingReader{b: cut[:len(cut):len(cut)], read: d.noteTx}, nil
+	}
+	return &txCheckReader{r: bytes.NewReader(b), note: d.noteTx}, nil
 }
+
+// txCheckReader notes a transaction on every read.
+type txCheckReader struct {
+	r    io.Reader
+	note func()
+}
+
+func (t *txCheckReader) Read(p []byte) (int, error) { t.note(); return t.r.Read(p) }
+func (t *txCheckReader) Close() error               { return nil }
 
 func (d *driveFiles) Stat(_ context.Context, id string) (ports.FileStatus, error) {
 	d.mu.Lock()
@@ -99,6 +152,7 @@ func (d *driveFiles) Untrash(context.Context, string) error     { return nil }
 
 type downloadEnv struct {
 	srv                   *httptest.Server
+	pool                  *pgxpool.Pool
 	a, b                  string
 	cookies               map[string]*http.Cookie
 	files                 *driveFiles
@@ -124,25 +178,45 @@ func (r download) code() string {
 	return p.Code
 }
 
+// filesResolver is the shape of what Module.WithFiles takes (T92): the storage of one association.
+type filesResolver = func(ctx context.Context, association uuid.UUID) (governance.Files, error)
+
 func newDownloadEnv(t *testing.T, wire bool) *downloadEnv {
+	t.Helper()
+	if !wire {
+		return newDownloadEnvWith(t, nil)
+	}
+	return newDownloadEnvWith(t, func(e *downloadEnv) filesResolver {
+		return func(context.Context, uuid.UUID) (governance.Files, error) { return e.files, nil }
+	})
+}
+
+// newDownloadEnvWith wires the resolver mk builds from the env; nil wires no storage at all.
+func newDownloadEnvWith(t *testing.T, mk func(e *downloadEnv) filesResolver) *downloadEnv {
 	t.Helper()
 	pool, a, b := testdb.NewTwoAssociations(t)
 	idm := identity.New(pool)
 	people := map[string]identity.ProviderIdentity{}
-	for name, email := range map[string]string{"head": rosterHeadEmail, "operator": rosterOperatorEmail} {
+	for name, email := range map[string]string{"head": rosterHeadEmail, "bhead": rosterBOnlyEmail, "operator": rosterOperatorEmail} {
 		people[name] = identity.ProviderIdentity{Issuer: "https://accounts.example.test", Subject: "sub-" + name, Email: email, EmailVerified: true}
 	}
 	idm.EnableSignIn(identity.SignInConfig{Provider: rosterProvider{people}, OperatorEmail: rosterOperatorEmail})
 	e := &downloadEnv{
-		a: a, b: b, cookies: map[string]*http.Cookie{},
+		pool: pool, a: a, b: b, cookies: map[string]*http.Cookie{},
 		files:      &driveFiles{data: map[string][]byte{}},
 		printBytes: []byte("%PDF-1.7 print copy of protocol 2"), scanBytes: []byte("%PDF-1.7 signed scan of protocol 2, with signatures"),
 		documentBytes: []byte("%PDF-1.7 cited invoice"), unsignedBytes: []byte("%PDF-1.7 a draft attachment nobody signed"),
 		unsignedID: uuid.Must(uuid.NewV7()),
 	}
-	gov := governance.New(pool, idm.HasStorageConnection)
-	if wire {
-		gov = gov.WithFiles(e.files)
+	e.files.txOpen = func() bool {
+		var n int
+		err := pool.QueryRow(context.Background(), `SELECT count(*) FROM pg_stat_activity
+			WHERE datname = current_database() AND state LIKE 'idle in transaction%' AND pid <> pg_backend_pid()`).Scan(&n)
+		return err != nil || n > 0
+	}
+	gov := governance.New(pool, idm.HasStorageConnection, actorAccess)
+	if mk != nil {
+		gov = gov.WithFiles(mk(e))
 	}
 	r := httpapi.NewRouter()
 	r.Group(func(r chi.Router) {
@@ -242,6 +316,12 @@ func (e *downloadEnv) fetch(t *testing.T, assoc string, file uuid.UUID) download
 	return e.call(t, "head", "GET", "/governance/associations/"+assoc+"/files/"+file.String(), "")
 }
 
+// fetchAs downloads a file as the named signed-in person ("bhead" is the голова of B).
+func (e *downloadEnv) fetchAs(t *testing.T, as, assoc string, file uuid.UUID) download {
+	t.Helper()
+	return e.call(t, as, "GET", "/governance/associations/"+assoc+"/files/"+file.String(), "")
+}
+
 func (e *downloadEnv) disableA(t *testing.T) {
 	t.Helper()
 	got := e.call(t, "operator", "POST", "/identity/operator/associations/"+e.a+"/disabling", `{"reason":"`+downloadReason+`"}`)
@@ -320,9 +400,10 @@ func TestDownloadFileRefusesAnUnsignedFileWhileDisabled(t *testing.T) {
 	e.disableA(t)
 	before := e.files.opened()
 	got := e.fetch(t, e.a, e.unsignedID)
-	if got.status != http.StatusForbidden || got.code() != "identity.association_disabled" {
-		t.Fatalf("download of an unsigned file while disabled: status = %d code = %q, want 403 identity.association_disabled; body %s", got.status, got.code(), got.body)
+	if got.status != http.StatusForbidden || got.code() != identity.CodeAssociationDisabled {
+		t.Fatalf("download of an unsigned file while disabled: status = %d code = %q, want 403 %s; body %s", got.status, got.code(), identity.CodeAssociationDisabled, got.body)
 	}
+	requireMatchesContractExample(t, got, "AssociationDisabled")
 	var p struct {
 		Detail string `json:"detail"`
 	}
@@ -384,4 +465,35 @@ func TestDownloadFileAnswersStorageUnavailable(t *testing.T) {
 			t.Errorf("download with no Files wired: status = %d code = %q, want 503 governance.storage_unavailable; body %s", got.status, got.code(), got.body)
 		}
 	})
+}
+
+// The bytes are read with no transaction open (the record and the pin are checked in a short one first), and
+// a storage failure in the middle of the read answers 503 governance.storage_unavailable, not a 500.
+func TestDownloadFileReadsTheStorageOutsideTheTransaction(t *testing.T) {
+	t.Run("no transaction open while the storage is opened and read", func(t *testing.T) {
+		e := newDownloadEnv(t, true)
+		got := e.fetch(t, e.a, e.signedA.ScanFileID)
+		e.requireServed(t, "scan", got, e.signedA.ScanFileName, e.scanBytes)
+		if e.files.opened() == 0 {
+			t.Fatal("the storage was never opened")
+		}
+		if e.files.sawTx != 0 {
+			t.Errorf("storage Open/Read calls made with a transaction open = %d, want 0", e.files.sawTx)
+		}
+	})
+	t.Run("a failure in the middle of the read answers 503", func(t *testing.T) {
+		e := newDownloadEnv(t, true)
+		e.files.failAfter = 5
+		got := e.fetch(t, e.a, e.signedA.ScanFileID)
+		if got.status != http.StatusServiceUnavailable || got.code() != "governance.storage_unavailable" {
+			t.Errorf("download whose read fails midway: status = %d code = %q, want 503 governance.storage_unavailable; body %s", got.status, got.code(), got.body)
+		}
+	})
+}
+
+// actorAccess is what cmd/api passes governance: the guard's actor, read through the identity module.
+func actorAccess(ctx context.Context) governance.Access {
+	a, ok := identity.ActorFrom(ctx)
+	return governance.Access{Actor: ok, ReadOnly: a.ReadOnly, Reason: a.DisabledReason,
+		NotMemberCode: identity.CodeNotCurrentMember, DisabledCode: identity.CodeAssociationDisabled}
 }

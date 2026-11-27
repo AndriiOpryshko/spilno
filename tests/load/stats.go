@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 )
@@ -65,8 +66,25 @@ type verdict struct {
 	rps      float64
 	p50, p95 time.Duration
 	max      time.Duration
+	p95Limit time.Duration // the PRD limit the p95 is printed next to
 	failures []string
 	detail   []string
+}
+
+// judgeMode judges like judge, but with reportOnly the p95 is only reported: a p95 over its limit
+// adds no failure. Throughput, errors and the empty run still fail.
+func (s *sample) judgeMode(elapsed, p95Max time.Duration, minRPS float64, reportOnly bool) verdict {
+	v := s.judge(elapsed, p95Max, minRPS)
+	if reportOnly {
+		kept := v.failures[:0]
+		for _, f := range v.failures {
+			if !strings.HasPrefix(f, "p95 ") {
+				kept = append(kept, f)
+			}
+		}
+		v.failures = kept
+	}
+	return v
 }
 
 func (s *sample) judge(elapsed time.Duration, p95Max time.Duration, minRPS float64) verdict {
@@ -78,6 +96,7 @@ func (s *sample) judge(elapsed time.Duration, p95Max time.Duration, minRPS float
 	}
 	v.p50, v.p95 = pct(s.took, 0.5), pct(s.took, 0.95)
 	v.max = pct(s.took, 1)
+	v.p95Limit = p95Max
 	if v.p95 > p95Max {
 		v.failures = append(v.failures, fmt.Sprintf("p95 %s exceeds the limit %s", v.p95.Round(time.Millisecond), p95Max))
 	}
@@ -113,7 +132,7 @@ func (v verdict) print() {
 	if len(v.failures) > 0 {
 		status = "FAIL"
 	}
-	fmt.Printf("\n[%s] %s: %d requests, %d errors, %.1f req/s, p50 %s, p95 %s, max %s\n", status, v.name, v.requests, v.errors, v.rps, v.p50.Round(time.Microsecond*100), v.p95.Round(time.Microsecond*100), v.max.Round(time.Microsecond*100))
+	fmt.Printf("\n[%s] %s: %d requests, %d errors, %.1f req/s, p50 %s, p95 %s (limit %s), max %s\n", status, v.name, v.requests, v.errors, v.rps, v.p50.Round(time.Microsecond*100), v.p95.Round(time.Microsecond*100), v.p95Limit, v.max.Round(time.Microsecond*100))
 	for _, d := range v.detail {
 		fmt.Println("    " + d)
 	}

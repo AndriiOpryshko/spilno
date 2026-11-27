@@ -4,7 +4,7 @@ import { render, screen } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { StorageCallback, StorageLine } from './storage-line';
+import { StorageCallback, StorageCallbackLost, StorageLine } from './storage-line';
 
 const associationId = '00000000-0000-7000-8000-000000000002';
 const address = 'osbb-storage@example.test';
@@ -84,5 +84,38 @@ describe('StorageCallback (AC-27, AC-28b)', () => {
     expect(await screen.findByText('Це особистий акаунт члена правління — підключіть акаунт ОСББ')).toBeInTheDocument();
     expect(await screen.findByText('сховище не підключене')).toBeInTheDocument();
     expect(screen.queryByText(/Сховище документів:/)).not.toBeInTheDocument();
+  });
+
+  it('tells why another account was refused while the files exist: names the connected account, says the files stay, links back to the card (AC-27b)', async () => {
+    stubApi((_url, init) =>
+      init?.method === 'POST'
+        ? json(409, { type: 'about:blank', title: 'Conflict', status: 409, code: 'identity.storage_has_files', detail: 'the storage already holds files' }, 'application/problem+json')
+        : json(200, connected),
+    );
+    renderRoutes('/storage/callback', () => <StorageCallback associationId={associationId} code="auth-code" state="auth-state" />);
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(address);
+    expect(alert).toHaveTextContent('файли');
+    expect(alert).toHaveTextContent('залиша');
+    expect(alert).not.toHaveTextContent('the storage already holds files');
+    expect(alert).not.toHaveTextContent('Conflict');
+    expect(screen.queryByText('Підключення сховища не завершено: запит відхилено. Почніть підключення спочатку з картки ОСББ.')).not.toBeInTheDocument();
+    const back = screen.getByRole('link', { name: 'До картки ОСББ' });
+    expect(back.getAttribute('href')).toBe(`/o/${associationId}/association`);
+  });
+});
+
+describe('StorageCallbackLost without an association id (T119, R06)', () => {
+  it('offers the card of the twenty-first association: every page of memberships is read', async () => {
+    const ids = Array.from({ length: 21 }, (_, i) => `00000000-0000-7000-8000-0000000d${String(i).padStart(4, '0')}`);
+    const membership = (id: string) => ({ association_id: id, association_name: `ОСББ ${id.slice(-4)}`, association_state: 'connected', board_member_id: '00000000-0000-7000-8000-00000000b001', position: 'member' });
+    stubApi((url) => {
+      if (!url.includes('/identity/memberships')) return json(404, {});
+      const second = new URL(url, 'http://localhost').searchParams.get('cursor') === 'm-2';
+      return json(200, { items: (second ? ids.slice(20) : ids.slice(0, 20)).map(membership), next_cursor: second ? null : 'm-2' });
+    });
+    renderRoutes('/storage/callback', () => <StorageCallbackLost associationId={null} />);
+    const link = await screen.findByRole('link', { name: 'ОСББ 0020' });
+    expect(link.getAttribute('href')).toBe(`/o/${ids[20]}/association`);
   });
 });

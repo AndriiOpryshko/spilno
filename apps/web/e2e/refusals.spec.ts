@@ -9,6 +9,7 @@ import {
   fileConnection,
   newEmail,
   newFiling,
+  openConnectionForm,
   openQueue,
   openReview,
   operatorEmail,
@@ -33,7 +34,7 @@ async function pendingFiling(browser: import('@playwright/test').Browser, email 
 test.describe('filing refusals (US-01)', () => {
   test('AC-02: one submit marks every broken field and files nothing', async ({ browser }) => {
     const page = await sessionFor(browser, newEmail('head'));
-    await page.goto('/applications/new?kind=connection');
+    await openConnectionForm(page);
     await page.getByRole('button', { name: 'Подати заявку' }).click();
 
     for (const field of ['edrpou', 'association_name', 'association_address', 'applicant_full_name', 'term_start', 'extract']) {
@@ -191,15 +192,5 @@ test.describe('decision refusals (US-03)', () => {
     await expect(stale.getByText('Рішення за цією заявкою вже ухвалено')).toBeVisible();
     await openReview(operator, id);
     await expect(operator.getByText(/^Заявка схвалена/)).toBeVisible();
-  });
-
-  test('AC-16c: the оператор decides nothing they filed themselves', async ({ browser }) => {
-    const f = newFiling();
-    const operator = await sessionFor(browser, operatorEmail);
-    await fileAndConfirm(operator, f);
-    const id = await applicationIdOf(operator, f.name);
-    await openReview(operator, id);
-    await expect(operator.getByText('Це ваша власна заявка — оператор не ухвалює рішення щодо себе')).toBeVisible();
-    await expect(operator.getByRole('button', { name: 'Схвалити' })).toHaveCount(0);
   });
 });

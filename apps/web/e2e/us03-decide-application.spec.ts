@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { addBoardMember, connected, openRoster, rosterEntry } from './association-support';
-import { checkFor, fileAndConfirm, newEmail, newFiling, openReviewFromQueue, recordCheck, sessionFor, signInByButton } from './support';
+import { checkFor, fileAndConfirm, newEmail, newFiling, openReviewFromQueue, recordCheck, sessionFor, signInByButton, today } from './support';
 
 test('US-03: the оператор records the check and approves, the applicant opens the new association (AC-08, AC-09, AC-10)', async ({
   browser,
@@ -37,7 +37,7 @@ test('US-03: the оператор records the check and approves, the applicant 
 
 const registryEmpty = 'У реєстрі ще немає підписаних протоколів';
 
-test('US-03: the approved голова adds a член правління, who then opens the association (AC-09)', async ({ browser }) => {
+test('US-03: the approved голова adds a член правління, who then opens the association (AC-09, AC-20)', async ({ browser }) => {
   const c = await connected(browser, newFiling());
   const member = { fullName: 'Член Правління Тестовий', email: newEmail('member'), termStart: '2025-02-01' };
 
@@ -52,8 +52,16 @@ test('US-03: the approved голова adds a член правління, who t
   await expect(rosterEntry(c.head, c.f.fullName).getByText('з 01.01.2025')).toBeVisible();
   await expect(c.head.getByText('член правління', { exact: true })).toHaveCount(0);
 
+  // AC-20: the mark of the first голова names the заявка на підключення that seated them, not a запит на передачу.
+  const head = rosterEntry(c.head, c.f.fullName);
+  await expect(head.getByText(`призначено за заявкою на підключення від ${today()}, схвалено оператором ${today()}`)).toBeVisible();
+  await expect(head.getByRole('link', { name: 'Витяг' })).toBeVisible();
+  await expect(c.head.getByText(/за запитом на передачу/)).toHaveCount(0);
+
   await addBoardMember(c.head, member);
   await expect(rosterEntry(c.head, member.fullName).getByText('з 01.02.2025')).toBeVisible();
+  // An entry the board added carries no decision, so no mark.
+  await expect(rosterEntry(c.head, member.fullName).getByText(/^призначено/)).toHaveCount(0);
 
   // The new член правління signs in and lands in the association, with the same roster.
   const added = await sessionFor(browser, member.email);

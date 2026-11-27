@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -39,19 +40,46 @@ type storageT33Env struct {
 	mu          sync.Mutex
 	driveEmail  string // the account the fake Drive says gave the consent
 	refuseCodes bool
+	onToken     func() // called by the fake token endpoint before it answers (T96)
 }
 
 const storageT33Token = "1//storage-refresh-token"
 
 func newStorageT33Env(t *testing.T) *storageT33Env {
 	t.Helper()
+	return newStorageT33EnvWith(t, false)
+}
+
+// newStorageT33EnvWith builds the environment; onePool serves it on a pool of two connections.
+func newStorageT33EnvWith(t *testing.T, onePool bool) *storageT33Env {
+	t.Helper()
+	return newStorageT33EnvWithRoutes(t, nil, onePool)
+}
+
+// newStorageT33EnvWithRoutes also lets the test turn on more of governance: extra gets the module and the
+// guarded router before the server starts.
+func newStorageT33EnvWithRoutes(t *testing.T, extra func(gov *governance.Module, r chi.Router), onePool ...bool) *storageT33Env {
+	t.Helper()
 	pool, a, b := testdb.NewTwoAssociations(t)
+	if len(onePool) > 0 && onePool[0] {
+		cfg := pool.Config().Copy()
+		cfg.MaxConns = 2 // the test pins one, see TestStorageCodeExchangeHoldsNoConnection
+		small, err := pgxpool.NewWithConfig(context.Background(), cfg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(small.Close)
+		pool = small
+	}
 	env := &storageT33Env{pool: pool, a: a, b: b, cookies: map[string]*http.Cookie{}, ids: map[string]uuid.UUID{}, driveEmail: "osbb@example.test"}
 
 	gfake := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		env.mu.Lock()
-		email, refuse := env.driveEmail, env.refuseCodes
+		email, refuse, onToken := env.driveEmail, env.refuseCodes, env.onToken
 		env.mu.Unlock()
+		if r.URL.Path == "/token" && onToken != nil {
+			onToken()
+		}
 		w.Header().Set("Content-Type", "application/json")
 		switch {
 		case r.URL.Path == "/token":
@@ -81,7 +109,7 @@ func newStorageT33Env(t *testing.T) *storageT33Env {
 	if err := idm.EnableGoogle(identity.GoogleConfig{KeyID: "k1", Key: googleTestKey(1), OAuth: oauth}); err != nil {
 		t.Fatal(err)
 	}
-	gov := governance.New(pool, idm.HasStorageConnection)
+	gov := governance.New(pool, idm.HasStorageConnection, actorAccess)
 	idm.EnableStorageConnection(identity.StorageConnectionConfig{
 		Consent: google.Consent{OAuth: oauth, DriveURL: gfake.URL + "/drive/v3"},
 		Members: gov,
@@ -97,6 +125,9 @@ func newStorageT33Env(t *testing.T) *storageT33Env {
 		r.Use(idm.Guard(guardRoster{gov}))
 		if err := idm.Routes(r); err != nil {
 			t.Fatal(err)
+		}
+		if extra != nil {
+			extra(gov, r)
 		}
 	})
 	env.srv = httptest.NewServer(r)
@@ -142,9 +173,19 @@ func seedStorageT33Member(t *testing.T, pool *pgxpool.Pool, assoc, email string)
 
 func (e *storageT33Env) do(t *testing.T, as, method, path, body string) (int, http.Header, []byte) {
 	t.Helper()
-	req, err := http.NewRequest(method, e.srv.URL+path, bytes.NewBufferString(body))
+	status, h, b, err := e.doErr(as, method, path, body)
 	if err != nil {
 		t.Fatal(err)
+	}
+	return status, h, b
+}
+
+// doErr is do for code that does not run on the test goroutine: it returns the error instead of
+// failing the test, so the caller reports it from the test goroutine.
+func (e *storageT33Env) doErr(as, method, path, body string) (int, http.Header, []byte, error) {
+	req, err := http.NewRequest(method, e.srv.URL+path, bytes.NewBufferString(body))
+	if err != nil {
+		return 0, nil, nil, err
 	}
 	if body != "" {
 		req.Header.Set("Content-Type", "application/json")
@@ -154,11 +195,11 @@ func (e *storageT33Env) do(t *testing.T, as, method, path, body string) (int, ht
 	}
 	resp, err := signInNoRedirect.Do(req)
 	if err != nil {
-		t.Fatal(err)
+		return 0, nil, nil, err
 	}
 	defer resp.Body.Close()
-	b, _ := io.ReadAll(resp.Body)
-	return resp.StatusCode, resp.Header, b
+	b, err := io.ReadAll(resp.Body)
+	return resp.StatusCode, resp.Header, b, err
 }
 
 func storageT33Path(assoc string) string {
@@ -443,5 +484,229 @@ func TestStorageConnectionNamesNoMemberOnceTheyLeftTheRoster(t *testing.T) { // 
 	}
 	if got.ConnectedAt == nil {
 		t.Errorf("connected_at = null, want the stored time")
+	}
+}
+
+// T96: the code is exchanged with Google while no transaction is open, and the connection is written in
+// one scoped transaction afterwards. The pool is cut to one usable connection (the test pins the other
+// after the consent links are made): while the first completion waits for Google, a second one is served.
+func TestStorageCodeExchangeHoldsNoConnection(t *testing.T) { // AC-27
+	env := newStorageT33EnvWith(t, true)
+	// Two board members each hold their own pending consent: one account holds at most one pending
+	// consent (T99), so the two overlapping completions must come from two different accounts.
+	state1 := env.start(t, "member", env.a)
+	state2 := env.start(t, "other", env.a)
+
+	pinned, err := env.pool.Acquire(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	pinnedReleased := false
+	releasePin := func() {
+		if !pinnedReleased {
+			pinnedReleased = true
+			pinned.Release()
+		}
+	}
+	defer releasePin()
+
+	inExchange := make(chan struct{})
+	release := make(chan struct{})
+	var firstCall atomic.Bool // a flag, not sync.Once: Once.Do would block the second token call behind the first
+	var held int32 = -1
+	env.mu.Lock()
+	env.onToken = func() {
+		if firstCall.CompareAndSwap(false, true) {
+			held = env.pool.Stat().AcquiredConns() - 1 // minus the pinned one
+			close(inExchange)
+			<-release
+		}
+	}
+	env.mu.Unlock()
+	var releaseOnce sync.Once
+	unblock := func() { releaseOnce.Do(func() { close(release) }) }
+	defer unblock()
+
+	type result struct {
+		status int
+		body   []byte
+		err    error
+	}
+	// The goroutines use doErr and send the error to the test goroutine: t.Fatal is only legal there.
+	complete := func(as, code, state string) result {
+		s, _, b, err := env.doErr(as, "POST", storageT33Path(env.a), `{"code":"`+code+`","state":"`+state+`"}`)
+		return result{s, b, err}
+	}
+	done := make(chan result, 1)
+	go func() { done <- complete("member", "code-1", state1) }()
+	select {
+	case <-inExchange:
+	case <-time.After(10 * time.Second):
+		t.Fatalf("completeStorageConnection never reached the token endpoint on a pool with one free connection: the request holds its transaction before the exchange (acquired = %d, one pinned by the test); want the exchange to run with none", env.pool.Stat().AcquiredConns())
+	}
+
+	other := make(chan result, 1)
+	go func() { other <- complete("other", "code-2", state2) }()
+	select {
+	case o := <-other:
+		if o.err != nil {
+			t.Errorf("second completion during the exchange: %v", o.err)
+		} else if o.status != http.StatusCreated {
+			t.Errorf("second completion during the exchange: status %d, want 201", o.status)
+		}
+	case <-time.After(5 * time.Second):
+		t.Errorf("another request was not served while the code exchange was in flight: pooled connections held by the exchange = %d, want 0", held)
+	}
+
+	unblock()
+	r := <-done
+	if r.err != nil {
+		t.Fatalf("completeStorageConnection: %v", r.err)
+	}
+	if r.status != http.StatusCreated {
+		t.Fatalf("completeStorageConnection: status %d, want 201; body %s", r.status, r.body)
+	}
+	releasePin()
+	if rows := env.rows(t, env.a); len(rows) != 1 {
+		t.Errorf("stored connections = %v, want exactly one", rows)
+	}
+}
+
+// T114 (PRD §5 AC-26, AC-27, ADR-0008 amendment): a connection with another Google account replaces the row and
+// moves no files, so every earlier file would answer 404. It is refused while the association has a file.
+
+// seedFile records the signed protocol of the association with its print copy in a fake
+// storage and returns the file's id and bytes. The download of it is what the refusal must keep working.
+func (e *storageT33Env) seedFile(t *testing.T, files governance.Files, assoc, memberEmail string) (fileID uuid.UUID, content []byte) {
+	t.Helper()
+	aid := uuid.MustParse(assoc)
+	lockedBy := uuid.MustParse(e.memberID(t, assoc, memberEmail))
+	content = []byte("%PDF-1.7 print copy of the signed protocol of " + assoc)
+	var stored struct{ ID, Revision string }
+	if files != nil { // the storage ids of two associations' fakes collide; only a test that downloads needs them
+		f, err := files.Upload(t.Context(), "protocol-signing-copy.pdf", "application/pdf", bytes.NewReader(content))
+		if err != nil {
+			t.Fatal(err)
+		}
+		stored.ID, stored.Revision = f.ID, f.Revision
+	}
+	err := db.InAssociation(context.Background(), e.pool, aid, "seed@example.test", func(ctx context.Context) error {
+		tx, err := db.From(ctx)
+		if err != nil {
+			return err
+		}
+		signed := governancetest.SeedSigned(t, tx, aid, governancetest.SignedSpec{
+			Number: 1, MeetingDate: time.Date(2026, 2, 10, 0, 0, 0, 0, time.UTC), Subject: "Про ремонт покрівлі",
+			LockedBy: lockedBy, PrintBytes: content,
+		})
+		fileID = signed.PrintFileID
+		if files == nil {
+			return nil
+		}
+		_, err = tx.Exec(ctx, `UPDATE files SET drive_file_id = $2, drive_revision_id = $3 WHERE id = $1`, fileID, stored.ID, stored.Revision)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return fileID, content
+}
+
+// storageT114Env is the storage connection environment with the governance routes and a storage that
+// holds the association's files, so a download can be asked after a refusal.
+type storageT114Env struct {
+	*storageT33Env
+	files map[string]governance.Files
+}
+
+func newStorageT114Env(t *testing.T) *storageT114Env {
+	t.Helper()
+	env := &storageT114Env{files: map[string]governance.Files{}}
+	devFiles := governance.NewDevFiles()
+	env.storageT33Env = newStorageT33EnvWithRoutes(t, func(gov *governance.Module, r chi.Router) {
+		gov.WithFiles(devFiles)
+		if err := gov.Routes(r); err != nil {
+			t.Fatal(err)
+		}
+	})
+	for _, a := range []string{env.a, env.b} {
+		f, err := devFiles(t.Context(), uuid.MustParse(a))
+		if err != nil || f == nil {
+			t.Fatalf("storage of %s: %v", a, err)
+		}
+		env.files[a] = f
+	}
+	return env
+}
+
+// download asks downloadFile as a member of assoc.
+func (e *storageT114Env) download(t *testing.T, as, assoc string, file uuid.UUID) (int, []byte) {
+	t.Helper()
+	status, _, body := e.do(t, as, "GET", "/governance/associations/"+assoc+"/files/"+file.String(), "")
+	return status, body
+}
+
+func TestStorageConnectionRefusesAnotherAccountWhileFilesExist(t *testing.T) { // AC-26, AC-27
+	env := newStorageT114Env(t)
+	if status, body := env.complete(t, "member", env.a, "c1", env.start(t, "member", env.a)); status != 201 {
+		t.Fatalf("first connection: status %d, body %s", status, body)
+	}
+	fileID, content := env.seedFile(t, env.files[env.a], env.a, "member@example.test")
+	if status, body := env.download(t, "member", env.a, fileID); status != 200 || !bytes.Equal(body, content) {
+		t.Fatalf("download before the refusal: status %d, body %q; want 200 and the stored bytes", status, body)
+	}
+	before := env.rows(t, env.a)
+
+	env.driveEmail = "second@example.test"
+	status, body := env.complete(t, "other", env.a, "c2", env.start(t, "other", env.a))
+	if status != http.StatusConflict || assocStateProblemCode(body) != "identity.storage_has_files" {
+		t.Errorf("another account with a file: status %d code %q, want 409 identity.storage_has_files; body %s", status, assocStateProblemCode(body), body)
+	}
+	// The detail explains this refusal, not the personal-account one the same 409 also carries.
+	var problem struct {
+		Detail string `json:"detail"`
+	}
+	_ = json.Unmarshal(body, &problem)
+	if !strings.Contains(problem.Detail, "files") || strings.Contains(problem.Detail, "sign-in account") {
+		t.Errorf("detail = %q, want it to say the storage already has files", problem.Detail)
+	}
+	if after := env.rows(t, env.a); len(after) != 1 || len(before) != 1 || after[0] != before[0] {
+		t.Errorf("rows after the refusal = %v, want the connection unchanged %v", after, before)
+	}
+	if status, body := env.download(t, "member", env.a, fileID); status != 200 || !bytes.Equal(body, content) {
+		t.Errorf("download after the refusal: status %d, body %q; want 200 and the stored bytes", status, body)
+	}
+}
+
+func TestStorageConnectionAcceptsTheSameAccountOrAnotherWithoutFiles(t *testing.T) { // AC-27
+	env := newStorageT114Env(t)
+	if status, body := env.complete(t, "member", env.a, "c1", env.start(t, "member", env.a)); status != 201 {
+		t.Fatalf("first connection: status %d, body %s", status, body)
+	}
+
+	// another account while the association has no file: accepted, and the row is replaced
+	env.driveEmail = "second@example.test"
+	if status, body := env.complete(t, "other", env.a, "c2", env.start(t, "other", env.a)); status != 201 {
+		t.Fatalf("another account without files: status %d, want 201; body %s", status, body)
+	}
+	if rows := env.rows(t, env.a); len(rows) != 1 || rows[0][0] != "second@example.test" {
+		t.Fatalf("rows = %v, want one row of second@example.test", rows)
+	}
+
+	// a file of another association does not count
+	env.seedFile(t, nil, env.b, "memberb@example.test")
+	env.driveEmail = "third@example.test"
+	if status, body := env.complete(t, "member", env.a, "c3", env.start(t, "member", env.a)); status != 201 {
+		t.Fatalf("another account while only the other association has files: status %d, want 201; body %s", status, body)
+	}
+
+	// the same account (any letter case) while the association has files: accepted
+	env.seedFile(t, nil, env.a, "member@example.test")
+	env.driveEmail = "THIRD@example.test"
+	if status, body := env.complete(t, "other", env.a, "c4", env.start(t, "other", env.a)); status != 201 {
+		t.Fatalf("the same account with files: status %d, want 201; body %s", status, body)
+	}
+	if rows := env.rows(t, env.a); len(rows) != 1 || rows[0][1] != env.ids["other"].String() {
+		t.Errorf("rows = %v, want one row authorized by the second member", rows)
 	}
 }

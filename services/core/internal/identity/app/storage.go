@@ -25,11 +25,14 @@ const storageStateTTL = 15 * time.Minute
 type StorageMembers interface {
 	MemberSignInAddresses(ctx context.Context, association uuid.UUID) ([]string, error)
 	CurrentMemberID(ctx context.Context, association uuid.UUID, email string, date time.Time) (uuid.UUID, bool, error)
+	// HasFiles reports whether the association has at least one stored file.
+	HasFiles(ctx context.Context, association uuid.UUID) (bool, error)
 }
 
 type storageState struct {
-	account, association uuid.UUID
-	expires              time.Time
+	state       string
+	association uuid.UUID
+	expires     time.Time
 }
 
 // StorageConnections connects the association's document storage on behalf of a member.
@@ -40,16 +43,23 @@ type StorageConnections struct {
 	repo        ports.GoogleConnectionRepository
 
 	now    func() time.Time
+	inTx   func(ctx context.Context, fn func(ctx context.Context) error) error
 	mu     sync.Mutex
-	states map[string]storageState
+	states map[uuid.UUID]storageState // account -> its one pending consent
 }
 
 func NewStorageConnections(consent ports.StorageConsent, members StorageMembers, connections *GoogleConnections, repo ports.GoogleConnectionRepository) *StorageConnections {
-	return &StorageConnections{consent: consent, members: members, connections: connections, repo: repo, states: map[string]storageState{}, now: time.Now}
+	return &StorageConnections{consent: consent, members: members, connections: connections, repo: repo, states: map[uuid.UUID]storageState{}, now: time.Now,
+		inTx: func(ctx context.Context, fn func(context.Context) error) error { return fn(ctx) }}
 }
 
 // SetClock replaces the clock «today» is taken from.
 func (s *StorageConnections) SetClock(now func() time.Time) { s.now = now }
+
+// SetTransactor replaces how the write of a completed connection is wrapped in one transaction.
+func (s *StorageConnections) SetTransactor(inTx func(ctx context.Context, fn func(ctx context.Context) error) error) {
+	s.inTx = inTx
+}
 
 // Start returns the consent link; its single-use state is bound to the account and the association.
 func (s *StorageConnections) Start(account, association uuid.UUID) (string, error) {
@@ -60,8 +70,10 @@ func (s *StorageConnections) Start(account, association uuid.UUID) (string, erro
 	state := base64.RawURLEncoding.EncodeToString(raw)
 	now := time.Now()
 	s.mu.Lock()
-	evictToCap(s.states, now, func(v storageState) time.Time { return v.expires })
-	s.states[state] = storageState{account: account, association: association, expires: now.Add(storageStateTTL)}
+	if _, held := s.states[account]; !held {
+		evictToCap(s.states, now, func(v storageState) time.Time { return v.expires })
+	}
+	s.states[account] = storageState{state: state, association: association, expires: now.Add(storageStateTTL)}
 	s.mu.Unlock()
 	return s.consent.AuthURL(state), nil
 }
@@ -69,12 +81,12 @@ func (s *StorageConnections) Start(account, association uuid.UUID) (string, erro
 func (s *StorageConnections) take(state string, account, association uuid.UUID) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	st, ok := s.states[state]
-	if !ok {
+	st, ok := s.states[account]
+	if !ok || st.state != state {
 		return false
 	}
-	delete(s.states, state)
-	return st.account == account && st.association == association && time.Now().Before(st.expires)
+	delete(s.states, account)
+	return st.association == association && time.Now().Before(st.expires)
 }
 
 // Complete finishes the consent and stores the connection. It returns ErrBadStorageState,
@@ -96,14 +108,46 @@ func (s *StorageConnections) Complete(ctx context.Context, account, association 
 			return ports.GoogleConnection{}, &domain.CodedError{Code: domain.CodeStorageAccountPersonal}
 		}
 	}
-	err = s.connections.Connect(ctx, NewGoogleConnection{
-		AssociationID: association, AccountEmail: grant.AccountEmail, RefreshToken: grant.RefreshToken,
-		Scopes: grant.Scopes, DriveRootFolderID: grant.DriveRootFolderID, AuthorizedBy: account,
+	var conn ports.GoogleConnection
+	err = s.inTx(ctx, func(ctx context.Context) error {
+		if err := s.refuseAnotherAccountWithFiles(ctx, association, grant.AccountEmail); err != nil {
+			return err
+		}
+		if err := s.connections.Connect(ctx, NewGoogleConnection{
+			AssociationID: association, AccountEmail: grant.AccountEmail, RefreshToken: grant.RefreshToken,
+			Scopes: grant.Scopes, DriveRootFolderID: grant.DriveRootFolderID, AuthorizedBy: account,
+		}); err != nil {
+			return err
+		}
+		var e error
+		conn, e = s.repo.Get(ctx, association)
+		return e
 	})
-	if err != nil {
-		return ports.GoogleConnection{}, err
+	return conn, err
+}
+
+// refuseAnotherAccountWithFiles answers domain.CodeStorageHasFiles when email is not the account of the current
+// connection and the association has a file: the files stay on the old account and would answer 404. It runs
+// in the transaction of the write, before it.
+func (s *StorageConnections) refuseAnotherAccountWithFiles(ctx context.Context, association uuid.UUID, email string) error {
+	current, err := s.repo.Get(ctx, association)
+	if errors.Is(err, ports.ErrGoogleConnectionNotFound) {
+		return nil
 	}
-	return s.repo.Get(ctx, association)
+	if err != nil {
+		return err
+	}
+	if strings.EqualFold(strings.TrimSpace(current.AccountEmail), strings.TrimSpace(email)) {
+		return nil
+	}
+	has, err := s.members.HasFiles(ctx, association)
+	if err != nil {
+		return err
+	}
+	if has {
+		return &domain.CodedError{Code: domain.CodeStorageHasFiles}
+	}
+	return nil
 }
 
 // Get returns the stored connection or ports.ErrGoogleConnectionNotFound.

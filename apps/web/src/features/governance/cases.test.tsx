@@ -7,7 +7,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getAddCaseDocumentUrl, getDownloadFileUrl, getGetCaseUrl, getListCasesUrl } from '@/api/gen/endpoints/governance/governance';
-import { formatDate } from '@/i18n/uk';
+import { formatDate, uk } from '@/i18n/uk';
 import { routeTree } from '@/routeTree.gen';
 
 import * as mockData from './mock-data';
@@ -251,6 +251,17 @@ describe('the case screen with its documents (AC-09, T36)', () => {
   });
 });
 
+describe('a справа that is not found (AC-25)', () => {
+  it('offers a link back to the list in the fallback, next to the retry', async () => {
+    open(`/o/${lypky}/cases/00000000-0000-7000-8000-00000000dead`);
+    const alert = await screen.findByRole('alert');
+    expect(within(alert).getByRole('button', { name: 'Спробувати ще раз' })).toBeInTheDocument();
+    const back = within(alert).queryByRole('link', { name: uk.cases.backToList });
+    expect(back, 'a link back to the справи list inside the fallback').not.toBeNull();
+    expect(back!.getAttribute('href')).toBe(listPath);
+  });
+});
+
 describe('uploading a document (AC-09, AC-28)', () => {
   it('sends the chosen file through addCaseDocument and shows the new document', async () => {
     await openCase();
@@ -484,5 +495,24 @@ describe('the mock the справи list used is gone (F4.6)', () => {
   it('exports no cases from the mock data and keeps no CaseSummary type', () => {
     expect('cases' in mockData).toBe(false);
     expect(readFileSync(join(__dirname, 'types.ts'), 'utf8')).not.toMatch(/CaseSummary/);
+  });
+});
+
+describe('the справи screen reads through the layout cache and the shared fallback (AC-19, AC-28, T103)', () => {
+  it('counts one memberships request for a visit to the list', async () => {
+    open(listPath);
+    await screen.findByRole('link', { name: new RegExp(roofTitle) });
+    await settle(200);
+    expect(calls.filter((c) => c.endsWith('/identity/memberships'))).toHaveLength(1);
+  });
+
+  it('leads an expired session to sign-in', async () => {
+    const base = fakeApi;
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const path = new URL(String(input), 'http://localhost').pathname;
+      return path === getListCasesUrl(lypky) ? Promise.resolve(problem(401, 'identity.session_required', 'expired')) : base(input, init);
+    }));
+    const router = open(listPath);
+    await waitFor(() => expect(router.state.location.pathname).toBe('/sign-in'));
   });
 });

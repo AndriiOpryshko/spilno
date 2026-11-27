@@ -230,8 +230,9 @@ func (q *Queries) ListChecksOfApplication(ctx context.Context, applicationID pgt
 
 const listCompetingApplications = `-- name: ListCompetingApplications :many
 SELECT a.id FROM applications a
-WHERE a.state = 'pending' AND a.id <> $1
-  AND a.edrpou = (SELECT edrpou FROM applications WHERE id = $1)
+JOIN applications self ON self.id = $1
+WHERE a.state = 'pending' AND a.id <> self.id
+  AND a.edrpou = self.edrpou AND a.kind = self.kind
 ORDER BY a.created_at, a.id
 `
 
@@ -438,7 +439,7 @@ SELECT a.id, a.kind, a.edrpou, a.association_id, a.state, a.created_at,
        f.association_name, f.created_at AS filed_at, d.reason AS rejection_reason,
        EXISTS (
            SELECT 1 FROM applications o
-           WHERE o.state = 'pending' AND o.id <> a.id AND o.edrpou = a.edrpou
+           WHERE o.state = 'pending' AND o.id <> a.id AND o.edrpou = a.edrpou AND o.kind = a.kind
        ) AS competing
 FROM applications a
 JOIN LATERAL (

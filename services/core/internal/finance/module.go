@@ -55,7 +55,7 @@ func (m *Module) Routes(r chi.Router) error {
 		return fmt.Errorf("finance: load spec: %w", err)
 	}
 	r.Group(func(r chi.Router) {
-		r.Use(httpapi.RequestValidator(spec))
+		r.Use(httpapi.BodyLimit(1<<20, 1<<20), httpapi.RequestValidator(spec))
 		strict := gen.NewStrictHandlerWithOptions(m.handler, nil, gen.StrictHTTPServerOptions{
 			RequestErrorHandlerFunc:  httpapi.StrictRequestError,
 			ResponseErrorHandlerFunc: httpapi.StrictResponseError,

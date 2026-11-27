@@ -7,6 +7,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { BoardPosition } from './boardPosition';
+import type { DecisionEffect } from './decisionEffect';
 
 /**
  * board_members + its latest board_member_revisions row.
@@ -29,4 +30,10 @@ export interface BoardMember {
   position: BoardPosition;
   /** @nullable */
   decision_id: string | null;
+  /**
+     * What the entry's decision did to it: `seated` (the approval made this entry голова) or `ended`
+     * (it ended this entry); null for an entry without a decision. The board cannot clear or move later
+     * the term end of an `ended` entry (422 `governance.roster_entry_invalid` on `/term_end`).
+     */
+  decision_effect: DecisionEffect | null;
 }

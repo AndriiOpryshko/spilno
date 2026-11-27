@@ -133,16 +133,23 @@ func (q *Queries) GetAssociationForApproval(ctx context.Context, id pgtype.UUID)
 }
 
 const getEntryOfDecision = `-- name: GetEntryOfDecision :one
-SELECT board_member_id, COALESCE(sign_in_email, '')::text AS sign_in_email, term_start, term_end
-FROM (
-    SELECT DISTINCT ON (board_member_id) id, created_at, board_member_id, sign_in_email, term_start, term_end, decision_id
-    FROM board_member_revisions
-    WHERE association_id = $1
-    ORDER BY board_member_id, created_at DESC, id DESC
-) latest
-WHERE decision_id = $2
-ORDER BY created_at DESC, id DESC
-LIMIT 1
+WITH firsts AS (
+    SELECT DISTINCT ON (f.board_member_id) f.board_member_id, f.created_at, f.id
+    FROM board_member_revisions f
+    WHERE f.association_id = $1 AND f.decision_id = $2
+    ORDER BY f.board_member_id, f.created_at, f.id
+), seated AS (
+    SELECT board_member_id FROM firsts ORDER BY created_at DESC, id DESC LIMIT 1
+)
+SELECT l.board_member_id, COALESCE(l.sign_in_email, '')::text AS sign_in_email, l.term_start, l.term_end
+FROM seated s
+JOIN LATERAL (
+    SELECT r.board_member_id, r.sign_in_email, r.term_start, r.term_end
+    FROM board_member_revisions r
+    WHERE r.association_id = $1 AND r.board_member_id = s.board_member_id
+    ORDER BY r.created_at DESC, r.id DESC
+    LIMIT 1
+) l ON true
 `
 
 type GetEntryOfDecisionParams struct {
@@ -157,6 +164,8 @@ type GetEntryOfDecisionRow struct {
 	TermEnd       pgtype.Date
 }
 
+// The entry a decision seated is the board member whose first revision carrying the decision is the latest;
+// a later edit copies the decision into more revisions but never moves that first one.
 func (q *Queries) GetEntryOfDecision(ctx context.Context, arg GetEntryOfDecisionParams) (GetEntryOfDecisionRow, error) {
 	row := q.db.QueryRow(ctx, getEntryOfDecision, arg.AssociationID, arg.DecisionID)
 	var i GetEntryOfDecisionRow

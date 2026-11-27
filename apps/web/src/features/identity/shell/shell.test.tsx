@@ -71,6 +71,28 @@ describe('resolveEntry (AC-04d)', () => {
   });
 });
 
+describe('AssociationPicker: filing for another association (AC-04d)', () => {
+  it('offers the заявка на підключення link under the associations, to the connection form', async () => {
+    await renderInRouter(
+      <AssociationPicker memberships={[membership(lypky, 'ОСББ «Липки»'), membership(sonyachnyi, 'ОСББ «Сонячний»')]} isOperator={false} />,
+    );
+    const link = screen.getByRole('link', { name: 'Подати заявку на підключення' });
+    expect(link).toHaveAttribute('href', '/applications/new?kind=connection');
+    const last = screen.getAllByRole('link', { name: 'Картка ОСББ' }).at(-1)!;
+    expect(last.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
+
+describe('AssociationPicker: the lasting link to the list of заявки (AC-05, AC-14)', () => {
+  it.each([
+    ['one roster', [membership(lypky, 'ОСББ «Липки»')]],
+    ['several rosters', [membership(lypky, 'ОСББ «Липки»'), membership(sonyachnyi, 'ОСББ «Сонячний»')]],
+  ])('offers «Мої заявки» to /applications for a person on %s', async (_label, memberships) => {
+    await renderInRouter(<AssociationPicker memberships={memberships} isOperator={false} />);
+    expect(screen.getByRole('link', { name: 'Мої заявки' })).toHaveAttribute('href', '/applications');
+  });
+});
+
 describe('SignInPage', () => {
   it('offers the sign-in link that starts the identity flow', () => {
     render(<SignInPage />);

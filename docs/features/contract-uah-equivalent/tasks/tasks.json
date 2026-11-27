@@ -1,0 +1,575 @@
+{
+  "slug": "contract-uah-equivalent",
+  "tasks": [
+    {
+      "id": "T01",
+      "title": "Promote the migration that adds the hryvnia equivalent columns to contracts",
+      "layer": "migration",
+      "deps": [],
+      "acs": [
+        "AC-01"
+      ],
+      "dod": "The staged migration is live under a goose number from `mise run migrate:new`, applies and reverts cleanly, `mise run gen` leaves sqlcgen with the two nullable columns and every existing test stays green.",
+      "files_hint": [
+        "docs/features/contract-uah-equivalent/migrations/NNNNN_add_contracts_uah_equivalent.sql",
+        "services/core/migrations/",
+        "services/core/internal/finance/adapters/postgres/sqlcgen/"
+      ]
+    },
+    {
+      "id": "T02",
+      "title": "Model the official rate and compute the hryvnia equivalent with half-up rounding",
+      "layer": "domain",
+      "deps": [],
+      "acs": [
+        "AC-02",
+        "AC-09"
+      ],
+      "dod": "Unit tests prove the rounding table of AC-02 with exact integers, refuse a rate that is not a positive decimal with at most six fraction digits, and format a rate back to the published decimal with trailing zeros dropped.",
+      "files_hint": [
+        "services/core/internal/finance/domain/rate.go",
+        "services/core/internal/finance/domain/rate_test.go",
+        "services/core/internal/finance/domain/contract.go"
+      ]
+    },
+    {
+      "id": "T03",
+      "title": "Register the finance problem codes of PRD §5.1",
+      "layer": "domain",
+      "deps": [],
+      "acs": [
+        "AC-07"
+      ],
+      "dod": "Each of the codes of PRD §5.1 (three at first; T14 added the fourth, so four) has exactly one constant whose string equals the catalogue, with its HTTP status in a registry, and a test fails when a code is missing or misspelt.",
+      "files_hint": [
+        "services/core/internal/finance/domain/errors.go",
+        "services/core/internal/finance/domain/errors_test.go"
+      ]
+    },
+    {
+      "id": "T04",
+      "title": "Merge the contract delta and stub the new finance operation",
+      "layer": "wiring",
+      "deps": [],
+      "acs": [
+        "AC-05",
+        "AC-09"
+      ],
+      "dod": "The live contract holds `resolveContractUahEquivalent`, `UahEquivalent` and the changed `Contract`; `mise run gen` is clean; every contract answer carries `uah_equivalent: null`; the new operation compiles as a stub; lint and tests are green.",
+      "files_hint": [
+        "services/core/api/openapi.yaml",
+        "services/core/internal/finance/adapters/http/gen/",
+        "services/core/internal/finance/adapters/http/handler.go",
+        "services/core/internal/finance/module_test.go",
+        "apps/web/src/api/gen/"
+      ]
+    },
+    {
+      "id": "T05",
+      "title": "Read the official rate through the nbu-rates MCP server behind a finance port",
+      "layer": "infra",
+      "deps": [
+        "T02"
+      ],
+      "acs": [
+        "AC-10"
+      ],
+      "dod": "An adapter test against an in-process MCP server proves: a good `get_rate` answer becomes a `domain.Rate`; a `rate_not_published` tool error becomes `ErrRateNotPublished`; any other tool error, a refused connection, a wrong currency or date in the answer, a wrong source or a malformed rate become `ErrRateUnavailable`; the disabled provider always answers `ErrRateUnavailable`.",
+      "files_hint": [
+        "services/core/internal/finance/ports/rates.go",
+        "services/core/internal/finance/adapters/mcprates/",
+        "services/core/go.mod",
+        "services/core/go.sum",
+        "services/core/.golangci.yml"
+      ]
+    },
+    {
+      "id": "T06",
+      "title": "Store the hryvnia equivalent with a contract and set it only once",
+      "layer": "infra",
+      "deps": [
+        "T01",
+        "T02"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-06"
+      ],
+      "dod": "Repository tests on a real database show: a contract created with an equivalent reads back with the same kopiykas and rate; one created without reads back with none; `SetUAHEquivalent` sets it on a contract that has none and changes nothing on one that has; another association's contract is not found.",
+      "files_hint": [
+        "services/core/internal/finance/adapters/postgres/queries/finance.sql",
+        "services/core/internal/finance/adapters/postgres/sqlcgen/",
+        "services/core/internal/finance/adapters/postgres/contracts.go",
+        "services/core/internal/finance/adapters/postgres/contracts_test.go",
+        "services/core/internal/finance/ports/ports.go"
+      ]
+    },
+    {
+      "id": "T07",
+      "title": "Work out the equivalent when a foreign-currency contract is created, and never fail the creation over it",
+      "layer": "app",
+      "deps": [
+        "T05",
+        "T06"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-03",
+        "AC-04"
+      ],
+      "dod": "Use-case tests with a fake rate port show: a EUR contract is stored with the equivalent of AC-01; a UAH contract is stored without one and the port is not called; when the port answers not-published, unavailable or blocks past 3 s the contract is still stored without an equivalent and the call returns within the budget.",
+      "files_hint": [
+        "services/core/internal/finance/app/contracts.go",
+        "services/core/internal/finance/app/contracts_test.go",
+        "services/core/internal/finance/module.go"
+      ]
+    },
+    {
+      "id": "T08",
+      "title": "Add the use case that works out a missing equivalent later, once",
+      "layer": "app",
+      "deps": [
+        "T03",
+        "T07"
+      ],
+      "acs": [
+        "AC-05",
+        "AC-06",
+        "AC-07"
+      ],
+      "dod": "Use-case tests show: a contract without an equivalent gets one; a contract with one is returned unchanged and the port is not called; a UAH contract, a not-published rate and an unavailable source return errors carrying `finance.equivalent_not_applicable`, `finance.rate_not_published` and `finance.rate_unavailable`; a lost race (`SetUAHEquivalent` updated nothing) returns the stored contract.",
+      "files_hint": [
+        "services/core/internal/finance/app/contracts.go",
+        "services/core/internal/finance/app/contracts_test.go"
+      ]
+    },
+    {
+      "id": "T09",
+      "title": "Return the equivalent on every contract answer and serve the «get it later» operation",
+      "layer": "ports",
+      "deps": [
+        "T04",
+        "T08"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-05",
+        "AC-06",
+        "AC-07",
+        "AC-08",
+        "AC-09"
+      ],
+      "dod": "Module tests through the router on a real database, with a fake rate port, show AC-01 (create, get and list carry the same `uah_equivalent`), AC-05, AC-06 (also two concurrent calls → one stored value), every answer of AC-07 as `application/problem+json` with its `code`, and AC-08 (401, 403, 403 disabled, 404 for another association's id); the isolation test covers the new operation.",
+      "files_hint": [
+        "services/core/internal/finance/adapters/http/handler.go",
+        "services/core/internal/finance/module.go",
+        "services/core/internal/finance/module_test.go",
+        "services/core/internal/finance/guarded_test.go",
+        "services/core/internal/finance/uah_equivalent_test.go",
+        "services/core/internal/platform/isolation_test.go"
+      ]
+    },
+    {
+      "id": "T10",
+      "title": "Wire NBU_RATES_MCP_URL from the environment to the finance module",
+      "layer": "wiring",
+      "deps": [
+        "T09"
+      ],
+      "acs": [
+        "AC-10",
+        "AC-04"
+      ],
+      "dod": "A config test reads `NBU_RATES_MCP_URL`; `cmd/api` builds the finance module with the MCP provider when it is set and the disabled one when it is not; the API starts in both cases; `mise.toml` sets the local default.",
+      "files_hint": [
+        "services/core/internal/platform/config/config.go",
+        "services/core/internal/platform/config/config_test.go",
+        "services/core/cmd/api/main.go",
+        "services/core/internal/finance/module.go",
+        "mise.toml"
+      ]
+    },
+    {
+      "id": "T11",
+      "title": "Prove the chain end to end against the real nbu-rates binary and a fake NBU",
+      "layer": "tests",
+      "deps": [
+        "T10"
+      ],
+      "acs": [
+        "AC-11",
+        "AC-01",
+        "AC-10"
+      ],
+      "dod": "One test builds `mcp/nbu-rates`, starts it on a free loopback port with `NBU_BASE_URL` pointing at an `httptest` NBU, creates a EUR contract through the finance module's HTTP surface and reads `uah_equivalent` = 6316388 at `50.5311`; a second contract for a day the fake does not publish is created with `uah_equivalent: null` and the later call answers `409 finance.rate_not_published`. No request leaves the machine.",
+      "files_hint": [
+        "services/core/internal/finance/rates_e2e_test.go"
+      ]
+    },
+    {
+      "id": "T12",
+      "title": "Document the feature: Bruno request, environment variable, CLAUDE.md gotcha",
+      "layer": "docs",
+      "deps": [
+        "T09"
+      ],
+      "acs": [
+        "AC-05"
+      ],
+      "dod": "A Bruno request for the new operation sits next to the other finance requests; README and CLAUDE.md name `NBU_RATES_MCP_URL`, `mise run mcp:nbu` and what happens when the server is down; the root `.mcp.json` question is noted for the PR that owns that file.",
+      "files_hint": [
+        "services/core/api/bruno/finance/",
+        "README.md",
+        "CLAUDE.md",
+        "mcp/nbu-rates/README.md"
+      ]
+    },
+    {
+      "id": "T13",
+      "title": "Serve the live contract's problem-type catalogue and check the registry against it",
+      "layer": "wiring",
+      "deps": [
+        "T09"
+      ],
+      "acs": [
+        "AC-07"
+      ],
+      "dod": "Review 2026-11-24 finding 2: `resolveContractUahEquivalent` in services/core/api/openapi.yaml carries the delta's `x-problem-types`; `TestRegistryStatusesMatchContractProblemTypes` reads the live spec; `mise run gen` leaves no diff beyond the embedded spec.",
+      "files_hint": [
+        "services/core/api/openapi.yaml",
+        "services/core/internal/finance/domain/errors_test.go"
+      ]
+    },
+    {
+      "id": "T14",
+      "title": "Refuse a hryvnia equivalent that does not fit int64 instead of storing a wrong one",
+      "layer": "domain",
+      "deps": [
+        "T13"
+      ],
+      "acs": [
+        "AC-02",
+        "AC-04",
+        "AC-07"
+      ],
+      "dod": "Review 2026-11-24 finding 1: `Rate.Convert` returns an error when the product does not fit int64; Create stores the contract with `uah_equivalent: null` and logs it; the get-it-later operation answers `409 finance.equivalent_out_of_range` and leaves the contract unchanged. PRD AC-02/AC-07 + §5.1, the delta and the live contract name the new code; registry and catalogue tests cover 4 codes; a boundary test row exists.",
+      "files_hint": [
+        "services/core/internal/finance/domain/rate.go",
+        "services/core/internal/finance/domain/errors.go",
+        "services/core/internal/finance/app/contracts.go",
+        "services/core/internal/finance/adapters/http/handler.go",
+        "services/core/api/openapi.yaml",
+        "docs/features/contract-uah-equivalent/PRD.md",
+        "docs/features/contract-uah-equivalent/contracts/openapi.yaml"
+      ]
+    },
+    {
+      "id": "T15",
+      "title": "Drop the staging header from the promoted migration",
+      "layer": "migration",
+      "deps": [
+        "T01"
+      ],
+      "acs": [],
+      "dod": "Review 2026-11-24 finding 3: services/core/migrations/00050_add_contracts_uah_equivalent.sql no longer says it is staged; schema unchanged.",
+      "files_hint": [
+        "services/core/migrations/00050_add_contracts_uah_equivalent.sql"
+      ]
+    },
+    {
+      "id": "T16",
+      "title": "Log the rate-source address without credentials",
+      "layer": "wiring",
+      "deps": [
+        "T10"
+      ],
+      "acs": [],
+      "dod": "Review 2026-11-24 finding 4: the startup log line carries the URL with userinfo redacted; a test pins the redaction.",
+      "files_hint": [
+        "services/core/cmd/api/main.go"
+      ]
+    },
+    {
+      "id": "T17",
+      "title": "Pin the NBU client's body cap and deadline with tests",
+      "layer": "tests",
+      "deps": [],
+      "acs": [
+        "AC-10"
+      ],
+      "dod": "Review 2026-11-24 finding 5: TestRateErrors has a body over 1 MiB and a blocking upstream with a short deadline; both end in ErrUnavailable, the second promptly.",
+      "files_hint": [
+        "mcp/nbu-rates/internal/nbu/nbu_test.go"
+      ]
+    },
+    {
+      "id": "T18",
+      "title": "Keep the rate-source address out of the lookup error",
+      "layer": "infra",
+      "deps": [
+        "T16"
+      ],
+      "acs": [],
+      "dod": "Review 2026-11-25 finding 1: an error from the MCP client carries the endpoint as scheme, host and path only (no userinfo, query or fragment); a test with ?token= in the URL asserts the returned error text has no query value.",
+      "files_hint": [
+        "services/core/internal/finance/adapters/mcprates/mcprates.go",
+        "services/core/internal/finance/adapters/mcprates/mcprates_test.go"
+      ]
+    },
+    {
+      "id": "T19",
+      "title": "Count four finance problem codes in the SAD and the data model",
+      "layer": "docs",
+      "deps": [
+        "T14"
+      ],
+      "acs": [
+        "AC-07"
+      ],
+      "dod": "Review 2026-11-25 finding 2: sad.md §5 and §8 and data-model.md name four finance.* codes; the SAD §5 rate.go row lists ErrEquivalentOutOfRange; updated_at is bumped in both.",
+      "files_hint": [
+        "docs/features/contract-uah-equivalent/sad.md",
+        "docs/features/contract-uah-equivalent/data-model.md"
+      ]
+    },
+    {
+      "id": "T20",
+      "title": "Record the post-approval change of the PRD",
+      "layer": "docs",
+      "deps": [
+        "T14"
+      ],
+      "acs": [
+        "AC-02",
+        "AC-04",
+        "AC-07"
+      ],
+      "dod": "Review 2026-11-25 finding 3: PRD updated_at is 2026-11-25 and a one-line note says AC-02, AC-04, AC-07 and §5.1 were amended per review 2026-11-24 finding 1; the owner re-confirms the approval.",
+      "files_hint": [
+        "docs/features/contract-uah-equivalent/PRD.md"
+      ]
+    },
+    {
+      "id": "T21",
+      "title": "Log an out-of-range equivalent without the amount",
+      "layer": "app",
+      "deps": [
+        "T14"
+      ],
+      "acs": [
+        "AC-04"
+      ],
+      "dod": "Review 2026-11-25 finding 4: the out-of-range warning on create logs currency, day and error, no amount, as SAD §8 says; a test pins the fields.",
+      "files_hint": [
+        "services/core/internal/finance/app/contracts.go",
+        "services/core/internal/finance/app/contracts_test.go"
+      ]
+    },
+    {
+      "id": "T22",
+      "title": "Show the out-of-range branch in SAD Flow 1 and count four codes in T03",
+      "layer": "docs",
+      "deps": [
+        "T19"
+      ],
+      "acs": [
+        "AC-04",
+        "AC-07"
+      ],
+      "dod": "Review 2026-11-25 (round 3) finding 1: sad.md §6 Flow 1 has an `equivalent out of int64 range → insert, equivalent NULL (logged)` branch inside `rate returned`, as amended AC-04 says; T03's DoD in tasks.json and T03-finance-problem-codes.md says four codes (extended by T14); sad.md updated_at is bumped.",
+      "files_hint": [
+        "docs/features/contract-uah-equivalent/sad.md",
+        "docs/features/contract-uah-equivalent/tasks/tasks.json",
+        "docs/features/contract-uah-equivalent/tasks/T03-finance-problem-codes.md"
+      ]
+    },
+    {
+      "id": "T23",
+      "title": "Refuse redirects from the rate source and scrub each secret part of its address",
+      "layer": "infra",
+      "deps": [
+        "T18"
+      ],
+      "acs": [],
+      "dod": "Review 2026-11-25 (round 3) finding 2: the MCP transport uses its own http.Client whose CheckRedirect returns http.ErrUseLastResponse; unavailable() removes the password, the username, every query value and the fragment as substrings, not only whole-URL spellings; a test against a server that redirects (e.g. /mcp → /mcp/) asserts the error text has no token, username, password or fragment.",
+      "files_hint": [
+        "services/core/internal/finance/adapters/mcprates/mcprates.go",
+        "services/core/internal/finance/adapters/mcprates/mcprates_test.go"
+      ]
+    },
+    {
+      "id": "T24",
+      "title": "Pin the call step against an address leak",
+      "layer": "tests",
+      "deps": [
+        "T23"
+      ],
+      "acs": [],
+      "dod": "Review 2026-11-25 (round 3) finding 3: the vacuous \"non-MCP answer\" subtest of TestErrorKeepsCredentialsOutOfTheAddress is replaced by a stub that completes initialize and then drops the connection on tools/call (Post \"<url>\": EOF); with the scrubbing removed, that subtest fails.",
+      "files_hint": [
+        "services/core/internal/finance/adapters/mcprates/mcprates_test.go"
+      ]
+    },
+    {
+      "id": "T25",
+      "title": "Bound the rate lookup's HTTP requests so a hung source frees its socket",
+      "layer": "infra",
+      "deps": [
+        "T23"
+      ],
+      "acs": [
+        "AC-04",
+        "AC-10"
+      ],
+      "dod": "Review 2026-11-25 (round 3) finding 4: every HTTP request of a lookup (including the notifications/cancelled POST and the DELETE the go-sdk sends on a context of its own) is bounded by the caller's deadline, or 3 s when it has none; a test against a server that reads each request and hangs asserts Rate returns within the caller's deadline and no request stays open on the server after it. (Amended while implementing: a client Timeout above 3 s still let Rate wait 3.6 s on the cancel notice, against AC-04's 3 s bound.)",
+      "files_hint": [
+        "services/core/internal/finance/adapters/mcprates/mcprates.go",
+        "services/core/internal/finance/adapters/mcprates/mcprates_test.go"
+      ]
+    },
+    {
+      "id": "T26",
+      "title": "Describe the adapter's own deadline and redirect refusal in the SAD",
+      "layer": "docs",
+      "deps": [
+        "T25"
+      ],
+      "acs": [
+        "AC-04",
+        "AC-10"
+      ],
+      "dod": "Review 2026-11-27 (round 4) finding 1: sad.md §8 Timeouts says the app sets the 3 s budget and the mcprates adapter bounds every HTTP request (including those the go-sdk sends on its own context) by the caller's deadline, with a 3 s fallback, and refuses redirects; the mcprates row of §5 says it refuses redirects; tasks/T05-mcp-rate-provider.md no longer says the adapter sets no timeout; sad.md updated_at is bumped.",
+      "files_hint": [
+        "docs/features/contract-uah-equivalent/sad.md",
+        "docs/features/contract-uah-equivalent/tasks/T05-mcp-rate-provider.md"
+      ]
+    },
+    {
+      "id": "T27",
+      "title": "Bring the follow-up tasks into the epic's AC coverage and DAG",
+      "layer": "docs",
+      "deps": [
+        "T26",
+        "T28",
+        "T29"
+      ],
+      "acs": [],
+      "dod": "Review 2026-11-27 (round 4) finding 2: tasks/_epic.md AC coverage table and DAG list T13–T29 with the same AC mapping as tasks.json (AC-02, AC-04, AC-07, AC-10 included).",
+      "files_hint": [
+        "docs/features/contract-uah-equivalent/tasks/_epic.md"
+      ]
+    },
+    {
+      "id": "T28",
+      "title": "Make the hung-source test fail without the deadline transport",
+      "layer": "tests",
+      "deps": [
+        "T25"
+      ],
+      "acs": [
+        "AC-04",
+        "AC-10"
+      ],
+      "dod": "Review 2026-11-27 (round 4) finding 3: the hung-source stub completes initialize and hangs on tools/call and notifications/cancelled; the test asserts Rate returns within the caller's deadline and no request stays open on the server after it; a case with context.Background() asserts Rate returns within about 3 s (fallbackBudget). Against the pre-T25 mcprates.go, or with deadlineTransport replaced by http.DefaultTransport, the test fails on every run (checked with -count=20). (Amended while implementing: go-sdk v1.8.0 sends no notifications/cancelled after an expired call; the request that hangs is the DELETE of session.Close, which the stub hangs too, and the test watches the server for 800 ms after Rate returns because that DELETE goes out after it.)",
+      "files_hint": [
+        "services/core/internal/finance/adapters/mcprates/mcprates_test.go"
+      ]
+    },
+    {
+      "id": "T29",
+      "title": "Redact the rate-source address structurally instead of masking substrings",
+      "layer": "infra",
+      "deps": [
+        "T23"
+      ],
+      "acs": [
+        "AC-10"
+      ],
+      "dod": "Review 2026-11-27 (round 4) finding 4: the lookup error no longer replaces secret substrings anywhere in the message; each URL in it is parsed and printed as scheme + host + path (no userinfo, query or fragment), with a placeholder that cannot collide with message text. A test with a one-character username, ?v=1 and ?x=end asserts the host (127.0.0.1:<port>) and the step stay readable and no NUL byte or secret reaches the error; the existing leak and redirect tests stay green. (Amended while implementing: the existing TestUnavailableMasksSecretPartsOfAnotherAddress needs a secret masked outside any URL too, so the text between URLs still masks the endpoint's secret parts, but only those of at least 6 bytes (minMaskedSecret); a shorter value there is left alone.)",
+      "files_hint": [
+        "services/core/internal/finance/adapters/mcprates/mcprates.go",
+        "services/core/internal/finance/adapters/mcprates/unavailable_internal_test.go"
+      ]
+    },
+    {
+      "id": "T32",
+      "title": "Refuse a rate-source address that net/http would print escaped",
+      "layer": "infra",
+      "deps": [
+        "T29"
+      ],
+      "acs": [
+        "AC-10"
+      ],
+      "dod": "Review 2026-11-27 (round 5) finding 3: an NBU_RATES_MCP_URL that fails url.Parse, or that holds any character strconv.Quote escapes (such as a double quote), is refused when the finance module is built: the rate source stays mcprates.Disabled, a warning names the reason and the safe part of the address only, and no lookup goes out. A test with http://127.0.0.1:1/mcp?token=\"quoted-secret\" and with http://u:pa\"ss-secret@127.0.0.1:1/mcp asserts that neither secret reaches the warning or any lookup error, and that the existing leak, redirect and wiring tests stay green.",
+      "files_hint": [
+        "services/core/internal/finance/adapters/mcprates/mcprates.go",
+        "services/core/internal/finance/adapters/mcprates/unavailable_internal_test.go",
+        "services/core/internal/finance/module.go",
+        "services/core/internal/finance/rates_wiring_test.go"
+      ]
+    },
+    {
+      "id": "T33",
+      "title": "Do not mask a secret value that is already part of the safe address",
+      "layer": "infra",
+      "deps": [
+        "T32"
+      ],
+      "acs": [
+        "AC-10"
+      ],
+      "dod": "Review 2026-11-27 (round 5) finding 4: a secret part of the endpoint that is a substring of its scheme + host + path is not masked outside URLs, since the log line prints that address anyway. TestUnavailableShortSecretsDoNotGarbleTheMessage gains the case http://127.0.0.1:<port>/mcp?h=127.0.0.1 and asserts that the dial error keeps 127.0.0.1:<port> readable; the long-secret masking test stays green.",
+      "files_hint": [
+        "services/core/internal/finance/adapters/mcprates/mcprates.go",
+        "services/core/internal/finance/adapters/mcprates/unavailable_internal_test.go"
+      ]
+    },
+    {
+      "id": "T30",
+      "title": "Describe the structural redaction and its 6-byte floor in SAD §8",
+      "layer": "docs",
+      "deps": [
+        "T33"
+      ],
+      "acs": [
+        "AC-10"
+      ],
+      "dod": "Review 2026-11-27 (round 5) finding 1: sad.md §8 Logging no longer promises that no userinfo, query or fragment ever reaches the error. It says that the endpoint= field and every URL in the error are cut to scheme + host + path, that outside URLs only secret parts of at least 6 bytes of NBU_RATES_MCP_URL are masked (and not those already in the safe address, T33), and that an address net/http would print escaped is refused at start-up (T32). The SAD's updated_at is bumped.",
+      "files_hint": [
+        "docs/features/contract-uah-equivalent/sad.md"
+      ]
+    },
+    {
+      "id": "T31",
+      "title": "Restate the epic's start set and longest chain for the whole DAG",
+      "layer": "docs",
+      "deps": [
+        "T30"
+      ],
+      "acs": [],
+      "dod": "Review 2026-11-27 (round 5) finding 2: tasks/_epic.md's task-map prose names the day-one starts and the longest chain of the whole DAG in tasks.json (T01–T33, T17 among the starts), not of the original T01–T12 plan; the mermaid DAG and the AC coverage table include T30–T33 and still equal tasks.json deps and acs.",
+      "files_hint": [
+        "docs/features/contract-uah-equivalent/tasks/_epic.md"
+      ]
+    },
+    {
+      "id": "T34",
+      "title": "Name the rate lookup's failure by class instead of redacting its text",
+      "layer": "infra",
+      "deps": [
+        "T33"
+      ],
+      "acs": [
+        "AC-10"
+      ],
+      "dod": "The mcprates error is `rate unavailable: <step>: endpoint=<scheme://host/path>: <class>` with a fixed class (http <status>, timeout, canceled, connection refused, connection closed, network error, protocol error); no text of net/http or the go-sdk reaches it, and the substring masking is deleted with its tests. TestUnavailableNamesTheErrorClassOnly and TestErrorNamesTheFailureClass pin the classes; the leak, redirect, hung-source and wiring tests stay green; SAD §8 Logging states the rule in the same commit.",
+      "files_hint": [
+        "services/core/internal/finance/adapters/mcprates/mcprates.go",
+        "services/core/internal/finance/adapters/mcprates/mcprates_test.go",
+        "services/core/internal/finance/adapters/mcprates/unavailable_internal_test.go",
+        "docs/features/contract-uah-equivalent/sad.md"
+      ]
+    }
+  ]
+}

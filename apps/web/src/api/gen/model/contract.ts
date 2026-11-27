@@ -7,6 +7,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { Currency } from './currency';
+import type { UahEquivalent } from './uahEquivalent';
 
 export interface Contract {
   id: string;
@@ -16,6 +17,8 @@ export interface Contract {
   signed_at: string;
   /** @nullable */
   ends_at: string | null;
+  /** Null for a UAH contract and while the rate has not been read (AC-03, AC-04). */
+  uah_equivalent: UahEquivalent | null;
   created_at: string;
   updated_at: string;
 }

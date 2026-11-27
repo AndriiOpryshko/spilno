@@ -1,0 +1,114 @@
+name: release
+
+# Merging a release PR is the release. Locally you bump VERSION (mise run version:next)
+# and open the PR; when it lands on main this workflow:
+#   1. checks the bump matches the commits (scripts/next-version.sh, the same rule),
+#   2. builds the Keep a Changelog section from the merged history (git-cliff, cliff.toml),
+#   3. takes the release notes from docs/releases/v<version>.md, or, when the PR has none,
+#      from GitHub's generated notes over the merged PRs (.github/release.yml),
+#   4. tags the merge commit and publishes the GitHub Release.
+# No LLM and no secret beyond the job's own GITHUB_TOKEN. main is branch-protected, so the
+# workflow never commits: the generated changelog lives in the Release body.
+on:
+  push:
+    branches: [main]
+    paths: [VERSION]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Read the version
+        id: version
+        run: |
+          version="$(tr -d '[:space:]' < VERSION)"
+          tag="v${version}"
+          if git rev-parse -q --verify "refs/tags/${tag}" >/dev/null; then
+            echo "::notice::${tag} already exists, nothing to release"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          prev="$(git tag --list 'v*' --sort=-v:refname | head -n1)"
+          if [[ -z "$prev" ]]; then
+            echo "::error::no previous v* tag to release from"
+            exit 1
+          fi
+          {
+            echo "skip=false"
+            echo "version=${version}"
+            echo "tag=${tag}"
+            echo "prev=${prev}"
+          } >> "$GITHUB_OUTPUT"
+          echo "Releasing ${tag} (previous ${prev})"
+
+      - name: Check the bump against the commits
+        if: steps.version.outputs.skip == 'false'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          expected="$(scripts/next-version.sh)"
+          if [[ "$expected" != "$VERSION" ]]; then
+            echo "::error::VERSION is ${VERSION}, but the commits since the last tag call for ${expected}"
+            exit 1
+          fi
+
+      - name: Build the changelog section
+        if: steps.version.outputs.skip == 'false'
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: ${{ steps.version.outputs.prev }}..HEAD --tag ${{ steps.version.outputs.tag }}
+        env:
+          OUTPUT: ${{ runner.temp }}/changelog.md
+
+      - name: Collect the release notes
+        if: steps.version.outputs.skip == 'false'
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+          PREV: ${{ steps.version.outputs.prev }}
+        run: |
+          notes="${RUNNER_TEMP}/notes.md"
+          if [[ -f "docs/releases/${TAG}.md" ]]; then
+            cp "docs/releases/${TAG}.md" "$notes"
+          else
+            gh api "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
+              -f tag_name="$TAG" -f target_commitish="$GITHUB_SHA" -f previous_tag_name="$PREV" \
+              --jq .body > "$notes"
+          fi
+          {
+            cat "$notes"
+            printf '\n---\n\n'
+            cat "${RUNNER_TEMP}/changelog.md"
+            printf '\n**Full diff:** %s/%s/compare/%s...%s\n' \
+              "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$PREV" "$TAG"
+          } > "${RUNNER_TEMP}/release-body.md"
+          cat "${RUNNER_TEMP}/release-body.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Tag and publish the release
+        if: steps.version.outputs.skip == 'false'
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git -c user.name='github-actions[bot]' \
+              -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+              tag -a "$TAG" "$GITHUB_SHA" -m "spilno ${VERSION}"
+          git push origin "$TAG"
+          gh release create "$TAG" --verify-tag \
+            --title "spilno ${VERSION}" \
+            --notes-file "${RUNNER_TEMP}/release-body.md"

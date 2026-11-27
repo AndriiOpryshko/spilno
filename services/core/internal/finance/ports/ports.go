@@ -19,7 +19,9 @@ type ContractKey struct {
 // ContractRepository stores contracts.
 type ContractRepository interface {
 	// Create stores already validated terms and returns the stored contract.
-	Create(ctx context.Context, terms domain.ContractTerms) (domain.Contract, error)
+	Create(ctx context.Context, terms domain.ContractTerms, eq *domain.UAHEquivalent) (domain.Contract, error)
+	// SetUAHEquivalent stores the equivalent only on a contract that has none; false when nothing was updated.
+	SetUAHEquivalent(ctx context.Context, id uuid.UUID, eq domain.UAHEquivalent) (domain.Contract, bool, error)
 	// Get returns domain.ErrContractNotFound when no contract has the id.
 	Get(ctx context.Context, id uuid.UUID) (domain.Contract, error)
 	// List returns up to limit contracts ordered by created_at, then id, both

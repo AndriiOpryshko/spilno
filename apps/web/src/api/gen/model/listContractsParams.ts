@@ -6,6 +6,7 @@
  *
  * OpenAPI spec version: 0.1.0
  */
+import type { ListContractsUahEquivalent } from './listContractsUahEquivalent';
 
 export type ListContractsParams = {
 /**
@@ -19,4 +20,8 @@ limit?: number;
  * @minLength 1
  */
 cursor?: string;
+/**
+ * `missing` keeps only the foreign-currency contracts that have no hryvnia equivalent yet (they wait for resolveContractUahEquivalent); a UAH contract never counts as missing. Omit it for every contract.
+ */
+uah_equivalent?: ListContractsUahEquivalent;
 };

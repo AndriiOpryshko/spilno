@@ -76,6 +76,7 @@ export * from './listAssociationsForOperatorParams';
 export * from './listBoardMembersParams';
 export * from './listCasesParams';
 export * from './listContractsParams';
+export * from './listContractsUahEquivalent';
 export * from './listMeetingsParams';
 export * from './listMembershipsParams';
 export * from './listMyApplicationsParams';

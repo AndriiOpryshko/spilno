@@ -84,12 +84,31 @@ All tasks run from the repo root through mise (`mise tasks` lists them):
 - Commit only when the user asks. Open the PR early: the first commit on a branch is followed in
   the same step by `git push -u` and `gh pr create --draft` (a request to commit covers this);
   later commits are pushed to the same PR. Mark it ready only when green and the user agrees.
+- Push only to an explicitly named branch: `git push -u origin <branch>`. Never push to `main`,
+  and never run a bare `git push` while on `main`. `.claude/hooks/block-main-push.sh` blocks a
+  push command that names `main`.
 - Never `git reset --hard`, never force-push (`--force`, `-f`, `--force-with-lease`), never
   rewrite pushed history. Undo with `git revert` or a new commit; a session slip with `/rewind`.
   Both are denied in `.claude/settings.json`.
 - Secrets never enter git: `.env`, `.env.*` (except `.env.example`), `*.pem`, `*.key`, `id_rsa*`
   are ignored and `.claude/hooks/block-secrets.sh` blocks staging or committing them. On a block,
   unstage the file; do not retry with `-f` or another path.
+
+## Pull requests
+
+- Platform: GitHub, `gh` only. Open a PR with `gh pr create --draft --base main`; the body follows
+  `.github/pull_request_template.md` (`gh pr create --fill` does not read it: pass `--body-file`).
+- Title = the commit format: `type(scope): imperative summary`. For a one-commit PR it is that commit's subject.
+- Body sections, all filled from the diff, never from the task wording: **Why**, **What** (one bullet per
+  logical change, naming files or packages), **Checks** (commands actually run and their result; say what was
+  not run), **Links** (`Closes #<issue>` when an issue exists, the feature's `docs/features/<slug>/` artifacts).
+- A PR stays draft until `mise run lint`, `mise run test` and `mise run e2e` are green, the review
+  (`/code-review`, `/security-review`, and `/sdlc:review-feature <slug>` for a feature) is addressed, and the
+  user agrees. Then `gh pr ready`.
+- Creating a PR is allowed; `gh pr merge` always asks (`.claude/settings.json`), and the answer is no unless the
+  user says so in this turn. `main` is branch-protected: merging happens on GitHub, by the user.
+- Review findings and their fixes go into the PR as new commits (persist the review, fix in a fresh session);
+  never rewrite a pushed branch to hide them.
 
 ## Metrics log
 

@@ -12,7 +12,7 @@ test_files:
   - services/core/internal/governance/adapters/gdrive/files_test.go
   - services/core/internal/governance/adapters/gdrive/drivefake_test.go
 estimate: "a day"
-status: "in_progress"
+status: "done"
 ---
 
 # T13b — Implement the Files port on Google Drive
@@ -172,3 +172,11 @@ Left here:
   `drivefake_test.go` and there are two fakes;
 - a file whose removal failed stays in the storage until the `remove_orphan_file` job exists
   ([T14](./T14-river-worker-jobs.md), [T32](./T32-nightly-integrity-check.md)).
+
+## Status (2026-11-27): done
+
+Closed on an audit of `main` at `d43faf9`: each of AC-1–AC-7 has its test in `gdrive/files_test.go`
+(`TestFiles_AC1`…`TestFiles_AC7`) and the package passes; `Remove` is covered by the shared contract. The
+scope of this task is the adapter on a fake Drive. Of «Left here», the real-Google run stays with
+[T13](./T13-drive-files-adapter.md) (still `in_progress` for it), the reason per restriction and resuming are in
+«Not here», and the orphaned file waits for the `remove_orphan_file` job (T14, T32).

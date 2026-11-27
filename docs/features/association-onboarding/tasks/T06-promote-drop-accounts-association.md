@@ -10,7 +10,7 @@ files_hint:
   - "docs/features/association-onboarding/data-model.md"
 owner: "Andrii Opryshko"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T06 — Promote the drop of accounts.association_id ahead of the manifest order

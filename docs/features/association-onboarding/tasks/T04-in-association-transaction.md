@@ -8,7 +8,7 @@ files_hint:
   - "services/core/internal/platform/db/"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T04 — Add platform/db.InAssociation: a transaction that carries the association and the actor

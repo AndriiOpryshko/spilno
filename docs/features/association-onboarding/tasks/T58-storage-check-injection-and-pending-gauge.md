@@ -12,7 +12,7 @@ files_hint:
   - "services/core/internal/identity/adapters/postgres/queries/applications.sql"
 owner: "Andrii Opryshko"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T58 — Pass the storage check into governance from cmd/api and count the pending age from the latest filing

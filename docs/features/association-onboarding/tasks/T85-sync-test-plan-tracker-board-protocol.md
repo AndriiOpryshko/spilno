@@ -12,7 +12,7 @@ files_hint:
   - "docs/features/board-protocol/tasks/"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T85 — Bring the test plan, the trackers and the board-protocol tasks in line with what was built

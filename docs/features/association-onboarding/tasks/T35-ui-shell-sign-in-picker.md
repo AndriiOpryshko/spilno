@@ -19,7 +19,7 @@ files_hint:
   - "apps/web/src/i18n/uk.ts"
 owner: "Andrii Opryshko"
 estimate: "L"
-status: "todo"
+status: "done"
 ---
 
 # T35 — Build the signed-in shell: sign-in page, association picker, routes under /o/$associationId and the оператор's entry

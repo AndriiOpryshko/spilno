@@ -10,7 +10,7 @@ files_hint:
   - "services/core/internal/identity/module.go"
 owner: "Andrii Opryshko"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T34 — Refuse case documents and assistant turns while the storage is not connected

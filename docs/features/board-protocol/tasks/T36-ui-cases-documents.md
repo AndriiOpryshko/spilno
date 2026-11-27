@@ -11,7 +11,7 @@ files_hint:
   - "apps/web/src/features/governance/case-documents.tsx"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T36 — Move the cases list and case screen to generated hooks with document upload
@@ -33,3 +33,12 @@ status: "todo"
 - [ ] component tests for list, upload success and `file_invalid`
 - [ ] client-side size/type pre-check mirrors the server rule
 - [ ] `mise run lint` and `mise run test` green
+
+## Status (2026-11-17)
+
+Done by association-onboarding [T80](../../association-onboarding/tasks/T80-ui-cases-on-api-with-upload.md) (commits `8501407`, `4480889`): the
+справи list and the case screen read `listCases` and `getCase`, upload a document or a newer version through
+`addCaseDocument`, show `governance.file_invalid` inline and check size and type in the browser
+(`apps/web/src/features/governance/cases.test.tsx`, `case-documents.stories.tsx`). The routes are
+`/o/$associationId/cases` and `/o/$associationId/cases/$caseId`, not the ones in `files_hint`. No screen creates
+a справа yet; that comes with the draft flow.

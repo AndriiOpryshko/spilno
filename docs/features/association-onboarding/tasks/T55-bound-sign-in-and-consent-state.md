@@ -13,7 +13,7 @@ files_hint:
   - "services/core/internal/identity/storage_test.go"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T55 — Bound the sign-in and storage-consent state

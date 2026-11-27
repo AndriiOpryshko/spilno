@@ -53,6 +53,9 @@ All tasks run from the repo root through mise (`mise tasks` lists them):
   recreated), otherwise `spilno_app_login` does not exist.
 - Sign-in works only through the development shim (`SPILNO_DEV_SIGN_IN=true`); the real provider's adapter is
   a known gap. `SPILNO_OPERATOR_EMAIL` names the оператор. The e2e specs open the public `/status` page.
+- The e2e suite seeds a signed protocol with `psql` over `E2E_OWNER_DATABASE_URL` (`apps/web/e2e/seed/`). The seed
+  refuses a database not marked `ALTER DATABASE <name> SET spilno.e2e = 'on'` (undo: `RESET spilno.e2e`): mark only a
+  throwaway database, seeded protocols cannot be deleted. Run the suite on a fresh database: the оператор's queue shows its first 20.
 - Visual baselines live in `apps/web/src/features/identity/__screenshots__` per platform and architecture.
   Update them deliberately with `pnpm --filter @spilno/web test:stories -u` on the matching platform; the
   linux-x64 ones come from the CI Playwright image.

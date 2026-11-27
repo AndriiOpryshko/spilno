@@ -16,7 +16,7 @@ files_hint:
   - "services/core/cmd/api/main.go"
 owner: "Andrii Opryshko"
 estimate: "L"
-status: "todo"
+status: "done"
 ---
 
 # T18 — Sign in any verified person, keep the session in Postgres and tell the оператор

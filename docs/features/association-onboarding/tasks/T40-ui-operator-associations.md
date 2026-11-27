@@ -11,7 +11,7 @@ files_hint:
   - "apps/web/src/features/identity/operator/associations.stories.tsx"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T40 — Build the оператор's associations list with disabling and enabling

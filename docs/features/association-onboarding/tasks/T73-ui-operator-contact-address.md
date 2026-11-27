@@ -13,7 +13,7 @@ files_hint:
   - "README.md"
 owner: "Andrii Opryshko"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T73 — Show the оператор's contact address in every environment

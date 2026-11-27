@@ -17,7 +17,7 @@ files_hint:
   - "docs/features/association-onboarding/migrations/MANIFEST.md"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T05 — Promote the expand migrations: application tables, association and roster columns, the app role

@@ -110,6 +110,8 @@ jobs:
         run: |
           apt-get update -qq && apt-get install -y -qq postgresql-client
           psql postgres://spilno:spilno@postgres:5432/spilno -v ON_ERROR_STOP=1 -f infra/postgres-init/01-app-role.sql
+          # The e2e seed (apps/web/e2e/seed) writes only into a database that says it is the e2e one.
+          psql postgres://spilno:spilno@postgres:5432/spilno -v ON_ERROR_STOP=1 -c "ALTER DATABASE spilno SET spilno.e2e = 'on'"
       - name: Start core API
         working-directory: services/core
         env:
@@ -134,6 +136,9 @@ jobs:
           done
           cat /tmp/api.log; exit 1
       - run: pnpm --filter @spilno/web e2e
+        env:
+          # The owner connection the signed-protocol seed is written over.
+          E2E_OWNER_DATABASE_URL: postgres://spilno:spilno@postgres:5432/spilno?sslmode=disable
       - if: failure()
         uses: actions/upload-artifact@v4
         with:

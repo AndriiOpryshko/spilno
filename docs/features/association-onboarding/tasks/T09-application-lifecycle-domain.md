@@ -9,7 +9,7 @@ files_hint:
   - "services/core/internal/identity/domain/application_test.go"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T09 — Model the application lifecycle and the guards of a decision

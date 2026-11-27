@@ -15,7 +15,7 @@ files_hint:
   - "docs/features/board-protocol/migrations/20261027120011_create_idx_meetings_chair.down.sql"
 owner: "Andrii Opryshko"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T02 — Promote the roster, settings and meetings-chair migrations

@@ -16,7 +16,7 @@ files_hint:
   - "services/core/cmd/api/main.go"
 owner: "Andrii Opryshko"
 estimate: "L"
-status: "todo"
+status: "done"
 ---
 
 # T19 — Guard association paths with the session, the roster and a scoped transaction, and operator paths with the оператор flag

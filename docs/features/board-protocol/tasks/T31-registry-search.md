@@ -11,7 +11,7 @@ files_hint:
   - "services/core/internal/governance/adapters/http/registry.go"
 owner: "Andrii Opryshko"
 estimate: "L"
-status: "todo"
+status: "done"
 ---
 
 # T31 — Search the реєстр протоколів and open a signed protocol
@@ -32,3 +32,11 @@ status: "todo"
 - [ ] integration tests per filter + cursor paging + `search_invalid`
 - [ ] EXPLAIN on each query uses its index (asserted in a test or noted in the PR)
 - [ ] `mise run lint` and `mise run test` green
+
+## Status (2026-11-17)
+
+Done by association-onboarding [T63](../../association-onboarding/tasks/T63-serve-registry-read.md) (commit `4986f55`): `searchRegistry` with the
+four filters, cursor pages and `governance.search_invalid`, `getSignedProtocol`, and the index check
+(`registry_endpoints_test.go`, `registry_index_test.go`). The tests run on signed protocols written by the
+fixture `governancetest.SeedSigned`, fewer than the 30 this task names; real rows appear with the lock of
+[T29](./T29-lock-with-signed-copy.md), which stays the only open dependency.

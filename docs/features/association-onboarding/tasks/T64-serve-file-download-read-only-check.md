@@ -15,7 +15,7 @@ files_hint:
   - "services/core/internal/governance/adapters/filesfake/"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T64 — Serve file downloads, and only signed copies while the association is read-only

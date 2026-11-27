@@ -16,7 +16,7 @@ files_hint:
   - "apps/web/src/features/identity/association/association-card.stories.tsx"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T72 — Show «повноваження завершено» in the card history only when the decision ended a term

@@ -120,7 +120,7 @@ func run() error {
 		if email == "" {
 			email = "user@example.test"
 		}
-		idm.EnableSignIn(identity.SignInConfig{Provider: identity.DevSignInProvider(email), OperatorEmail: cfg.OperatorEmail})
+		idm.EnableSignIn(identity.SignInConfig{Provider: identity.DevSignInProvider(email, cfg.WebOrigin+"/api/identity/sign-in/callback"), OperatorEmail: cfg.OperatorEmail})
 	}
 	gov := governance.New(pool, idm.HasStorageConnection)
 	if cfg.DevStorage {

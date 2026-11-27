@@ -12,7 +12,7 @@ files_hint:
   - "apps/web/src/components/ui/dialog.stories.tsx"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T39 — Add the оператор's decisions: approve, reject and their refusals

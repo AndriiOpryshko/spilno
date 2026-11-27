@@ -15,7 +15,7 @@ files_hint:
   - "apps/web/src/components/ui/form-fields.stories.tsx"
 owner: "Andrii Opryshko"
 estimate: "L"
-status: "todo"
+status: "done"
 ---
 
 # T36 — Build the filing forms for a заявка на підключення and a запит на передачу

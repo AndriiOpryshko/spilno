@@ -11,7 +11,7 @@ files_hint:
   - "services/core/internal/identity/domain/access_test.go"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T11 — Model the association state and the access matrix of PRD §10

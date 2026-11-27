@@ -14,7 +14,7 @@ files_hint:
   - "services/core/internal/governance/module.go"
 owner: "Andrii Opryshko"
 estimate: "L"
-status: "todo"
+status: "done"
 ---
 
 # T65 — Serve справи and document upload behind the storage guard

@@ -14,7 +14,7 @@ files_hint:
   - "apps/web/playwright.config.ts"
 owner: "Andrii Opryshko"
 estimate: "L"
-status: "todo"
+status: "done"
 ---
 
 # T82 — Prove the roster, the registry and the document refusal end to end

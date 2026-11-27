@@ -48,6 +48,14 @@ export async function signInAs(page: Page, email: string) {
   expect(done.status(), 'sign-in callback must set the session').toBe(302);
 }
 
+// The «Увійти» button, as a person presses it. The shim signs in its one fixed address, the оператор's,
+// so every other person of a spec still comes through signInAs.
+export async function signInByButton(page: Page) {
+  await page.goto('/');
+  await page.getByRole('link', { name: 'Увійти' }).click();
+  await expect(page.getByRole('link', { name: 'Оператор' })).toBeVisible();
+}
+
 export async function sessionFor(browser: Browser, email: string) {
   const context = await browser.newContext();
   const page = await context.newPage();
@@ -100,9 +108,34 @@ export const checkFor = (f: Filing, over: Partial<Check> = {}): Check => ({
   ...over,
 });
 
+// The review page by its address: for the specs whose subject is the decision, not the way to it.
 export async function openReview(page: Page, applicationId: string) {
   await page.goto(`/operator/applications/${applicationId}`);
   await expect(page.getByRole('heading', { name: 'Перевірка витягу' })).toBeVisible();
+}
+
+// The оператор's section from wherever `/` lands them: the picker and an association's sidebar both link to it.
+export async function openQueue(page: Page) {
+  await page.goto('/');
+  await page.getByRole('link', { name: 'Оператор' }).click();
+  await expect(page.getByRole('heading', { name: 'Заявки та запити' })).toBeVisible();
+}
+
+export const queueRow = (page: Page, name: string) =>
+  page.getByRole('listitem').filter({ has: page.getByRole('link', { name, exact: true }) });
+
+// The review page the way the оператор reaches it: the queue, then the заявка's row.
+export async function openReviewFromQueue(page: Page, name: string) {
+  await openQueue(page);
+  await page.getByRole('link', { name, exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Перевірка витягу' })).toBeVisible();
+}
+
+// The association card from the sidebar; a page that is not inside an association yet enters through `/`.
+export async function openCard(page: Page) {
+  if (!/\/o\/[^/]+/.test(new URL(page.url(), 'http://localhost').pathname)) await page.goto('/');
+  await page.getByRole('link', { name: 'ОСББ', exact: true }).click();
+  await expect(page).toHaveURL(/\/o\/[^/]+\/association/);
 }
 
 export async function recordCheck(page: Page, c: Check) {

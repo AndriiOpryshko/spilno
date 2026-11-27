@@ -8,7 +8,7 @@ files_hint:
   - "services/core/internal/platform/isolation_test.go"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T21 — Add the release-blocking isolation test over every association-scoped operation of the contract

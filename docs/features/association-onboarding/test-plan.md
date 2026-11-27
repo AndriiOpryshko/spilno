@@ -2,7 +2,7 @@
 status: Draft
 owner: "Andrii Opryshko"
 reviewers: ["Andrii Opryshko"]
-updated_at: "2026-11-10"
+updated_at: "2026-11-17"
 feature_size: "M"
 ---
 
@@ -17,6 +17,10 @@ A голова правління connects an association, or takes it over afte
 a reason, can disable and enable an association, and the board connects its own document storage. With a
 second association, nothing of one association is readable by a person off its roster. Every criterion below
 has at least one test that `implement-tasks` writes red first.
+
+Updated 2026-11-17 after the follow-up of the [review of 2026-11-10](./_review/review-2026-11-10.md) (tasks
+T50–T85): the rows below name the tests as they are now, and «Where the tests are» lists the browser specs
+by criterion. No row waits for a skipped test.
 
 ## Level decisions (product owner, 2026-11-10)
 
@@ -59,7 +63,7 @@ that names it is covered inside that flow, not by a separate browser test.
 | AC-04 | the refusal offers the запит на передачу form | e2e-through-UI | «Це ОСББ вже підключене…» with a link that opens the запит form |
 | AC-04b domain invariant | a second заявка by the same person for the same code is refused and the open one shown | unit + integration + contract + e2e-through-UI | «У вас уже є заявка на це ОСББ»; the open заявка is shown; nothing recorded |
 | AC-04d cross-context | a person on two rosters works in each association separately | unit (access matrix) + integration + contract | the list of own associations has both; records, roster and settings of each are returned only under that association and only to a person on its roster |
-| AC-04d | two windows hold two associations after sign-in | e2e-through-UI | the person chooses an association; each window keeps its own; every page names its association |
+| AC-04d | two windows hold two associations after sign-in | e2e-through-UI | the person picks an association in each window and opens its card from the sidebar; each window keeps its own after reloads; every page names its association |
 | AC-30 legal competence | a filing by a голова whose term already ended is refused | unit (table: end before the filing date refused; end on the filing date accepted; no end accepted; заявка and запит) | refused only when the end is earlier than the filing date |
 | AC-30 | the ended term is refused at filing and nothing is recorded | integration + contract + e2e-through-UI | «Строк повноважень голови вже завершився — подайте витяг після переобрання» |
 
@@ -69,9 +73,11 @@ that names it is covered inside that flow, not by a separate browser test.
 |---|---|---|---|
 | AC-05 happy path | the applicant sees their pending заявка and nothing of the association | integration | own заявка with status, filing date and the оператор's contact address; no association data in any answer |
 | AC-05 | the applicant signs in and reads the status (Flow US-02) | e2e-through-UI + component (status line) | «очікує розгляду з 10.11.2026» and the contact address |
+| AC-05 | a person signs in with the «Увійти» button (Flow US-03) | e2e-through-UI | the button leads through the provider back into the app, signed in as the оператор |
 | AC-06 happy path | only the same applicant may refile a rejected заявка | unit | Відхилена → Очікує allowed for the applicant, refused for anyone else |
 | AC-06 | a rejected заявка is refiled with a new extract | integration | the same заявка is очікує with the new filing date; the rejected version, its extract and reason stay in the history; the earlier check is not carried over |
-| AC-06 | the applicant reads the reason, fixes and refiles (Flow US-02) | e2e-through-UI | the new status is shown; the history shows the rejection |
+| AC-06 | a rejection that names a filing that is no longer the latest is refused | integration | answered as a conflict, not a server error; nothing is recorded |
+| AC-06 | the applicant reads the reason, fixes and refiles; the оператор decides the refiled заявка (Flow US-02) | e2e-through-UI + component (review page) | the new status is shown; the history shows the rejection; the review page shows the new filing with the earlier one below, the extract the оператор downloads is the refiled file byte for byte, and the approval goes through |
 | AC-07 authorization | a person off the roster is denied the registry, a справа and the roster | unit (access matrix) + integration (an applicant with a pending заявка, a member of another association, a person with nothing; an existing and a missing id) | denied in every combination; nothing read |
 | AC-07 | the denial is the same for an existing and a missing record | contract | identical body in both cases |
 | AC-07 | an applicant opening an association address sees no access | e2e-through-UI | a no-access page; no association data rendered |
@@ -84,18 +90,21 @@ that names it is covered inside that flow, not by a separate browser test.
 | AC-03b domain invariant | approval is refused when the extract names another code | unit + integration + contract + e2e-through-UI | «Витяг стосується іншого ОСББ…»; the заявка stays очікує |
 | AC-04c domain invariant | a competing заявка is accepted silently and shown side by side | integration + contract | the second applicant gets the same answer as a lone applicant; the оператор's view marks both as competing |
 | AC-04c | approving the second of two competing заявки is refused once the first is approved | unit + integration + contract | refused as for a connected code; rejecting it with a reason still works; two approvals racing create exactly one association |
-| AC-04c | the оператор sees «конкуруюча заявка» and is refused the second approval | e2e-through-UI + component (competing marker) | both listed together; the refusal message shown |
+| AC-04c | the оператор sees «конкуруюча заявка» and is refused the second approval | e2e-through-UI + component (competing marker) | both marked in the queue; each review page lists the other and opens it; after the first approval the second is no longer marked and its approval is refused with the message |
 | AC-08 happy path | approving a checked заявка creates the association and its first член правління | integration | association with the code, name and address of the заявка; decision with date and оператор; the applicant on the roster as голова правління with the term of the заявка; all or nothing |
-| AC-08 | the оператор records the check and approves (Flow US-03) | e2e-through-UI | the заявка shows схвалена with the decision date |
+| AC-08 | the term end typed in the заявка is kept on the roster entry | integration | the голова's entry ends on the filed date; without one it stays open |
+| AC-08 | the оператор opens the заявка from the queue, records the check and approves (Flow US-03) | e2e-through-UI | the заявка shows схвалена with the decision date |
 | AC-09 cross-context | the approved applicant works in the new association | integration | a current member from the term start; can open the registry and add a член правління; the storage shows as not connected |
-| AC-09 | the approved applicant signs in and adds a board member (Flow US-03) | e2e-through-UI | the association opens; the member is added; «сховище не підключене» visible |
+| AC-09 | the roster is listed, added to and changed | integration + contract + component (roster screen) | entries with position, term and decision; every broken field named at once; a seat made by a decision keeps its position and decision |
+| AC-09 | the registry and a справа with its documents open for a member | integration + contract + component (registry, case screen) | the registry lists signed decisions by filter and page; a справа shows its documents and versions |
+| AC-09 | the approved applicant signs in and adds a board member (Flow US-03) | e2e-through-UI | the association opens; «сховище не підключене» visible; the member is added on the roster screen, signs in and lands in the association with the same roster |
 | AC-10 traceability | every value on the review page names its source | integration + contract | typed values marked as entered by the applicant; checked values marked with the check date; «не перевірено» before the check |
-| AC-10 | source labels on the review page | component + visual-regression (review page) + e2e-through-UI (Flow US-03) | the three source labels and «не перевірено» render as specified |
+| AC-10 | source labels on the review page | component + visual-regression (review page) + e2e-through-UI (Flow US-03) | each of the six typed and five checked values carries its label; «не перевірено» before the check and gone after it |
 | AC-11 traceability | three names are compared after levelling their spelling | unit (table: case, extra spaces, apostrophe forms, word order are the same person; another surname, a missing по батькові, Latin for Cyrillic are a розбіжність) | same person or a розбіжність naming which values differ |
 | AC-11 | the розбіжність імен warning appears on recording and on reopening and blocks nothing by itself | integration + contract | warning with the differing values in the review answer; rejection works; approval works once a document is named |
-| AC-11 | the warning is shown to the оператор | component + e2e-through-UI | the warning names the differing values |
+| AC-11 | the warning is shown to the оператор | component + e2e-through-UI | «Розбіжність імен: голова за витягом «…»», in Ukrainian, naming the value that differs from the other two |
 | AC-11b traceability | an extract older than 30 days raises an advisory | unit (30 days none, 31 days warning) + integration + contract | «Витяг сформовано <дата> — старший за 30 днів»; approval needs nothing more |
-| AC-11b | the age warning is shown to the оператор | component + e2e-through-UI | the warning with the extract date; approve stays available |
+| AC-11b | the age warning is shown to the оператор | component + e2e-through-UI | «Витяг сформовано <дата> — старший за 30 днів» with the extract date as the screens print dates; approve stays available |
 | AC-12 legal competence | approving over a розбіжність імен needs the document relied on | unit + integration + contract | refused without a reference; approved with a reference of up to 500 characters, which is stored with the decision; a longer one is refused as a broken field |
 | AC-12 | the оператор is asked for the document | e2e-through-UI | «Схвалення з розбіжністю потребує документа…»; approval succeeds after typing it |
 | AC-13 error | rejecting with an empty reason is refused | unit + integration + contract + e2e-through-UI | «Вкажіть причину — її побачить заявник»; stays очікує |
@@ -105,7 +114,7 @@ that names it is covered inside that flow, not by a separate browser test.
 | AC-16 authorization | a person who is not the оператор gets nothing of the queue | unit (access matrix) + integration (a член правління, an applicant, a person with nothing; list, approve, reject, disable, enable) + contract | denied each time; no заявка listed; nothing changed |
 | AC-16 | the operator section is absent and its address shows no access | e2e-through-UI | no menu entry; the direct address gives a no-access page |
 | AC-16b authorization | the оператор role opens no association's records | unit (access matrix) + integration + contract | off the roster: denied with the same body as any outsider; on the roster of A: a member's rights in A and nothing in B |
-| AC-16b | the оператор sees only their own association besides the queue | e2e-through-UI | the queue and the оператор's own association; another association's address gives no access |
+| AC-16b | the оператор sees only their own association besides the queue | e2e-through-UI | off every roster: the queue, and no access to an association's address; seated on a roster by its голова: the roster read and a record changed there, another association refused, the queue still theirs |
 | AC-16c domain invariant | the оператор cannot decide their own filing | unit + integration (approve and reject; заявка and запит) + contract + e2e-through-UI | «Це ваша власна заявка…»; stays очікує |
 
 ### US-04 — request a transfer
@@ -123,21 +132,21 @@ that names it is covered inside that flow, not by a separate browser test.
 | AC-18b domain invariant | a запит is not approved without a recorded check or with an extract of another code | unit + integration + contract + e2e-through-UI | refused the same way as a заявка; stays очікує; the roster unchanged |
 | AC-19 happy path | the previous голова's entry ends the day before the new term start | unit (table: start 20.11 → end 19.11; never before the first day of the previous entry; an applicant already on the roster is re-seated, no second entry) | the end date and the re-seat follow the rule |
 | AC-19 | approving a запит changes the roster in one step | integration | the new голова is current from the typed term start; the previous голова's whole entry is ended; other entries untouched; both changes link to the extract and the decision; all or nothing |
-| AC-19 | the previous голова loses access at the moment of approval | integration | the next request of their open session is denied |
+| AC-19 | the previous голова loses access at the moment of approval | integration | the next request of their open session is denied; also when their entry already had a later term end; at Kyiv midnight the term start day is already today |
 | AC-19 | the оператор approves and the new голова takes over (Flow US-05) | e2e-through-UI | the new голова opens the association; the previous голова gets no access |
 | AC-19b happy path | two запити for one association are shown as competing and decided independently | integration | approving one leaves the other очікує; rejecting it needs a reason; approving it later ends the term of the голова confirmed first |
 | AC-19b | the «конкуруючий запит» marker | component | both запити listed together with the marker |
 | AC-19c cross-context | a запит for the association set up by hand attaches the extract and the code | integration | the code is recorded from the запит; the голова's entry gets the position; no term ends; while that голова is the оператор the запит cannot be decided |
 | AC-19c | the card replaces «підключено вручну, без витягу» with the extract | component | the mark before approval; the extract, date and signer after |
 | AC-20 traceability | roster entries of the new and the previous голова name the запит and the decision | integration + contract | appointed / ended notes with the запит date, the decision date and a link to the extract |
-| AC-20 | the notes are shown on the roster (Flow US-05) | component + e2e-through-UI | «призначено / повноваження завершено за запитом на передачу від …, схвалено оператором …» |
+| AC-20 | the notes are shown on the roster (Flow US-09) | component (roster screen, card) + e2e-through-UI | «призначено / повноваження завершено за запитом на передачу від …, схвалено оператором …» on the card and on the two roster entries the decision touched, each with a link that downloads the extract; «повноваження завершено» only where a term ended |
 
 ### US-06 — disable and enable
 
 | AC (PRD §5) | Test name (intent-based) | Level | Expected outcome |
 |---|---|---|---|
 | AC-21 happy path | disabling records the reason and takes effect on the member's next action | integration | вимкнене with reason, date and оператор; the next change of a member's open session is refused with the reason |
-| AC-21 | the оператор disables an association (Flow US-06) | e2e-through-UI | members see «Доступ призупинено: спір щодо складу правління» |
+| AC-21 | the оператор disables an association (Flow US-06) | e2e-through-UI | the оператор reaches the list from the section's navigation; on the member's next click in the sidebar they see «Доступ призупинено: спір щодо складу правління» |
 | AC-22 error | disabling with an empty reason is refused | unit + integration + contract + e2e-through-UI | «Вкажіть причину — її побачать члени правління»; stays підключене |
 | AC-23 happy path | enabling restores the association as it was | integration | підключене; every record equal to its state before disabling; the enabling recorded with date and оператор |
 | AC-23 | the оператор enables it again (Flow US-06) | e2e-through-UI | members change records again |
@@ -149,9 +158,10 @@ that names it is covered inside that flow, not by a separate browser test.
 | AC (PRD §5) | Test name (intent-based) | Level | Expected outcome |
 |---|---|---|---|
 | AC-25 authorization | a member of a disabled association can change nothing | unit (access matrix) + integration (edit a draft, upload a document, change the roster, change the settings, connect the storage) + contract | each refused with the reason; nothing changes |
-| AC-25 | the change controls answer «Доступ призупинено» | e2e-through-UI + component (notice) | the notice with the reason; no change saved |
-| AC-26 happy path | the registry and signed copies stay readable in a disabled association | unit (access matrix) + integration + contract | the registry is listed; the signed copy is served unchanged |
-| AC-26 | a member downloads a signed protocol while disabled (Flow US-07) | e2e-through-UI | the file downloads |
+| AC-25 | the change controls answer «Доступ призупинено» | e2e-through-UI + component (notice, roster form, case screen) | the notice with the reason on every page of the association; no add, change or upload control; no change saved |
+| AC-26 happy path | the registry and signed copies stay readable in a disabled association | unit (access matrix) + integration + contract | the registry is listed; the signed copy is served unchanged; a file no signed protocol pins is refused with the reason |
+| AC-26 | the registry and the signed protocol render under the notice | component (registry screens) | the list and the protocol with its download links, the notice above |
+| AC-26 | a member downloads a signed protocol while disabled (Flow US-07) | e2e-through-UI | the member opens the реєстр and the protocol from the sidebar under the notice; the signed scan downloads byte for byte; the search answers; a document outside a signed protocol stays refused |
 
 ### US-08 — connect the document storage
 
@@ -159,7 +169,7 @@ that names it is covered inside that flow, not by a separate browser test.
 |---|---|---|---|
 | AC-27 happy path | a член правління connects the association's own storage account | integration (fake storage provider) | the connection is recorded with the account address and the member; every член правління reads it |
 | AC-27 | the member connects the storage (Flow US-08) | e2e-through-UI + component (storage line) | «Сховище документів: <адреса акаунта>» |
-| AC-28 cross-context | attaching a document before the storage is connected is refused | integration + contract + e2e-through-UI | «Спершу підключіть сховище документів ОСББ»; says any член правління can connect it; nothing attached |
+| AC-28 cross-context | attaching a document before the storage is connected is refused | integration + contract + component (case screen) + e2e-through-UI | «Спершу підключіть сховище документів ОСББ» on the case screen; says any член правління can connect it and links to the card; nothing attached |
 | AC-28b domain invariant | a member's own sign-in account is refused as the storage account | unit + integration + contract + e2e-through-UI | «Це особистий акаунт члена правління — підключіть акаунт ОСББ»; nothing connected |
 | AC-28b | the оператор sees which account holds the files on a later запит | integration | the review answer of a запит carries the storage account address |
 
@@ -169,7 +179,7 @@ that names it is covered inside that flow, not by a separate browser test.
 |---|---|---|---|
 | AC-29 traceability | the association card shows the confirmation chain | integration + contract | the current голова, the extract with its date and signer, the decision date, every later запит and disabling with its reason; the hand-made association is marked as connected by hand |
 | AC-29 | the card renders the chain | component + visual-regression (association card) | all parts present in both variants (with an extract, connected by hand) |
-| AC-29 | a member opens the card and the extract (Flow US-09) | e2e-through-UI | the card is shown; the extract downloads |
+| AC-29 | a member opens the card and the extract (Flow US-09) | e2e-through-UI | the card opens from the sidebar; the extract downloads; after a transfer the chain has both decisions and both extracts |
 
 ### Quality checks behind the criteria (PRD §6)
 
@@ -180,7 +190,37 @@ that names it is covered inside that flow, not by a separate browser test.
 | Effect of decisions | the old session after a disabling or a transfer | integration | the first request after the decision is already refused |
 | Integrity | the request-serving database role cannot change or delete extracts, checks, filings, decisions and state changes | integration | each attempt is refused by the database |
 | Integrity | the downloaded extract matches the stored fingerprint | integration | equal on every download |
+| Effect of decisions | one заявка decided twice at once; two filings racing into one open заявка | integration | exactly one decision and one association; the loser is refused, never a server error |
+| Effect of decisions | the change is committed before the answer leaves | integration | a failed commit answers a server error with no success body; a refused request leaves nothing |
+| Isolation | the API serves only as a role that row-level security binds | integration | start-up is refused for a role that bypasses the policies |
+| File size and kind | a request body over the limit is cut off before it is read | integration | refused before validation and before any session check; nothing stored |
 | File size and kind | the extract upload boundary | unit + integration + contract | exactly 5 MB accepted; one byte more refused; a file that is neither a PDF nor a signed container refused; a separate signature file refused; nothing stored on refusal |
+
+## Where the tests are
+
+The browser specs by criterion (`apps/web/e2e/`); a typed address is used only where there is nothing to click.
+
+| Spec | Criteria |
+|---|---|
+| `us01-file-application.spec.ts` | AC-01 |
+| `us02-follow-and-refile.spec.ts` | AC-05, AC-06, AC-08, AC-14 |
+| `us03-decide-application.spec.ts` | AC-05 (sign-in by the button), AC-08, AC-09, AC-10 |
+| `us04-file-transfer.spec.ts` | AC-17, AC-18 |
+| `us05-decide-transfer.spec.ts` | AC-18b, AC-19 |
+| `us06-disable-enable.spec.ts` | AC-21, AC-22, AC-23, AC-24 |
+| `us07-read-only-association.spec.ts` | AC-25, AC-26, AC-28 |
+| `us08-connect-storage.spec.ts` | AC-27, AC-28, AC-28b |
+| `us09-association-card.spec.ts` | AC-20, AC-29 |
+| `refusals.spec.ts` | AC-02, AC-03, AC-03b, AC-04, AC-04b, AC-04c, AC-11, AC-11b, AC-12, AC-13, AC-15, AC-16c, AC-30 |
+| `access.spec.ts` | AC-04d, AC-07, AC-16, AC-16b |
+
+AC-19b, AC-19c and AC-24b have no browser flow of their own, as the rows above say: integration and component.
+
+The other tiers: unit and integration tests sit beside the code in `services/core/internal/identity/`,
+`services/core/internal/governance/` (roster, registry, files, справи) and `services/core/internal/platform/`
+(isolation, row-level security, the request-serving role); component tests and stories beside the components in
+`apps/web/src/features/identity/` and `apps/web/src/features/governance/`; the visual baselines in
+`apps/web/src/features/identity/__screenshots__/`.
 
 ## Edge cases / error paths
 
@@ -201,9 +241,10 @@ that names it is covered inside that flow, not by a separate browser test.
 ## Test data
 
 - Seed strategy: factories per entity of [data-model.md](./data-model.md) — associations (connected, disabled, set up by hand without a code), roster entries with positions and terms (current, ended yesterday, ending today), accounts (on no roster, on one, on two, the оператор on one roster), applications of both kinds in each state with their filings, checks, decisions and competing pairs, state changes, a storage connection. Extract fixtures: a small signed PDF, a file of exactly 5 MB, one of 5 MB plus one byte, a non-PDF. Placeholder data only (`<name>@example.test`, «Тестовий Голова», codes like 12345678).
+- Signed protocol for the browser flow of AC-26: nothing in the app can lock a protocol yet, so the suite writes one over the owner connection of its database. The files it names are uploaded through the case screen first, so the download serves real bytes. The seed refuses any database that is not marked as the e2e one, because a seeded protocol cannot be deleted. A справа is created through the API: no screen creates one yet.
 - Clock: an injected date in Europe/Kyiv for every term, filing-date and extract-age case.
 - Integration dependency: a fresh migrated ephemeral database per test, connected as the request-serving role so row-level security is exercised; never a mocked store. Sign-in and storage providers are in-process fakes behind their ports, with one smoke test per provider against a test account before release.
-- Cleanup boundary: per test for integration (its own database); per suite for e2e-through-UI (each flow files under its own code so flows do not collide; the database is torn down after the run).
+- Cleanup boundary: per test for integration (its own database); per suite for e2e-through-UI (each flow files under its own code so flows do not collide; the database is torn down after the run). A run needs a fresh database: the оператор's queue shows its first page only, oldest first, so заявки left pending by earlier runs push new ones off it.
 - Visual baselines: stored with the repo, produced in one fixed environment, updated only in a commit that says so.
 
 ## NFR validation (load)

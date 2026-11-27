@@ -9,7 +9,7 @@ files_hint:
   - "services/core/internal/governance/domain/poll_test.go"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T18 — Model poll rounds and the own-vote rule

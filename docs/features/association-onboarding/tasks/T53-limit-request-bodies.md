@@ -12,7 +12,7 @@ files_hint:
   - "services/core/internal/identity/applications_file_test.go"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T53 — Limit request bodies and read time before the request validator runs

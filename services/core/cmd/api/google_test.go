@@ -20,7 +20,7 @@ const wireGoogleT33Path = "/identity/associations/0198a0a0-0000-7000-8000-000000
 func wireGoogleT33Status(t *testing.T, gc *identity.GoogleConfig) (wired bool, status int) {
 	t.Helper()
 	idm := identity.New(nil)
-	idm.EnableSignIn(identity.SignInConfig{Provider: identity.DevSignInProvider("user@example.test")})
+	idm.EnableSignIn(identity.SignInConfig{Provider: identity.DevSignInProvider("user@example.test", "")})
 	wired, err := wireGoogle(idm, governance.New(nil, nil), gc)
 	if err != nil {
 		t.Fatalf("wireGoogle: %v", err)

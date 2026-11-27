@@ -11,7 +11,7 @@ files_hint:
   - "mise.toml"
 owner: "Andrii Opryshko"
 estimate: "L"
-status: "todo"
+status: "done"
 ---
 
 # T44 — Prove filing, following and deciding a заявка end to end through the UI (US-01, US-02, US-03)

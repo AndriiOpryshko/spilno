@@ -26,5 +26,8 @@ func (m *Module) EnableSignIn(cfg SignInConfig) {
 	m.handler.EnableSignIn(m.signIn)
 }
 
-// DevSignInProvider is the development and e2e shim; never wire it in production.
-func DevSignInProvider(email string) SignInProvider { return oidc.Dev{Email: email} }
+// DevSignInProvider is the development and e2e shim; never wire it in production. callback is the
+// address of the sign-in callback as a browser reaches it; empty means the API's own path.
+func DevSignInProvider(email, callback string) SignInProvider {
+	return oidc.Dev{Email: email, Callback: callback}
+}

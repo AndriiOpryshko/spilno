@@ -14,7 +14,7 @@ files_hint:
   - "services/core/internal/identity/approval_transfer_test.go"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T52 — Refuse a decision on a stale filing and a card transfer that claims another association's code

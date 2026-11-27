@@ -15,7 +15,7 @@ files_hint:
   - "services/core/internal/identity/stubs_test.go"
 owner: "Andrii Opryshko"
 estimate: "L"
-status: "todo"
+status: "done"
 ---
 
 # T62 — Serve the roster: list, add and change члени правління with their position and decision

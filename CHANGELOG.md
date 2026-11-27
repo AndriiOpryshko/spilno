@@ -9,6 +9,12 @@ The version lives in `VERSION`; `mise run version:next` derives the next one fro
 Conventional Commits since the last `v*` tag. Friendly, user-facing notes for each release
 are in `docs/releases/`.
 
+After 0.2.0, merging a release PR runs `.github/workflows/release.yml`: it builds the
+release's changelog section from the merged history (git-cliff, `cliff.toml`), tags the merge
+commit and publishes it as a [GitHub Release](https://github.com/AndriiOpryshko/spilno/releases).
+`main` is protected, so the workflow does not commit here: the Releases page is the complete
+log, this file holds the hand-curated entries up to 0.2.0.
+
 ## [Unreleased]
 
 ## [0.2.0] - 2026-11-27

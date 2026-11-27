@@ -238,15 +238,17 @@ type CaseDocument struct {
 }
 
 type Contract struct {
-	ID            pgtype.UUID
-	Counterparty  string
-	AmountCents   int64
-	Currency      string
-	SignedAt      pgtype.Date
-	EndsAt        pgtype.Date
-	CreatedAt     pgtype.Timestamptz
-	UpdatedAt     pgtype.Timestamptz
-	AssociationID pgtype.UUID
+	ID               pgtype.UUID
+	Counterparty     string
+	AmountCents      int64
+	Currency         string
+	SignedAt         pgtype.Date
+	EndsAt           pgtype.Date
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
+	AssociationID    pgtype.UUID
+	UahAmountKopiyky pgtype.Int8
+	UahRateMicros    pgtype.Int8
 }
 
 type DecisionSlot struct {

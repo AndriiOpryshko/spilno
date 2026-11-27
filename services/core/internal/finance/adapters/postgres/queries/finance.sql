@@ -1,6 +1,12 @@
 -- name: CreateContract :one
-INSERT INTO contracts (counterparty, amount_cents, currency, signed_at, ends_at, association_id)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO contracts (counterparty, amount_cents, currency, signed_at, ends_at, association_id, uah_amount_kopiyky, uah_rate_micros)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING *;
+
+-- name: SetContractUAHEquivalent :one
+-- Sets the equivalent only on a contract that has none.
+UPDATE contracts SET uah_amount_kopiyky = $3, uah_rate_micros = $4
+WHERE id = $1 AND association_id = $2 AND uah_amount_kopiyky IS NULL
 RETURNING *;
 
 -- name: GetContract :one

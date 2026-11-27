@@ -57,6 +57,11 @@ All tasks run from the repo root through mise (`mise tasks` lists them):
   Update them deliberately with `pnpm --filter @spilno/web test:stories -u` on the matching platform; the
   linux-x64 ones come from the CI Playwright image.
 - The web dev server runs on :5180 and proxies `/api/*` to the core API on :8080.
+- The finance context reads the official NBU rate through the `mcp/nbu-rates` MCP server (`mise run mcp:nbu`,
+  `NBU_RATES_MCP_URL`). The server is optional: without it a foreign-currency contract is saved with
+  `uah_equivalent: null` and the «get it later» operation answers `503 finance.rate_unavailable`. Tests never
+  call the NBU: they use a fake rate port, a stub MCP server, or the real binary in front of an `httptest` NBU.
+- `mcp/nbu-rates` is its own Go module; `mise run lint` and `mise run test` cover it.
 
 ## Git
 

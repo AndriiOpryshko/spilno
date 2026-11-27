@@ -7,6 +7,9 @@ procs:
   core:
     cwd: services/core
     shell: go tool -modfile=tools/go.mod air
+  nbu-rates:
+    cwd: mcp/nbu-rates
+    shell: go run . -http 127.0.0.1:3336
   web:
     cwd: apps/web
     shell: pnpm dev

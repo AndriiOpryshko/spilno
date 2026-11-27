@@ -45,20 +45,33 @@ func (g financeGuardedRoster) CurrentMember(ctx context.Context, association uui
 // carries the session of a person who is on the roster of both seeded associations.
 func newGuardedServer(t *testing.T) (*httptest.Server, *pgxpool.Pool) {
 	t.Helper()
-	pool := testdb.NewApp(t)
+	srv, pool, _ := newGuardedEnv(t, finance.Config{})
+	return srv, pool
+}
+
+// newGuardedEnv is newGuardedServer with the finance config of the caller. It also returns the
+// router itself, so a test can send a request without the session cookie. The member is also the оператор.
+func newGuardedEnv(t *testing.T, cfg finance.Config) (*httptest.Server, *pgxpool.Pool, http.Handler) {
+	t.Helper()
+	return newGuardedEnvOn(t, testdb.NewApp(t), cfg, assocID, otherAssocID)
+}
+
+// newGuardedEnvOn serves finance on pool and puts the member on the roster of each association.
+func newGuardedEnvOn(t *testing.T, pool *pgxpool.Pool, cfg finance.Config, associations ...string) (*httptest.Server, *pgxpool.Pool, http.Handler) {
+	t.Helper()
 	idm := identity.New(pool)
-	idm.EnableSignIn(identity.SignInConfig{Provider: financeGuardedFakeProvider{}})
+	idm.EnableSignIn(identity.SignInConfig{Provider: financeGuardedFakeProvider{}, OperatorEmail: financeGuardEmail})
 	gov := governance.New(pool, idm.HasStorageConnection)
 	r := httpapi.NewRouter()
 	r.Group(func(r chi.Router) {
 		r.Use(idm.Guard(financeGuardedRoster{gov}))
-		for _, err := range []error{idm.Routes(r), finance.New(pool).Routes(r)} {
+		for _, err := range []error{idm.Routes(r), finance.New(pool, cfg).Routes(r)} {
 			if err != nil {
 				t.Fatal(err)
 			}
 		}
 	})
-	for _, a := range []string{assocID, otherAssocID} {
+	for _, a := range associations {
 		id := uuid.MustParse(a)
 		err := db.InAssociation(context.Background(), pool, id, "seed@example.test", func(ctx context.Context) error {
 			tx, err := db.From(ctx)
@@ -78,7 +91,7 @@ func newGuardedServer(t *testing.T) (*httptest.Server, *pgxpool.Pool) {
 		r.ServeHTTP(w, req)
 	}))
 	t.Cleanup(srv.Close)
-	return srv, pool
+	return srv, pool, r
 }
 
 func financeGuardedSignIn(t *testing.T, h http.Handler) *http.Cookie {

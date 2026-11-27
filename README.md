@@ -23,7 +23,7 @@ Requirements: [mise](https://mise.jdx.dev) and Docker.
 ```sh
 mise install          # Go, Node, pnpm, mprocs
 mise run setup        # JS dependencies and the Playwright browser
-mise run dev          # infra + core API (hot reload) + web, in mprocs panes
+mise run dev          # infra + core API (hot reload) + nbu-rates MCP server + web, in mprocs panes
 ```
 
 - Web: http://localhost:5180
@@ -41,6 +41,7 @@ mise run dev          # infra + core API (hot reload) + web, in mprocs panes
 | `SPILNO_OPERATOR_EMAIL` | Address of the оператор who reviews applications |
 | `SPILNO_WEB_ORIGIN` | Where the web app is served (default `http://localhost:5180`); the storage connection returns to `<origin>/storage/callback`, register that address with the Google OAuth client |
 | `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_TOKEN_KEY_ID`, `GOOGLE_TOKEN_KEY` | Set all four to turn the storage connection on; without them it answers 501 |
+| `NBU_RATES_MCP_URL` | Endpoint of the [`nbu-rates`](mcp/nbu-rates/README.md) MCP server (`http://127.0.0.1:3336/mcp` from `mise.toml`); the finance context reads the official NBU rate through it. Unset or unreachable: contracts are still saved, without a hryvnia equivalent |
 | `VITE_OPERATOR_CONTACT_EMAIL` | Web build: the address an applicant is told to write to |
 
 An existing local Postgres volume needs `infra/postgres-init/01-app-role.sql` run once (or recreate the

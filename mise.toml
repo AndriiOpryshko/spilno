@@ -102,6 +102,10 @@ run = "cd services/core && go tool -modfile=tools/go.mod goose -dir migrations c
 description = "Next semver from the Conventional Commits since the last v* tag (no LLM)"
 run = "scripts/next-version.sh"
 
+[tasks."changelog:preview"]
+description = "Preview the changelog section release.yml will publish for the next version"
+run = "mise exec git-cliff@2.14.2 -- git cliff --unreleased --tag v$(scripts/next-version.sh) --strip header"
+
 [tasks."log:start"]
 description = "Start the feature timer: mise run log:start F1"
 run = "scripts/log.sh start {{arg(name='feature')}}"

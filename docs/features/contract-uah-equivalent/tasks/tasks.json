@@ -426,6 +426,70 @@
         "services/core/internal/finance/adapters/mcprates/mcprates.go",
         "services/core/internal/finance/adapters/mcprates/mcprates_test.go"
       ]
+    },
+    {
+      "id": "T26",
+      "title": "Describe the adapter's own deadline and redirect refusal in the SAD",
+      "layer": "docs",
+      "deps": [
+        "T25"
+      ],
+      "acs": [
+        "AC-04",
+        "AC-10"
+      ],
+      "dod": "Review 2026-11-27 (round 4) finding 1: sad.md §8 Timeouts says the app sets the 3 s budget and the mcprates adapter bounds every HTTP request (including those the go-sdk sends on its own context) by the caller's deadline, with a 3 s fallback, and refuses redirects; the mcprates row of §5 says it refuses redirects; tasks/T05-mcp-rate-provider.md no longer says the adapter sets no timeout; sad.md updated_at is bumped.",
+      "files_hint": [
+        "docs/features/contract-uah-equivalent/sad.md",
+        "docs/features/contract-uah-equivalent/tasks/T05-mcp-rate-provider.md"
+      ]
+    },
+    {
+      "id": "T27",
+      "title": "Bring the follow-up tasks into the epic's AC coverage and DAG",
+      "layer": "docs",
+      "deps": [
+        "T26",
+        "T28",
+        "T29"
+      ],
+      "acs": [],
+      "dod": "Review 2026-11-27 (round 4) finding 2: tasks/_epic.md AC coverage table and DAG list T13–T29 with the same AC mapping as tasks.json (AC-02, AC-04, AC-07, AC-10 included).",
+      "files_hint": [
+        "docs/features/contract-uah-equivalent/tasks/_epic.md"
+      ]
+    },
+    {
+      "id": "T28",
+      "title": "Make the hung-source test fail without the deadline transport",
+      "layer": "tests",
+      "deps": [
+        "T25"
+      ],
+      "acs": [
+        "AC-04",
+        "AC-10"
+      ],
+      "dod": "Review 2026-11-27 (round 4) finding 3: the hung-source stub completes initialize and hangs on tools/call and notifications/cancelled; the test asserts Rate returns within the caller's deadline and no request stays open on the server after it; a case with context.Background() asserts Rate returns within about 3 s (fallbackBudget). Against the pre-T25 mcprates.go, or with deadlineTransport replaced by http.DefaultTransport, the test fails on every run (checked with -count=20).",
+      "files_hint": [
+        "services/core/internal/finance/adapters/mcprates/mcprates_test.go"
+      ]
+    },
+    {
+      "id": "T29",
+      "title": "Redact the rate-source address structurally instead of masking substrings",
+      "layer": "infra",
+      "deps": [
+        "T23"
+      ],
+      "acs": [
+        "AC-10"
+      ],
+      "dod": "Review 2026-11-27 (round 4) finding 4: the lookup error no longer replaces secret substrings anywhere in the message; each URL in it is parsed and printed as scheme + host + path (no userinfo, query or fragment), with a placeholder that cannot collide with message text. A test with a one-character username, ?v=1 and ?x=end asserts the host (127.0.0.1:<port>) and the step stay readable and no NUL byte or secret reaches the error; the existing leak and redirect tests stay green.",
+      "files_hint": [
+        "services/core/internal/finance/adapters/mcprates/mcprates.go",
+        "services/core/internal/finance/adapters/mcprates/unavailable_internal_test.go"
+      ]
     }
   ]
 }

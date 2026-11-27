@@ -1,0 +1,14 @@
+# Git-ignored files copied into every fresh worktree (`claude --worktree`, `isolation: worktree`
+# subagents, scripts/wt.sh new). Same syntax as .gitignore; only ignored files that match are copied.
+# mise.local.toml is NOT here: it holds the worktree's own ports and database (scripts/wt.sh init).
+
+# Secrets and local overrides
+.env
+.env.local
+
+# Local Claude Code settings: plugins at local scope (sdlc, petforge) and sdlc preferences
+.claude/settings.local.json
+.claude/*.local.md
+
+# petforge project skills (symlinks, see CLAUDE.md)
+.claude/skills/ao-*

@@ -84,6 +84,10 @@ run = "pnpm --filter @spilno/web e2e"
 description = "Create a goose migration: mise run migrate:new <name>"
 run = "cd services/core && go tool -modfile=tools/go.mod goose -dir migrations create -s {{arg(name='name')}} sql"
 
+[tasks."version:next"]
+description = "Next semver from the Conventional Commits since the last v* tag (no LLM)"
+run = "scripts/next-version.sh"
+
 [tasks."log:start"]
 description = "Start the feature timer: mise run log:start F1"
 run = "scripts/log.sh start {{arg(name='feature')}}"

@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -23,6 +24,13 @@ const (
 	notPublished = "rate_not_published"
 )
 
+// minMaskedSecret is the shortest secret part of the endpoint that is masked in the text of an error outside
+// URLs. A shorter value is not a credential worth hiding there, and masking it would garble ordinary words.
+const minMaskedSecret = 6
+
+// urlToken finds an address in an error text: a scheme, "://", then everything up to a quote or whitespace.
+var urlToken = regexp.MustCompile(`[A-Za-z][A-Za-z0-9+.-]*://[^\s"]+`)
+
 // fallbackBudget bounds the HTTP requests of a lookup whose caller set no deadline. It matches
 // app.RateTimeout (3 s), to which it is tied by hand because an adapter must not import app.
 const fallbackBudget = 3 * time.Second
@@ -32,7 +40,7 @@ type Provider struct {
 	endpoint string
 	safe     string   // scheme://host/path, fit for errors and logs
 	spelled  []string // whole spellings of the endpoint, replaced by safe in an error
-	secrets  []string // secret parts of the endpoint (userinfo, query, fragment), masked in an error
+	secrets  []string // secret parts of the endpoint (≥ minMaskedSecret bytes), masked in an error outside URLs
 }
 
 // New returns a provider for the MCP endpoint URL.
@@ -88,7 +96,8 @@ func (b cancelOnClose) Close() error {
 // addressForms returns the form of endpoint that is safe for errors and logs (scheme, host and path only,
 // or "<unparsable>"), every spelling of the endpoint that net/http may print in a *url.Error (the raw
 // string, the parsed url.String() and, when a password is set, net/http's masked form user:***@), and
-// its secret parts on their own, so they are caught inside an address nobody configured too.
+// its secret parts of at least minMaskedSecret bytes on their own, so they are caught in the text around an
+// address too (shorter ones are dropped: see minMaskedSecret).
 func addressForms(endpoint string) (safe string, spelled, secrets []string) {
 	safe = "<unparsable>"
 	spellings := []string{endpoint}
@@ -109,6 +118,7 @@ func addressForms(endpoint string) (safe string, spelled, secrets []string) {
 			}
 		}
 	}
+	secrets = slices.DeleteFunc(secrets, func(v string) bool { return len(v) < minMaskedSecret })
 	return safe, uniqueLongestFirst(spellings), uniqueLongestFirst(secrets)
 }
 
@@ -169,21 +179,41 @@ func toolText(res *mcp.CallToolResult) string {
 	return ""
 }
 
-// unavailable wraps err with the step and the log-safe address, with the raw endpoint scrubbed out: a
-// whole spelling of it becomes the safe form, and a secret part left anywhere else (an address net/http
-// reports after a redirect, say) becomes ***.
+// unavailable wraps err with the step and the log-safe address. In the message, a whole spelling of the
+// configured endpoint becomes the safe form; then every URL token (the configured endpoint or any other
+// address, a redirect target say) is reduced to scheme, host and path, or "<unparsable>"; and in the text
+// outside URL tokens only, the configured endpoint's secret parts become ***.
 func (p *Provider) unavailable(step string, err error) error {
-	// The placeholder keeps the safe form out of the secret masking, which could otherwise hit its host.
-	const placeholder = "\x00endpoint\x00"
 	msg := err.Error()
 	for _, s := range p.spelled {
-		msg = strings.ReplaceAll(msg, s, placeholder)
+		msg = strings.ReplaceAll(msg, s, p.safe)
 	}
+	var out strings.Builder
+	last := 0
+	for _, loc := range urlToken.FindAllStringIndex(msg, -1) {
+		out.WriteString(p.maskSecrets(msg[last:loc[0]]))
+		out.WriteString(redactURL(msg[loc[0]:loc[1]]))
+		last = loc[1]
+	}
+	out.WriteString(p.maskSecrets(msg[last:]))
+	return fmt.Errorf("%w: %s: endpoint=%s: %s", domain.ErrRateUnavailable, step, p.safe, out.String())
+}
+
+// maskSecrets replaces the endpoint's secret parts in text that holds no URL.
+func (p *Provider) maskSecrets(text string) string {
 	for _, s := range p.secrets {
-		msg = strings.ReplaceAll(msg, s, "***")
+		text = strings.ReplaceAll(text, s, "***")
 	}
-	msg = strings.ReplaceAll(msg, placeholder, p.safe)
-	return fmt.Errorf("%w: %s: endpoint=%s: %s", domain.ErrRateUnavailable, step, p.safe, msg)
+	return text
+}
+
+// redactURL reduces a URL to scheme, host and path, or "<unparsable>".
+func redactURL(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return "<unparsable>"
+	}
+	return (&url.URL{Scheme: u.Scheme, Host: u.Host, Path: u.Path}).String()
 }
 
 // Disabled answers domain.ErrRateUnavailable to every lookup.

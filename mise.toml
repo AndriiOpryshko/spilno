@@ -12,6 +12,7 @@ MIGRATIONS_DATABASE_URL = "postgres://spilno:spilno@localhost:5432/spilno?sslmod
 DATABASE_URL = "postgres://spilno_app_login:spilno_app_login@localhost:5432/spilno?sslmode=disable"
 OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:4318"
 OTEL_SERVICE_NAME = "spilno-core"
+NBU_RATES_MCP_URL = "http://127.0.0.1:3336/mcp"
 
 [tasks.setup]
 description = "Install JS dependencies and the Playwright browser"
@@ -20,6 +21,23 @@ run = ["pnpm install", "pnpm --filter @spilno/web exec playwright install chromi
 [tasks.dev]
 description = "Run infra, core API (hot reload) and web in mprocs panes"
 run = "mprocs"
+
+[tasks."dev:core"]
+description = "Core API alone on HTTP_ADDR (:8080, or the worktree's port from scripts/wt.sh init)"
+dir = "services/core"
+run = "go run ./cmd/api"
+
+[tasks."dev:web"]
+description = "Web dev server alone on WEB_PORT (:5180 by default), proxying /api to CORE_API_URL"
+run = "pnpm --filter @spilno/web dev"
+
+[tasks."wt:new"]
+description = "New sibling worktree with its own ports, database and deps: mise run wt:new <slug> [branch]"
+run = "scripts/wt.sh new"
+
+[tasks."wt:init"]
+description = "Give the current linked worktree its own ports, database and deps"
+run = "scripts/wt.sh init"
 
 [tasks."infra:up"]
 run = "docker compose -f infra/compose.yaml up -d --wait"
@@ -39,6 +57,7 @@ run = "git diff --exit-code -- services/core apps/web/src/api/gen apps/web/src/r
 [tasks.lint]
 run = [
   "cd services/core && go tool -modfile=tools/go.mod golangci-lint run ./...",
+  "cd mcp/nbu-rates && go tool -modfile=../../services/core/tools/go.mod golangci-lint run -c ../../services/core/.golangci.yml ./...",
   "pnpm --filter @spilno/web lint",
   "pnpm --filter @spilno/web typecheck",
 ]
@@ -47,8 +66,20 @@ run = [
 description = "Go unit + integration (testcontainers) and Vitest"
 run = [
   "cd services/core && go test ./...",
+  "cd mcp/nbu-rates && go test ./...",
   "pnpm --filter @spilno/web test",
   "pnpm --filter @spilno/web test:stories",
+]
+
+[tasks."mcp:nbu"]
+description = "Run the nbu-rates MCP server over Streamable HTTP on 127.0.0.1:3336 (the core API reads it through NBU_RATES_MCP_URL)"
+run = "cd mcp/nbu-rates && go run . -http 127.0.0.1:3336"
+
+[tasks."mcp:nbu:inspect"]
+description = "List the nbu-rates tools and call get_rate once through the MCP Inspector CLI (live NBU API)"
+run = [
+  "cd mcp/nbu-rates && npx -y @modelcontextprotocol/inspector --cli go run . --method tools/list",
+  "cd mcp/nbu-rates && npx -y @modelcontextprotocol/inspector --cli go run . --method tools/call --tool-name get_rate --tool-arg currency=EUR --tool-arg date=2026-10-20",
 ]
 
 [tasks.load]
@@ -66,6 +97,14 @@ run = "pnpm --filter @spilno/web e2e"
 [tasks."migrate:new"]
 description = "Create a goose migration: mise run migrate:new <name>"
 run = "cd services/core && go tool -modfile=tools/go.mod goose -dir migrations create -s {{arg(name='name')}} sql"
+
+[tasks."version:next"]
+description = "Next semver from the Conventional Commits since the last v* tag (no LLM)"
+run = "scripts/next-version.sh"
+
+[tasks."changelog:preview"]
+description = "Preview the changelog section release.yml will publish for the next version"
+run = "mise exec git-cliff@2.14.2 -- git cliff --unreleased --tag v$(scripts/next-version.sh) --strip header"
 
 [tasks."log:start"]
 description = "Start the feature timer: mise run log:start F1"

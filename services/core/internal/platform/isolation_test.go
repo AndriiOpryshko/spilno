@@ -124,7 +124,7 @@ func newIsoEnv(t *testing.T) *isoEnv {
 	var routeErr error
 	r.Group(func(r chi.Router) {
 		r.Use(idm.Guard(isoRoster{gov}))
-		for _, err := range []error{finance.New(pool).Routes(r), gov.Routes(r), idm.Routes(r)} {
+		for _, err := range []error{finance.New(pool, finance.Config{}).Routes(r), gov.Routes(r), idm.Routes(r)} {
 			if err != nil {
 				routeErr = err
 			}

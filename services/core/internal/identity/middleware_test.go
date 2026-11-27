@@ -63,7 +63,7 @@ func newGuardEnv(t *testing.T, operatorOnA bool) *guardEnv {
 	r.Group(func(r chi.Router) {
 		r.Use(idm.Guard(guardRoster{gov}))
 		r.Get("/probe/associations/{association_id}", guardProbe(pool))
-		for _, err := range []error{idm.Routes(r), gov.Routes(r), finance.New(pool).Routes(r)} {
+		for _, err := range []error{idm.Routes(r), gov.Routes(r), finance.New(pool, finance.Config{}).Routes(r)} {
 			if err != nil {
 				t.Fatal(err)
 			}

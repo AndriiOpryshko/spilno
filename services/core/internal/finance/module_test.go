@@ -325,3 +325,45 @@ func TestCreateContractRefusesAnOversizeChunkedBody(t *testing.T) {
 		t.Errorf("Content-Type = %q, want application/problem+json", ct)
 	}
 }
+
+// uahEquivalentIsNullKey asserts the raw object holds the key uah_equivalent with the JSON value null.
+func uahEquivalentIsNullKey(t *testing.T, what string, raw map[string]json.RawMessage) {
+	t.Helper()
+	v, ok := raw["uah_equivalent"]
+	if !ok {
+		t.Errorf("%s: key uah_equivalent is missing, want it present with value null", what)
+		return
+	}
+	if string(v) != "null" {
+		t.Errorf("%s: uah_equivalent = %s, want null", what, v)
+	}
+}
+
+func TestContractAnswersCarryNullUahEquivalent(t *testing.T) {
+	srv := newServer(t)
+	base := srv.URL + "/finance/associations/" + assocID + "/contracts"
+
+	var created map[string]json.RawMessage
+	do(t, "POST", base,
+		`{"counterparty":"Kyivteploenergo","amount_cents":125000,"currency":"EUR","signed_at":"2026-01-15"}`,
+		http.StatusCreated, &created)
+	uahEquivalentIsNullKey(t, "create", created)
+
+	var id string
+	if err := json.Unmarshal(created["id"], &id); err != nil {
+		t.Fatal(err)
+	}
+
+	var got map[string]json.RawMessage
+	do(t, "GET", base+"/"+id, "", http.StatusOK, &got)
+	uahEquivalentIsNullKey(t, "get", got)
+
+	var list struct {
+		Items []map[string]json.RawMessage `json:"items"`
+	}
+	do(t, "GET", base, "", http.StatusOK, &list)
+	if len(list.Items) != 1 {
+		t.Fatalf("list items = %d, want 1", len(list.Items))
+	}
+	uahEquivalentIsNullKey(t, "list", list.Items[0])
+}

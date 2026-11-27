@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 	"time"
@@ -31,12 +32,16 @@ type Page struct {
 	NextCursor string
 }
 
+// RateTimeout bounds the wait for the rate source when a contract is created.
+var RateTimeout = 3 * time.Second
+
 type ContractService struct {
-	repo ports.ContractRepository
+	repo  ports.ContractRepository
+	rates ports.RateProvider
 }
 
-func NewContractService(repo ports.ContractRepository) *ContractService {
-	return &ContractService{repo: repo}
+func NewContractService(repo ports.ContractRepository, rates ports.RateProvider) *ContractService {
+	return &ContractService{repo: repo, rates: rates}
 }
 
 // Create validates the terms and stores them. Broken invariants come back as
@@ -45,7 +50,82 @@ func (s *ContractService) Create(ctx context.Context, terms domain.ContractTerms
 	if err := terms.Validate(); err != nil {
 		return domain.Contract{}, err
 	}
-	return s.repo.Create(ctx, terms)
+	return s.repo.Create(ctx, terms, s.equivalent(ctx, terms))
+}
+
+// equivalent asks the rate source for the signing day's rate of a
+// foreign-currency contract. A failed lookup or an equivalent out of range is
+// logged and yields nil so the contract is still stored.
+func (s *ContractService) equivalent(ctx context.Context, terms domain.ContractTerms) *domain.UAHEquivalent {
+	if !terms.Currency.Foreign() {
+		return nil
+	}
+	rate, err := s.signingDayRate(ctx, terms.Currency, terms.SignedAt)
+	if err != nil {
+		return nil
+	}
+	eq, err := rate.Convert(terms.AmountCents)
+	if err != nil {
+		slog.WarnContext(ctx, "uah equivalent not resolved",
+			"currency", terms.Currency, "day", signingDay(terms.SignedAt).Format(time.DateOnly), "error", err)
+		return nil
+	}
+	return &eq
+}
+
+// signingDay truncates signedAt to its calendar day at UTC midnight.
+func signingDay(signedAt time.Time) time.Time {
+	y, m, d := signedAt.Date()
+	return time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
+}
+
+// signingDayRate fetches the rate for the calendar day of signedAt within
+// RateTimeout. It logs any failure; the caller decides what it means.
+func (s *ContractService) signingDayRate(ctx context.Context, currency domain.Currency, signedAt time.Time) (domain.Rate, error) {
+	day := signingDay(signedAt)
+
+	rctx, cancel := context.WithTimeout(ctx, RateTimeout)
+	defer cancel()
+	rate, err := s.rates.Rate(rctx, currency, day)
+	if err != nil {
+		slog.WarnContext(ctx, "uah equivalent not resolved",
+			"currency", currency, "day", day.Format(time.DateOnly), "error", err)
+	}
+	return rate, err
+}
+
+// ResolveUAHEquivalent works out a missing equivalent once (Flow 2). A stored
+// equivalent is returned as is; a lost race returns what the winner stored.
+func (s *ContractService) ResolveUAHEquivalent(ctx context.Context, id uuid.UUID) (domain.Contract, error) {
+	c, err := s.repo.Get(ctx, id)
+	if err != nil {
+		return domain.Contract{}, err
+	}
+	if c.UAHEquivalent != nil {
+		return c, nil
+	}
+	if !c.Currency.Foreign() {
+		return domain.Contract{}, &domain.DomainError{Code: domain.CodeEquivalentNotApplicable}
+	}
+	rate, err := s.signingDayRate(ctx, c.Currency, c.SignedAt)
+	if err != nil {
+		if errors.Is(err, domain.ErrRateNotPublished) {
+			return domain.Contract{}, &domain.DomainError{Code: domain.CodeRateNotPublished}
+		}
+		return domain.Contract{}, &domain.DomainError{Code: domain.CodeRateUnavailable}
+	}
+	eq, err := rate.Convert(c.AmountCents)
+	if err != nil {
+		return domain.Contract{}, &domain.DomainError{Code: domain.CodeEquivalentOutOfRange}
+	}
+	updated, ok, err := s.repo.SetUAHEquivalent(ctx, id, eq)
+	if err != nil {
+		return domain.Contract{}, err
+	}
+	if !ok {
+		return s.repo.Get(ctx, id)
+	}
+	return updated, nil
 }
 
 // Get returns domain.ErrContractNotFound when no contract has the id.

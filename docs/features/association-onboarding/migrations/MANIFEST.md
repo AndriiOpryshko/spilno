@@ -53,5 +53,5 @@ File 22 was added by the review follow-up (T59, 2026-11-16; live `00049`): `Memb
 clause of the row-level security policy compare `lower(sign_in_email)`, which the plain index of file 7 cannot
 serve, so the lookup was a sequential scan. The index of file 7 stays until a later release drops it.
 
-File 23 was added by the second re-review follow-up (T114, 2026-11-18; live `00050`): refusing another storage
+File 23 was added by the second re-review follow-up (T114, 2026-11-18; live `00051`, renumbered from `00050` when main's `00050_add_contracts_uah_equivalent` landed first): refusing another storage
 account while the association has files asks `files` by `association_id`, and no index of `files` led with it.

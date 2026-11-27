@@ -6,14 +6,17 @@ package finance
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	financehttp "github.com/AndriiOpryshko/spilno/services/core/internal/finance/adapters/http"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/finance/adapters/http/gen"
+	"github.com/AndriiOpryshko/spilno/services/core/internal/finance/adapters/mcprates"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/finance/adapters/postgres"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/finance/app"
+	"github.com/AndriiOpryshko/spilno/services/core/internal/finance/ports"
 	"github.com/AndriiOpryshko/spilno/services/core/internal/platform/httpapi"
 )
 
@@ -21,8 +24,26 @@ type Module struct {
 	handler *financehttp.Handler
 }
 
-func New(_ *pgxpool.Pool) *Module {
-	contracts := app.NewContractService(postgres.NewContracts())
+// Config carries what the context needs from outside. The zero value disables the rate source.
+type Config struct {
+	// Rates reads the official rate; nil means the source is not configured.
+	Rates ports.RateProvider
+	// RatesMCPURL is the NBU rates MCP endpoint; empty means the source is not configured.
+	RatesMCPURL string
+}
+
+func New(_ *pgxpool.Pool, cfg Config) *Module {
+	var rates ports.RateProvider = mcprates.Disabled{}
+	if cfg.Rates != nil {
+		rates = cfg.Rates
+	} else if cfg.RatesMCPURL != "" {
+		if safe, err := mcprates.Check(cfg.RatesMCPURL); err != nil {
+			slog.Warn("finance: nbu rate source refused", "reason", err, "url", safe)
+		} else {
+			rates = mcprates.New(cfg.RatesMCPURL)
+		}
+	}
+	contracts := app.NewContractService(postgres.NewContracts(), rates)
 	return &Module{handler: financehttp.NewHandler(contracts)}
 }
 

@@ -12,18 +12,20 @@ import (
 )
 
 const createContract = `-- name: CreateContract :one
-INSERT INTO contracts (counterparty, amount_cents, currency, signed_at, ends_at, association_id)
-VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, counterparty, amount_cents, currency, signed_at, ends_at, created_at, updated_at, association_id
+INSERT INTO contracts (counterparty, amount_cents, currency, signed_at, ends_at, association_id, uah_amount_kopiyky, uah_rate_micros)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING id, counterparty, amount_cents, currency, signed_at, ends_at, created_at, updated_at, association_id, uah_amount_kopiyky, uah_rate_micros
 `
 
 type CreateContractParams struct {
-	Counterparty  string
-	AmountCents   int64
-	Currency      string
-	SignedAt      pgtype.Date
-	EndsAt        pgtype.Date
-	AssociationID pgtype.UUID
+	Counterparty     string
+	AmountCents      int64
+	Currency         string
+	SignedAt         pgtype.Date
+	EndsAt           pgtype.Date
+	AssociationID    pgtype.UUID
+	UahAmountKopiyky pgtype.Int8
+	UahRateMicros    pgtype.Int8
 }
 
 func (q *Queries) CreateContract(ctx context.Context, arg CreateContractParams) (Contract, error) {
@@ -34,6 +36,8 @@ func (q *Queries) CreateContract(ctx context.Context, arg CreateContractParams) 
 		arg.SignedAt,
 		arg.EndsAt,
 		arg.AssociationID,
+		arg.UahAmountKopiyky,
+		arg.UahRateMicros,
 	)
 	var i Contract
 	err := row.Scan(
@@ -46,12 +50,14 @@ func (q *Queries) CreateContract(ctx context.Context, arg CreateContractParams) 
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.AssociationID,
+		&i.UahAmountKopiyky,
+		&i.UahRateMicros,
 	)
 	return i, err
 }
 
 const getContract = `-- name: GetContract :one
-SELECT id, counterparty, amount_cents, currency, signed_at, ends_at, created_at, updated_at, association_id FROM contracts WHERE id = $1 AND association_id = $2
+SELECT id, counterparty, amount_cents, currency, signed_at, ends_at, created_at, updated_at, association_id, uah_amount_kopiyky, uah_rate_micros FROM contracts WHERE id = $1 AND association_id = $2
 `
 
 type GetContractParams struct {
@@ -72,12 +78,14 @@ func (q *Queries) GetContract(ctx context.Context, arg GetContractParams) (Contr
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.AssociationID,
+		&i.UahAmountKopiyky,
+		&i.UahRateMicros,
 	)
 	return i, err
 }
 
 const listContracts = `-- name: ListContracts :many
-SELECT id, counterparty, amount_cents, currency, signed_at, ends_at, created_at, updated_at, association_id FROM contracts
+SELECT id, counterparty, amount_cents, currency, signed_at, ends_at, created_at, updated_at, association_id, uah_amount_kopiyky, uah_rate_micros FROM contracts
 WHERE association_id = $1
   AND ($2::timestamptz IS NULL
    OR (created_at, id) < ($2::timestamptz, $3::uuid))
@@ -118,6 +126,8 @@ func (q *Queries) ListContracts(ctx context.Context, arg ListContractsParams) ([
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.AssociationID,
+			&i.UahAmountKopiyky,
+			&i.UahRateMicros,
 		); err != nil {
 			return nil, err
 		}
@@ -127,4 +137,42 @@ func (q *Queries) ListContracts(ctx context.Context, arg ListContractsParams) ([
 		return nil, err
 	}
 	return items, nil
+}
+
+const setContractUAHEquivalent = `-- name: SetContractUAHEquivalent :one
+UPDATE contracts SET uah_amount_kopiyky = $3, uah_rate_micros = $4
+WHERE id = $1 AND association_id = $2 AND uah_amount_kopiyky IS NULL
+RETURNING id, counterparty, amount_cents, currency, signed_at, ends_at, created_at, updated_at, association_id, uah_amount_kopiyky, uah_rate_micros
+`
+
+type SetContractUAHEquivalentParams struct {
+	ID               pgtype.UUID
+	AssociationID    pgtype.UUID
+	UahAmountKopiyky pgtype.Int8
+	UahRateMicros    pgtype.Int8
+}
+
+// Sets the equivalent only on a contract that has none.
+func (q *Queries) SetContractUAHEquivalent(ctx context.Context, arg SetContractUAHEquivalentParams) (Contract, error) {
+	row := q.db.QueryRow(ctx, setContractUAHEquivalent,
+		arg.ID,
+		arg.AssociationID,
+		arg.UahAmountKopiyky,
+		arg.UahRateMicros,
+	)
+	var i Contract
+	err := row.Scan(
+		&i.ID,
+		&i.Counterparty,
+		&i.AmountCents,
+		&i.Currency,
+		&i.SignedAt,
+		&i.EndsAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.AssociationID,
+		&i.UahAmountKopiyky,
+		&i.UahRateMicros,
+	)
+	return i, err
 }

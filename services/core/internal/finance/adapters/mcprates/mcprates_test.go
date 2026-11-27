@@ -242,45 +242,106 @@ func TestExpiringContextReturnsPromptly(t *testing.T) {
 	}
 }
 
-// A source that reads each request and then stops answering must not hold Rate past the caller's deadline,
-// nor keep a request open after Rate has given up. The go-sdk follows an expired call with a
-// notifications/cancelled POST that carries no deadline of its own, so the transport bounds every request
-// by the caller's deadline.
-func TestHungSourceIsBoundedByTheCallersDeadline(t *testing.T) {
-	release := make(chan struct{})
-	var open atomic.Int32
-	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
-		open.Add(1)
-		defer open.Add(-1)
+// hungStub is an MCP server that completes the handshake (initialize, notifications/initialized) and then
+// reads every tools/call, notifications/cancelled and session-closing DELETE request and stops answering.
+// After an expired call the go-sdk (v1.8.0) sends the DELETE of session.Close on a context of its own; the
+// stub hangs a cancel notice too, should a later go-sdk send one. It counts the hung requests that are
+// still open and how many tools/call requests it has received.
+type hungStub struct {
+	url      string
+	open     atomic.Int32 // hung requests currently open on the server
+	calls    atomic.Int32 // tools/call requests that reached the server
+	released chan struct{}
+}
+
+func newHungStub(t *testing.T) *hungStub {
+	t.Helper()
+	h := &hungStub{released: make(chan struct{})}
+	mcpSrv := mcp.NewServer(&mcp.Implementation{Name: "stub", Version: "0"}, nil)
+	mcp.AddTool(mcpSrv, &mcp.Tool{Name: "get_rate", Description: "stub"},
+		func(context.Context, *mcp.CallToolRequest, in) (*mcp.CallToolResult, out, error) {
+			return nil, good(), nil
+		})
+	inner := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return mcpSrv }, nil)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// net/http notices a client hang-up (and cancels r.Context) only once the body has been read.
-		_, _ = io.Copy(io.Discard, r.Body)
+		body, _ := io.ReadAll(r.Body)
+		isCall := bytes.Contains(body, []byte(`"method":"tools/call"`))
+		isCancel := bytes.Contains(body, []byte(`"method":"notifications/cancelled"`))
+		hang := r.Method == http.MethodDelete || (r.Method == http.MethodPost && (isCall || isCancel))
+		if !hang {
+			r.Body = io.NopCloser(bytes.NewReader(body))
+			inner.ServeHTTP(w, r)
+			return
+		}
+		if isCall {
+			h.calls.Add(1)
+		}
+		h.open.Add(1)
+		defer h.open.Add(-1)
 		select {
 		case <-r.Context().Done():
-		case <-release:
-		case <-time.After(10 * time.Second):
+		case <-h.released:
+		case <-time.After(6 * time.Second):
 		}
 	}))
 	t.Cleanup(srv.Close)
-	t.Cleanup(func() { close(release) }) // runs before srv.Close, which waits for the handlers
+	t.Cleanup(func() { close(h.released) }) // runs before srv.Close, which waits for the handlers
+	h.url = srv.URL
+	return h
+}
+
+// A source that completes the handshake and then stops answering must not hold Rate past the caller's
+// deadline, nor keep a request open after Rate has given up. The session-closing DELETE that follows an
+// expired call carries no deadline of its own, so the transport bounds every request by the caller's
+// deadline.
+func TestHungSourceIsBoundedByTheCallersDeadline(t *testing.T) {
+	h := newHungStub(t)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 	start := time.Now()
-	_, err := mcprates.New(srv.URL).Rate(ctx, domain.CurrencyEUR, day)
+	_, err := mcprates.New(h.url).Rate(ctx, domain.CurrencyEUR, day)
 	took := time.Since(start)
 	if !errors.Is(err, domain.ErrRateUnavailable) {
 		t.Fatalf("err = %v, want ErrRateUnavailable", err)
 	}
+	if !strings.Contains(err.Error(), ": call: ") {
+		t.Fatalf("err = %v, want the failure on the call step (the handshake must have completed)", err)
+	}
 	if took > time.Second {
 		t.Errorf("Rate returned after %v with a 100ms deadline, want it bounded by the deadline", took)
 	}
+	if h.calls.Load() == 0 {
+		t.Fatalf("the tools/call never reached the server, the test exercises nothing")
+	}
 
-	returned := time.Now()
-	for open.Load() > 0 {
-		if time.Since(returned) > time.Second {
-			t.Fatalf("%d request(s) still open on the server 1s after Rate returned, want them cancelled", open.Load())
+	// The go-sdk sends its follow-up requests (cancellation, session close) off Rate's return path, so
+	// watch the server for a while instead of looking once: none of them may be open 300ms after Rate
+	// returned, nor at any moment up to 800ms.
+	time.Sleep(300 * time.Millisecond)
+	for watch := time.Now(); time.Since(watch) < 500*time.Millisecond; time.Sleep(10 * time.Millisecond) {
+		if n := h.open.Load(); n > 0 {
+			t.Fatalf("%d hung request(s) still open on the server %v after Rate returned, want them cancelled", n, time.Since(watch)+300*time.Millisecond)
 		}
-		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+// With no deadline from the caller the lookup is still bounded: by fallbackBudget (3 s, the app's rate timeout).
+func TestHungSourceIsBoundedWithoutACallerDeadline(t *testing.T) {
+	h := newHungStub(t)
+
+	start := time.Now()
+	_, err := mcprates.New(h.url).Rate(context.Background(), domain.CurrencyEUR, day)
+	took := time.Since(start)
+	if !errors.Is(err, domain.ErrRateUnavailable) {
+		t.Fatalf("err = %v, want ErrRateUnavailable", err)
+	}
+	if h.calls.Load() == 0 {
+		t.Fatalf("the tools/call never reached the server, the test exercises nothing")
+	}
+	if took > 4500*time.Millisecond {
+		t.Errorf("Rate returned after %v with no caller deadline, want about 3s", took)
 	}
 }
 

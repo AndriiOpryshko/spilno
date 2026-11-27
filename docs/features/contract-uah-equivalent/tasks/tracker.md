@@ -32,5 +32,5 @@
 | [T25](./T25-bound-rate-http-requests.md) | Bound the rate lookup's HTTP requests so a hung source frees its socket | infra | Andrii Opryshko | S | T23 | done |
 | [T26](./T26-sad-adapter-deadline.md) | Describe the adapter's own deadline and redirect refusal in the SAD | docs | Andrii Opryshko | S | T25 | done |
 | [T27](./T27-epic-follow-up-coverage.md) | Bring the follow-up tasks into the epic's AC coverage and DAG | docs | Andrii Opryshko | S | T26, T28, T29 | todo |
-| [T28](./T28-hung-source-test-strength.md) | Make the hung-source test fail without the deadline transport | tests | Andrii Opryshko | S | T25 | todo |
+| [T28](./T28-hung-source-test-strength.md) | Make the hung-source test fail without the deadline transport | tests | Andrii Opryshko | S | T25 | done |
 | [T29](./T29-structural-url-redaction.md) | Redact the rate-source address structurally instead of masking substrings | infra | Andrii Opryshko | S | T23 | todo |

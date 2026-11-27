@@ -211,7 +211,7 @@ func TestPromptNamesTheToolAndItsArguments(t *testing.T) {
 // The transport the core API uses: Streamable HTTP, stateless, against a fake NBU.
 func TestGetRateOverStreamableHTTP(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte(`[{"rate":45.051,"cc":"USD"}]`))
+		_, _ = w.Write([]byte(`[{"rate":45.051,"cc":"USD","exchangedate":"24.10.2026"}]`))
 	}))
 	defer upstream.Close()
 	srv := server.New(nbu.NewClient(upstream.URL))

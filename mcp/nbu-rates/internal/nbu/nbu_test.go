@@ -44,7 +44,7 @@ func TestRateIsFetchedOncePerCurrencyAndDay(t *testing.T) {
 	var calls atomic.Int32
 	c := upstream(t, func(w http.ResponseWriter, _ *http.Request) {
 		calls.Add(1)
-		_, _ = w.Write([]byte(`[{"rate":45.051,"cc":"USD"}]`))
+		_, _ = w.Write([]byte(`[{"rate":45.051,"cc":"USD","exchangedate":"20.10.2026"}]`))
 	})
 	for range 3 {
 		if _, err := c.Rate(context.Background(), "USD", day); err != nil {
@@ -67,8 +67,11 @@ func TestRateErrors(t *testing.T) {
 		{"empty list is not published", "EUR", 200, `[]`, nbu.ErrNotPublished},
 		{"server error is unavailable", "EUR", 502, `oops`, nbu.ErrUnavailable},
 		{"broken body is unavailable", "EUR", 200, `<html>`, nbu.ErrUnavailable},
-		{"another currency's row is unavailable", "EUR", 200, `[{"rate":45.05,"cc":"USD"}]`, nbu.ErrUnavailable},
-		{"non-decimal rate is unavailable", "EUR", 200, `[{"rate":1e2,"cc":"EUR"}]`, nbu.ErrUnavailable},
+		{"another currency's row is unavailable", "EUR", 200, `[{"rate":45.05,"cc":"USD","exchangedate":"20.10.2026"}]`, nbu.ErrUnavailable},
+		{"non-decimal rate is unavailable", "EUR", 200, `[{"rate":1e2,"cc":"EUR","exchangedate":"20.10.2026"}]`, nbu.ErrUnavailable},
+		{"another day's row is unavailable", "EUR", 200, `[{"rate":50.5311,"cc":"EUR","exchangedate":"19.10.2026"}]`, nbu.ErrUnavailable},
+		{"a row without its day is unavailable", "EUR", 200, `[{"rate":50.5311,"cc":"EUR"}]`, nbu.ErrUnavailable},
+		{"an unreadable day is unavailable", "EUR", 200, `[{"rate":50.5311,"cc":"EUR","exchangedate":"2026-10-20"}]`, nbu.ErrUnavailable},
 		{"hryvnia has no rate", "UAH", 200, `[]`, nbu.ErrInvalidCurrency},
 		{"lower case is rejected", "eur", 200, `[]`, nbu.ErrInvalidCurrency},
 		{"query injection is rejected", "EUR&date=1", 200, `[]`, nbu.ErrInvalidCurrency},
@@ -91,7 +94,7 @@ func TestRateErrors(t *testing.T) {
 func TestRateRefusesAnOversizedBody(t *testing.T) {
 	pad := strings.Repeat("x", 1<<20)
 	c := upstream(t, func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte(`[{"rate":45.05,"cc":"EUR","txt":"` + pad + `"}]`))
+		_, _ = w.Write([]byte(`[{"rate":45.05,"cc":"EUR","exchangedate":"20.10.2026","txt":"` + pad + `"}]`))
 	})
 	if _, err := c.Rate(context.Background(), "EUR", day); !errors.Is(err, nbu.ErrUnavailable) {
 		t.Errorf("err = %v, want %v", err, nbu.ErrUnavailable)
@@ -129,12 +132,32 @@ func TestAFailureIsNotCached(t *testing.T) {
 			w.WriteHeader(http.StatusServiceUnavailable)
 			return
 		}
-		_, _ = w.Write([]byte(`[{"rate":50.5311,"cc":"EUR"}]`))
+		_, _ = w.Write([]byte(`[{"rate":50.5311,"cc":"EUR","exchangedate":"20.10.2026"}]`))
 	})
 	if _, err := c.Rate(context.Background(), "EUR", day); !errors.Is(err, nbu.ErrUnavailable) {
 		t.Fatalf("first call err = %v, want unavailable", err)
 	}
 	if _, err := c.Rate(context.Background(), "EUR", day); err != nil {
 		t.Fatalf("second call err = %v, want a rate", err)
+	}
+}
+
+// An upstream that answers with the nearest published day (a proxy, a holiday,
+// a future day) is not believed, and its row is not remembered for the asked day.
+func TestAnotherDaysRowIsNotCached(t *testing.T) {
+	var calls atomic.Int32
+	c := upstream(t, func(w http.ResponseWriter, _ *http.Request) {
+		if calls.Add(1) == 1 {
+			_, _ = w.Write([]byte(`[{"rate":49.9,"cc":"EUR","exchangedate":"17.10.2026"}]`))
+			return
+		}
+		_, _ = w.Write([]byte(`[{"rate":50.5311,"cc":"EUR","exchangedate":"20.10.2026"}]`))
+	})
+	if _, err := c.Rate(context.Background(), "EUR", day); !errors.Is(err, nbu.ErrUnavailable) {
+		t.Fatalf("first call err = %v, want unavailable", err)
+	}
+	got, err := c.Rate(context.Background(), "EUR", day)
+	if err != nil || got.Value != "50.5311" {
+		t.Fatalf("second call = %+v, %v; want 50.5311", got, err)
 	}
 }

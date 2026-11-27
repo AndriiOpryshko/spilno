@@ -61,6 +61,9 @@ func NewClient(baseURL string) *Client {
 
 const maxCached = 4096
 
+// nbuDateLayout is how the NBU writes a row's exchangedate, e.g. "20.10.2026".
+const nbuDateLayout = "02.01.2006"
+
 // Rate returns the official rate of currency (ISO 4217, upper case) on the
 // calendar day of date.
 func (c *Client) Rate(ctx context.Context, currency string, date time.Time) (Rate, error) {
@@ -92,8 +95,9 @@ func (c *Client) Rate(ctx context.Context, currency string, date time.Time) (Rat
 	}
 
 	var rows []struct {
-		Rate json.Number `json:"rate"`
-		CC   string      `json:"cc"`
+		Rate         json.Number `json:"rate"`
+		CC           string      `json:"cc"`
+		ExchangeDate string      `json:"exchangedate"`
 	}
 	dec := json.NewDecoder(http.MaxBytesReader(nil, resp.Body, 1<<20))
 	dec.UseNumber()
@@ -106,6 +110,12 @@ func (c *Client) Rate(ctx context.Context, currency string, date time.Time) (Rat
 	v := rows[0].Rate.String()
 	if rows[0].CC != currency || !decimalRE.MatchString(v) {
 		return Rate{}, fmt.Errorf("%w: unexpected row %q %q", ErrUnavailable, rows[0].CC, v)
+	}
+	// The row must be for the day asked: an upstream that answers with the
+	// nearest published day would otherwise be cached and stored as this day's
+	// rate for good.
+	if got, err := time.Parse(nbuDateLayout, rows[0].ExchangeDate); err != nil || !got.Equal(day) {
+		return Rate{}, fmt.Errorf("%w: row for %q, asked %s", ErrUnavailable, rows[0].ExchangeDate, day.Format(time.DateOnly))
 	}
 
 	r := Rate{Currency: currency, Date: day, Value: v}

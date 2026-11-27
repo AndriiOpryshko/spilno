@@ -3,12 +3,14 @@ package mcprates
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -214,6 +216,22 @@ func redactURL(raw string) string {
 		return "<unparsable>"
 	}
 	return (&url.URL{Scheme: u.Scheme, Host: u.Host, Path: u.Path}).String()
+}
+
+// Check reports whether endpoint can be used without a leak, and returns its log-safe form (scheme, host and
+// path, or "<unparsable>"). net/http prints the request URL in an error with %q; an endpoint that %q escapes
+// (one holding a quote or a backslash, say) is printed in a spelling the redaction cannot match, and one that
+// does not parse has no safe form to replace it with, so both are refused. The error names the reason only:
+// url.Parse's own error is not wrapped because it quotes the raw input.
+func Check(endpoint string) (safe string, err error) {
+	safe, _, _ = addressForms(endpoint)
+	if _, perr := url.Parse(endpoint); perr != nil {
+		return safe, errors.New("endpoint is not a valid URL")
+	}
+	if strconv.Quote(endpoint) != `"`+endpoint+`"` {
+		return safe, errors.New("endpoint has a character that net/http prints escaped")
+	}
+	return safe, nil
 }
 
 // Disabled answers domain.ErrRateUnavailable to every lookup.

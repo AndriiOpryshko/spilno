@@ -6,6 +6,7 @@ package finance
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -36,7 +37,11 @@ func New(_ *pgxpool.Pool, cfg Config) *Module {
 	if cfg.Rates != nil {
 		rates = cfg.Rates
 	} else if cfg.RatesMCPURL != "" {
-		rates = mcprates.New(cfg.RatesMCPURL)
+		if safe, err := mcprates.Check(cfg.RatesMCPURL); err != nil {
+			slog.Warn("finance: nbu rate source refused", "reason", err, "url", safe)
+		} else {
+			rates = mcprates.New(cfg.RatesMCPURL)
+		}
 	}
 	contracts := app.NewContractService(postgres.NewContracts(), rates)
 	return &Module{handler: financehttp.NewHandler(contracts)}

@@ -8,6 +8,44 @@ import (
 	"github.com/AndriiOpryshko/spilno/services/core/internal/finance/domain"
 )
 
+// T32: an endpoint net/http would print escaped (%q) is refused, and neither the error nor the safe form
+// carries any part of it beyond scheme, host and path.
+func TestCheckRefusesAnEndpointThatNetHTTPPrintsEscaped(t *testing.T) {
+	tests := []struct {
+		name, endpoint, wantSafe string
+		wantErr                  bool
+		leaks                    []string
+	}{
+		{"quote in query", `http://127.0.0.1:1/mcp?token="quoted-secret"`, "http://127.0.0.1:1/mcp", true, []string{"quoted-secret", "token"}},
+		{"quote in password", `http://u:pa"ss-secret@127.0.0.1:1/mcp`, "http://127.0.0.1:1/mcp", true, []string{"ss-secret", `pa"ss`, "u:"}},
+		{"plain", "http://127.0.0.1:1/mcp?token=ok-secret", "http://127.0.0.1:1/mcp", false, nil},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			safe, err := Check(tc.endpoint)
+
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("Check(%q) error = %v, want error: %v", tc.endpoint, err, tc.wantErr)
+			}
+			if tc.wantErr && safe != "" && safe != tc.wantSafe && safe != "<unparsable>" {
+				t.Errorf("safe = %q, want %q or <unparsable>", safe, tc.wantSafe)
+			}
+			if !tc.wantErr && safe != tc.wantSafe {
+				t.Errorf("safe = %q, want %q", safe, tc.wantSafe)
+			}
+			text := safe
+			if err != nil {
+				text += " " + err.Error()
+			}
+			for _, leak := range tc.leaks {
+				if strings.Contains(text, leak) {
+					t.Errorf("error/safe %q leaks %q", text, leak)
+				}
+			}
+		})
+	}
+}
+
 // An address net/http reports for another URL (after a redirect, say) matches no whole spelling of the
 // endpoint, so its secret parts must be masked on their own.
 func TestUnavailableMasksSecretPartsOfAnotherAddress(t *testing.T) {

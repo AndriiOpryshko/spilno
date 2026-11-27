@@ -23,7 +23,7 @@
 | [T12d](./T12d-google-config.md) | Read the Google configuration from the environment and enable the connection in the API | infra | Andrii Opryshko | S | T12b | done |
 | [T13](./T13-drive-files-adapter.md) | Implement the Drive Files adapter with sha256 checks and an in-memory fake | infra | Andrii Opryshko | M | T12 | in_progress |
 | [T13a](./T13a-files-port-fake.md) | Declare the Files port and an in-memory fake that passes a shared contract test | infra | Andrii Opryshko | M | — | done |
-| [T13b](./T13b-drive-files-adapter.md) | Implement the Files port on Google Drive and pass the shared contract on a fake Drive | infra | Andrii Opryshko | L | T13a | in_progress |
+| [T13b](./T13b-drive-files-adapter.md) | Implement the Files port on Google Drive and pass the shared contract on a fake Drive | infra | Andrii Opryshko | L | T13a | done |
 | [T14](./T14-river-worker-jobs.md) | Wire the River client, the cmd/worker binary and the job status endpoints | wiring | Andrii Opryshko | L | T04, T07, T11 | todo |
 | [T15](./T15-protocol-lifecycle-domain.md) | Model the protocol lifecycle: states, revision, transitions and refusals | domain | Andrii Opryshko | L | — | done |
 | [T16](./T16-agenda-slots-domain.md) | Model agenda items and слоти рішення: confirm, correct, needs review and readiness | domain | Andrii Opryshko | M | T15 | done |
@@ -56,7 +56,7 @@
 | [T40](./T40-ui-live-poll.md) | Make the попереднє голосування live: start, own vote, tally, informal label, return to draft | ui | Andrii Opryshko | M | T39 | todo |
 | [T41](./T41-ui-print-withdraw.md) | Wire printing and withdrawal: ready for signing, job polling, void warning, withdraw and copy | ui | Andrii Opryshko | L | T40 | todo |
 | [T42](./T42-ui-signed-copy-form.md) | Build the signed-scan upload with the meeting facts form | ui | Andrii Opryshko | M | T41 | todo |
-| [T43](./T43-ui-registry.md) | Build the реєстр протоколів search and the signed protocol view | ui | Andrii Opryshko | M | T07 | in_progress |
+| [T43](./T43-ui-registry.md) | Build the реєстр протоколів search and the signed protocol view | ui | Andrii Opryshko | M | T07 | done |
 | [T44](./T44-e2e-draft-to-registry.md) | Prove the flow end to end: draft to registry through the UI with fake Google and Gemini | tests | Andrii Opryshko | L | T25, T28, T29, T30, T31, T32, T34, T35, T36, T42, T43 | todo |
 
 **Total:** 44 tasks, ~31.25 person-days, 12 dependency phases.

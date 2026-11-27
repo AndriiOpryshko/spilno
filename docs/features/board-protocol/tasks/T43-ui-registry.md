@@ -10,7 +10,7 @@ files_hint:
   - "apps/web/src/features/governance/registry/"
 owner: "Andrii Opryshko"
 estimate: "M"
-status: "in_progress"
+status: "done"
 ---
 
 # T43 — Build the реєстр протоколів search and the signed protocol view
@@ -28,10 +28,10 @@ status: "in_progress"
 
 ## Definition of Done
 
-- [ ] Acceptance: Component tests show search by counterparty, amount or range, subject and date period with cursor paging, and the signed view shows the signed copy, meeting facts, cited documents, the correction note beside the frozen text and poll history labelled informal. The signed view has no edit action and states that a locked protocol changes only through a new board decision that references it (AC-17, review finding 6).
-- [ ] stories for results, empty, signed view with corrections
-- [ ] component test: the signed view renders the AC-17 explanation and no edit, upload or withdraw control
-- [ ] `mise run lint` and `mise run test` green
+- [x] Acceptance: Component tests show search by counterparty, amount or range, subject and date period with cursor paging, and the signed view shows the signed copy, meeting facts, cited documents, the correction note beside the frozen text and poll history labelled informal. The signed view has no edit action and states that a locked protocol changes only through a new board decision that references it (AC-17, review finding 6).
+- [x] stories for results, empty, signed view with corrections
+- [x] component test: the signed view renders the AC-17 explanation and no edit, upload or withdraw control
+- [x] `mise run lint` and `mise run test` green
 
 ## Status (2026-11-17)
 
@@ -42,3 +42,12 @@ withdrawn number, the files, the poll history labelled informal, the AC-17 expla
 
 Left here: the correction note is one section under the agenda, not beside the corrected item as AC-15 words
 it. Open with the product owner.
+
+## Status (2026-11-27): done, one placement deferred
+
+Closed on an audit of `main` at `d43faf9`: search with every filter and cursor pages, `search_invalid`, the
+signed view with facts, files, the informal poll history, the AC-17 explanation and no edit control, and the
+stories (`registry.test.tsx`, `registry.stories.tsx`). The correction note renders as its own section
+(`signed-protocol-view.tsx`); placing it beside each corrected item needs one note per item, while the data
+model holds one per protocol (`meeting_facts.corrections_note`). That is a product question, now in
+[PRD §8](../PRD.md#8-open-questions).

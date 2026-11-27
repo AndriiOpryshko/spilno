@@ -490,6 +490,68 @@
         "services/core/internal/finance/adapters/mcprates/mcprates.go",
         "services/core/internal/finance/adapters/mcprates/unavailable_internal_test.go"
       ]
+    },
+    {
+      "id": "T32",
+      "title": "Refuse a rate-source address that net/http would print escaped",
+      "layer": "infra",
+      "deps": [
+        "T29"
+      ],
+      "acs": [
+        "AC-10"
+      ],
+      "dod": "Review 2026-11-27 (round 5) finding 3: an NBU_RATES_MCP_URL that fails url.Parse, or that holds any character strconv.Quote escapes (such as a double quote), is refused when the finance module is built: the rate source stays mcprates.Disabled, a warning names the reason and the safe part of the address only, and no lookup goes out. A test with http://127.0.0.1:1/mcp?token=\"quoted-secret\" and with http://u:pa\"ss-secret@127.0.0.1:1/mcp asserts that neither secret reaches the warning or any lookup error, and that the existing leak, redirect and wiring tests stay green.",
+      "files_hint": [
+        "services/core/internal/finance/adapters/mcprates/mcprates.go",
+        "services/core/internal/finance/adapters/mcprates/unavailable_internal_test.go",
+        "services/core/internal/finance/module.go",
+        "services/core/internal/finance/rates_wiring_test.go"
+      ]
+    },
+    {
+      "id": "T33",
+      "title": "Do not mask a secret value that is already part of the safe address",
+      "layer": "infra",
+      "deps": [
+        "T32"
+      ],
+      "acs": [
+        "AC-10"
+      ],
+      "dod": "Review 2026-11-27 (round 5) finding 4: a secret part of the endpoint that is a substring of its scheme + host + path is not masked outside URLs, since the log line prints that address anyway. TestUnavailableShortSecretsDoNotGarbleTheMessage gains the case http://127.0.0.1:<port>/mcp?h=127.0.0.1 and asserts that the dial error keeps 127.0.0.1:<port> readable; the long-secret masking test stays green.",
+      "files_hint": [
+        "services/core/internal/finance/adapters/mcprates/mcprates.go",
+        "services/core/internal/finance/adapters/mcprates/unavailable_internal_test.go"
+      ]
+    },
+    {
+      "id": "T30",
+      "title": "Describe the structural redaction and its 6-byte floor in SAD §8",
+      "layer": "docs",
+      "deps": [
+        "T33"
+      ],
+      "acs": [
+        "AC-10"
+      ],
+      "dod": "Review 2026-11-27 (round 5) finding 1: sad.md §8 Logging no longer promises that no userinfo, query or fragment ever reaches the error. It says that the endpoint= field and every URL in the error are cut to scheme + host + path, that outside URLs only secret parts of at least 6 bytes of NBU_RATES_MCP_URL are masked (and not those already in the safe address, T33), and that an address net/http would print escaped is refused at start-up (T32). The SAD's updated_at is bumped.",
+      "files_hint": [
+        "docs/features/contract-uah-equivalent/sad.md"
+      ]
+    },
+    {
+      "id": "T31",
+      "title": "Restate the epic's start set and longest chain for the whole DAG",
+      "layer": "docs",
+      "deps": [
+        "T30"
+      ],
+      "acs": [],
+      "dod": "Review 2026-11-27 (round 5) finding 2: tasks/_epic.md's task-map prose names the day-one starts and the longest chain of the whole DAG in tasks.json (T01–T33, T17 among the starts), not of the original T01–T12 plan; the mermaid DAG and the AC coverage table include T30–T33 and still equal tasks.json deps and acs.",
+      "files_hint": [
+        "docs/features/contract-uah-equivalent/tasks/_epic.md"
+      ]
     }
   ]
 }

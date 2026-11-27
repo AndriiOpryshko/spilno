@@ -105,6 +105,17 @@ All tasks run from the repo root through mise (`mise tasks` lists them):
 - Review findings and their fixes go into the PR as new commits (persist the review, fix in a fresh session);
   never rewrite a pushed branch to hide them.
 
+## Releases
+
+- `VERSION` holds the semver; `mise run version:next` derives the next one from the Conventional Commits
+  since the last `v*` tag (`scripts/next-version.sh`: breaking → MAJOR, `feat` → MINOR, only `fix` → PATCH).
+  Never pick the number by hand.
+- A release is one PR `chore(release): release <version>` on a `chore/release-<version>` branch: it bumps
+  `VERSION` and may add user-facing notes in Ukrainian at `docs/releases/v<version>.md`. Merging it runs
+  `.github/workflows/release.yml`, which checks the bump, builds the changelog with git-cliff (`cliff.toml`),
+  tags the merge commit and publishes the GitHub Release. Do not tag or publish releases by hand.
+- `mise run changelog:preview` shows the section the workflow will publish.
+
 ## Metrics log
 
 This repo is a capstone measured in `LOG.md` (raw) and `CAPSTONE_LOG.md` (summary).

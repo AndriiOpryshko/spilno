@@ -1,0 +1,13 @@
+# Categories for GitHub's generated release notes (the merged pull requests since the
+# previous tag). release.yml falls back to them when a release PR carries no hand-written
+# docs/releases/v<version>.md. A PR's labels pick its category; `*` catches the rest.
+changelog:
+  exclude:
+    labels: [chore, ci, test, dependencies]
+  categories:
+    - title: Нове
+      labels: [feature, enhancement]
+    - title: Виправлення
+      labels: [bug, fix]
+    - title: Зміни
+      labels: ["*"]

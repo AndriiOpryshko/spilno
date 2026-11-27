@@ -99,7 +99,7 @@ func (b cancelOnClose) Close() error {
 // or "<unparsable>"), every spelling of the endpoint that net/http may print in a *url.Error (the raw
 // string, the parsed url.String() and, when a password is set, net/http's masked form user:***@), and
 // its secret parts of at least minMaskedSecret bytes on their own, so they are caught in the text around an
-// address too (shorter ones are dropped: see minMaskedSecret).
+// address too (shorter ones are dropped: see minMaskedSecret, and so are those the safe form holds).
 func addressForms(endpoint string) (safe string, spelled, secrets []string) {
 	safe = "<unparsable>"
 	spellings := []string{endpoint}
@@ -120,7 +120,8 @@ func addressForms(endpoint string) (safe string, spelled, secrets []string) {
 			}
 		}
 	}
-	secrets = slices.DeleteFunc(secrets, func(v string) bool { return len(v) < minMaskedSecret })
+	// A part the safe form already holds is no secret: endpoint= prints it, and masking it garbles the host.
+	secrets = slices.DeleteFunc(secrets, func(v string) bool { return len(v) < minMaskedSecret || strings.Contains(safe, v) })
 	return safe, uniqueLongestFirst(spellings), uniqueLongestFirst(secrets)
 }
 

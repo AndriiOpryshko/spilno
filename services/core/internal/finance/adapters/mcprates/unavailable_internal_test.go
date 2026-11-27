@@ -85,36 +85,48 @@ func TestUnavailableKeepsTheSafeFormReadable(t *testing.T) {
 
 // Short secret parts (a one-letter user, "v=1") are ordinary word fragments outside a URL: masking them as
 // substrings would garble the host and the prose around the address. Inside a URL every secret goes, because
-// the URL is printed as scheme + host + path only.
+// the URL is printed as scheme + host + path only. A secret part that is also part of the safe address (T33,
+// "?h=127.0.0.1") is not masked either: endpoint= prints that address anyway.
 func TestUnavailableShortSecretsDoNotGarbleTheMessage(t *testing.T) {
-	p := New("http://a@127.0.0.1:33283/mcp?v=1&x=end")
-	cause := errors.New(`calling "initialize": Post "http://a@127.0.0.1:33283/mcp?v=1&x=end": ` +
-		`dial tcp 127.0.0.1:33283: connect: connection refused (transport endpoint)`)
+	tests := []struct {
+		name, endpoint string
+		bad            []string
+	}{
+		{"short secrets", "http://a@127.0.0.1:33283/mcp?v=1&x=end", []string{"v=1", "x=end", "a@"}},
+		{"secret in the safe address", "http://127.0.0.1:33283/mcp?h=127.0.0.1", []string{"h=127.0.0.1"}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			p := New(tc.endpoint)
+			cause := errors.New(`calling "initialize": Post "` + tc.endpoint + `": ` +
+				`dial tcp 127.0.0.1:33283: connect: connection refused (transport endpoint)`)
 
-	err := p.unavailable("initialize", cause)
+			err := p.unavailable("initialize", cause)
 
-	if !errors.Is(err, domain.ErrRateUnavailable) {
-		t.Fatalf("got %v, want ErrRateUnavailable", err)
-	}
-	msg := err.Error()
-	if !strings.Contains(msg, ": initialize: endpoint=http://127.0.0.1:33283/mcp: ") {
-		t.Errorf("error %q lost the step or the safe endpoint", msg)
-	}
-	for _, want := range []string{
-		`Post "http://127.0.0.1:33283/mcp":`,
-		"dial tcp 127.0.0.1:33283: connect",
-		`calling "initialize"`,
-		"transport",
-		"endpoint)",
-	} {
-		if !strings.Contains(msg, want) {
-			t.Errorf("error %q, want it to contain %q", msg, want)
-		}
-	}
-	for _, bad := range []string{"\x00", "v=1", "x=end", "a@", "***"} {
-		if strings.Contains(msg, bad) {
-			t.Errorf("error %q must not contain %q", msg, bad)
-		}
+			if !errors.Is(err, domain.ErrRateUnavailable) {
+				t.Fatalf("got %v, want ErrRateUnavailable", err)
+			}
+			msg := err.Error()
+			if !strings.Contains(msg, ": initialize: endpoint=http://127.0.0.1:33283/mcp: ") {
+				t.Errorf("error %q lost the step or the safe endpoint", msg)
+			}
+			for _, want := range []string{
+				`Post "http://127.0.0.1:33283/mcp":`,
+				"dial tcp 127.0.0.1:33283: connect",
+				`calling "initialize"`,
+				"transport",
+				"endpoint)",
+			} {
+				if !strings.Contains(msg, want) {
+					t.Errorf("error %q, want it to contain %q", msg, want)
+				}
+			}
+			for _, bad := range append([]string{"\x00", "***"}, tc.bad...) {
+				if strings.Contains(msg, bad) {
+					t.Errorf("error %q must not contain %q", msg, bad)
+				}
+			}
+		})
 	}
 }
 

@@ -37,4 +37,4 @@
 | [T30](./T30-sad-redaction-floor.md) | Describe the structural redaction and its 6-byte floor in SAD §8 | docs | Andrii Opryshko | S | T33 | todo |
 | [T31](./T31-epic-dag-summary.md) | Restate the epic's start set and longest chain for the whole DAG | docs | Andrii Opryshko | S | T30 | todo |
 | [T32](./T32-refuse-escaped-endpoint.md) | Refuse a rate-source address that net/http would print escaped | infra | Andrii Opryshko | S | T29 | done |
-| [T33](./T33-keep-safe-address-unmasked.md) | Do not mask a secret value that is already part of the safe address | infra | Andrii Opryshko | S | T32 | todo |
+| [T33](./T33-keep-safe-address-unmasked.md) | Do not mask a secret value that is already part of the safe address | infra | Andrii Opryshko | S | T32 | done |

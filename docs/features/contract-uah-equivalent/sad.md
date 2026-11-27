@@ -180,8 +180,15 @@ feature degrades as in AC-04 and AC-07. The MCP port is never published outside 
   `NBU_RATES_MCP_URL`, to an address nobody configured.
 - **Trust in the tool answer:** the adapter checks that the answer names the currency and the day it asked
   for, that `source` is `NBU` and that the rate parses; otherwise `ErrRateUnavailable` (AC-10).
-- **Logging:** `slog.WarnContext` on a failed lookup with currency, day and error class; no amounts. The error
-  names the rate source as scheme + host + path only, never its userinfo, query or fragment.
+- **Logging:** `slog.WarnContext` on a failed lookup with currency, day and error class; no amounts. The
+  error's `endpoint=` field and every URL in its text (the configured endpoint or another address, a redirect
+  target say) are cut to scheme + host + path, or `<unparsable>`. Outside URLs only the secret parts of
+  `NBU_RATES_MCP_URL` (userinfo, query values, fragment) of at least 6 bytes are masked as `***`: a shorter
+  value is an ordinary word fragment, and a value the safe address already holds (`?h=127.0.0.1`) hides
+  nothing, so masking either would only garble the message (T33). An address net/http would print escaped
+  (`%q`: a quote or a backslash) or that does not parse would slip past this redaction, so the finance module
+  refuses it at start-up: the source stays disabled and a warning names the reason and the safe address only
+  (T32).
 
 ## 9. Architecture decisions
 

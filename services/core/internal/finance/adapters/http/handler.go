@@ -78,7 +78,10 @@ func (h *Handler) ListContracts(ctx context.Context, req gen.ListContractsReques
 	if req.Params.Cursor != nil {
 		cursor = *req.Params.Cursor
 	}
-	page, err := h.contracts.List(ctx, limit, cursor)
+	filter := ports.ContractFilter{
+		MissingUAHEquivalent: req.Params.UahEquivalent != nil && *req.Params.UahEquivalent == gen.ListContractsParamsUahEquivalentMissing,
+	}
+	page, err := h.contracts.List(ctx, filter, limit, cursor)
 	if errors.Is(err, app.ErrInvalidCursor) {
 		return gen.ListContracts422ApplicationProblemPlusJSONResponse{
 			UnprocessableEntityApplicationProblemPlusJSONResponse: gen.UnprocessableEntityApplicationProblemPlusJSONResponse{

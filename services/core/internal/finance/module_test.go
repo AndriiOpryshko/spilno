@@ -234,6 +234,20 @@ func TestListContractsRejectsBadParams(t *testing.T) {
 	}
 }
 
+// Issue #70 AC-5: uah_equivalent takes only "missing"; any other value is 422 naming the parameter.
+func TestListContractsRejectsUnknownUahEquivalentFilter(t *testing.T) {
+	srv := newServer(t)
+
+	for _, v := range []string{"present", "MISSING", ""} {
+		var p problem
+		do(t, "GET", srv.URL+"/finance/associations/"+assocID+"/contracts?uah_equivalent="+v, "", http.StatusUnprocessableEntity, &p)
+		if got := pointers(p); len(got) != 1 || !strings.Contains(got[0], "uah_equivalent") {
+			t.Errorf("uah_equivalent=%q: pointers %v, want one naming uah_equivalent", v, got)
+		}
+	}
+	do(t, "GET", srv.URL+"/finance/associations/"+assocID+"/contracts?uah_equivalent=missing", "", http.StatusOK, nil)
+}
+
 func TestUnknownRouteIsProblem(t *testing.T) {
 	srv := newServer(t)
 

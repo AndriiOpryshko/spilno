@@ -68,7 +68,7 @@ func TestContractsCreateWithEquivalentReadsBack(t *testing.T) {
 			t.Fatal(err)
 		}
 		assertEq(t, got.UAHEquivalent, eq)
-		list, err := repo.List(ctx, nil, 10)
+		list, err := repo.List(ctx, ports.ContractFilter{}, nil, 10)
 		if err != nil || len(list) != 1 {
 			t.Fatalf("List = %v, %v", list, err)
 		}

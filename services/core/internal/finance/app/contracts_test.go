@@ -24,6 +24,7 @@ type fakeRepo struct {
 	rows      []domain.Contract
 	gotAfter  *ports.ContractKey
 	gotLimit  int
+	gotFilter ports.ContractFilter
 	createdOK bool
 	gotEq     *domain.UAHEquivalent
 
@@ -62,8 +63,8 @@ func (f *fakeRepo) Create(_ context.Context, t domain.ContractTerms, eq *domain.
 	return domain.Contract{ID: uuid.New(), ContractTerms: t, UAHEquivalent: eq}, nil
 }
 
-func (f *fakeRepo) List(_ context.Context, after *ports.ContractKey, limit int) ([]domain.Contract, error) {
-	f.gotAfter, f.gotLimit = after, limit
+func (f *fakeRepo) List(_ context.Context, filter ports.ContractFilter, after *ports.ContractKey, limit int) ([]domain.Contract, error) {
+	f.gotFilter, f.gotAfter, f.gotLimit = filter, after, limit
 	start := 0
 	if after != nil {
 		for i, c := range f.rows {
@@ -103,7 +104,7 @@ func TestListWalksAllPages(t *testing.T) {
 	var seen []uuid.UUID
 	cursor := ""
 	for range 10 {
-		page, err := svc.List(context.Background(), 2, cursor)
+		page, err := svc.List(context.Background(), ports.ContractFilter{}, 2, cursor)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -128,14 +129,36 @@ func TestListWalksAllPages(t *testing.T) {
 	}
 }
 
-func TestListCursorKeepsMicroseconds(t *testing.T) {
-	repo := &fakeRepo{rows: rows(2)}
+// Issue #70: the filter reaches the repository unchanged, on every page.
+func TestListPassesTheFilterToTheRepository(t *testing.T) {
+	repo := &fakeRepo{rows: rows(3)}
 	svc := app.NewContractService(repo, &fakeRates{})
-	page, err := svc.List(context.Background(), 1, "")
+	filter := ports.ContractFilter{MissingUAHEquivalent: true}
+
+	page, err := svc.List(context.Background(), filter, 1, "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.List(context.Background(), 1, page.NextCursor); err != nil {
+	if repo.gotFilter != filter {
+		t.Errorf("first page filter = %+v, want %+v", repo.gotFilter, filter)
+	}
+	repo.gotFilter = ports.ContractFilter{}
+	if _, err := svc.List(context.Background(), filter, 1, page.NextCursor); err != nil {
+		t.Fatal(err)
+	}
+	if repo.gotFilter != filter {
+		t.Errorf("next page filter = %+v, want %+v", repo.gotFilter, filter)
+	}
+}
+
+func TestListCursorKeepsMicroseconds(t *testing.T) {
+	repo := &fakeRepo{rows: rows(2)}
+	svc := app.NewContractService(repo, &fakeRates{})
+	page, err := svc.List(context.Background(), ports.ContractFilter{}, 1, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.List(context.Background(), ports.ContractFilter{}, 1, page.NextCursor); err != nil {
 		t.Fatal(err)
 	}
 	want := repo.rows[0]
@@ -154,7 +177,7 @@ func TestListLimitBounds(t *testing.T) {
 	}
 	for _, tt := range tests {
 		repo := &fakeRepo{}
-		if _, err := app.NewContractService(repo, &fakeRates{}).List(context.Background(), tt.limit, ""); err != nil {
+		if _, err := app.NewContractService(repo, &fakeRates{}).List(context.Background(), ports.ContractFilter{}, tt.limit, ""); err != nil {
 			t.Fatal(err)
 		}
 		if repo.gotLimit != tt.wantRepo {
@@ -166,7 +189,7 @@ func TestListLimitBounds(t *testing.T) {
 func TestListRejectsForeignCursor(t *testing.T) {
 	svc := app.NewContractService(&fakeRepo{}, &fakeRates{})
 	for _, c := range []string{"not base64!", "bm9jb2xvbg", "eDpub3QtYS11dWlk"} {
-		if _, err := svc.List(context.Background(), 10, c); !errors.Is(err, app.ErrInvalidCursor) {
+		if _, err := svc.List(context.Background(), ports.ContractFilter{}, 10, c); !errors.Is(err, app.ErrInvalidCursor) {
 			t.Errorf("List(cursor=%q) err = %v, want ErrInvalidCursor", c, err)
 		}
 	}

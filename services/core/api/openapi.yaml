@@ -70,6 +70,14 @@ paths:
           in: query
           description: Opaque cursor from a previous page's next_cursor; omit for the first page.
           schema: { type: string, minLength: 1 }
+        - name: uah_equivalent
+          in: query
+          description: >
+            `missing` keeps only the foreign-currency contracts that have no hryvnia equivalent yet
+            (they wait for resolveContractUahEquivalent); a UAH contract never counts as missing.
+            Omit it for every contract.
+          schema: { type: string, enum: [missing] }
+          example: missing
       responses:
         "200":
           description: One page of contracts.

@@ -100,11 +100,12 @@ func (c *Contracts) Get(ctx context.Context, id uuid.UUID) (domain.Contract, err
 	return toDomain(row), nil
 }
 
-func (c *Contracts) List(ctx context.Context, after *ports.ContractKey, limit int) ([]domain.Contract, error) {
+func (c *Contracts) List(ctx context.Context, filter ports.ContractFilter, after *ports.ContractKey, limit int) ([]domain.Contract, error) {
 	// limit is bounded by app.MaxPageSize, so it fits int32.
 	arg := sqlcgen.ListContractsParams{
-		RowLimit:      int32(limit),
-		AssociationID: associationID(ctx),
+		RowLimit:             int32(limit),
+		AssociationID:        associationID(ctx),
+		MissingUahEquivalent: filter.MissingUAHEquivalent,
 	}
 	if after != nil {
 		arg.AfterCreatedAt = pgtype.Timestamptz{Time: after.CreatedAt, Valid: true}

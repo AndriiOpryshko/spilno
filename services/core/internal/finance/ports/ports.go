@@ -16,6 +16,13 @@ type ContractKey struct {
 	ID        uuid.UUID
 }
 
+// ContractFilter narrows a contract listing; the zero value lists every contract.
+type ContractFilter struct {
+	// MissingUAHEquivalent keeps only the foreign-currency contracts that have
+	// no hryvnia equivalent yet.
+	MissingUAHEquivalent bool
+}
+
 // ContractRepository stores contracts.
 type ContractRepository interface {
 	// Create stores already validated terms and returns the stored contract.
@@ -24,9 +31,10 @@ type ContractRepository interface {
 	SetUAHEquivalent(ctx context.Context, id uuid.UUID, eq domain.UAHEquivalent) (domain.Contract, bool, error)
 	// Get returns domain.ErrContractNotFound when no contract has the id.
 	Get(ctx context.Context, id uuid.UUID) (domain.Contract, error)
-	// List returns up to limit contracts ordered by created_at, then id, both
-	// descending, starting strictly after the key (from the top when nil).
-	List(ctx context.Context, after *ContractKey, limit int) ([]domain.Contract, error)
+	// List returns up to limit contracts that pass filter, ordered by
+	// created_at, then id, both descending, starting strictly after the key
+	// (from the top when nil).
+	List(ctx context.Context, filter ContractFilter, after *ContractKey, limit int) ([]domain.Contract, error)
 }
 
 type associationKey struct{}

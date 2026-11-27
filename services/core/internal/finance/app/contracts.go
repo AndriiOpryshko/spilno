@@ -133,10 +133,10 @@ func (s *ContractService) Get(ctx context.Context, id uuid.UUID) (domain.Contrac
 	return s.repo.Get(ctx, id)
 }
 
-// List returns up to limit contracts after cursor, newest first. A limit
-// outside 1..MaxPageSize falls back to DefaultPageSize or MaxPageSize; an
-// empty cursor starts from the top.
-func (s *ContractService) List(ctx context.Context, limit int, cursor string) (Page, error) {
+// List returns up to limit contracts that pass filter after cursor, newest
+// first. A limit outside 1..MaxPageSize falls back to DefaultPageSize or
+// MaxPageSize; an empty cursor starts from the top.
+func (s *ContractService) List(ctx context.Context, filter ports.ContractFilter, limit int, cursor string) (Page, error) {
 	switch {
 	case limit <= 0:
 		limit = DefaultPageSize
@@ -153,7 +153,7 @@ func (s *ContractService) List(ctx context.Context, limit int, cursor string) (P
 	}
 
 	// One extra row tells whether another page follows.
-	items, err := s.repo.List(ctx, after, limit+1)
+	items, err := s.repo.List(ctx, filter, after, limit+1)
 	if err != nil {
 		return Page{}, err
 	}

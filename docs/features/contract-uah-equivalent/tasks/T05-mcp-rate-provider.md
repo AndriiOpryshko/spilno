@@ -30,7 +30,7 @@ status: "done"
 - Read `StructuredContent` (`currency`, `date`, `rate`, `source`); verify it against the question; `domain.ParseRate`.
 - Error text prefix `rate_not_published` → `ErrRateNotPublished`; everything else → `ErrRateUnavailable` (wrap the cause for the log).
 - `mcprates.Disabled{}` for an empty URL.
-- The adapter sets no timeout of its own; it honours `ctx`.
+- The adapter honours `ctx` and carries its deadline to every HTTP request of the lookup (3 s when it has none; T25), and refuses redirects (T23).
 
 ## Definition of Done
 

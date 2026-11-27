@@ -2,7 +2,7 @@
 status: Accepted
 owner: "Andrii Opryshko"
 reviewers: ["Andrii Opryshko"]
-updated_at: "2026-11-26"
+updated_at: "2026-11-27"
 feature_size: "S"
 stage: "04-05"
 depth: "easy"
@@ -63,7 +63,7 @@ separately in `mcp/nbu-rates`), governance, the web app.
 | domain | `finance/domain/rate.go` | `Rate` (a decimal parsed into micros), `UAHEquivalent`, the half-up conversion; `ErrRateNotPublished`, `ErrRateUnavailable`, `ErrEquivalentOutOfRange` |
 | domain | `finance/domain/errors.go` | the four `finance.*` codes of PRD §5.1 with their statuses |
 | port | `finance/ports/rates.go` | `RateProvider.Rate(ctx, currency, day) (domain.Rate, error)` |
-| adapter | `finance/adapters/mcprates/` | MCP client: connects to `NBU_RATES_MCP_URL`, calls `get_rate`, validates the answer, maps failures; a `Disabled` provider when the URL is empty |
+| adapter | `finance/adapters/mcprates/` | MCP client: connects to `NBU_RATES_MCP_URL`, calls `get_rate`, validates the answer, maps failures; refuses redirects and bounds every HTTP request by the caller's deadline; a `Disabled` provider when the URL is empty |
 | adapter | `finance/adapters/postgres/` | reads and writes the two columns; `SetUAHEquivalent` only where it is still `NULL` |
 | app | `finance/app/contracts.go` | `Create` resolves the equivalent with a 3 s budget; `ResolveUAHEquivalent` is the «get it later» use case |
 | http | `finance/adapters/http/handler.go` | `uah_equivalent` on every contract answer; the new operation and its problems |
@@ -172,10 +172,16 @@ feature degrades as in AC-04 and AC-07. The MCP port is never published outside 
   publishes (four for EUR and USD); a longer or non-decimal rate is refused, never rounded.
 - **Errors:** the four codes of PRD §5.1 live in `finance/domain/errors.go` (the shape of
   `governance/domain/errors.go`) and reach the wire as the `code` member of a problem.
-- **Timeouts:** one `context.WithTimeout(3 s)` around the port call in the app layer; the adapter adds none.
+- **Timeouts:** the app layer sets the budget: one `context.WithTimeout(3 s)` around the port call. The adapter
+  carries it to every HTTP request of a lookup, including those the go-sdk sends on a context of its own (the
+  `notifications/cancelled` after an expired call, the `DELETE` on close), so a source that stops answering
+  holds neither the caller nor a socket past the deadline; with no caller deadline it falls back to 3 s.
+- **Redirects:** the adapter refuses them. A redirect would carry the request, and the secret parts of
+  `NBU_RATES_MCP_URL`, to an address nobody configured.
 - **Trust in the tool answer:** the adapter checks that the answer names the currency and the day it asked
   for, that `source` is `NBU` and that the rate parses; otherwise `ErrRateUnavailable` (AC-10).
-- **Logging:** `slog.WarnContext` on a failed lookup with currency, day and error class; no amounts.
+- **Logging:** `slog.WarnContext` on a failed lookup with currency, day and error class; no amounts. The error
+  names the rate source as scheme + host + path only, never its userinfo, query or fragment.
 
 ## 9. Architecture decisions
 

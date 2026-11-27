@@ -552,6 +552,24 @@
       "files_hint": [
         "docs/features/contract-uah-equivalent/tasks/_epic.md"
       ]
+    },
+    {
+      "id": "T34",
+      "title": "Name the rate lookup's failure by class instead of redacting its text",
+      "layer": "infra",
+      "deps": [
+        "T33"
+      ],
+      "acs": [
+        "AC-10"
+      ],
+      "dod": "The mcprates error is `rate unavailable: <step>: endpoint=<scheme://host/path>: <class>` with a fixed class (http <status>, timeout, canceled, connection refused, connection closed, network error, protocol error); no text of net/http or the go-sdk reaches it, and the substring masking is deleted with its tests. TestUnavailableNamesTheErrorClassOnly and TestErrorNamesTheFailureClass pin the classes; the leak, redirect, hung-source and wiring tests stay green; SAD §8 Logging states the rule in the same commit.",
+      "files_hint": [
+        "services/core/internal/finance/adapters/mcprates/mcprates.go",
+        "services/core/internal/finance/adapters/mcprates/mcprates_test.go",
+        "services/core/internal/finance/adapters/mcprates/unavailable_internal_test.go",
+        "docs/features/contract-uah-equivalent/sad.md"
+      ]
     }
   ]
 }

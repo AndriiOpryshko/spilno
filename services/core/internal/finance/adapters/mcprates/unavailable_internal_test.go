@@ -1,8 +1,15 @@
 package mcprates
 
 import (
+	"context"
 	"errors"
+	"fmt"
+	"io"
+	"net"
+	"net/url"
+	"os"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/AndriiOpryshko/spilno/services/core/internal/finance/domain"
@@ -46,170 +53,41 @@ func TestCheckRefusesAnEndpointThatNetHTTPPrintsEscaped(t *testing.T) {
 	}
 }
 
-// An address net/http reports for another URL (after a redirect, say) matches no whole spelling of the
-// endpoint, so its secret parts must be masked on their own.
-func TestUnavailableMasksSecretPartsOfAnotherAddress(t *testing.T) {
-	p := New("http://svc-user:pw%2Fsecret@127.0.0.1:8090/mcp?token=q-secret&x=1#frag-secret")
-	cause := errors.New(`Post "http://svc-user:***@127.0.0.1:8090/moved?token=q-secret#frag-secret": EOF ` +
-		`(pw/secret, pw%2Fsecret)`)
-
-	err := p.unavailable("call", cause)
-
-	if !errors.Is(err, domain.ErrRateUnavailable) {
-		t.Fatalf("got %v, want ErrRateUnavailable", err)
-	}
-	msg := err.Error()
-	for _, leak := range []string{"svc-user", "pw/secret", "pw%2Fsecret", "q-secret", "frag-secret"} {
-		if strings.Contains(msg, leak) {
-			t.Errorf("error %q leaks %q", msg, leak)
-		}
-	}
-	if !strings.Contains(msg, "endpoint=http://127.0.0.1:8090/mcp:") {
-		t.Errorf("error %q lost the safe endpoint", msg)
-	}
-}
-
-// A whole spelling of the endpoint becomes the safe form, which the secret masking must leave intact
-// even when a secret is a substring of the host.
-func TestUnavailableKeepsTheSafeFormReadable(t *testing.T) {
-	p := New("http://127.0.0.1:8090/mcp?n=1")
-	cause := errors.New(`Post "http://127.0.0.1:8090/mcp?n=1": EOF`)
-
-	msg := p.unavailable("connect", cause).Error()
-
-	want := `Post "http://127.0.0.1:8090/mcp": EOF`
-	if !strings.Contains(msg, want) {
-		t.Errorf("error %q, want it to contain %q", msg, want)
-	}
-}
-
-// Short secret parts (a one-letter user, "v=1") are ordinary word fragments outside a URL: masking them as
-// substrings would garble the host and the prose around the address. Inside a URL every secret goes, because
-// the URL is printed as scheme + host + path only. A secret part that is also part of the safe address (T33,
-// "?h=127.0.0.1") is not masked either: endpoint= prints that address anyway.
-func TestUnavailableShortSecretsDoNotGarbleTheMessage(t *testing.T) {
+// T34 (AC-10): the error names the step, the safe endpoint and a fixed error class, and nothing of the
+// cause's text: whatever net/http or the go-sdk print (the raw address, a redirect target, a quoted secret)
+// never reaches the log, so there is nothing left to redact.
+func TestUnavailableNamesTheErrorClassOnly(t *testing.T) {
+	const secretURL = `http://svc-user:pw-secret@127.0.0.1:1/mcp?token="q-secret"#frag-secret`
+	urlErr := func(cause error) error { return &url.Error{Op: "Post", URL: secretURL, Err: cause} }
+	refused := &net.OpError{Op: "dial", Net: "tcp", Err: os.NewSyscallError("connect", syscall.ECONNREFUSED)}
+	reset := &net.OpError{Op: "read", Net: "tcp", Err: os.NewSyscallError("read", syscall.ECONNRESET)}
 	tests := []struct {
-		name, endpoint string
-		bad            []string
+		name   string
+		cause  error
+		status int
+		class  string
 	}{
-		{"short secrets", "http://a@127.0.0.1:33283/mcp?v=1&x=end", []string{"v=1", "x=end", "a@"}},
-		{"secret in the safe address", "http://127.0.0.1:33283/mcp?h=127.0.0.1", []string{"h=127.0.0.1"}},
+		{"refused", fmt.Errorf("calling %q: %w", "initialize", urlErr(refused)), 0, "connection refused"},
+		{"deadline", urlErr(context.DeadlineExceeded), 0, "timeout"},
+		{"canceled", urlErr(context.Canceled), 0, "canceled"},
+		{"dropped", urlErr(io.EOF), 0, "connection closed"},
+		{"unexpected eof", urlErr(io.ErrUnexpectedEOF), 0, "connection closed"},
+		{"other network error", urlErr(reset), 0, "network error"},
+		{"http status", fmt.Errorf("broken session: %s", secretURL), 503, "http 503"},
+		{"anything else", errors.New(`bad answer from ` + secretURL), 0, "protocol error"},
 	}
+	p := New(secretURL)
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			p := New(tc.endpoint)
-			cause := errors.New(`calling "initialize": Post "` + tc.endpoint + `": ` +
-				`dial tcp 127.0.0.1:33283: connect: connection refused (transport endpoint)`)
-
-			err := p.unavailable("initialize", cause)
+			err := p.unavailable("connect", tc.cause, tc.status)
 
 			if !errors.Is(err, domain.ErrRateUnavailable) {
 				t.Fatalf("got %v, want ErrRateUnavailable", err)
 			}
-			msg := err.Error()
-			if !strings.Contains(msg, ": initialize: endpoint=http://127.0.0.1:33283/mcp: ") {
-				t.Errorf("error %q lost the step or the safe endpoint", msg)
-			}
-			for _, want := range []string{
-				`Post "http://127.0.0.1:33283/mcp":`,
-				"dial tcp 127.0.0.1:33283: connect",
-				`calling "initialize"`,
-				"transport",
-				"endpoint)",
-			} {
-				if !strings.Contains(msg, want) {
-					t.Errorf("error %q, want it to contain %q", msg, want)
-				}
-			}
-			for _, bad := range append([]string{"\x00", "***"}, tc.bad...) {
-				if strings.Contains(msg, bad) {
-					t.Errorf("error %q must not contain %q", msg, bad)
-				}
+			want := "rate unavailable: connect: endpoint=http://127.0.0.1:1/mcp: " + tc.class
+			if got := err.Error(); got != want {
+				t.Errorf("error = %q, want %q", got, want)
 			}
 		})
-	}
-}
-
-// Any other address in the message is reduced to scheme + host + path, whatever the length of its secrets.
-func TestUnavailableReducesEveryURLToSchemeHostPath(t *testing.T) {
-	tests := []struct {
-		name  string
-		cause string
-		want  string
-		leaks []string
-	}{
-		{
-			name:  "short secrets",
-			cause: `Get "http://b@10.0.0.1/moved?v=1#f": EOF`,
-			want:  `Get "http://10.0.0.1/moved": EOF`,
-			leaks: []string{"b@", "v=1", "#f"},
-		},
-		{
-			name:  "long secrets of an unrelated address",
-			cause: `Get "https://other-user:other-pass-word@10.0.0.2:9/p?key=other-long-key#other-frag": EOF`,
-			want:  `Get "https://10.0.0.2:9/p": EOF`,
-			leaks: []string{"other-user", "other-pass-word", "other-long-key", "other-frag"},
-		},
-		{
-			name:  "unterminated IPv6 literal",
-			cause: `Get "http://[::1": bad`,
-			want:  `Get "<unparsable>": bad`,
-			leaks: []string{"[::1"},
-		},
-		{
-			name:  "bad port keeps no secret",
-			cause: `Get "http://user-secret:pw-secret@h:badport/x?token=tok-secret-1": bad`,
-			want:  `Get "<unparsable>": bad`,
-			leaks: []string{"user-secret", "pw-secret", "tok-secret-1", "badport"},
-		},
-		{
-			name:  "URL ended by whitespace",
-			cause: `redirected to http://c@10.0.0.3/next?v=1 and stopped`,
-			want:  `redirected to http://10.0.0.3/next and stopped`,
-			leaks: []string{"c@", "v=1"},
-		},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			p := New("http://svc@127.0.0.1:8090/mcp?v=1")
-
-			err := p.unavailable("call", errors.New(tc.cause))
-
-			if !errors.Is(err, domain.ErrRateUnavailable) {
-				t.Fatalf("got %v, want ErrRateUnavailable", err)
-			}
-			msg := err.Error()
-			if !strings.Contains(msg, tc.want) {
-				t.Errorf("error %q, want it to contain %q", msg, tc.want)
-			}
-			if !strings.Contains(msg, "endpoint=http://127.0.0.1:8090/mcp: ") {
-				t.Errorf("error %q lost the safe endpoint", msg)
-			}
-			for _, leak := range append(tc.leaks, "\x00") {
-				if strings.Contains(msg, leak) {
-					t.Errorf("error %q leaks %q", msg, leak)
-				}
-			}
-		})
-	}
-}
-
-// Outside a URL a secret part is masked only when it is long enough to be a credential (6 characters).
-func TestUnavailableMasksLongSecretsOutsideURLsOnly(t *testing.T) {
-	p := New("http://svc-user:abcdef@127.0.0.1:8090/mcp?k=abc&token=tok-long-1")
-	cause := errors.New(`auth failed for svc-user with abcdef and tok-long-1; k=abc stays`)
-
-	msg := p.unavailable("call", cause).Error()
-
-	for _, leak := range []string{"svc-user", "abcdef", "tok-long-1"} {
-		if strings.Contains(msg, leak) {
-			t.Errorf("error %q leaks %q", msg, leak)
-		}
-	}
-	if !strings.Contains(msg, "k=abc stays") {
-		t.Errorf("error %q, want the short value left alone", msg)
-	}
-	if strings.Contains(msg, "\x00") {
-		t.Errorf("error %q contains a NUL byte", msg)
 	}
 }

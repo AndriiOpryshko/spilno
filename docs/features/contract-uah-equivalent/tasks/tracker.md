@@ -38,3 +38,4 @@
 | [T31](./T31-epic-dag-summary.md) | Restate the epic's start set and longest chain for the whole DAG | docs | Andrii Opryshko | S | T30 | done |
 | [T32](./T32-refuse-escaped-endpoint.md) | Refuse a rate-source address that net/http would print escaped | infra | Andrii Opryshko | S | T29 | done |
 | [T33](./T33-keep-safe-address-unmasked.md) | Do not mask a secret value that is already part of the safe address | infra | Andrii Opryshko | S | T32 | done |
+| [T34](./T34-error-class-only.md) | Name the rate lookup's failure by class instead of redacting its text | infra | Andrii Opryshko | S | T33 | done |

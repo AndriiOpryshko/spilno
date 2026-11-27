@@ -13,7 +13,7 @@ A contract signed in EUR or USD carries its гривневий еквівале�
 
 ## Task map
 
-Same DAG as [tasks.json](./tasks.json). T01–T12 are the original plan; T13–T33 are review follow-ups ([_review/](../_review/)). Day-one parallel starts (no deps): T01, T02, T03, T04, T17. Longest chain of the whole DAG: 14 (T02 → T05 → T07 → T08 → T09 → T10 → T16 → T18 → T23 → T29 → T32 → T33 → T30 → T31); of the original plan alone: 7 (T02 → … → T10 → T11). Tasks sharing files (`app/contracts.go`, `handler.go`, `module.go`) are serialized by their `deps`.
+Same DAG as [tasks.json](./tasks.json). T01–T12 are the original plan; T13–T34 are review follow-ups ([_review/](../_review/)). Day-one parallel starts (no deps): T01, T02, T03, T04, T17. Longest chain of the whole DAG: 14 (T02 → T05 → T07 → T08 → T09 → T10 → T16 → T18 → T23 → T29 → T32 → T33 → T30 → T31); of the original plan alone: 7 (T02 → … → T10 → T11). Tasks sharing files (`app/contracts.go`, `handler.go`, `module.go`) are serialized by their `deps`.
 
 ```mermaid
 flowchart LR
@@ -50,6 +50,7 @@ flowchart LR
     T31["T31 docs: epic-dag-summary"]:::doc
     T32["T32 infra: refuse-escaped-endpoint"]:::inf
     T33["T33 infra: keep-safe-address-unmasked"]:::inf
+    T34["T34 infra: error-class-only"]:::inf
     T02 --> T05
     T01 --> T06
     T02 --> T06
@@ -84,6 +85,7 @@ flowchart LR
     T30 --> T31
     T29 --> T32
     T32 --> T33
+    T33 --> T34
     classDef mig fill:#fde68a,stroke:#92400e,color:#111
     classDef dom fill:#bbf7d0,stroke:#166534,color:#111
     classDef inf fill:#bfdbfe,stroke:#1e40af,color:#111
@@ -107,5 +109,5 @@ flowchart LR
 | AC-07 | T03, T08, T09, T13, T14, T19, T20, T22 |
 | AC-08 | T09 |
 | AC-09 | T02, T04, T09 |
-| AC-10 | T05, T10, T11, T17, T25, T26, T28, T29, T30, T32, T33 |
+| AC-10 | T05, T10, T11, T17, T25, T26, T28, T29, T30, T32, T33, T34 |
 | AC-11 | T11 |

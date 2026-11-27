@@ -121,6 +121,32 @@ func TestRefusedConnection(t *testing.T) {
 	}
 }
 
+// T34: a failed lookup names a fixed error class, never the text net/http or the go-sdk printed.
+func TestErrorNamesTheFailureClass(t *testing.T) {
+	down := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "down", http.StatusServiceUnavailable)
+	}))
+	t.Cleanup(down.Close)
+	closed := httptest.NewServer(http.NotFoundHandler())
+	closed.Close()
+
+	cases := map[string]struct{ url, want string }{
+		"source answers 503": {down.URL + "/mcp?token=q-secret", ": connect: endpoint=" + down.URL + "/mcp: http 503"},
+		"source is down":     {closed.URL + "/mcp?token=q-secret", ": connect: endpoint=" + closed.URL + "/mcp: connection refused"},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			_, err := mcprates.New(c.url).Rate(context.Background(), domain.CurrencyEUR, day)
+			if !errors.Is(err, domain.ErrRateUnavailable) {
+				t.Fatalf("err = %v, want ErrRateUnavailable", err)
+			}
+			if msg := err.Error(); !strings.HasSuffix(msg, c.want) {
+				t.Errorf("error %q, want it to end with %q", msg, c.want)
+			}
+		})
+	}
+}
+
 // A failed call must not leak the endpoint's userinfo, query or fragment into
 // the error: the address is logged and the query may carry a token.
 func TestErrorKeepsCredentialsOutOfTheAddress(t *testing.T) {

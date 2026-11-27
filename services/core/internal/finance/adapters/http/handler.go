@@ -102,6 +102,59 @@ func (h *Handler) ListContracts(ctx context.Context, req gen.ListContractsReques
 	return out, nil
 }
 
+// ResolveContractUahEquivalent works out a missing equivalent once and answers the contract.
+func (h *Handler) ResolveContractUahEquivalent(ctx context.Context, req gen.ResolveContractUahEquivalentRequestObject) (gen.ResolveContractUahEquivalentResponseObject, error) {
+	ctx = ports.WithAssociation(ctx, req.AssociationId)
+	c, err := h.contracts.ResolveUAHEquivalent(ctx, req.Id)
+	if errors.Is(err, domain.ErrContractNotFound) {
+		return gen.ResolveContractUahEquivalent404ApplicationProblemPlusJSONResponse{
+			NotFoundApplicationProblemPlusJSONResponse: gen.NotFoundApplicationProblemPlusJSONResponse{
+				Type:   "about:blank",
+				Title:  "Not Found",
+				Status: http.StatusNotFound,
+				Detail: ptr("no contract with id " + req.Id.String()),
+			},
+		}, nil
+	}
+	if de, ok := errors.AsType[*domain.DomainError](err); ok {
+		switch de.Code {
+		case domain.CodeEquivalentNotApplicable:
+			return equivalentConflict(de.Code, "a hryvnia contract has no equivalent"), nil
+		case domain.CodeEquivalentOutOfRange:
+			return equivalentConflict(de.Code, "the hryvnia equivalent of this amount is out of range"), nil
+		case domain.CodeRateNotPublished:
+			return equivalentConflict(de.Code, "the rate for the signing day is not published"), nil
+		case domain.CodeRateUnavailable:
+			return gen.ResolveContractUahEquivalent503ApplicationProblemPlusJSONResponse{
+				RateUnavailableApplicationProblemPlusJSONResponse: gen.RateUnavailableApplicationProblemPlusJSONResponse{
+					Type:   "about:blank",
+					Title:  "Service Unavailable",
+					Status: http.StatusServiceUnavailable,
+					Code:   ptr(de.Code),
+					Detail: ptr("the rate source did not answer"),
+				},
+			}, nil
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
+	return gen.ResolveContractUahEquivalent200JSONResponse(toAPI(c)), nil
+}
+
+// equivalentConflict is the 409 answer shared by the equivalent-specific conflicts.
+func equivalentConflict(code, detail string) gen.ResolveContractUahEquivalent409ApplicationProblemPlusJSONResponse {
+	return gen.ResolveContractUahEquivalent409ApplicationProblemPlusJSONResponse{
+		UahEquivalentConflictApplicationProblemPlusJSONResponse: gen.UahEquivalentConflictApplicationProblemPlusJSONResponse{
+			Type:   "about:blank",
+			Title:  "Conflict",
+			Status: http.StatusConflict,
+			Code:   ptr(code),
+			Detail: ptr(detail),
+		},
+	}
+}
+
 // bodyPointers maps domain fields to their JSON pointer in NewContract, the
 // same pointer shape the request validator reports.
 var bodyPointers = map[string]string{
@@ -136,6 +189,14 @@ func toAPI(c domain.Contract) gen.Contract {
 	}
 	if c.EndsAt != nil {
 		out.EndsAt = &openapi_types.Date{Time: *c.EndsAt}
+	}
+	if c.UAHEquivalent != nil {
+		out.UahEquivalent = &gen.UahEquivalent{
+			AmountKopiyky: c.UAHEquivalent.AmountKopiyky,
+			Rate:          c.UAHEquivalent.Rate.Decimal(),
+			RateDate:      openapi_types.Date{Time: c.SignedAt},
+			Source:        gen.UahEquivalentSourceNBU,
+		}
 	}
 	return out
 }

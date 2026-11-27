@@ -21,6 +21,8 @@ type Config struct {
 	OperatorEmail string
 	// WebOrigin is where the web app is served (SPILNO_WEB_ORIGIN); the storage consent returns to it.
 	WebOrigin string
+	// NBURatesMCPURL is the NBU rates MCP endpoint (NBU_RATES_MCP_URL); empty disables the rate source.
+	NBURatesMCPURL string
 }
 
 func Load() Config {
@@ -34,6 +36,7 @@ func Load() Config {
 		DevStorage:            os.Getenv("SPILNO_DEV_STORAGE") == "true",
 		OperatorEmail:         os.Getenv("SPILNO_OPERATOR_EMAIL"),
 		WebOrigin:             env("SPILNO_WEB_ORIGIN", "http://localhost:5180"),
+		NBURatesMCPURL:        os.Getenv("NBU_RATES_MCP_URL"),
 	}
 }
 

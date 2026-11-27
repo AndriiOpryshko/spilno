@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "nbu-rates": {
+      "command": "go",
+      "args": ["run", "-C", "mcp/nbu-rates", "."]
+    }
+  }
+}

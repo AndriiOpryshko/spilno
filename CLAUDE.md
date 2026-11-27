@@ -57,6 +57,11 @@ All tasks run from the repo root through mise (`mise tasks` lists them):
   Update them deliberately with `pnpm --filter @spilno/web test:stories -u` on the matching platform; the
   linux-x64 ones come from the CI Playwright image.
 - The web dev server runs on :5180 and proxies `/api/*` to the core API on :8080.
+- The finance context reads the official NBU rate through the `mcp/nbu-rates` MCP server (`mise run mcp:nbu`,
+  `NBU_RATES_MCP_URL`). The server is optional: without it a foreign-currency contract is saved with
+  `uah_equivalent: null` and the «get it later» operation answers `503 finance.rate_unavailable`. Tests never
+  call the NBU: they use a fake rate port, a stub MCP server, or the real binary in front of an `httptest` NBU.
+- `mcp/nbu-rates` is its own Go module; `mise run lint` and `mise run test` cover it.
 
 ## Git
 
@@ -104,6 +109,17 @@ All tasks run from the repo root through mise (`mise tasks` lists them):
   user says so in this turn. `main` is branch-protected: merging happens on GitHub, by the user.
 - Review findings and their fixes go into the PR as new commits (persist the review, fix in a fresh session);
   never rewrite a pushed branch to hide them.
+
+## Releases
+
+- `VERSION` holds the semver; `mise run version:next` derives the next one from the Conventional Commits
+  since the last `v*` tag (`scripts/next-version.sh`: breaking → MAJOR, `feat` → MINOR, only `fix` → PATCH).
+  Never pick the number by hand.
+- A release is one PR `chore(release): release <version>` on a `chore/release-<version>` branch: it bumps
+  `VERSION` and may add user-facing notes in Ukrainian at `docs/releases/v<version>.md`. Merging it runs
+  `.github/workflows/release.yml`, which checks the bump, builds the changelog with git-cliff (`cliff.toml`),
+  tags the merge commit and publishes the GitHub Release. Do not tag or publish releases by hand.
+- `mise run changelog:preview` shows the section the workflow will publish.
 
 ## Metrics log
 

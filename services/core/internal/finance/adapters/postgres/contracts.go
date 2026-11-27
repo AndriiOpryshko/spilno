@@ -31,11 +31,12 @@ func queries(ctx context.Context) (*sqlcgen.Queries, error) {
 	return sqlcgen.New(tx), nil
 }
 
-func (c *Contracts) Create(ctx context.Context, t domain.ContractTerms) (domain.Contract, error) {
+func (c *Contracts) Create(ctx context.Context, t domain.ContractTerms, eq *domain.UAHEquivalent) (domain.Contract, error) {
 	q, err := queries(ctx)
 	if err != nil {
 		return domain.Contract{}, err
 	}
+	amount, rate := eqColumns(eq)
 	row, err := q.CreateContract(ctx, sqlcgen.CreateContractParams{
 		Counterparty:  t.Counterparty,
 		AmountCents:   t.AmountCents,
@@ -43,11 +44,42 @@ func (c *Contracts) Create(ctx context.Context, t domain.ContractTerms) (domain.
 		SignedAt:      pgtype.Date{Time: t.SignedAt, Valid: true},
 		EndsAt:        toDate(t.EndsAt),
 		AssociationID: associationID(ctx),
+
+		UahAmountKopiyky: amount,
+		UahRateMicros:    rate,
 	})
 	if err != nil {
 		return domain.Contract{}, err
 	}
 	return toDomain(row), nil
+}
+
+func (c *Contracts) SetUAHEquivalent(ctx context.Context, id uuid.UUID, eq domain.UAHEquivalent) (domain.Contract, bool, error) {
+	q, err := queries(ctx)
+	if err != nil {
+		return domain.Contract{}, false, err
+	}
+	amount, rate := eqColumns(&eq)
+	row, err := q.SetContractUAHEquivalent(ctx, sqlcgen.SetContractUAHEquivalentParams{
+		ID:               pgtype.UUID{Bytes: id, Valid: true},
+		AssociationID:    associationID(ctx),
+		UahAmountKopiyky: amount,
+		UahRateMicros:    rate,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.Contract{}, false, nil
+	}
+	if err != nil {
+		return domain.Contract{}, false, err
+	}
+	return toDomain(row), true, nil
+}
+
+func eqColumns(eq *domain.UAHEquivalent) (amount, rate pgtype.Int8) {
+	if eq == nil {
+		return pgtype.Int8{}, pgtype.Int8{}
+	}
+	return pgtype.Int8{Int64: eq.AmountKopiyky, Valid: true}, pgtype.Int8{Int64: eq.Rate.Micros, Valid: true}
 }
 
 func (c *Contracts) Get(ctx context.Context, id uuid.UUID) (domain.Contract, error) {
@@ -115,6 +147,16 @@ func toDomain(r sqlcgen.Contract) domain.Contract {
 	if r.EndsAt.Valid {
 		end := r.EndsAt.Time
 		c.EndsAt = &end
+	}
+	if r.UahAmountKopiyky.Valid && r.UahRateMicros.Valid {
+		c.UAHEquivalent = &domain.UAHEquivalent{
+			AmountKopiyky: r.UahAmountKopiyky.Int64,
+			Rate: domain.Rate{
+				Currency: c.Currency,
+				Day:      c.SignedAt,
+				Micros:   r.UahRateMicros.Int64,
+			},
+		}
 	}
 	return c
 }

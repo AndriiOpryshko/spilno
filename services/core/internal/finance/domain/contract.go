@@ -80,7 +80,9 @@ type Contract struct {
 	ID uuid.UUID
 	ContractTerms
 	CreatedAt time.Time
-	UpdatedAt time.Time
+	// UAHEquivalent is set for a foreign-currency contract once a rate is known.
+	UAHEquivalent *UAHEquivalent
+	UpdatedAt     time.Time
 }
 
 type FieldError struct {

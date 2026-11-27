@@ -35,6 +35,6 @@
 | [T28](./T28-hung-source-test-strength.md) | Make the hung-source test fail without the deadline transport | tests | Andrii Opryshko | S | T25 | done |
 | [T29](./T29-structural-url-redaction.md) | Redact the rate-source address structurally instead of masking substrings | infra | Andrii Opryshko | S | T23 | done |
 | [T30](./T30-sad-redaction-floor.md) | Describe the structural redaction and its 6-byte floor in SAD §8 | docs | Andrii Opryshko | S | T33 | done |
-| [T31](./T31-epic-dag-summary.md) | Restate the epic's start set and longest chain for the whole DAG | docs | Andrii Opryshko | S | T30 | todo |
+| [T31](./T31-epic-dag-summary.md) | Restate the epic's start set and longest chain for the whole DAG | docs | Andrii Opryshko | S | T30 | done |
 | [T32](./T32-refuse-escaped-endpoint.md) | Refuse a rate-source address that net/http would print escaped | infra | Andrii Opryshko | S | T29 | done |
 | [T33](./T33-keep-safe-address-unmasked.md) | Do not mask a secret value that is already part of the safe address | infra | Andrii Opryshko | S | T32 | done |
